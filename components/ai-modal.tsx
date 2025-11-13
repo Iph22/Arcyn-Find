@@ -29,9 +29,11 @@ export function AIModal({ ai, isOpen, onClose }: AIModalProps) {
   }, [isOpen])
 
   const handleCopy = () => {
-    navigator.clipboard.writeText(ai.platform)
-    setCopied(true)
-    setTimeout(() => setCopied(false), 2000)
+    if (ai) {
+      navigator.clipboard.writeText(ai.platform)
+      setCopied(true)
+      setTimeout(() => setCopied(false), 2000)
+    }
   }
 
   const getAccessTypeColor = (type: string) => {
@@ -64,6 +66,7 @@ export function AIModal({ ai, isOpen, onClose }: AIModalProps) {
             exit={{ opacity: 0 }}
             onClick={onClose}
             className="fixed inset-0 z-40 bg-black/50 backdrop-blur-sm"
+            aria-hidden="true"
           />
 
           <motion.div
@@ -73,6 +76,9 @@ export function AIModal({ ai, isOpen, onClose }: AIModalProps) {
             transition={{ type: "spring", stiffness: 300, damping: 30 }}
             onClick={(e) => e.stopPropagation()}
             className="fixed inset-0 z-50 flex items-center justify-center p-4 overflow-y-auto"
+            role="dialog"
+            aria-modal="true"
+            aria-label={`Details for ${ai.name}`}
           >
             <div
               onScroll={handleScroll}
@@ -83,8 +89,9 @@ export function AIModal({ ai, isOpen, onClose }: AIModalProps) {
               <button
                 onClick={onClose}
                 className="sticky top-4 right-4 float-right rounded-lg p-2 hover:bg-muted transition-colors z-10"
+                aria-label="Close dialog"
               >
-                <X className="h-5 w-5 text-muted-foreground hover:text-foreground" />
+                <X className="h-5 w-5 text-muted-foreground hover:text-foreground" aria-hidden="true" />
               </button>
 
               <div className="p-8 pt-0">
@@ -143,12 +150,14 @@ export function AIModal({ ai, isOpen, onClose }: AIModalProps) {
                       value={ai.platform}
                       readOnly
                       className="flex-1 rounded-lg bg-background px-3 py-2 text-sm text-foreground truncate"
+                      aria-label="Platform URL"
                     />
                     <button
                       onClick={handleCopy}
                       className="rounded-lg bg-accent/20 p-2 hover:bg-accent/40 transition-colors"
+                      aria-label={copied ? "Link copied to clipboard" : "Copy platform link"}
                     >
-                      {copied ? <Check className="h-4 w-4 text-green-400" /> : <Copy className="h-4 w-4 text-accent" />}
+                      {copied ? <Check className="h-4 w-4 text-green-400" aria-hidden="true" /> : <Copy className="h-4 w-4 text-accent" aria-hidden="true" />}
                     </button>
                   </div>
                 </div>
@@ -163,13 +172,15 @@ export function AIModal({ ai, isOpen, onClose }: AIModalProps) {
                     target="_blank"
                     rel="noopener noreferrer"
                     className="flex-1 rounded-lg bg-accent px-4 py-3 font-medium text-accent-foreground transition-all hover:shadow-lg hover:shadow-accent/50 active:scale-95 flex items-center justify-center gap-2"
+                    aria-label={`Visit ${ai.name} platform`}
                   >
-                    <ExternalLink className="h-4 w-4" />
+                    <ExternalLink className="h-4 w-4" aria-hidden="true" />
                     Visit Platform
                   </a>
                   <button
                     onClick={onClose}
                     className="rounded-lg border border-border bg-card px-4 py-3 font-medium text-foreground transition-colors hover:bg-muted"
+                    aria-label="Close details dialog"
                   >
                     Close
                   </button>

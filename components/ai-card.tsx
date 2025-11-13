@@ -37,6 +37,15 @@ export function AICard({ ai, onClick, delay = 0 }: AICardProps) {
       onHoverEnd={() => setIsHovered(false)}
       onClick={onClick}
       className="group cursor-pointer"
+      role="button"
+      tabIndex={0}
+      onKeyDown={(e) => {
+        if (e.key === "Enter" || e.key === " ") {
+          e.preventDefault()
+          onClick()
+        }
+      }}
+      aria-label={`View details for ${ai.name}`}
     >
       <div className="card-hover relative overflow-hidden rounded-xl border border-border/50 bg-card/50 backdrop-blur-sm">
         <div
@@ -54,8 +63,9 @@ export function AICard({ ai, onClick, delay = 0 }: AICardProps) {
                     animate={{ scale: [1, 1.1, 1] }}
                     transition={{ duration: 2, repeat: Number.POSITIVE_INFINITY }}
                     className="flex items-center gap-1 rounded-full bg-accent/20 px-2 py-1 text-xs font-medium text-accent"
+                    aria-label="This tool is trending"
                   >
-                    <Zap className="h-3 w-3" />
+                    <Zap className="h-3 w-3" aria-hidden="true" />
                     Trending
                   </motion.div>
                 )}
@@ -63,20 +73,21 @@ export function AICard({ ai, onClick, delay = 0 }: AICardProps) {
               <p className="text-xs text-muted-foreground">{ai.category}</p>
             </div>
             <motion.div animate={{ rotate: isHovered ? 15 : 0 }} transition={{ type: "spring", stiffness: 200 }}>
-              <ExternalLink className="h-5 w-5 text-accent/60 group-hover:text-accent" />
+              <ExternalLink className="h-5 w-5 text-accent/60 group-hover:text-accent" aria-hidden="true" />
             </motion.div>
           </div>
 
           <p className="mb-4 line-clamp-2 text-sm text-muted-foreground">{ai.description}</p>
 
           <div className="mb-4 flex items-center gap-2">
-            <div className="flex items-center gap-1">
+            <div className="flex items-center gap-1" aria-label={`Popularity: ${ai.popularity}%`}>
               {[...Array(5)].map((_, i) => (
                 <Star
                   key={i}
                   className={`h-3.5 w-3.5 ${
                     i < Math.round(ai.popularity / 20) ? "fill-accent text-accent" : "text-muted-foreground"
                   }`}
+                  aria-hidden="true"
                 />
               ))}
             </div>
@@ -91,7 +102,7 @@ export function AICard({ ai, onClick, delay = 0 }: AICardProps) {
             ))}
             {ai.tags.length > 2 && (
               <span className="rounded-full bg-muted px-2.5 py-1 text-xs font-medium text-muted-foreground">
-                +{ai.tags.length - 2}
+                +{ai.tags.length - 2} more
               </span>
             )}
           </div>
@@ -99,10 +110,11 @@ export function AICard({ ai, onClick, delay = 0 }: AICardProps) {
           <div className="flex items-center justify-between border-t border-border/50 pt-4">
             <span
               className={`rounded-full border px-3 py-1 text-xs font-semibold ${getAccessTypeColor(ai.accessType)}`}
+              aria-label={`Access type: ${ai.accessType}`}
             >
               {ai.accessType}
             </span>
-            <span className="text-xs text-muted-foreground">{ai.region}</span>
+            <span className="text-xs text-muted-foreground" aria-label={`Region: ${ai.region}`}>{ai.region}</span>
           </div>
         </div>
       </div>

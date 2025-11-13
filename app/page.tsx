@@ -8,6 +8,7 @@ import { FilterBar } from "@/components/filter-bar"
 import { AICard } from "@/components/ai-card"
 import { AIModal } from "@/components/ai-modal"
 import { TrendingSection } from "@/components/trending-section"
+import { ThemeToggle } from "@/components/theme-toggle"
 import { aiEntries, type AIEntry } from "@/lib/ai-data"
 import { Grid3x3, List } from "lucide-react"
 
@@ -52,8 +53,11 @@ export default function Home() {
 
       {/* Search Section */}
       <section className="border-b border-border/50 bg-background/50 py-8">
-        <div className="mx-auto max-w-7xl px-4">
-          <SearchBar value={searchQuery} onChange={setSearchQuery} />
+        <div className="mx-auto max-w-7xl px-4 flex items-center justify-between gap-4">
+          <div className="flex-1">
+            <SearchBar value={searchQuery} onChange={setSearchQuery} />
+          </div>
+          <ThemeToggle />
         </div>
       </section>
 
