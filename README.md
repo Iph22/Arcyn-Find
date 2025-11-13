@@ -10,6 +10,12 @@ A modern web application built with [Next.js](https://nextjs.org), [React](https
 - **Advanced Filtering** - Filter by category, region, access type (Free/Freemium/Paid)
 - **Trending Section** - Discover popular and trending AI tools
 - **Detailed Tool Information** - View comprehensive details about each AI tool
+- **🌐 Dynamic Data Fetching** - Automatically pulls AI model information from multiple external sources:
+  - Hugging Face (models, downloads, popularity)
+  - Papers with Code (research papers and implementations)
+  - ArXiv (latest research papers)
+  - GitHub (open-source AI models)
+- **🔄 Real-Time Updates** - Data automatically refreshes every 5 minutes, with scheduled cron jobs for background updates
 - **Light/Dark Theme** - Toggle between light and dark themes
 - **Responsive Design** - Fully responsive across all devices
 - **Accessible UI** - WCAG compliant with proper ARIA labels
@@ -41,7 +47,16 @@ yarn install
 pnpm install
 ```
 
-3. **Run the development server**
+3. **Set up environment variables (optional but recommended)**
+```bash
+# Copy the example file
+cp ENV_SETUP.md .env.local
+
+# Edit .env.local and add your API keys
+# See ENV_SETUP.md for detailed instructions
+```
+
+4. **Run the development server**
 ```bash
 npm run dev
 # or
@@ -50,8 +65,10 @@ yarn dev
 pnpm dev
 ```
 
-4. **Open your browser**
+5. **Open your browser**
 Navigate to [http://localhost:3000](http://localhost:3000) to see the application.
+
+**Note**: Without API keys, the app will still work but will only fetch from public sources (Papers with Code, ArXiv). For full functionality, add your API keys to `.env.local`.
 
 ## 📁 Project Structure
 

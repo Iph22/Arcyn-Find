@@ -16,7 +16,7 @@ export function TypeoutBackground() {
               animate={{ opacity: 0.08 }}
               transition={{
                 duration: 0.5,
-                delay: idx * 0.10,
+                delay: idx * 0.2,
                 repeat: Number.POSITIVE_INFINITY,
                 repeatType: "loop",
                 repeatDelay: text.length * 0.1,
