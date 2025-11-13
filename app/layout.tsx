@@ -15,7 +15,7 @@ export const metadata: Metadata = {
     "Search, filter, and explore AI tools, models, platforms, and research worldwide. Find the perfect AI for your needs.",
   generator: "Arcyn Eye",
   keywords: ["AI tools", "machine learning", "artificial intelligence", "AI search", "AI discovery"],
-  authors: [{ name: "Iph22", url: "https://github.com/Iph22" }],
+  authors: [{ name: "David Iphy", url: "https://github.com/Iph22" }],
   openGraph: {
     type: "website",
     locale: "en_US",

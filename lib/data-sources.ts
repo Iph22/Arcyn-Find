@@ -26,7 +26,7 @@ export async function fetchAIModelsFromSources(): Promise<AIEntry[]> {
       if (result.status === 'fulfilled') {
         allModels.push(...result.value)
       } else {
-        console.error('Error fetching from source:', result.reason)
+        console.error('Error fetching from source:', result.reason?.message || result.reason)
       }
     })
 
@@ -54,7 +54,8 @@ async function fetchFromHuggingFace(): Promise<AIEntry[]> {
     )
 
     if (!response.ok) {
-      throw new Error(`Hugging Face API error: ${response.status}`)
+      console.warn(`Hugging Face API returned status ${response.status}`)
+      return []
     }
 
     const data = await response.json()
@@ -104,20 +105,36 @@ function transformHuggingFaceModel(model: any, index: number): AIEntry {
 async function fetchFromPapersWithCode(): Promise<AIEntry[]> {
   try {
     const response = await fetch(
-      'https://paperswithcode.com/api/v1/models/?ordering=-stars&page_size=50',
+      'https://paperswithcode.com/api/v1/papers/?ordering=-stars&page_size=20',
       {
+        headers: {
+          'Accept': 'application/json',
+        },
         next: { revalidate: 3600 }, // Cache for 1 hour
       }
     )
 
     if (!response.ok) {
-      throw new Error(`Papers with Code API error: ${response.status}`)
+      console.warn(`Papers with Code API returned status ${response.status}`)
+      return []
+    }
+
+    const contentType = response.headers.get('content-type')
+    if (!contentType || !contentType.includes('application/json')) {
+      console.warn('Papers with Code API returned non-JSON response')
+      return []
     }
 
     const data = await response.json()
-    return data.results?.map((model: any, index: number) =>
-      transformPapersWithCodeModel(model, index)
-    ) || []
+    
+    if (!data.results || !Array.isArray(data.results)) {
+      console.warn('Papers with Code API returned unexpected format')
+      return []
+    }
+
+    return data.results
+      .slice(0, 10)
+      .map((paper: any, index: number) => transformPapersWithCodePaper(paper, index))
   } catch (error) {
     console.error('Error fetching from Papers with Code:', error)
     return []
@@ -125,26 +142,26 @@ async function fetchFromPapersWithCode(): Promise<AIEntry[]> {
 }
 
 /**
- * Transforms Papers with Code model to AIEntry format
+ * Transforms Papers with Code paper to AIEntry format
  */
-function transformPapersWithCodeModel(model: any, index: number): AIEntry {
+function transformPapersWithCodePaper(paper: any, index: number): AIEntry {
   return {
-    id: `pwc-${model.id || index}`,
-    name: model.name || 'Unknown Model',
-    category: model.tasks?.[0]?.task?.name || 'Generative AI',
-    description: model.description || 'AI model from Papers with Code',
-    platform: model.url || `https://paperswithcode.com/model/${model.name}`,
+    id: `pwc-${paper.id || index}`,
+    name: paper.title || 'Research Paper',
+    category: 'Research Paper',
+    description: paper.abstract?.substring(0, 200) + '...' || 'Research paper from Papers with Code',
+    platform: paper.url_pdf || paper.paper_url || `https://paperswithcode.com/paper/${paper.id}`,
     region: 'Global',
-    accessType: model.is_pretrained ? ('Free' as const) : ('Paid' as const),
-    pricing: model.is_pretrained ? 'Free / Open source' : 'Research / Commercial',
+    accessType: 'Free' as const,
+    pricing: 'Free / Open access',
     tags: [
-      'research',
+      'research-paper',
       'papers-with-code',
-      ...(model.tasks?.map((t: any) => t.task?.name) || []).slice(0, 2),
+      ...(paper.tasks?.slice(0, 2) || []),
     ],
-    popularity: Math.min(100, Math.max(50, (model.stars || 0) / 100)),
-    lastUpdated: model.published_date || new Date().toISOString().split('T')[0],
-    isTrending: (model.stars || 0) > 1000,
+    popularity: Math.min(100, Math.max(50, 70 + index * 2)),
+    lastUpdated: paper.published || new Date().toISOString().split('T')[0],
+    isTrending: index < 3,
   }
 }
 
@@ -154,14 +171,15 @@ function transformPapersWithCodeModel(model: any, index: number): AIEntry {
 async function fetchFromArXiv(): Promise<AIEntry[]> {
   try {
     const response = await fetch(
-      'http://export.arxiv.org/api/query?search_query=cat:cs.AI+OR+cat:cs.LG&max_results=30&sortBy=submittedDate&sortOrder=descending',
+      'http://export.arxiv.org/api/query?search_query=cat:cs.AI+OR+cat:cs.LG&max_results=15&sortBy=submittedDate&sortOrder=descending',
       {
         next: { revalidate: 3600 }, // Cache for 1 hour
       }
     )
 
     if (!response.ok) {
-      throw new Error(`ArXiv API error: ${response.status}`)
+      console.warn(`ArXiv API returned status ${response.status}`)
+      return []
     }
 
     const xml = await response.text()
@@ -183,7 +201,7 @@ function parseArXivResults(xml: string): AIEntry[] {
   let match
   let index = 0
 
-  while ((match = entryRegex.exec(xml)) !== null && index < 20) {
+  while ((match = entryRegex.exec(xml)) !== null && index < 10) {
     const entryXml = match[1]
     const titleMatch = entryXml.match(/<title>(.*?)<\/title>/)
     const summaryMatch = entryXml.match(/<summary>(.*?)<\/summary>/)
@@ -220,7 +238,7 @@ function parseArXivResults(xml: string): AIEntry[] {
 async function fetchFromGitHub(): Promise<AIEntry[]> {
   try {
     const response = await fetch(
-      'https://api.github.com/search/repositories?q=language:python+topic:ai-model+topic:ml+stars:>100&sort=stars&order=desc&per_page=30',
+      'https://api.github.com/search/repositories?q=language:python+topic:ai-model+topic:ml+stars:>100&sort=stars&order=desc&per_page=15',
       {
         headers: {
           'Authorization': `token ${process.env.GITHUB_TOKEN}`,
@@ -231,13 +249,20 @@ async function fetchFromGitHub(): Promise<AIEntry[]> {
     )
 
     if (!response.ok) {
-      throw new Error(`GitHub API error: ${response.status}`)
+      console.warn(`GitHub API returned status ${response.status}`)
+      return []
     }
 
     const data = await response.json()
-    return data.items?.map((repo: any, index: number) =>
-      transformGitHubRepo(repo, index)
-    ) || []
+    
+    if (!data.items || !Array.isArray(data.items)) {
+      console.warn('GitHub API returned unexpected format')
+      return []
+    }
+
+    return data.items
+      .slice(0, 10)
+      .map((repo: any, index: number) => transformGitHubRepo(repo, index))
   } catch (error) {
     console.error('Error fetching from GitHub:', error)
     return []
@@ -310,4 +335,3 @@ function mergeAndDeduplicate(entries: AIEntry[]): AIEntry[] {
   // Sort by popularity descending
   return merged.sort((a, b) => b.popularity - a.popularity)
 }
-
