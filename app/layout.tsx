@@ -19,7 +19,7 @@ export const metadata: Metadata = {
   openGraph: {
     type: "website",
     locale: "en_US",
-    url: "https://arcyn-find.com",
+    url: "https://arcyn-find.app.vercel.app",
     siteName: "Arcyn Find",
     title: "Arcyn Find - Discover AI Tools Worldwide",
     description: "Search, filter, and explore AI tools, models, platforms, and research worldwide.",
