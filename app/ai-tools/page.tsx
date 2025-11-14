@@ -10,6 +10,7 @@ import { EnhancedSearchBar } from "@/components/enhanced-search-bar"
 import { searchAIEntries, addToSearchHistory } from "@/lib/search-utils"
 import { aiEntries, type AIEntry } from "@/lib/ai-data"
 import { ThemeToggle } from "@/components/theme-toggle"
+import { Footer } from "@/components/footer"
 
 const ITEMS_PER_PAGE = 12
 
@@ -273,6 +274,7 @@ export default function AllAIToolsPage() {
           )}
         </div>
       </section>
+      <Footer />
     </div>
   )
 }

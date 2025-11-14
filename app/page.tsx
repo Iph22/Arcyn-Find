@@ -12,6 +12,7 @@ import { TrendingSection } from "@/components/trending-section"
 import { ThemeToggle } from "@/components/theme-toggle"
 import { aiEntries, type AIEntry } from "@/lib/ai-data"
 import { Grid3x3, List, Loader2 } from "lucide-react"
+import { Footer } from "@/components/footer"
 
 export default function Home() {
   const router = useRouter()
@@ -229,26 +230,7 @@ export default function Home() {
 
 
       {/* Footer */}
-      <footer className="border-t border-border/50 bg-background/50 py-6 md:py-8 mt-12 md:mt-16">
-        <div className="mx-auto max-w-7xl px-4">
-          <div className="flex flex-col items-center justify-center gap-2 text-xs sm:text-sm text-muted-foreground text-center">
-            <p>
-              © {new Date().getFullYear()} Arcyn Find. All rights reserved.
-            </p>
-            <p className="text-[10px] sm:text-xs">
-              Created by{" "}
-              <a
-                href="https://22-bio.vercel.app/"
-                target="_blank"
-                rel="noopener noreferrer"
-                className="text-accent hover:underline transition-colors"
-              >
-                David Iphy
-              </a>
-            </p>
-          </div>
-        </div>
-      </footer>
+      <Footer />
     </main>
   )
 }
