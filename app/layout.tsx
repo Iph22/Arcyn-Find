@@ -33,7 +33,7 @@ export const metadata: Metadata = {
     "Hugging Face",
     "AI research",
   ],
-  authors: [{ name: "David Iphy", url: "https://github.com/Iph22" }],
+  authors: [{ name: "David Iphy", url: "https://22-bio.vercel.app/" }],
   creator: "David Iphy",
   publisher: "Arcyn Find",
   formatDetection: {
