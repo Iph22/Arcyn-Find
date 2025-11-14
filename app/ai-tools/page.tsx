@@ -11,7 +11,7 @@ import { searchAIEntries, addToSearchHistory } from "@/lib/search-utils"
 import { aiEntries, type AIEntry } from "@/lib/ai-data"
 import { ThemeToggle } from "@/components/theme-toggle"
 
-const ITEMS_PER_PAGE = 10
+const ITEMS_PER_PAGE = 12
 
 export default function AllAIToolsPage() {
   const router = useRouter()
