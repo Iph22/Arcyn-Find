@@ -4,14 +4,16 @@ import { motion } from "framer-motion"
 import { Star, ExternalLink, Zap } from "lucide-react"
 import type { AIEntry } from "@/lib/ai-data"
 import { useState } from "react"
+import { HighlightText } from "./highlight-text"
 
 interface AICardProps {
   ai: AIEntry
   onClick: () => void
   delay?: number
+  searchQuery?: string
 }
 
-export function AICard({ ai, onClick, delay = 0 }: AICardProps) {
+export function AICard({ ai, onClick, delay = 0, searchQuery = "" }: AICardProps) {
   const [isHovered, setIsHovered] = useState(false)
 
   const getAccessTypeColor = (type: string) => {
@@ -57,7 +59,9 @@ export function AICard({ ai, onClick, delay = 0 }: AICardProps) {
           <div className="mb-4 flex items-start justify-between">
             <div className="flex-1">
               <div className="mb-2 flex items-center gap-2">
-                <h3 className="text-lg font-bold text-foreground">{ai.name}</h3>
+                <h3 className="text-lg font-bold text-foreground">
+                  <HighlightText text={ai.name} query={searchQuery} />
+                </h3>
                 {ai.isTrending && (
                   <motion.div
                     animate={{ scale: [1, 1.1, 1] }}
@@ -77,7 +81,9 @@ export function AICard({ ai, onClick, delay = 0 }: AICardProps) {
             </motion.div>
           </div>
 
-          <p className="mb-4 line-clamp-2 text-sm text-muted-foreground">{ai.description}</p>
+          <p className="mb-4 line-clamp-2 text-sm text-muted-foreground">
+            <HighlightText text={ai.description} query={searchQuery} />
+          </p>
 
           <div className="mb-4 flex items-center gap-2">
             <div className="flex items-center gap-1" aria-label={`Popularity: ${ai.popularity}%`}>
@@ -97,7 +103,7 @@ export function AICard({ ai, onClick, delay = 0 }: AICardProps) {
           <div className="mb-4 flex flex-wrap gap-2">
             {ai.tags.slice(0, 2).map((tag) => (
               <span key={tag} className="rounded-full bg-accent/10 px-2.5 py-1 text-xs font-medium text-accent">
-                {tag}
+                <HighlightText text={tag} query={searchQuery} />
               </span>
             ))}
             {ai.tags.length > 2 && (

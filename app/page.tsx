@@ -3,7 +3,8 @@
 import { useState, useMemo, useEffect } from "react"
 import { motion } from "framer-motion"
 import { HeroSection } from "@/components/hero-section"
-import { SearchBar } from "@/components/search-bar"
+import { EnhancedSearchBar } from "@/components/enhanced-search-bar"
+import { searchAIEntries, addToSearchHistory } from "@/lib/search-utils"
 import { FilterBar } from "@/components/filter-bar"
 import { AICard } from "@/components/ai-card"
 import { AIModal } from "@/components/ai-modal"
@@ -56,22 +57,14 @@ export default function Home() {
     return () => clearInterval(interval)
   }, [])
 
-  // Filter AI entries
-  const filteredAIs = useMemo(() => {
-    return aiModels.filter((ai) => {
-      const matchesSearch =
-        !searchQuery ||
-        ai.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        ai.description.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        ai.tags.some((tag) => tag.toLowerCase().includes(searchQuery.toLowerCase()))
-
-      const matchesCategory = !selectedCategory || ai.category === selectedCategory
-      const matchesRegion = !selectedRegion || ai.region === selectedRegion
-      const matchesAccessType = !selectedAccessType || ai.accessType === selectedAccessType
-
-      return matchesSearch && matchesCategory && matchesRegion && matchesAccessType
+  // Enhanced search and filter with relevance sorting
+  const { results: filteredAIs } = useMemo(() => {
+    return searchAIEntries(aiModels, searchQuery, {
+      category: selectedCategory,
+      region: selectedRegion,
+      accessType: selectedAccessType,
     })
-  }, [searchQuery, selectedCategory, selectedRegion, selectedAccessType])
+  }, [aiModels, searchQuery, selectedCategory, selectedRegion, selectedAccessType])
 
   const trendingAIs = useMemo(() => {
     return filteredAIs.filter((ai) => ai.isTrending).slice(0, 3)
@@ -82,6 +75,12 @@ export default function Home() {
     setIsModalOpen(true)
   }
 
+  const handleSearch = (query: string) => {
+    if (query.trim()) {
+      addToSearchHistory(query)
+    }
+  }
+
   return (
     <main className="min-h-screen bg-background text-foreground">
       <HeroSection />
@@ -90,7 +89,12 @@ export default function Home() {
       <section className="border-b border-border/50 bg-background/50 py-8">
         <div className="mx-auto max-w-7xl px-4 flex items-center justify-between gap-4">
           <div className="flex-1">
-            <SearchBar value={searchQuery} onChange={setSearchQuery} />
+            <EnhancedSearchBar
+              value={searchQuery}
+              onChange={setSearchQuery}
+              aiModels={aiModels}
+              onSearch={handleSearch}
+            />
           </div>
           <ThemeToggle />
         </div>
@@ -170,7 +174,13 @@ export default function Home() {
               }`}
             >
               {filteredAIs.map((ai, idx) => (
-                <AICard key={ai.id} ai={ai} onClick={() => handleSelectAI(ai)} delay={idx * 0.05} />
+                <AICard
+                  key={ai.id}
+                  ai={ai}
+                  onClick={() => handleSelectAI(ai)}
+                  delay={idx * 0.05}
+                  searchQuery={searchQuery}
+                />
               ))}
             </motion.div>
           ) : (

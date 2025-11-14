@@ -1,20 +1,42 @@
 # Arcyn Find - Robots.txt
+# https://arcyn-find.vercel.app
 
+# Allow all search engines
 User-agent: *
 Allow: /
+Disallow: /api/
 Disallow: /admin
-Disallow: /api/private
+Disallow: /_next/
+Disallow: /private
 
-# Specific bot rules
+# Google
+User-agent: Googlebot
+Allow: /
+Disallow: /api/
+
+# Bing
+User-agent: Bingbot
+Allow: /
+Disallow: /api/
+
+# Block AI training bots
 User-agent: GPTBot
+Disallow: /
+
+User-agent: ChatGPT-User
 Disallow: /
 
 User-agent: CCBot
 Disallow: /
 
+User-agent: anthropic-ai
+Disallow: /
+
+User-agent: Claude-Web
+Disallow: /
+
 # Sitemaps
-Sitemap: https://arcyn-find.com/sitemap.xml
-Sitemap: https://arcyn-find.com/sitemap-ai-tools.xml
+Sitemap: https://arcyn-find.vercel.app/sitemap.xml
 
 # Crawl delay (in seconds)
-Crawl-delay: 1
+Crawl-delay: 0
