@@ -3,13 +3,15 @@
 import { useState, useMemo, useEffect } from "react"
 import { useRouter } from "next/navigation"
 import { motion } from "framer-motion"
-import { ArrowLeft, Grid3x3, List } from "lucide-react"
+import { ArrowLeft, Grid3x3, List, ChevronLeft, ChevronRight } from "lucide-react"
 import { AICard } from "@/components/ai-card"
 import { FilterBar } from "@/components/filter-bar"
 import { EnhancedSearchBar } from "@/components/enhanced-search-bar"
 import { searchAIEntries, addToSearchHistory } from "@/lib/search-utils"
 import { aiEntries, type AIEntry } from "@/lib/ai-data"
 import { ThemeToggle } from "@/components/theme-toggle"
+
+const ITEMS_PER_PAGE = 10
 
 export default function AllAIToolsPage() {
   const router = useRouter()
@@ -18,6 +20,7 @@ export default function AllAIToolsPage() {
   const [selectedRegion, setSelectedRegion] = useState("")
   const [selectedAccessType, setSelectedAccessType] = useState("")
   const [viewMode, setViewMode] = useState<"grid" | "list">("grid")
+  const [currentPage, setCurrentPage] = useState(1)
   const [aiModels, setAiModels] = useState<AIEntry[]>(aiEntries)
   const [loading, setLoading] = useState(false)
 
@@ -65,6 +68,17 @@ export default function AllAIToolsPage() {
     })
   }, [aiModels, searchQuery, selectedCategory, selectedRegion, selectedAccessType])
 
+  // Reset to page 1 when filters/search change
+  useEffect(() => {
+    setCurrentPage(1)
+  }, [searchQuery, selectedCategory, selectedRegion, selectedAccessType])
+
+  // Calculate pagination
+  const totalPages = Math.ceil(filteredAIs.length / ITEMS_PER_PAGE)
+  const startIndex = (currentPage - 1) * ITEMS_PER_PAGE
+  const endIndex = startIndex + ITEMS_PER_PAGE
+  const paginatedAIs = filteredAIs.slice(startIndex, endIndex)
+
   const handleSelectAI = (ai: AIEntry) => {
     router.push(`/ai/${ai.id}`)
   }
@@ -73,6 +87,12 @@ export default function AllAIToolsPage() {
     if (query.trim()) {
       addToSearchHistory(query)
     }
+  }
+
+  const goToPage = (page: number) => {
+    setCurrentPage(Math.max(1, Math.min(page, totalPages)))
+    // Scroll to top when changing pages
+    window.scrollTo({ top: 0, behavior: 'smooth' })
   }
 
   return (
@@ -128,7 +148,7 @@ export default function AllAIToolsPage() {
             <div>
               <h1 className="text-2xl font-bold text-foreground md:text-3xl">All AI Tools</h1>
               <p className="mt-2 text-muted-foreground">
-                {filteredAIs.length} {filteredAIs.length === 1 ? "result" : "results"}
+                Showing {startIndex + 1}-{Math.min(endIndex, filteredAIs.length)} of {filteredAIs.length} {filteredAIs.length === 1 ? "result" : "results"}
               </p>
             </div>
 
@@ -164,22 +184,83 @@ export default function AllAIToolsPage() {
               <p className="text-lg font-semibold text-foreground mb-2">Loading AI models...</p>
             </motion.div>
           ) : filteredAIs.length > 0 ? (
-            <motion.div
-              layout
-              className={`grid gap-6 ${
-                viewMode === "grid" ? "sm:grid-cols-2 lg:grid-cols-3" : "grid-cols-1 max-w-4xl"
-              }`}
-            >
-              {filteredAIs.map((ai, idx) => (
-                <AICard
-                  key={ai.id}
-                  ai={ai}
-                  onClick={() => handleSelectAI(ai)}
-                  delay={idx * 0.02}
-                  searchQuery={searchQuery}
-                />
-              ))}
-            </motion.div>
+            <>
+              <motion.div
+                layout
+                className={`grid gap-6 ${
+                  viewMode === "grid" ? "sm:grid-cols-2 lg:grid-cols-3" : "grid-cols-1 max-w-4xl"
+                }`}
+              >
+                {paginatedAIs.map((ai, idx) => (
+                  <AICard
+                    key={ai.id}
+                    ai={ai}
+                    onClick={() => handleSelectAI(ai)}
+                    delay={idx * 0.02}
+                    searchQuery={searchQuery}
+                  />
+                ))}
+              </motion.div>
+
+              {/* Pagination Controls */}
+              {totalPages > 1 && (
+                <motion.div
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  className="mt-8 flex flex-col sm:flex-row items-center justify-center gap-4"
+                >
+                  <button
+                    onClick={() => goToPage(currentPage - 1)}
+                    disabled={currentPage === 1}
+                    className="flex items-center gap-2 rounded-lg border border-border bg-card px-4 py-2 font-medium text-foreground transition-colors hover:bg-muted disabled:opacity-50 disabled:cursor-not-allowed"
+                    aria-label="Previous page"
+                  >
+                    <ChevronLeft className="h-4 w-4" />
+                    Previous
+                  </button>
+
+                  <div className="flex items-center gap-2">
+                    {Array.from({ length: totalPages }, (_, i) => i + 1).map((page) => {
+                      // Show first page, last page, current page, and pages around current
+                      if (
+                        page === 1 ||
+                        page === totalPages ||
+                        (page >= currentPage - 1 && page <= currentPage + 1)
+                      ) {
+                        return (
+                          <button
+                            key={page}
+                            onClick={() => goToPage(page)}
+                            className={`rounded-lg px-4 py-2 font-medium transition-colors ${
+                              currentPage === page
+                                ? "bg-accent text-accent-foreground"
+                                : "border border-border bg-card text-foreground hover:bg-muted"
+                            }`}
+                            aria-label={`Go to page ${page}`}
+                            aria-current={currentPage === page ? "page" : undefined}
+                          >
+                            {page}
+                          </button>
+                        )
+                      } else if (page === currentPage - 2 || page === currentPage + 2) {
+                        return <span key={page} className="px-2 text-muted-foreground">...</span>
+                      }
+                      return null
+                    })}
+                  </div>
+
+                  <button
+                    onClick={() => goToPage(currentPage + 1)}
+                    disabled={currentPage === totalPages}
+                    className="flex items-center gap-2 rounded-lg border border-border bg-card px-4 py-2 font-medium text-foreground transition-colors hover:bg-muted disabled:opacity-50 disabled:cursor-not-allowed"
+                    aria-label="Next page"
+                  >
+                    Next
+                    <ChevronRight className="h-4 w-4" />
+                  </button>
+                </motion.div>
+              )}
+            </>
           ) : (
             <motion.div
               initial={{ opacity: 0 }}
