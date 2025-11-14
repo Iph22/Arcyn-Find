@@ -14,10 +14,18 @@ export function ThemeToggle() {
 
   if (!mounted) return null
 
+  const handleThemeToggle = () => {
+    // Use requestAnimationFrame for smoother, batched DOM updates
+    requestAnimationFrame(() => {
+      const newTheme = theme === "dark" ? "light" : "dark"
+      setTheme(newTheme)
+    })
+  }
+
   return (
     <button
-      onClick={() => setTheme(theme === "dark" ? "light" : "dark")}
-      className="rounded-lg border border-border/50 bg-card/50 p-2 hover:bg-card transition-colors"
+      onClick={handleThemeToggle}
+      className="rounded-lg border border-border/50 bg-card/50 p-2 hover:bg-card transition-colors duration-150"
       aria-label={`Switch to ${theme === "dark" ? "light" : "dark"} theme`}
     >
       {theme === "dark" ? (

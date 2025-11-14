@@ -124,6 +124,19 @@
   body {
     @apply bg-background text-foreground;
   }
+  
+  /* Fast theme transitions - only for colors */
+  html {
+    color-scheme: light dark;
+  }
+  
+  /* Isolate repaints for better performance */
+  body {
+    contain: layout style paint;
+  }
+  
+  /* Note: Global transitions removed for instant theme switching */
+  /* Transitions are only applied to specific interactive elements */
 }
 
 /* Custom animations for AI Finder */
@@ -167,7 +180,9 @@
 }
 
 .card-hover {
-  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+  contain: layout style paint; /* Isolate repaints for better performance */
+  will-change: transform, box-shadow; /* GPU hint */
 }
 
 .card-hover:hover {
@@ -189,7 +204,7 @@
 ::-webkit-scrollbar-thumb {
   background: linear-gradient(180deg, rgba(139, 92, 246, 0.6), rgba(99, 102, 241, 0.6));
   border-radius: 10px;
-  transition: all 0.3s ease;
+  transition: background 0.2s ease;
 }
 
 ::-webkit-scrollbar-thumb:hover {
@@ -215,4 +230,16 @@
 
 .scroll-animate {
   animation: scroll-pulse 2s ease-in-out infinite;
+}
+
+/* Performance optimization - reduce repaints during theme transitions */
+.theme-transitioning {
+  contain: layout style paint;
+}
+
+/* Optimize specific elements for better theme switching performance */
+[class*="bg-"],
+[class*="text-"],
+[class*="border-"] {
+  contain: style;
 }

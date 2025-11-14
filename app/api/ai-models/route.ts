@@ -9,21 +9,31 @@ import { aiEntries } from '@/lib/ai-data'
  */
 export async function GET() {
   try {
-    // Try to fetch from external sources
+    // Always start with static data (curated popular products like Claude, GPT-4, Copilot)
+    let allModels = [...aiEntries]
+    
+    // Try to fetch from external sources and merge with static data
     const externalModels = await fetchAIModelsFromSources()
-
-    // If we got results from external sources, return them
+    
     if (externalModels.length > 0) {
-      return NextResponse.json(externalModels, {
-        headers: {
-          'Cache-Control': 'public, s-maxage=3600, stale-while-revalidate=86400',
-        },
-      })
+      // Merge external models with static data
+      // Static data entries take priority (they're curated popular products)
+      const staticModelNames = new Set(aiEntries.map(m => m.name.toLowerCase().trim()))
+      
+      // Only add external models that don't already exist in static data
+      const newExternalModels = externalModels.filter(
+        m => !staticModelNames.has(m.name.toLowerCase().trim())
+      )
+      
+      // Combine: static data first (prioritized), then new external models
+      allModels = [...aiEntries, ...newExternalModels]
+      
+      console.log(`Merged ${aiEntries.length} static models with ${newExternalModels.length} external models`)
+    } else {
+      console.log('External sources returned no data, using static data only')
     }
 
-    // Fallback to static data if external sources failed
-    console.warn('External sources returned no data, using static fallback')
-    return NextResponse.json(aiEntries, {
+    return NextResponse.json(allModels, {
       headers: {
         'Cache-Control': 'public, s-maxage=3600, stale-while-revalidate=86400',
       },
@@ -31,9 +41,9 @@ export async function GET() {
   } catch (error) {
     console.error('Error in /api/ai-models:', error)
     
-    // Return static data as fallback
+    // Return static data as fallback (always includes Claude, GPT-4, Copilot, etc.)
     return NextResponse.json(aiEntries, {
-      status: 200, // Still return 200, but with fallback data
+      status: 200,
       headers: {
         'Cache-Control': 'public, s-maxage=3600, stale-while-revalidate=86400',
       },

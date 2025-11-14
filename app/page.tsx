@@ -198,6 +198,28 @@ export default function Home() {
 
       {/* Modal */}
       <AIModal ai={selectedAI} isOpen={isModalOpen} onClose={() => setIsModalOpen(false)} />
+
+      {/* Footer */}
+      <footer className="border-t border-border/50 bg-background/50 py-8 mt-16">
+        <div className="mx-auto max-w-7xl px-4">
+          <div className="flex flex-col items-center justify-center gap-2 text-sm text-muted-foreground">
+            <p>
+              © {new Date().getFullYear()} Arcyn Find. All rights reserved.
+            </p>
+            <p className="text-xs">
+              Created by{" "}
+              <a
+                href="https://github.com/Iph22"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-accent hover:underline transition-colors"
+              >
+                David Iphy
+              </a>
+            </p>
+          </div>
+        </div>
+      </footer>
     </main>
   )
 }
