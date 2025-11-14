@@ -16,15 +16,19 @@ const categories = [
   "All",
   "Generative AI",
   "Computer Vision",
-  "NLP",
+  "NLP/Audio",
   "Audio/NLP",
   "Code Generation",
   "Multimodal Platform",
   "Autonomous AI",
   "Video Generation",
+  "Audio/Video Processing",
+  "Search/QA",
+  "NLP Platform",
+  "ML Infrastructure",
 ]
 
-const regions = ["All", "USA", "EU", "Canada", "Global"]
+const regions = ["All", "USA", "EU", "Canada", "China", "Israel", "UAE", "Global"]
 const accessTypes = ["All", "Free", "Freemium", "Paid"]
 
 export function FilterBar({
