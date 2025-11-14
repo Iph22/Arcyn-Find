@@ -2327,7 +2327,7 @@ export const aiEntries: AIEntry[] = [
     name: "Google Flow",
     category: "Video Generation",
     description: "Google's video generation model for creating high-quality videos from text prompts and images.",
-    platform: "https://deepmind.google",
+    platform: "https://labs.google/flow/about",
     region: "USA",
     accessType: "Paid",
     pricing: "API pricing",
