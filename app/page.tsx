@@ -22,7 +22,7 @@ export default function Home() {
   const [selectedAI, setSelectedAI] = useState<AIEntry | null>(null)
   const [isModalOpen, setIsModalOpen] = useState(false)
   const [aiModels, setAiModels] = useState<AIEntry[]>(aiEntries) // Start with static data as fallback
-  const [loading, setLoading] = useState(true)
+  const [loading, setLoading] = useState(false) // Start with false so content shows immediately
   const [lastUpdated, setLastUpdated] = useState<Date | null>(null)
 
   // Fetch AI models from API
@@ -30,9 +30,17 @@ export default function Home() {
     async function fetchModels() {
       try {
         setLoading(true)
+        
+        // Add timeout to prevent hanging (10 seconds)
+        const controller = new AbortController()
+        const timeoutId = setTimeout(() => controller.abort(), 10000)
+        
         const response = await fetch('/api/ai-models', {
           cache: 'no-store', // Always fetch fresh data on client
+          signal: controller.signal,
         })
+        
+        clearTimeout(timeoutId)
         
         if (response.ok) {
           const data = await response.json()
@@ -42,7 +50,11 @@ export default function Home() {
           }
         }
       } catch (error) {
-        console.error('Failed to fetch AI models, using fallback data:', error)
+        if (error instanceof Error && error.name === 'AbortError') {
+          console.warn('API request timed out, using fallback data')
+        } else {
+          console.error('Failed to fetch AI models, using fallback data:', error)
+        }
         // Keep the fallback static data
       } finally {
         setLoading(false)

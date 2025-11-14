@@ -42,6 +42,9 @@ export async function fetchAIModelsFromSources(): Promise<AIEntry[]> {
  * Fetches models from Hugging Face API
  */
 async function fetchFromHuggingFace(): Promise<AIEntry[]> {
+  const controller = new AbortController()
+  const timeoutId = setTimeout(() => controller.abort(), 5000)
+  
   try {
     const response = await fetch(
       'https://huggingface.co/api/models?filter=text-generation&sort=downloads&direction=-1&limit=50',
@@ -50,8 +53,11 @@ async function fetchFromHuggingFace(): Promise<AIEntry[]> {
           'Authorization': `Bearer ${process.env.HUGGINGFACE_API_KEY}`,
         },
         next: { revalidate: 3600 }, // Cache for 1 hour
+        signal: controller.signal,
       }
     )
+    
+    clearTimeout(timeoutId)
 
     if (!response.ok) {
       console.warn(`Hugging Face API returned status ${response.status}`)
@@ -61,7 +67,12 @@ async function fetchFromHuggingFace(): Promise<AIEntry[]> {
     const data = await response.json()
     return data.map((model: any, index: number) => transformHuggingFaceModel(model, index))
   } catch (error) {
-    console.error('Error fetching from Hugging Face:', error)
+    clearTimeout(timeoutId)
+    if (error instanceof Error && error.name === 'AbortError') {
+      console.warn('Hugging Face API request timed out')
+    } else {
+      console.error('Error fetching from Hugging Face:', error)
+    }
     return []
   }
 }
@@ -103,6 +114,9 @@ function transformHuggingFaceModel(model: any, index: number): AIEntry {
  * Fetches models from Papers with Code API
  */
 async function fetchFromPapersWithCode(): Promise<AIEntry[]> {
+  const controller = new AbortController()
+  const timeoutId = setTimeout(() => controller.abort(), 5000)
+  
   try {
     const response = await fetch(
       'https://paperswithcode.com/api/v1/papers/?ordering=-stars&page_size=20',
@@ -111,8 +125,11 @@ async function fetchFromPapersWithCode(): Promise<AIEntry[]> {
           'Accept': 'application/json',
         },
         next: { revalidate: 3600 }, // Cache for 1 hour
+        signal: controller.signal,
       }
     )
+    
+    clearTimeout(timeoutId)
 
     if (!response.ok) {
       console.warn(`Papers with Code API returned status ${response.status}`)
@@ -136,7 +153,12 @@ async function fetchFromPapersWithCode(): Promise<AIEntry[]> {
       .slice(0, 10)
       .map((paper: any, index: number) => transformPapersWithCodePaper(paper, index))
   } catch (error) {
-    console.error('Error fetching from Papers with Code:', error)
+    clearTimeout(timeoutId)
+    if (error instanceof Error && error.name === 'AbortError') {
+      console.warn('Papers with Code API request timed out')
+    } else {
+      console.error('Error fetching from Papers with Code:', error)
+    }
     return []
   }
 }
@@ -169,13 +191,19 @@ function transformPapersWithCodePaper(paper: any, index: number): AIEntry {
  * Fetches research papers from ArXiv API
  */
 async function fetchFromArXiv(): Promise<AIEntry[]> {
+  const controller = new AbortController()
+  const timeoutId = setTimeout(() => controller.abort(), 5000)
+  
   try {
     const response = await fetch(
       'http://export.arxiv.org/api/query?search_query=cat:cs.AI+OR+cat:cs.LG&max_results=15&sortBy=submittedDate&sortOrder=descending',
       {
         next: { revalidate: 3600 }, // Cache for 1 hour
+        signal: controller.signal,
       }
     )
+    
+    clearTimeout(timeoutId)
 
     if (!response.ok) {
       console.warn(`ArXiv API returned status ${response.status}`)
@@ -185,7 +213,12 @@ async function fetchFromArXiv(): Promise<AIEntry[]> {
     const xml = await response.text()
     return parseArXivResults(xml)
   } catch (error) {
-    console.error('Error fetching from ArXiv:', error)
+    clearTimeout(timeoutId)
+    if (error instanceof Error && error.name === 'AbortError') {
+      console.warn('ArXiv API request timed out')
+    } else {
+      console.error('Error fetching from ArXiv:', error)
+    }
     return []
   }
 }
@@ -236,6 +269,9 @@ function parseArXivResults(xml: string): AIEntry[] {
  * Fetches open-source AI models from GitHub
  */
 async function fetchFromGitHub(): Promise<AIEntry[]> {
+  const controller = new AbortController()
+  const timeoutId = setTimeout(() => controller.abort(), 5000)
+  
   try {
     const response = await fetch(
       'https://api.github.com/search/repositories?q=language:python+topic:ai-model+topic:ml+stars:>100&sort=stars&order=desc&per_page=15',
@@ -245,8 +281,11 @@ async function fetchFromGitHub(): Promise<AIEntry[]> {
           'Accept': 'application/vnd.github.v3+json',
         },
         next: { revalidate: 3600 }, // Cache for 1 hour
+        signal: controller.signal,
       }
     )
+    
+    clearTimeout(timeoutId)
 
     if (!response.ok) {
       console.warn(`GitHub API returned status ${response.status}`)
@@ -264,7 +303,12 @@ async function fetchFromGitHub(): Promise<AIEntry[]> {
       .slice(0, 10)
       .map((repo: any, index: number) => transformGitHubRepo(repo, index))
   } catch (error) {
-    console.error('Error fetching from GitHub:', error)
+    clearTimeout(timeoutId)
+    if (error instanceof Error && error.name === 'AbortError') {
+      console.warn('GitHub API request timed out')
+    } else {
+      console.error('Error fetching from GitHub:', error)
+    }
     return []
   }
 }
