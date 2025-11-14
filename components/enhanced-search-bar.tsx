@@ -153,11 +153,11 @@ export function EnhancedSearchBar({ value, onChange, aiModels, onSearch }: Enhan
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: -10 }}
             transition={{ duration: 0.2 }}
-            className="absolute z-50 mt-2 w-full rounded-lg border border-border bg-card shadow-lg"
+            className="absolute z-50 mt-2 w-full rounded-lg border border-border bg-card shadow-lg max-h-[60vh] sm:max-h-64 overflow-y-auto"
             id="search-suggestions"
             role="listbox"
           >
-            <div className="max-h-64 overflow-y-auto p-2">
+            <div className="p-2">
               {value.trim() ? (
                 <>
                   <div className="px-3 py-2 text-xs font-semibold text-muted-foreground uppercase">

@@ -86,9 +86,9 @@ export default function Home() {
       <HeroSection />
 
       {/* Search Section */}
-      <section className="border-b border-border/50 bg-background/50 py-8">
-        <div className="mx-auto max-w-7xl px-4 flex items-center justify-between gap-4">
-          <div className="flex-1">
+      <section className="border-b border-border/50 bg-background/50 py-4 sm:py-6 md:py-8">
+        <div className="mx-auto max-w-7xl px-4 flex flex-col sm:flex-row items-stretch sm:items-center gap-3 sm:gap-4">
+          <div className="flex-1 min-w-0">
             <EnhancedSearchBar
               value={searchQuery}
               onChange={setSearchQuery}
@@ -96,7 +96,9 @@ export default function Home() {
               onSearch={handleSearch}
             />
           </div>
-          <ThemeToggle />
+          <div className="flex justify-end sm:flex-none">
+            <ThemeToggle />
+          </div>
         </div>
       </section>
 
@@ -121,7 +123,7 @@ export default function Home() {
             initial={{ opacity: 0, y: 20 }}
             whileInView={{ opacity: 1, y: 0 }}
             viewport={{ once: true }}
-            className="mb-8 flex items-center justify-between"
+            className="mb-6 sm:mb-8 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4"
           >
             <div>
               <h2 className="text-2xl font-bold text-foreground md:text-3xl">All AI Tools</h2>
@@ -138,19 +140,21 @@ export default function Home() {
             <div className="flex gap-2">
               <button
                 onClick={() => setViewMode("grid")}
-                className={`rounded-lg p-2 transition-all ${
+                className={`rounded-lg p-2.5 sm:p-2 transition-all touch-manipulation ${
                   viewMode === "grid" ? "bg-accent/20 text-accent" : "hover:bg-muted text-muted-foreground"
                 }`}
+                aria-label="Grid view"
               >
-                <Grid3x3 className="h-5 w-5" />
+                <Grid3x3 className="h-5 w-5 sm:h-5 sm:w-5" />
               </button>
               <button
                 onClick={() => setViewMode("list")}
-                className={`rounded-lg p-2 transition-all ${
+                className={`rounded-lg p-2.5 sm:p-2 transition-all touch-manipulation ${
                   viewMode === "list" ? "bg-accent/20 text-accent" : "hover:bg-muted text-muted-foreground"
                 }`}
+                aria-label="List view"
               >
-                <List className="h-5 w-5" />
+                <List className="h-5 w-5 sm:h-5 sm:w-5" />
               </button>
             </div>
           </motion.div>
@@ -200,13 +204,13 @@ export default function Home() {
       <AIModal ai={selectedAI} isOpen={isModalOpen} onClose={() => setIsModalOpen(false)} />
 
       {/* Footer */}
-      <footer className="border-t border-border/50 bg-background/50 py-8 mt-16">
+      <footer className="border-t border-border/50 bg-background/50 py-6 md:py-8 mt-12 md:mt-16">
         <div className="mx-auto max-w-7xl px-4">
-          <div className="flex flex-col items-center justify-center gap-2 text-sm text-muted-foreground">
+          <div className="flex flex-col items-center justify-center gap-2 text-xs sm:text-sm text-muted-foreground text-center">
             <p>
               © {new Date().getFullYear()} Arcyn Find. All rights reserved.
             </p>
-            <p className="text-xs">
+            <p className="text-[10px] sm:text-xs">
               Created by{" "}
               <a
                 href="https://github.com/Iph22"
