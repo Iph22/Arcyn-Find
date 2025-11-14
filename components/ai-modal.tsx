@@ -11,20 +11,101 @@ interface AIModalProps {
   ai: AIEntry | null
   isOpen: boolean
   onClose: () => void
+  cardPosition?: { x: number; y: number } | null
 }
 
-export function AIModal({ ai, isOpen, onClose }: AIModalProps) {
+export function AIModal({ ai, isOpen, onClose, cardPosition }: AIModalProps) {
   const [copied, setCopied] = useState(false)
   const [isScrolling, setIsScrolling] = useState(false)
+  const [modalStyle, setModalStyle] = useState<React.CSSProperties>({
+    top: '50%',
+    left: '50%',
+    transform: 'translate(-50%, -50%)',
+  })
 
   useEffect(() => {
     if (isOpen) {
+      // Save current scroll position
+      const scrollY = window.scrollY
+      // Prevent body scroll and lock position
       document.body.style.overflow = "hidden"
+      document.body.style.position = "fixed"
+      document.body.style.top = `-${scrollY}px`
+      document.body.style.width = "100%"
+      
+      // Store scroll position for restoration
+      document.body.setAttribute('data-scroll-y', scrollY.toString())
     } else {
+      // Restore scroll position
+      const scrollY = document.body.getAttribute('data-scroll-y')
       document.body.style.overflow = "unset"
+      document.body.style.position = ""
+      document.body.style.top = ""
+      document.body.style.width = ""
+      document.body.removeAttribute('data-scroll-y')
+      
+      if (scrollY) {
+        window.scrollTo(0, parseInt(scrollY, 10))
+      }
     }
     return () => {
+      // Cleanup on unmount
+      const scrollY = document.body.getAttribute('data-scroll-y')
       document.body.style.overflow = "unset"
+      document.body.style.position = ""
+      document.body.style.top = ""
+      document.body.style.width = ""
+      if (scrollY) {
+        document.body.removeAttribute('data-scroll-y')
+        window.scrollTo(0, parseInt(scrollY, 10))
+      }
+    }
+  }, [isOpen])
+
+  // Calculate modal position - always center in visible viewport
+  useEffect(() => {
+    if (!isOpen) {
+      // Reset when closed
+      setModalStyle({
+        top: '50%',
+        left: '50%',
+        transform: 'translate(-50%, -50%)',
+      })
+      return
+    }
+
+    // Function to calculate and set modal position based on current screen size
+    const calculateAndSetPosition = () => {
+      requestAnimationFrame(() => {
+        // Use CSS percentage values which automatically account for zoom
+        // This is more reliable than pixel values when zooming
+        setModalStyle({
+          top: '50%',
+          left: '50%',
+          transform: 'translate(-50%, -50%)',
+        })
+      })
+    }
+
+    // Calculate position initially
+    calculateAndSetPosition()
+
+    // Listen for window resize (includes zoom on some browsers)
+    window.addEventListener('resize', calculateAndSetPosition)
+    
+    // Listen for visual viewport changes (better zoom detection)
+    if (window.visualViewport) {
+      window.visualViewport.addEventListener('resize', calculateAndSetPosition)
+      window.visualViewport.addEventListener('scroll', calculateAndSetPosition)
+    }
+
+    // Cleanup: remove event listeners when modal closes or component unmounts
+    return () => {
+      window.removeEventListener('resize', calculateAndSetPosition)
+      if (window.visualViewport) {
+        window.visualViewport.removeEventListener('resize', calculateAndSetPosition)
+        window.visualViewport.removeEventListener('scroll', calculateAndSetPosition)
+      }
     }
   }, [isOpen])
 
@@ -57,10 +138,11 @@ export function AIModal({ ai, isOpen, onClose }: AIModalProps) {
   if (!ai) return null
 
   return (
-    <AnimatePresence>
-      {isOpen && (
+    <AnimatePresence mode="wait">
+      {isOpen && ai && (
         <>
           <motion.div
+            key="modal-backdrop"
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
@@ -70,19 +152,21 @@ export function AIModal({ ai, isOpen, onClose }: AIModalProps) {
           />
 
           <motion.div
+            key="modal-content"
             initial={{ opacity: 0, scale: 0.95, y: 20 }}
             animate={{ opacity: 1, scale: 1, y: 0 }}
             exit={{ opacity: 0, scale: 0.95, y: 20 }}
             transition={{ type: "spring", stiffness: 300, damping: 30 }}
             onClick={(e) => e.stopPropagation()}
-            className="fixed inset-0 z-50 flex items-center justify-center p-4 overflow-y-auto"
+            className="fixed z-50 p-4"
+            style={modalStyle}
             role="dialog"
             aria-modal="true"
             aria-label={`Details for ${ai.name}`}
           >
             <div
               onScroll={handleScroll}
-              className={`relative w-full max-w-2xl rounded-2xl border border-border/50 bg-card/95 backdrop-blur-xl shadow-2xl my-8 max-h-[90vh] overflow-y-auto ${
+              className={`relative w-full max-w-2xl rounded-2xl border border-border/50 bg-card shadow-2xl max-h-[90vh] overflow-y-auto ${
                 isScrolling ? "scroll-animate" : ""
               }`}
             >

@@ -3,39 +3,34 @@
 import { useState, useMemo, useEffect } from "react"
 import { useRouter } from "next/navigation"
 import { motion } from "framer-motion"
-import { HeroSection } from "@/components/hero-section"
+import { ArrowLeft, Grid3x3, List } from "lucide-react"
+import { AICard } from "@/components/ai-card"
+import { FilterBar } from "@/components/filter-bar"
 import { EnhancedSearchBar } from "@/components/enhanced-search-bar"
 import { searchAIEntries, addToSearchHistory } from "@/lib/search-utils"
-import { FilterBar } from "@/components/filter-bar"
-import { AICard } from "@/components/ai-card"
-import { TrendingSection } from "@/components/trending-section"
-import { ThemeToggle } from "@/components/theme-toggle"
 import { aiEntries, type AIEntry } from "@/lib/ai-data"
-import { Grid3x3, List, Loader2 } from "lucide-react"
+import { ThemeToggle } from "@/components/theme-toggle"
 
-export default function Home() {
+export default function AllAIToolsPage() {
   const router = useRouter()
   const [searchQuery, setSearchQuery] = useState("")
   const [selectedCategory, setSelectedCategory] = useState("")
   const [selectedRegion, setSelectedRegion] = useState("")
   const [selectedAccessType, setSelectedAccessType] = useState("")
   const [viewMode, setViewMode] = useState<"grid" | "list">("grid")
-  const [aiModels, setAiModels] = useState<AIEntry[]>(aiEntries) // Start with static data as fallback
-  const [loading, setLoading] = useState(false) // Start with false so content shows immediately
-  const [lastUpdated, setLastUpdated] = useState<Date | null>(null)
+  const [aiModels, setAiModels] = useState<AIEntry[]>(aiEntries)
+  const [loading, setLoading] = useState(false)
 
   // Fetch AI models from API
   useEffect(() => {
     async function fetchModels() {
       try {
         setLoading(true)
-        
-        // Add timeout to prevent hanging (10 seconds)
         const controller = new AbortController()
         const timeoutId = setTimeout(() => controller.abort(), 10000)
         
         const response = await fetch('/api/ai-models', {
-          cache: 'no-store', // Always fetch fresh data on client
+          cache: 'no-store',
           signal: controller.signal,
         })
         
@@ -45,7 +40,6 @@ export default function Home() {
           const data = await response.json()
           if (data && data.length > 0) {
             setAiModels(data)
-            setLastUpdated(new Date())
           }
         }
       } catch (error) {
@@ -54,18 +48,12 @@ export default function Home() {
         } else {
           console.error('Failed to fetch AI models, using fallback data:', error)
         }
-        // Keep the fallback static data
       } finally {
         setLoading(false)
       }
     }
 
     fetchModels()
-
-    // Set up polling for real-time updates (every 5 minutes)
-    const interval = setInterval(fetchModels, 5 * 60 * 1000)
-    
-    return () => clearInterval(interval)
   }, [])
 
   // Enhanced search and filter with relevance sorting
@@ -76,10 +64,6 @@ export default function Home() {
       accessType: selectedAccessType,
     })
   }, [aiModels, searchQuery, selectedCategory, selectedRegion, selectedAccessType])
-
-  const trendingAIs = useMemo(() => {
-    return filteredAIs.filter((ai) => ai.isTrending).slice(0, 3)
-  }, [filteredAIs])
 
   const handleSelectAI = (ai: AIEntry) => {
     router.push(`/ai/${ai.id}`)
@@ -92,22 +76,31 @@ export default function Home() {
   }
 
   return (
-    <main className="min-h-screen bg-background text-foreground">
-      <HeroSection />
-
-      {/* Search Section */}
+    <div className="min-h-screen bg-background text-foreground">
+      {/* Header */}
       <section className="border-b border-border/50 bg-background/50 py-4 sm:py-6 md:py-8">
-        <div className="mx-auto max-w-7xl px-4 flex flex-col sm:flex-row items-stretch sm:items-center gap-3 sm:gap-4">
-          <div className="flex-1 min-w-0">
-            <EnhancedSearchBar
-              value={searchQuery}
-              onChange={setSearchQuery}
-              aiModels={aiModels}
-              onSearch={handleSearch}
-            />
-          </div>
-          <div className="flex justify-end sm:flex-none">
+        <div className="mx-auto max-w-7xl px-4">
+          <div className="mb-4 flex items-center justify-between">
+            <motion.button
+              initial={{ opacity: 0, x: -20 }}
+              animate={{ opacity: 1, x: 0 }}
+              onClick={() => router.back()}
+              className="flex items-center gap-2 text-muted-foreground hover:text-foreground transition-colors"
+            >
+              <ArrowLeft className="h-5 w-5" />
+              <span>Back</span>
+            </motion.button>
             <ThemeToggle />
+          </div>
+          <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 sm:gap-4">
+            <div className="flex-1 min-w-0">
+              <EnhancedSearchBar
+                value={searchQuery}
+                onChange={setSearchQuery}
+                aiModels={aiModels}
+                onSearch={handleSearch}
+              />
+            </div>
           </div>
         </div>
       </section>
@@ -122,9 +115,6 @@ export default function Home() {
         selectedAccessType={selectedAccessType}
       />
 
-      {/* Trending Section */}
-      <TrendingSection trendingAIs={trendingAIs} onSelectAI={handleSelectAI} />
-
       {/* Main Content */}
       <section className="py-12 md:py-16">
         <div className="mx-auto max-w-7xl px-4">
@@ -136,14 +126,9 @@ export default function Home() {
             className="mb-6 sm:mb-8 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4"
           >
             <div>
-              <h2 className="text-2xl font-bold text-foreground md:text-3xl">All AI Tools</h2>
+              <h1 className="text-2xl font-bold text-foreground md:text-3xl">All AI Tools</h1>
               <p className="mt-2 text-muted-foreground">
                 {filteredAIs.length} {filteredAIs.length === 1 ? "result" : "results"}
-                {lastUpdated && (
-                  <span className="ml-2 text-xs">
-                    • Updated {lastUpdated.toLocaleTimeString()}
-                  </span>
-                )}
               </p>
             </div>
 
@@ -176,44 +161,25 @@ export default function Home() {
               animate={{ opacity: 1 }}
               className="flex flex-col items-center justify-center rounded-xl border border-border/50 bg-card/30 py-12"
             >
-              <Loader2 className="h-8 w-8 animate-spin text-accent mb-4" />
               <p className="text-lg font-semibold text-foreground mb-2">Loading AI models...</p>
-              <p className="text-muted-foreground">Fetching latest information from external sources</p>
             </motion.div>
           ) : filteredAIs.length > 0 ? (
-            <>
-              <motion.div
-                layout
-                className={`grid gap-6 ${
-                  viewMode === "grid" ? "sm:grid-cols-2 lg:grid-cols-3" : "grid-cols-1 max-w-4xl"
-                }`}
-              >
-                {filteredAIs.slice(0, 25).map((ai, idx) => (
-                  <AICard
-                    key={ai.id}
-                    ai={ai}
-                    onClick={() => handleSelectAI(ai)}
-                    delay={idx * 0.05}
-                    searchQuery={searchQuery}
-                  />
-                ))}
-              </motion.div>
-              {filteredAIs.length > 25 && (
-                <motion.div
-                  initial={{ opacity: 0, y: 20 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ delay: 0.3 }}
-                  className="mt-8 flex justify-center"
-                >
-                  <button
-                    onClick={() => router.push('/ai-tools')}
-                    className="rounded-lg bg-accent px-8 py-3 font-medium text-accent-foreground transition-all hover:shadow-lg hover:shadow-accent/50 active:scale-95"
-                  >
-                    See More ({filteredAIs.length - 25} more)
-                  </button>
-                </motion.div>
-              )}
-            </>
+            <motion.div
+              layout
+              className={`grid gap-6 ${
+                viewMode === "grid" ? "sm:grid-cols-2 lg:grid-cols-3" : "grid-cols-1 max-w-4xl"
+              }`}
+            >
+              {filteredAIs.map((ai, idx) => (
+                <AICard
+                  key={ai.id}
+                  ai={ai}
+                  onClick={() => handleSelectAI(ai)}
+                  delay={idx * 0.02}
+                  searchQuery={searchQuery}
+                />
+              ))}
+            </motion.div>
           ) : (
             <motion.div
               initial={{ opacity: 0 }}
@@ -226,29 +192,7 @@ export default function Home() {
           )}
         </div>
       </section>
-
-
-      {/* Footer */}
-      <footer className="border-t border-border/50 bg-background/50 py-6 md:py-8 mt-12 md:mt-16">
-        <div className="mx-auto max-w-7xl px-4">
-          <div className="flex flex-col items-center justify-center gap-2 text-xs sm:text-sm text-muted-foreground text-center">
-            <p>
-              © {new Date().getFullYear()} Arcyn Find. All rights reserved.
-            </p>
-            <p className="text-[10px] sm:text-xs">
-              Created by{" "}
-              <a
-                href="https://22-bio.vercel.app/"
-                target="_blank"
-                rel="noopener noreferrer"
-                className="text-accent hover:underline transition-colors"
-              >
-                David Iphy
-              </a>
-            </p>
-          </div>
-        </div>
-      </footer>
-    </main>
+    </div>
   )
 }
+

@@ -148,6 +148,14 @@ function calculateRelevanceScore(ai: AIEntry, parsedQuery: ParsedQuery, query: s
     score += 30
   }
 
+  // Category match
+  const normalizedCategory = ai.category.toLowerCase()
+  if (normalizedCategory === normalizedQuery) {
+    score += 50
+  } else if (normalizedCategory.includes(normalizedQuery)) {
+    score += 35
+  }
+
   // Tag matches
   const matchingTags = ai.tags.filter((tag) =>
     tag.toLowerCase().includes(normalizedQuery) ||
@@ -209,10 +217,25 @@ export function searchAIEntries(
 
     // Apply text search
     if (parsedQuery.text) {
-      const textMatches =
+      const queryWords = parsedQuery.text.toLowerCase().split(/\s+/).filter(w => w.length > 0)
+      
+      // Check for exact phrase match first
+      const phraseMatches =
         fuzzyMatch(ai.name, parsedQuery.text, 0.7) ||
         fuzzyMatch(ai.description, parsedQuery.text, 0.7) ||
+        fuzzyMatch(ai.category, parsedQuery.text, 0.7) ||
         ai.tags.some((tag) => fuzzyMatch(tag, parsedQuery.text, 0.7))
+      
+      // For multi-word queries, also check if individual words match
+      // This helps with queries like "Computer vision" matching entries with category "Computer Vision"
+      const allWordsMatch = queryWords.length > 1 && queryWords.every(word =>
+        fuzzyMatch(ai.name, word, 0.7) ||
+        fuzzyMatch(ai.description, word, 0.7) ||
+        fuzzyMatch(ai.category, word, 0.7) ||
+        ai.tags.some((tag) => fuzzyMatch(tag, word, 0.7))
+      )
+      
+      const textMatches = phraseMatches || allWordsMatch
 
       if (!textMatches && !parsedQuery.operators.or) {
         matches = false
