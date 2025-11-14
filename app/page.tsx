@@ -225,7 +225,7 @@ export default function Home() {
             <p className="text-[10px] sm:text-xs">
               Created by{" "}
               <a
-                href="https://github.com/Iph22"
+                href="https://22-bio.vercel.app/"
                 target="_blank"
                 rel="noopener noreferrer"
                 className="text-accent hover:underline transition-colors"
