@@ -10,12 +10,12 @@ async function loadAiEntries(): Promise<AIEntry[]> {
       .select('*')
       .order('popularity', { ascending: false })
       .limit(10000) // Limit for sitemap size
-    
+
     if (error || !data) {
       console.error('Error loading AI entries from Supabase:', error)
       return []
     }
-    
+
     return data.map(transformToAIEntry)
   } catch (error) {
     console.error('Error loading AI entries for sitemap:', error)
@@ -23,54 +23,69 @@ async function loadAiEntries(): Promise<AIEntry[]> {
   }
 }
 
+/**
+ * Escape XML special characters to prevent parsing errors
+ */
+function escapeXml(unsafe: string): string {
+  return unsafe
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&apos;")
+}
+
 export async function generateSitemapXML() {
-  const baseUrl = "https://arcyn-find.com"
+  // Use consistent base URL (match your actual domain)
+  const baseUrl = process.env.NEXT_PUBLIC_SITE_URL || "https://arcyn-find.vercel.app"
   const aiEntries = await loadAiEntries()
 
-  // Static pages
+  // Static pages - include all important pages
   const staticPages = [
-    {
-      url: baseUrl,
-      changefreq: "daily",
-      priority: "1.0",
-    },
+    { url: `${baseUrl}/`, changefreq: "daily", priority: "1.0" },
+    { url: `${baseUrl}/about`, changefreq: "monthly", priority: "0.8" },
+    { url: `${baseUrl}/ai-tools`, changefreq: "daily", priority: "0.9" },
+    { url: `${baseUrl}/compare`, changefreq: "weekly", priority: "0.7" },
+    { url: `${baseUrl}/welcome`, changefreq: "monthly", priority: "0.5" },
+    { url: `${baseUrl}/privacy`, changefreq: "yearly", priority: "0.3" },
+    { url: `${baseUrl}/terms`, changefreq: "yearly", priority: "0.3" },
   ]
 
-  // Dynamic AI tool pages
+  // Dynamic AI tool pages - use correct URL format /ai/[id]
   const aiToolPages = aiEntries.map((ai) => ({
-    url: `${baseUrl}?ai=${ai.id}`,
+    url: `${baseUrl}/ai/${ai.id}`,
     changefreq: "weekly",
     priority: "0.8",
   }))
 
   const allPages = [...staticPages, ...aiToolPages]
+  const lastmod = new Date().toISOString().split('T')[0]
 
+  // Generate properly formatted XML
   const xml = `<?xml version="1.0" encoding="UTF-8"?>
-<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9"
-        xmlns:image="http://www.google.com/schemas/sitemap-image/1.1"
-        xmlns:xhtml="http://www.w3.org/1999/xhtml">
+<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
 ${allPages
-  .map(
-    (page) => `  <url>
-    <loc>${page.url}</loc>
+      .map(
+        (page) => `  <url>
+    <loc>${escapeXml(page.url)}</loc>
     <changefreq>${page.changefreq}</changefreq>
     <priority>${page.priority}</priority>
-    <lastmod>${new Date().toISOString().split('T')[0]}</lastmod>
+    <lastmod>${lastmod}</lastmod>
   </url>`
-  )
-  .join("\n")}
+      )
+      .join("\n")}
 </urlset>`
 
   return xml
 }
 
 export function generateSitemapIndex() {
-  const baseUrl = "https://arcyn-find.com"
+  const baseUrl = process.env.NEXT_PUBLIC_SITE_URL || "https://arcyn-find.vercel.app"
 
   const xml = `<?xml version="1.0" encoding="UTF-8"?>
 <sitemapindex xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
   <sitemap>
-    <loc>${baseUrl}/sitemap-ai-tools.xml</loc>
+    <loc>${baseUrl}/sitemap.xml</loc>
   </sitemap>
 </sitemapindex>`
 
