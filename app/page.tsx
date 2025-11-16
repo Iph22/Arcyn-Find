@@ -1,7 +1,8 @@
 "use client"
 
-import { useState, useMemo, useEffect, useCallback, lazy, Suspense } from "react"
+import { useState, useMemo, useEffect, useCallback, Suspense } from "react"
 import { useRouter, useSearchParams } from "next/navigation"
+import dynamic from "next/dynamic"
 import { motion } from "framer-motion"
 import { HeroSection } from "@/components/hero-section"
 import { EnhancedSearchBar } from "@/components/enhanced-search-bar"
@@ -14,8 +15,22 @@ import { Grid3x3, List, Loader2, ArrowUp, Share2, Heart, GitCompare } from "luci
 import { Footer } from "@/components/footer"
 import { getTrendingAIs, trackAIView } from "@/lib/trending-utils"
 import { useURLState, useKeyboardShortcuts, useScrollToTop, useFavorites, useShare } from "@/lib/hooks"
-// Lazy load heavy components
-const TrendingSection = lazy(() => import("@/components/trending-section").then(m => ({ default: m.TrendingSection })))
+
+// Lazy load heavy components using Next.js dynamic import
+const TrendingSection = dynamic(() => import("@/components/trending-section").then(m => ({ default: m.TrendingSection })), {
+  ssr: false,
+  loading: () => (
+    <section className="border-b border-border/50 bg-gradient-to-b from-background to-background/50 py-12 md:py-16">
+      <div className="mx-auto max-w-7xl px-4">
+        <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
+          {[1, 2, 3].map((i) => (
+            <div key={i} className="h-64 animate-pulse rounded-xl border border-border/50 bg-card/50" />
+          ))}
+        </div>
+      </div>
+    </section>
+  )
+})
 
 const COMPARISON_STORAGE_KEY = 'arcyn-find-comparison-tools'
 

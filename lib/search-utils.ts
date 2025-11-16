@@ -61,6 +61,9 @@ export function normalizeCategory(category: string): string {
     "nlp/audio": "Audio/NLP",
     "NLP / Audio": "Audio/NLP",
     "nlp / audio": "Audio/NLP",
+    "Learning & Education": "Learning & Education",
+    "Learning and Education": "Learning & Education",
+    "Education": "Learning & Education",
   }
   
   return categoryMap[category] || category
@@ -87,6 +90,15 @@ function extractKeywordsFromNaturalLanguage(query: string): {
       "text generation", "generate text", "assistant", "ai chat", "llm", 
       "language model", "gpt", "claude", "gemini", "bard", "text ai",
       "conversational ai", "dialogue", "qa", "question answering", "answer questions"
+    ],
+    "Learning & Education": [
+      "learning", "education", "study", "student", "academic", "school", "university",
+      "homework", "homework help", "tutor", "tutoring", "study tool", "study aid",
+      "quiz", "flashcard", "flashcards", "test", "exam", "assignment", "essay help",
+      "research", "paper", "academic research", "course", "lesson", "teaching",
+      "learn", "teaching", "educational", "curriculum", "syllabus", "textbook",
+      "khan academy", "duolingo", "coursera", "brainly", "quizlet", "gradescope",
+      "course hero", "socratic", "scholarcy", "consensus", "chatpdf", "humata"
     ],
     "Code Generation": [
       "code", "coding", "programming", "developer", "development", "software", 

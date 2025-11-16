@@ -93,7 +93,7 @@ export default function WelcomePage() {
                                 <div className="flex-1">
                                     <h3 className="mb-2 font-semibold text-foreground">Filter & Explore</h3>
                                     <p className="text-sm text-muted-foreground">
-                                        Use category, region, and access type filters to narrow down your search. Click any card to view detailed information.
+                                        Use category, region, and access type filters to narrow down your search. Categories use student-friendly names like "Chat & Writing" and "Learning & Education". Hover over categories for descriptions. Click any card to view detailed information.
                                     </p>
                                 </div>
                             </motion.div>

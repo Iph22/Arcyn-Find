@@ -159,6 +159,160 @@ export default function AboutPage() {
                         </motion.div>
                     </div>
 
+                    {/* Category Guide Section */}
+                    <div className="space-y-6">
+                        <h2 className="text-2xl font-semibold text-foreground">Category Guide</h2>
+                        <p className="text-muted-foreground">
+                            Not sure which category to choose? Here's what each category includes:
+                        </p>
+                        
+                        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+                            <motion.div
+                                initial={{ opacity: 0, y: 20 }}
+                                animate={{ opacity: 1, y: 0 }}
+                                transition={{ delay: 0.8 }}
+                                className="rounded-lg border border-border/50 bg-muted/30 p-4"
+                            >
+                                <h3 className="mb-2 font-semibold text-foreground">📝 Chat & Writing</h3>
+                                <p className="text-sm text-muted-foreground">
+                                    ChatGPT, Claude, writing assistants, content creation tools. Perfect for essays, articles, and creative writing.
+                                </p>
+                            </motion.div>
+
+                            <motion.div
+                                initial={{ opacity: 0, y: 20 }}
+                                animate={{ opacity: 1, y: 0 }}
+                                transition={{ delay: 0.85 }}
+                                className="rounded-lg border border-border/50 bg-muted/30 p-4"
+                            >
+                                <h3 className="mb-2 font-semibold text-foreground">🖼️ Images & Visual</h3>
+                                <p className="text-sm text-muted-foreground">
+                                    Image generation, photo editing, DALL-E, Midjourney. Create and edit images, art, and visual content.
+                                </p>
+                            </motion.div>
+
+                            <motion.div
+                                initial={{ opacity: 0, y: 20 }}
+                                animate={{ opacity: 1, y: 0 }}
+                                transition={{ delay: 0.9 }}
+                                className="rounded-lg border border-border/50 bg-muted/30 p-4"
+                            >
+                                <h3 className="mb-2 font-semibold text-foreground">🎤 Voice & Audio</h3>
+                                <p className="text-sm text-muted-foreground">
+                                    Voice assistants, speech-to-text, music generation. Convert speech, create music, and work with audio.
+                                </p>
+                            </motion.div>
+
+                            <motion.div
+                                initial={{ opacity: 0, y: 20 }}
+                                animate={{ opacity: 1, y: 0 }}
+                                transition={{ delay: 0.95 }}
+                                className="rounded-lg border border-border/50 bg-muted/30 p-4"
+                            >
+                                <h3 className="mb-2 font-semibold text-foreground">💻 Coding & Programming</h3>
+                                <p className="text-sm text-muted-foreground">
+                                    Code assistants, GitHub Copilot, programming help. Get help with coding, debugging, and software development.
+                                </p>
+                            </motion.div>
+
+                            <motion.div
+                                initial={{ opacity: 0, y: 20 }}
+                                animate={{ opacity: 1, y: 0 }}
+                                transition={{ delay: 1.0 }}
+                                className="rounded-lg border border-border/50 bg-muted/30 p-4"
+                            >
+                                <h3 className="mb-2 font-semibold text-foreground">🎓 Learning & Education</h3>
+                                <p className="text-sm text-muted-foreground">
+                                    Study tools, tutors, homework help, learning platforms. Khan Academy, Duolingo, research tools, and more.
+                                </p>
+                            </motion.div>
+
+                            <motion.div
+                                initial={{ opacity: 0, y: 20 }}
+                                animate={{ opacity: 1, y: 0 }}
+                                transition={{ delay: 1.05 }}
+                                className="rounded-lg border border-border/50 bg-muted/30 p-4"
+                            >
+                                <h3 className="mb-2 font-semibold text-foreground">🎬 Video Tools</h3>
+                                <p className="text-sm text-muted-foreground">
+                                    Video creation, editing, Runway, Pika Labs. Create, edit, and enhance videos for projects and presentations.
+                                </p>
+                            </motion.div>
+
+                            <motion.div
+                                initial={{ opacity: 0, y: 20 }}
+                                animate={{ opacity: 1, y: 0 }}
+                                transition={{ delay: 1.1 }}
+                                className="rounded-lg border border-border/50 bg-muted/30 p-4"
+                            >
+                                <h3 className="mb-2 font-semibold text-foreground">🔍 Search & Research</h3>
+                                <p className="text-sm text-muted-foreground">
+                                    Research tools, Q&A systems, Perplexity, academic search. Find information and answer questions quickly.
+                                </p>
+                            </motion.div>
+
+                            <motion.div
+                                initial={{ opacity: 0, y: 20 }}
+                                animate={{ opacity: 1, y: 0 }}
+                                transition={{ delay: 1.15 }}
+                                className="rounded-lg border border-border/50 bg-muted/30 p-4"
+                            >
+                                <h3 className="mb-2 font-semibold text-foreground">🎨 Multi-Media Tools</h3>
+                                <p className="text-sm text-muted-foreground">
+                                    Tools that handle multiple media types (text, image, video). Unified platforms for diverse content creation.
+                                </p>
+                            </motion.div>
+
+                            <motion.div
+                                initial={{ opacity: 0, y: 20 }}
+                                animate={{ opacity: 1, y: 0 }}
+                                transition={{ delay: 1.2 }}
+                                className="rounded-lg border border-border/50 bg-muted/30 p-4"
+                            >
+                                <h3 className="mb-2 font-semibold text-foreground">🤖 AI Automation</h3>
+                                <p className="text-sm text-muted-foreground">
+                                    AI agents, workflow automation, task automation. Automate repetitive tasks and workflows.
+                                </p>
+                            </motion.div>
+
+                            <motion.div
+                                initial={{ opacity: 0, y: 20 }}
+                                animate={{ opacity: 1, y: 0 }}
+                                transition={{ delay: 1.25 }}
+                                className="rounded-lg border border-border/50 bg-muted/30 p-4"
+                            >
+                                <h3 className="mb-2 font-semibold text-foreground">🎵 Media Processing</h3>
+                                <p className="text-sm text-muted-foreground">
+                                    Audio/video processing, multimedia editing. Process and enhance media files.
+                                </p>
+                            </motion.div>
+
+                            <motion.div
+                                initial={{ opacity: 0, y: 20 }}
+                                animate={{ opacity: 1, y: 0 }}
+                                transition={{ delay: 1.3 }}
+                                className="rounded-lg border border-border/50 bg-muted/30 p-4"
+                            >
+                                <h3 className="mb-2 font-semibold text-foreground">🌐 Language Tools</h3>
+                                <p className="text-sm text-muted-foreground">
+                                    Natural language processing, text analysis platforms. Advanced language understanding and processing.
+                                </p>
+                            </motion.div>
+
+                            <motion.div
+                                initial={{ opacity: 0, y: 20 }}
+                                animate={{ opacity: 1, y: 0 }}
+                                transition={{ delay: 1.35 }}
+                                className="rounded-lg border border-border/50 bg-muted/30 p-4"
+                            >
+                                <h3 className="mb-2 font-semibold text-foreground">⚙️ Developer Tools</h3>
+                                <p className="text-sm text-muted-foreground">
+                                    ML infrastructure, APIs, model hosting, MLOps. Tools for developers and data scientists.
+                                </p>
+                            </motion.div>
+                        </div>
+                    </div>
+
                     {/* Creators & Partners Section */}
                     <motion.div
                         initial={{ opacity: 0, y: 20 }}
