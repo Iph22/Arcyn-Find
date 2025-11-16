@@ -36,7 +36,7 @@ User-agent: Claude-Web
 Disallow: /
 
 # Sitemaps
-Sitemap: https://arcyn-find.vercel.app/sitemap.xml
+Sitemap: https://arcyn-find.vercel.app/sitemap-index.xml
 
 # Crawl delay (in seconds)
 Crawl-delay: 0

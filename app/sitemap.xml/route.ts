@@ -4,9 +4,14 @@ import { generateSitemapXML } from "@/lib/sitemap"
 export const dynamic = "force-dynamic"
 export const revalidate = 3600 // Revalidate every hour
 
-export async function GET() {
+export async function GET(request: Request) {
   try {
-    const sitemap = await generateSitemapXML()
+    // Get page number from query parameter (defaults to 0)
+    const url = new URL(request.url)
+    const pageParam = url.searchParams.get("page")
+    const page = pageParam ? parseInt(pageParam, 10) : 0
+    
+    const sitemap = await generateSitemapXML(page)
 
     return new Response(sitemap, {
       headers: {

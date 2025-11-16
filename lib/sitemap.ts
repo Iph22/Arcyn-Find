@@ -35,13 +35,16 @@ function escapeXml(unsafe: string): string {
     .replace(/'/g, "&apos;")
 }
 
-export async function generateSitemapXML() {
+// Maximum URLs per sitemap (Google recommends max 50,000, but smaller is better for performance)
+const MAX_URLS_PER_SITEMAP = 5000
+
+export async function generateSitemapXML(page: number = 0): Promise<string> {
   // Use consistent base URL (match your actual domain)
   const baseUrl = process.env.NEXT_PUBLIC_SITE_URL || "https://arcyn-find.vercel.app"
   const aiEntries = await loadAiEntries()
 
-  // Static pages - include all important pages
-  const staticPages = [
+  // Static pages (only include in first page)
+  const staticPages = page === 0 ? [
     { url: `${baseUrl}/`, changefreq: "daily", priority: "1.0" },
     { url: `${baseUrl}/about`, changefreq: "monthly", priority: "0.8" },
     { url: `${baseUrl}/ai-tools`, changefreq: "daily", priority: "0.9" },
@@ -49,10 +52,13 @@ export async function generateSitemapXML() {
     { url: `${baseUrl}/welcome`, changefreq: "monthly", priority: "0.5" },
     { url: `${baseUrl}/privacy`, changefreq: "yearly", priority: "0.3" },
     { url: `${baseUrl}/terms`, changefreq: "yearly", priority: "0.3" },
-  ]
+  ] : []
 
-  // Dynamic AI tool pages - use correct URL format /ai/[id]
-  const aiToolPages = aiEntries.map((ai) => ({
+  // Calculate pagination
+  const staticCount = staticPages.length
+  const aiStart = Math.max(0, page * MAX_URLS_PER_SITEMAP - staticCount)
+  const aiEnd = Math.min(aiEntries.length, (page + 1) * MAX_URLS_PER_SITEMAP - staticCount)
+  const aiToolPages = aiEntries.slice(aiStart, aiEnd).map((ai) => ({
     url: `${baseUrl}/ai/${ai.id}`,
     changefreq: "weekly",
     priority: "0.8",
@@ -60,6 +66,13 @@ export async function generateSitemapXML() {
 
   const allPages = [...staticPages, ...aiToolPages]
   const lastmod = new Date().toISOString().split('T')[0]
+
+  // Return empty sitemap if no pages
+  if (allPages.length === 0) {
+    return `<?xml version="1.0" encoding="UTF-8"?>
+<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
+</urlset>`
+  }
 
   // Generate properly formatted XML
   const xml = `<?xml version="1.0" encoding="UTF-8"?>
@@ -79,14 +92,33 @@ ${allPages
   return xml
 }
 
-export function generateSitemapIndex() {
+export async function generateSitemapIndex(): Promise<string> {
   const baseUrl = process.env.NEXT_PUBLIC_SITE_URL || "https://arcyn-find.vercel.app"
+  const aiEntries = await loadAiEntries()
+
+  // Calculate how many sitemaps we need
+  const staticPagesCount = 7
+  const totalUrls = staticPagesCount + aiEntries.length
+  const sitemapCount = Math.ceil(totalUrls / MAX_URLS_PER_SITEMAP)
+
+  const sitemaps = []
+  for (let i = 0; i < sitemapCount; i++) {
+    sitemaps.push({
+      loc: `${baseUrl}/sitemap.xml${i === 0 ? '' : `?page=${i}`}`,
+      lastmod: new Date().toISOString().split('T')[0],
+    })
+  }
 
   const xml = `<?xml version="1.0" encoding="UTF-8"?>
 <sitemapindex xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
-  <sitemap>
-    <loc>${baseUrl}/sitemap.xml</loc>
-  </sitemap>
+${sitemaps
+      .map(
+        (sitemap) => `  <sitemap>
+    <loc>${escapeXml(sitemap.loc)}</loc>
+    <lastmod>${sitemap.lastmod}</lastmod>
+  </sitemap>`
+      )
+      .join("\n")}
 </sitemapindex>`
 
   return xml
