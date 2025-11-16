@@ -1,8 +1,30 @@
 import { Metadata } from 'next'
-import { aiEntries } from '@/lib/ai-data'
+import type { AIEntry } from '@/lib/ai-data'
+import { getSupabaseAdmin, transformToAIEntry } from '@/lib/supabase'
+
+// Load AI entry from Supabase for metadata generation
+async function loadAIEntry(id: string): Promise<AIEntry | null> {
+  try {
+    const supabase = getSupabaseAdmin()
+    const { data, error } = await supabase
+      .from('ai_tools')
+      .select('*')
+      .eq('id', id)
+      .single()
+    
+    if (error || !data) {
+      return null
+    }
+    
+    return transformToAIEntry(data)
+  } catch (error) {
+    console.error('Error loading AI entry from Supabase:', error)
+    return null
+  }
+}
 
 export async function generateMetadata({ params }: { params: { id: string } }): Promise<Metadata> {
-  const ai = aiEntries.find((entry) => entry.id === params.id)
+  const ai = await loadAIEntry(params.id)
 
   if (!ai) {
     return {

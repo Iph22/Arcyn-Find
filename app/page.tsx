@@ -10,7 +10,7 @@ import { searchAIEntries, addToSearchHistory, trackSearch, groupResultsByCategor
 import { FilterBar } from "@/components/filter-bar"
 import { AICard } from "@/components/ai-card"
 import { ThemeToggle } from "@/components/theme-toggle"
-import { aiEntries, type AIEntry } from "@/lib/ai-data"
+import type { AIEntry } from "@/lib/ai-data"
 import { Grid3x3, List, Loader2, ArrowUp, Share2, Heart, GitCompare } from "lucide-react"
 import { Footer } from "@/components/footer"
 import { getTrendingAIs, trackAIView } from "@/lib/trending-utils"
@@ -50,7 +50,8 @@ export default function Home() {
   const [selectedAccessType, setSelectedAccessType] = useURLState('access', initialAccess)
 
   const [viewMode, setViewMode] = useState<"grid" | "list">("grid")
-  const [aiModels, setAiModels] = useState<AIEntry[]>(aiEntries) // Start with static data as fallback
+  // Start with empty array - data will be loaded from API (not bundled in client)
+  const [aiModels, setAiModels] = useState<AIEntry[]>([]) // Start empty, load from API
   const [loading, setLoading] = useState(false) // Start with false so content shows immediately
   const [lastUpdated, setLastUpdated] = useState<Date | null>(null)
   const [trendingAIs, setTrendingAIs] = useState<AIEntry[]>([])
@@ -75,7 +76,7 @@ export default function Home() {
     }
   }, [router])
 
-  // Fetch AI models from API
+  // Fetch AI models from API (loads from JSON file on server, not bundled in client)
   useEffect(() => {
     async function fetchModels() {
       try {
@@ -85,7 +86,8 @@ export default function Home() {
         const controller = new AbortController()
         const timeoutId = setTimeout(() => controller.abort(), 10000)
 
-        const response = await fetch('/api/ai-models', {
+        // Load tools for search/filter functionality (500 is enough for search)
+        const response = await fetch('/api/ai-models?limit=500', {
           cache: 'no-store', // Always fetch fresh data on client
           signal: controller.signal,
         })
@@ -101,16 +103,16 @@ export default function Home() {
         }
       } catch (error) {
         if (error instanceof Error && error.name === 'AbortError') {
-          console.warn('API request timed out, using fallback data')
+          console.warn('API request timed out')
         } else {
-          console.error('Failed to fetch AI models, using fallback data:', error)
+          console.error('Failed to fetch AI models:', error)
         }
-        // Keep the fallback static data
       } finally {
         setLoading(false)
       }
     }
 
+    // Fetch immediately on mount
     fetchModels()
 
     // Set up polling for real-time updates (every 5 minutes)
@@ -137,13 +139,13 @@ export default function Home() {
     }
   }, [aiModels])
 
-  // Enhanced search and filter with relevance sorting
+  // Enhanced search and filter with relevance sorting (optimized limit for performance)
   const { results: filteredAIs } = useMemo(() => {
     const searchResult = searchAIEntries(aiModels, searchQuery, {
       category: selectedCategory,
       region: selectedRegion,
       accessType: selectedAccessType,
-    })
+    }, { maxResults: 500 }) // Reduced from 10000 to 500 for better performance
 
     // Track search analytics
     if (searchQuery.trim()) {
@@ -214,15 +216,44 @@ export default function Home() {
   }, [])
 
   const handleShare = useCallback(async () => {
+    if (typeof window === 'undefined') return
+
     const url = window.location.href
     const title = 'Arcyn Find - Discover AI Tools'
-    const text = `Check out ${filteredAIs.length} AI tools on Arcyn Find!`
+    const text = `Check out ${filteredAIs.length} AI tools on Arcyn Find! ${url}`
 
-    const shared = await share({ title, text, url })
-    if (shared) {
-      // Could show a toast notification here
+    // Use Web Share API if available (iOS Safari, Android Chrome)
+    if (navigator.share) {
+      try {
+        await navigator.share({
+          title,
+          text,
+          url,
+        })
+      } catch (error) {
+        // User cancelled or error occurred
+        if ((error as Error).name !== 'AbortError') {
+          // Fallback to clipboard
+          try {
+            await navigator.clipboard.writeText(url)
+            // Show feedback (you could add a toast here)
+            console.log('Link copied to clipboard!')
+          } catch (clipboardError) {
+            console.error('Failed to copy to clipboard:', clipboardError)
+          }
+        }
+      }
+    } else {
+      // Fallback: copy to clipboard
+      try {
+        await navigator.clipboard.writeText(url)
+        // Show feedback (you could add a toast here)
+        console.log('Link copied to clipboard!')
+      } catch (error) {
+        console.error('Failed to copy to clipboard:', error)
+      }
     }
-  }, [share, filteredAIs.length])
+  }, [filteredAIs.length])
 
   const handleAddToComparison = useCallback((ai: AIEntry) => {
     setComparisonTools((prev) => {
@@ -267,8 +298,8 @@ export default function Home() {
       <HeroSection />
 
       {/* Search Section */}
-      <section className="border-b border-border/50 bg-background/50 py-4 sm:py-6 md:py-8">
-        <div className="mx-auto max-w-7xl px-4 flex flex-col sm:flex-row items-stretch sm:items-center gap-3 sm:gap-4">
+      <section className="border-b border-border/50 bg-background/50 py-3 sm:py-6 md:py-8">
+        <div className="mx-auto max-w-7xl px-3 sm:px-4 flex flex-col sm:flex-row items-stretch sm:items-center gap-2.5 sm:gap-4">
           <div className="flex-1 min-w-0">
             <EnhancedSearchBar
               value={searchQuery}
@@ -311,22 +342,22 @@ export default function Home() {
           </div>
         </section>
       }>
-        <TrendingSection trendingAIs={trendingAIs} onSelectAI={handleSelectAI} />
+        <TrendingSection trendingAIs={trendingAIs} onSelectAI={handleSelectAI} loading={trendingLoading} />
       </Suspense>
 
       {/* Main Content */}
-      <section id="main-content" className="py-12 md:py-16">
-        <div className="mx-auto max-w-7xl px-4">
+      <section id="main-content" className="py-8 sm:py-12 md:py-16">
+        <div className="mx-auto max-w-7xl px-3 sm:px-4">
           {/* Header with View Toggle */}
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             whileInView={{ opacity: 1, y: 0 }}
             viewport={{ once: true }}
-            className="mb-6 sm:mb-8 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4"
+            className="mb-4 sm:mb-8 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 sm:gap-4"
           >
-            <div>
-              <h2 className="text-2xl font-bold text-foreground md:text-3xl">All AI Tools</h2>
-              <p className="mt-2 text-muted-foreground">
+            <div className="flex-1 min-w-0">
+              <h2 className="text-xl sm:text-2xl font-bold text-foreground md:text-3xl">All AI Tools</h2>
+              <p className="mt-1.5 sm:mt-2 text-sm sm:text-base text-muted-foreground">
                 {filteredAIs.length} {filteredAIs.length === 1 ? "result" : "results"}
                 {lastUpdated && (
                   <span className="ml-2 text-xs">
@@ -336,47 +367,47 @@ export default function Home() {
               </p>
             </div>
 
-            <div className="flex gap-2">
+            <div className="flex gap-1.5 sm:gap-2 flex-shrink-0">
               <button
                 onClick={handleOpenComparison}
                 disabled={comparisonTools.length === 0}
-                className={`rounded-lg p-2.5 sm:p-2 transition-all touch-manipulation relative ${comparisonTools.length > 0
+                className={`rounded-lg p-2 sm:p-2.5 transition-all touch-manipulation relative ${comparisonTools.length > 0
                   ? 'hover:bg-muted text-muted-foreground hover:text-foreground cursor-pointer'
                   : 'text-muted-foreground/30 cursor-not-allowed opacity-50'
                   }`}
                 aria-label={comparisonTools.length > 0 ? `Compare ${comparisonTools.length} tools` : "No tools in comparison"}
                 title={comparisonTools.length > 0 ? `Compare ${comparisonTools.length} tool${comparisonTools.length > 1 ? 's' : ''}` : "Add tools to comparison first"}
               >
-                <GitCompare className="h-5 w-5" />
+                <GitCompare className="h-4 w-4 sm:h-5 sm:w-5" />
                 {comparisonTools.length > 0 && (
-                  <span className="absolute -top-1 -right-1 flex h-5 w-5 items-center justify-center rounded-full bg-accent text-xs font-bold text-accent-foreground animate-pulse">
+                  <span className="absolute -top-0.5 -right-0.5 sm:-top-1 sm:-right-1 flex h-4 w-4 sm:h-5 sm:w-5 items-center justify-center rounded-full bg-accent text-[10px] sm:text-xs font-bold text-accent-foreground animate-pulse">
                     {comparisonTools.length}
                   </span>
                 )}
               </button>
               <button
                 onClick={handleShare}
-                className="rounded-lg p-2.5 sm:p-2 transition-all touch-manipulation hover:bg-muted text-muted-foreground hover:text-foreground"
+                className="rounded-lg p-2 sm:p-2.5 transition-all touch-manipulation hover:bg-muted text-muted-foreground hover:text-foreground"
                 aria-label="Share this page"
                 title="Share"
               >
-                <Share2 className="h-5 w-5" />
+                <Share2 className="h-4 w-4 sm:h-5 sm:w-5" />
               </button>
               <button
                 onClick={() => setViewMode("grid")}
-                className={`rounded-lg p-2.5 sm:p-2 transition-all touch-manipulation ${viewMode === "grid" ? "bg-accent/20 text-accent" : "hover:bg-muted text-muted-foreground"
+                className={`rounded-lg p-2 sm:p-2.5 transition-all touch-manipulation ${viewMode === "grid" ? "bg-accent/20 text-accent" : "hover:bg-muted text-muted-foreground"
                   }`}
                 aria-label="Grid view"
               >
-                <Grid3x3 className="h-5 w-5 sm:h-5 sm:w-5" />
+                <Grid3x3 className="h-4 w-4 sm:h-5 sm:w-5" />
               </button>
               <button
                 onClick={() => setViewMode("list")}
-                className={`rounded-lg p-2.5 sm:p-2 transition-all touch-manipulation ${viewMode === "list" ? "bg-accent/20 text-accent" : "hover:bg-muted text-muted-foreground"
+                className={`rounded-lg p-2 sm:p-2.5 transition-all touch-manipulation ${viewMode === "list" ? "bg-accent/20 text-accent" : "hover:bg-muted text-muted-foreground"
                   }`}
                 aria-label="List view"
               >
-                <List className="h-5 w-5 sm:h-5 sm:w-5" />
+                <List className="h-4 w-4 sm:h-5 sm:w-5" />
               </button>
             </div>
           </motion.div>
@@ -392,7 +423,7 @@ export default function Home() {
             <>
               <motion.div
                 layout
-                className={`grid gap-6 ${viewMode === "grid" ? "sm:grid-cols-2 lg:grid-cols-3" : "grid-cols-1 max-w-4xl"
+                className={`grid gap-4 sm:gap-6 ${viewMode === "grid" ? "sm:grid-cols-2 lg:grid-cols-3" : "grid-cols-1 max-w-4xl"
                   }`}
               >
                 {filteredAIs.slice(0, 25).map((ai, idx) => (
@@ -409,11 +440,11 @@ export default function Home() {
                         e.stopPropagation()
                         handleAddToComparison(ai)
                       }}
-                      className="absolute top-3 right-3 z-20 rounded-lg bg-background/90 backdrop-blur-md p-2 shadow-lg border border-border/50 hover:bg-background hover:scale-110 transition-all opacity-0 group-hover:opacity-100"
+                      className="absolute top-2 right-2 sm:top-3 sm:right-3 z-20 rounded-lg bg-background/90 backdrop-blur-md p-1.5 sm:p-2 shadow-lg border border-border/50 hover:bg-background active:scale-110 sm:hover:scale-110 transition-all opacity-100 sm:opacity-0 sm:group-hover:opacity-100 touch-manipulation"
                       aria-label={comparisonTools.find((t) => t.id === ai.id) ? "Remove from comparison" : "Add to comparison"}
                       title={comparisonTools.find((t) => t.id === ai.id) ? "Remove from comparison" : "Add to comparison"}
                     >
-                      <GitCompare className={`h-4 w-4 transition-colors ${comparisonTools.find((t) => t.id === ai.id) ? 'text-accent fill-accent/20' : 'text-muted-foreground hover:text-accent'}`} />
+                      <GitCompare className={`h-3.5 w-3.5 sm:h-4 sm:w-4 transition-colors ${comparisonTools.find((t) => t.id === ai.id) ? 'text-accent fill-accent/20' : 'text-muted-foreground hover:text-accent'}`} />
                     </button>
                   </div>
                 ))}
@@ -458,10 +489,10 @@ export default function Home() {
           animate={{ opacity: 1, scale: 1 }}
           exit={{ opacity: 0, scale: 0.8 }}
           onClick={scrollToTop}
-          className="fixed bottom-8 right-8 z-50 rounded-full bg-accent p-3 text-accent-foreground shadow-lg transition-all hover:scale-110 hover:shadow-xl focus:outline-none focus:ring-2 focus:ring-accent focus:ring-offset-2"
+          className="fixed bottom-4 right-4 sm:bottom-8 sm:right-8 z-50 rounded-full bg-accent p-2.5 sm:p-3 text-accent-foreground shadow-lg transition-all active:scale-110 sm:hover:scale-110 hover:shadow-xl focus:outline-none focus:ring-2 focus:ring-accent focus:ring-offset-2 touch-manipulation"
           aria-label="Scroll to top"
         >
-          <ArrowUp className="h-5 w-5" />
+          <ArrowUp className="h-4 w-4 sm:h-5 sm:w-5" />
         </motion.button>
       )}
 

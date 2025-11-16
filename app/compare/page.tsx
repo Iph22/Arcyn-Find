@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation"
 import { motion } from "framer-motion"
 import { ArrowLeft, ExternalLink, X } from "lucide-react"
 import type { AIEntry } from "@/lib/ai-data"
-import { aiEntries } from "@/lib/ai-data"
+// Data loaded from API, not imported directly
 import { ThemeToggle } from "@/components/theme-toggle"
 import { Footer } from "@/components/footer"
 
@@ -16,27 +16,38 @@ export default function ComparePage() {
     const [tools, setTools] = useState<AIEntry[]>([])
 
     useEffect(() => {
-        // Load comparison tools from localStorage
-        if (typeof window !== 'undefined') {
-            const stored = localStorage.getItem(COMPARISON_STORAGE_KEY)
-            if (stored) {
-                try {
-                    const toolIds = JSON.parse(stored) as string[]
-                    const loadedTools = toolIds
-                        .map(id => aiEntries.find(ai => ai.id === id))
-                        .filter((ai): ai is AIEntry => ai !== undefined)
-                    setTools(loadedTools)
-                } catch (error) {
-                    console.error('Failed to load comparison tools:', error)
+        // Load comparison tools from localStorage and fetch data from API
+        async function loadComparisonTools() {
+            if (typeof window !== 'undefined') {
+                const stored = localStorage.getItem(COMPARISON_STORAGE_KEY)
+                if (stored) {
+                    try {
+                        const toolIds = JSON.parse(stored) as string[]
+
+                        // Fetch only limited AI models from API (optimized - only need to find 3 tools max)
+                        const response = await fetch('/api/ai-models?limit=100')
+                        if (response.ok) {
+                            const aiEntries = await response.json() as AIEntry[]
+                            const loadedTools = toolIds
+                                .map(id => aiEntries.find(ai => ai.id === id))
+                                .filter((ai): ai is AIEntry => ai !== undefined)
+                            setTools(loadedTools)
+                        }
+                    } catch (error) {
+                        console.error('Failed to load comparison tools:', error)
+                        setTools([]) // Set empty array on error
+                    }
                 }
             }
         }
+
+        loadComparisonTools()
     }, [])
 
     const removeTool = (id: string) => {
         const updated = tools.filter(t => t.id !== id)
         setTools(updated)
-        
+
         // Update localStorage
         if (typeof window !== 'undefined') {
             if (updated.length === 0) {
@@ -53,7 +64,7 @@ export default function ComparePage() {
                 <div className="fixed top-4 right-4 z-50">
                     <ThemeToggle />
                 </div>
-                <div className="mx-auto max-w-4xl px-4 py-8 md:py-12">
+                <div className="mx-auto max-w-4xl px-3 sm:px-4 py-6 sm:py-8 md:py-12">
                     <motion.button
                         initial={{ opacity: 0, x: -20 }}
                         animate={{ opacity: 1, x: 0 }}
@@ -92,7 +103,7 @@ export default function ComparePage() {
                 <ThemeToggle />
             </div>
 
-            <div className="mx-auto max-w-7xl px-4 py-8 md:py-12">
+            <div className="mx-auto max-w-7xl px-3 sm:px-4 py-6 sm:py-8 md:py-12">
                 {/* Back Button */}
                 <motion.button
                     initial={{ opacity: 0, x: -20 }}
@@ -157,11 +168,10 @@ export default function ComparePage() {
                                         <td className="p-4 font-medium sticky left-0 bg-card z-10">Access Type</td>
                                         {tools.map((tool) => (
                                             <td key={tool.id} className="p-4">
-                                                <span className={`rounded-full px-3 py-1 text-xs font-semibold ${
-                                                    tool.accessType === 'Free' ? 'bg-green-500/20 text-green-400' :
-                                                    tool.accessType === 'Freemium' ? 'bg-blue-500/20 text-blue-400' :
-                                                    'bg-purple-500/20 text-purple-400'
-                                                }`}>
+                                                <span className={`rounded-full px-3 py-1 text-xs font-semibold ${tool.accessType === 'Free' ? 'bg-green-500/20 text-green-400' :
+                                                        tool.accessType === 'Freemium' ? 'bg-blue-500/20 text-blue-400' :
+                                                            'bg-purple-500/20 text-purple-400'
+                                                    }`}>
                                                     {tool.accessType}
                                                 </span>
                                             </td>

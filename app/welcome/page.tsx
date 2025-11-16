@@ -34,7 +34,7 @@ export default function WelcomePage() {
             </div>
 
             {/* Main Content */}
-            <div className="mx-auto max-w-4xl px-4 py-8 md:py-12">
+            <div className="mx-auto max-w-4xl px-3 sm:px-4 py-6 sm:py-8 md:py-12">
                 <motion.div
                     initial={{ opacity: 0, y: 20 }}
                     animate={{ opacity: 1, y: 0 }}

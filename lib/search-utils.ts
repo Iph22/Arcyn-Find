@@ -1,5 +1,10 @@
 import { AIEntry } from './ai-data'
 
+// Cache for search results to avoid recomputing
+const searchCache = new Map<string, { results: AIEntry[]; scores: Map<string, number>; timestamp: number }>()
+const CACHE_TTL = 5 * 60 * 1000 // 5 minutes
+const MAX_CACHE_SIZE = 100 // Limit cache size
+
 /**
  * Calculate Levenshtein distance for fuzzy matching
  */
@@ -476,17 +481,37 @@ export function searchAIEntries(
     category?: string
     region?: string
     accessType?: string
+  },
+  options?: {
+    maxResults?: number
+    useCache?: boolean
   }
 ): { results: AIEntry[]; scores: Map<string, number> } {
+  // Return all entries if no search/filter
   if (!query.trim() && !filters.category && !filters.region && !filters.accessType) {
     return { results: entries, scores: new Map() }
+  }
+
+  // Check cache if enabled
+  const useCache = options?.useCache !== false // Default to true
+  if (useCache) {
+    const cacheKey = `${query}|${filters.category}|${filters.region}|${filters.accessType}|${options?.maxResults || 1000}`
+    const cached = searchCache.get(cacheKey)
+    if (cached && Date.now() - cached.timestamp < CACHE_TTL) {
+      return cached
+    }
   }
 
   const parsedQuery = parseSearchQuery(query)
   const scores = new Map<string, number>()
   const results: AIEntry[] = []
+  const maxResults = options?.maxResults || 1000 // Default to 1000, but can be limited
 
   for (const ai of entries) {
+    // Early termination: stop searching after finding enough high-quality results
+    if (results.length >= maxResults && maxResults < entries.length) {
+      break
+    }
     let matches = true
     let score = 0
 
@@ -643,7 +668,32 @@ export function searchAIEntries(
     return scoreB - scoreA
   })
 
-  return { results, scores }
+  // Limit results to maxResults if specified
+  const limitedResults = maxResults < entries.length 
+    ? results.slice(0, maxResults)
+    : results
+
+  const result = { results: limitedResults, scores }
+
+  // Cache the result if enabled
+  if (useCache) {
+    const cacheKey = `${query}|${filters.category}|${filters.region}|${filters.accessType}|${maxResults}`
+    
+    // Limit cache size by removing oldest entries
+    if (searchCache.size >= MAX_CACHE_SIZE) {
+      const firstKey = searchCache.keys().next().value
+      if (firstKey) {
+        searchCache.delete(firstKey)
+      }
+    }
+    
+    searchCache.set(cacheKey, {
+      ...result,
+      timestamp: Date.now()
+    })
+  }
+
+  return result
 }
 
 /**

@@ -3,7 +3,7 @@ import { generateSitemapXML } from "@/lib/sitemap"
 export const dynamic = "force-static"
 
 export async function GET() {
-  const sitemap = generateSitemapXML()
+  const sitemap = await generateSitemapXML()
 
   return new Response(sitemap, {
     headers: {

@@ -46,7 +46,7 @@ export function EnhancedSearchBar({
   const containerRef = useRef<HTMLDivElement>(null)
   
   // Debounce search value for suggestions (but keep immediate input update)
-  const debouncedValue = useDebounce(value, 300)
+  const debouncedValue = useDebounce(value, 500)
   
   // Get popular searches for empty state
   const popularSearches = useMemo(() => getPopularSearches(5), [])
@@ -62,8 +62,8 @@ export function EnhancedSearchBar({
       setSuggestions(enhancedSuggestions)
       setShowSuggestions(enhancedSuggestions.length > 0 || history.length > 0)
       
-      // Calculate result count
-      const { results } = searchAIEntries(aiModels, debouncedValue, {})
+      // Calculate result count (limit to 100 for performance)
+      const { results } = searchAIEntries(aiModels, debouncedValue, {}, { maxResults: 100 })
       setResultCount(results.length)
       if (onResultCountChange) {
         onResultCountChange(results.length)
@@ -199,7 +199,7 @@ export function EnhancedSearchBar({
         </label>
         <div className="relative">
           <Search
-            className="absolute left-4 top-1/2 h-5 w-5 -translate-y-1/2 text-muted-foreground pointer-events-none"
+            className="absolute left-3 sm:left-4 top-1/2 h-4 w-4 sm:h-5 sm:w-5 -translate-y-1/2 text-muted-foreground pointer-events-none"
             aria-hidden="true"
           />
           <div className="relative">
@@ -216,7 +216,7 @@ export function EnhancedSearchBar({
                 setTimeout(() => setIsFocused(false), 200)
               }}
               onKeyDown={handleKeyDown}
-              className="w-full rounded-lg border border-border bg-card px-4 py-3 pl-12 pr-10 text-foreground placeholder-muted-foreground transition-all focus:border-accent focus:outline-none focus:ring-2 focus:ring-accent/50"
+              className="w-full rounded-lg border border-border bg-card px-3 sm:px-4 py-2.5 sm:py-3 pl-10 sm:pl-12 pr-8 sm:pr-10 text-base sm:text-base text-foreground placeholder-muted-foreground transition-all focus:border-accent focus:outline-none focus:ring-2 focus:ring-accent/50"
               aria-label="Search AI tools by name or keyword"
               aria-autocomplete="list"
               aria-expanded={showSuggestions}
@@ -224,13 +224,13 @@ export function EnhancedSearchBar({
             />
             {/* Autocomplete hint */}
             {autocompleteText && value.trim() && (
-              <div className="absolute left-12 top-1/2 -translate-y-1/2 pointer-events-none text-muted-foreground/50">
+              <div className="absolute left-10 sm:left-12 top-1/2 -translate-y-1/2 pointer-events-none text-muted-foreground/50 text-sm sm:text-base">
                 {autocompleteText.slice(value.length)}
               </div>
             )}
             {/* Result count */}
             {showResultCount && value.trim() && resultCount > 0 && (
-              <div className="absolute right-12 top-1/2 -translate-y-1/2 text-xs text-muted-foreground pointer-events-none">
+              <div className="absolute right-8 sm:right-12 top-1/2 -translate-y-1/2 text-[10px] sm:text-xs text-muted-foreground pointer-events-none">
                 {resultCount} {resultCount === 1 ? 'result' : 'results'}
               </div>
             )}
@@ -238,10 +238,10 @@ export function EnhancedSearchBar({
           {value && (
             <button
               onClick={handleClear}
-              className="absolute right-3 top-1/2 -translate-y-1/2 rounded p-1 text-muted-foreground hover:text-foreground transition-colors"
+              className="absolute right-2 sm:right-3 top-1/2 -translate-y-1/2 rounded p-1 text-muted-foreground hover:text-foreground transition-colors touch-manipulation"
               aria-label="Clear search"
             >
-              <X className="h-4 w-4" />
+              <X className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
             </button>
           )}
         </div>
@@ -255,7 +255,7 @@ export function EnhancedSearchBar({
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: -10 }}
             transition={{ duration: 0.2 }}
-            className="absolute z-50 mt-2 w-full rounded-lg border border-border bg-card shadow-lg max-h-[60vh] sm:max-h-64 overflow-y-auto"
+            className="absolute z-50 mt-2 w-full rounded-lg border border-border bg-card shadow-lg max-h-[50vh] sm:max-h-64 overflow-y-auto"
             id="search-suggestions"
             role="listbox"
           >

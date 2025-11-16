@@ -4,7 +4,7 @@ import { useState, useEffect, useCallback } from "react"
 import { useRouter, useParams } from "next/navigation"
 import { motion } from "framer-motion"
 import { ArrowLeft, ExternalLink, Copy, Check, Share2, Heart } from "lucide-react"
-import { aiEntries, type AIEntry } from "@/lib/ai-data"
+import type { AIEntry } from "@/lib/ai-data"
 import { trackAIView } from "@/lib/trending-utils"
 import { useFavorites, useShare } from "@/lib/hooks"
 import { StructuredData } from "./structured-data"
@@ -38,24 +38,22 @@ export default function AIDetailPage() {
           }
         }
 
-        // Fallback to static data
-        const found = aiEntries.find((entry) => entry.id === id)
-        if (found) {
-          setAi(found)
+        // Fallback: try fetching from API
+        const apiResponse = await fetch('/api/ai-models')
+        if (apiResponse.ok) {
+          const allEntries = await apiResponse.json() as AIEntry[]
+          const found = allEntries.find((entry) => entry.id === id)
+          if (found) {
+            setAi(found)
+          } else {
+            router.push('/')
+          }
         } else {
-          // AI not found, redirect to home
           router.push('/')
         }
       } catch (error) {
         console.error('Failed to fetch AI details:', error)
-        // Fallback to static data
-        const id = params.id as string
-        const found = aiEntries.find((entry) => entry.id === id)
-        if (found) {
-          setAi(found)
-        } else {
-          router.push('/')
-        }
+        router.push('/')
       } finally {
         setLoading(false)
       }
@@ -82,13 +80,42 @@ export default function AIDetailPage() {
   }, [ai])
 
   const handleShare = useCallback(async () => {
-    if (!ai) return
+    if (!ai || typeof window === 'undefined') return
+    
     const url = window.location.href
     const title = `${ai.name} - AI Tool`
-    const text = `Check out ${ai.name}: ${ai.description}`
-    
-    await share({ title, text, url })
-  }, [ai, share])
+    const text = `Check out ${ai.name}: ${ai.description} ${url}`
+
+    // Use Web Share API if available (iOS Safari, Android Chrome)
+    if (navigator.share) {
+      try {
+        await navigator.share({
+          title,
+          text,
+          url,
+        })
+      } catch (error) {
+        // User cancelled or error occurred
+        if ((error as Error).name !== 'AbortError') {
+          // Fallback to clipboard
+          try {
+            await navigator.clipboard.writeText(url)
+            console.log('Link copied to clipboard!')
+          } catch (clipboardError) {
+            console.error('Failed to copy to clipboard:', clipboardError)
+          }
+        }
+      }
+    } else {
+      // Fallback: copy to clipboard
+      try {
+        await navigator.clipboard.writeText(url)
+        console.log('Link copied to clipboard!')
+      } catch (error) {
+        console.error('Failed to copy to clipboard:', error)
+      }
+    }
+  }, [ai])
 
   const handleFavorite = useCallback(() => {
     if (ai) {

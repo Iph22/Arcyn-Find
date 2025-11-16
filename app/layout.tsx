@@ -19,6 +19,17 @@ export const metadata: Metadata = {
   generator: "Arcyn Eye",
   applicationName: "Arcyn Find",
   referrer: "origin-when-cross-origin",
+  viewport: {
+    width: "device-width",
+    initialScale: 1,
+    maximumScale: 5,
+    userScalable: true,
+    viewportFit: "cover", // For iOS notch support
+  },
+  themeColor: [
+    { media: "(prefers-color-scheme: light)", color: "#ffffff" },
+    { media: "(prefers-color-scheme: dark)", color: "#0a0a0a" },
+  ],
   keywords: [
     "AI tools",
     "machine learning",
@@ -199,10 +210,10 @@ export default function RootLayout({
           }}
         />
       </head>
-      <body className={`font-sans antialiased`} suppressHydrationWarning>
-        <ThemeProvider 
-          attribute="class" 
-          defaultTheme="dark" 
+      <body className="font-sans antialiased h-full overscroll-none" suppressHydrationWarning>
+        <ThemeProvider
+          attribute="class"
+          defaultTheme="dark"
           enableSystem={false}
           disableTransitionOnChange={true}
           storageKey="arcyn-theme"

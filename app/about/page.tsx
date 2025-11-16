@@ -16,7 +16,7 @@ export default function AboutPage() {
                 <ThemeToggle />
             </div>
 
-            <div className="mx-auto max-w-4xl px-4 py-8 md:py-12">
+            <div className="mx-auto max-w-4xl px-3 sm:px-4 py-6 sm:py-8 md:py-12">
                 {/* Back Button */}
                 <motion.button
                     initial={{ opacity: 0, x: -20 }}
@@ -165,7 +165,7 @@ export default function AboutPage() {
                         <p className="text-muted-foreground">
                             Not sure which category to choose? Here's what each category includes:
                         </p>
-                        
+
                         <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
                             <motion.div
                                 initial={{ opacity: 0, y: 20 }}

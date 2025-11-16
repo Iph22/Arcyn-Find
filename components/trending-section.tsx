@@ -8,10 +8,30 @@ import { Flame } from "lucide-react"
 interface TrendingSectionProps {
   trendingAIs: AIEntry[]
   onSelectAI: (ai: AIEntry) => void
+  loading?: boolean
 }
 
-export function TrendingSection({ trendingAIs, onSelectAI }: TrendingSectionProps) {
-  // Show loading state or empty state
+export function TrendingSection({ trendingAIs, onSelectAI, loading = false }: TrendingSectionProps) {
+  // Show loading state
+  if (loading) {
+    return (
+      <section className="border-b border-border/50 bg-gradient-to-b from-background to-background/50 py-12 md:py-16">
+        <div className="mx-auto max-w-7xl px-4">
+          <div className="mb-8">
+            <div className="h-8 w-48 animate-pulse rounded bg-muted mb-2" />
+            <div className="h-10 w-64 animate-pulse rounded bg-muted" />
+          </div>
+          <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
+            {[1, 2, 3, 4, 5, 6].map((i) => (
+              <div key={i} className="h-64 animate-pulse rounded-xl border border-border/50 bg-card/50" />
+            ))}
+          </div>
+        </div>
+      </section>
+    )
+  }
+  
+  // Show empty state
   if (trendingAIs.length === 0) return null
 
   return (

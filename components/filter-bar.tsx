@@ -134,44 +134,46 @@ export function FilterBar({
       transition={{ duration: 0.3 }}
       className="sticky top-0 z-40 border-b border-border/50 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60"
     >
-      <div className="mx-auto max-w-7xl px-4 py-3 md:py-4">
+      <div className="mx-auto max-w-7xl px-3 sm:px-4 py-2.5 sm:py-3 md:py-4">
         {/* View Mode Toggle */}
-        <div className="flex items-center justify-between mb-3 pb-3 border-b border-border/30">
-          <div className="flex items-center gap-2">
-            <span className="text-xs sm:text-sm font-medium text-muted-foreground">
+        <div className="flex items-center justify-between mb-2.5 sm:mb-3 pb-2.5 sm:pb-3 border-b border-border/30">
+          <div className="flex items-center gap-1.5 sm:gap-2 flex-1 min-w-0">
+            <span className="text-[10px] sm:text-xs md:text-sm font-medium text-muted-foreground whitespace-nowrap">
               Category View:
             </span>
             <button
               onClick={toggleViewMode}
-              className="relative inline-flex items-center gap-2 px-3 py-1.5 rounded-lg border border-border/50 bg-card/50 hover:bg-card transition-colors duration-150 text-xs sm:text-sm font-medium"
+              className="relative inline-flex items-center gap-1.5 sm:gap-2 px-2 sm:px-3 py-1 sm:py-1.5 rounded-lg border border-border/50 bg-card/50 hover:bg-card transition-colors duration-150 text-[10px] sm:text-xs md:text-sm font-medium touch-manipulation flex-shrink-0"
               aria-label={`Switch to ${viewMode === "student" ? "Developer" : "Student"} view`}
             >
               {viewMode === "student" ? (
                 <>
-                  <GraduationCap className="h-4 w-4 text-primary" />
-                  <span>Student View</span>
+                  <GraduationCap className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-primary" />
+                  <span className="hidden xs:inline">Student View</span>
+                  <span className="xs:hidden">Student</span>
                 </>
               ) : (
                 <>
-                  <Code className="h-4 w-4 text-primary" />
-                  <span>Developer View</span>
+                  <Code className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-primary" />
+                  <span className="hidden xs:inline">Developer View</span>
+                  <span className="xs:hidden">Developer</span>
                 </>
               )}
             </button>
           </div>
           {viewMode === "student" && (
-            <div className="text-xs text-muted-foreground hidden sm:block">
-              <HelpCircle className="h-3 w-3 inline mr-1" />
-              Student-friendly category names
+            <div className="text-[10px] sm:text-xs text-muted-foreground hidden sm:block whitespace-nowrap">
+              <HelpCircle className="h-2.5 w-2.5 sm:h-3 sm:w-3 inline mr-0.5 sm:mr-1" />
+              Student-friendly names
             </div>
           )}
         </div>
         
         {/* Mobile: Stack vertically, Desktop: Horizontal */}
-        <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-center sm:gap-3">
+        <div className="flex flex-col gap-2.5 sm:gap-3 sm:flex-row sm:flex-wrap sm:items-center">
           {/* Category Filter */}
-          <div className="flex flex-col gap-1.5 sm:flex-row sm:items-center sm:gap-2 w-full sm:w-auto">
-            <label htmlFor="category-filter" className="text-xs sm:text-sm font-medium text-muted-foreground">
+          <div className="flex flex-col gap-1 sm:gap-1.5 sm:flex-row sm:items-center sm:gap-2 w-full sm:w-auto">
+            <label htmlFor="category-filter" className="text-[10px] sm:text-xs md:text-sm font-medium text-muted-foreground whitespace-nowrap">
               Category:
             </label>
             <div className="relative flex-1 sm:flex-initial group">
@@ -181,7 +183,7 @@ export function FilterBar({
                 onChange={(e) => handleCategoryChange(e.target.value)}
                 onMouseEnter={() => setHoveredCategory(displaySelectedCategory)}
                 onMouseLeave={() => setHoveredCategory(null)}
-                className="w-full sm:w-auto appearance-none rounded-lg border border-border/50 bg-card/50 px-3 py-2.5 sm:px-4 sm:py-2 pr-10 text-sm text-foreground transition-colors duration-150 hover:bg-card focus:border-accent focus:outline-none focus:ring-2 focus:ring-accent/50"
+                className="w-full sm:w-auto appearance-none rounded-lg border border-border/50 bg-card/50 px-2.5 sm:px-3 md:px-4 py-2 sm:py-2.5 md:py-2 pr-8 sm:pr-10 text-base sm:text-sm text-foreground transition-colors duration-150 hover:bg-card focus:border-accent focus:outline-none focus:ring-2 focus:ring-accent/50 touch-manipulation"
               >
                 {displayCategories.map((displayCat) => (
                   <option key={displayCat} value={displayCat}>
@@ -189,15 +191,15 @@ export function FilterBar({
                   </option>
                 ))}
               </select>
-              <ChevronDown className="pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+              <ChevronDown className="pointer-events-none absolute right-2 sm:right-3 top-1/2 h-3.5 w-3.5 sm:h-4 sm:w-4 -translate-y-1/2 text-muted-foreground" />
               
               {/* Tooltip */}
               {hoveredCategory && categoryDescriptions[hoveredCategory] && (
                 <div className="absolute left-0 top-full mt-2 z-50 hidden sm:block pointer-events-none">
-                  <div className="bg-popover border border-border rounded-lg px-3 py-2 text-xs text-popover-foreground shadow-lg max-w-xs">
-                    <div className="flex items-start gap-2">
-                      <HelpCircle className="h-3 w-3 mt-0.5 flex-shrink-0 text-muted-foreground" />
-                      <span>{categoryDescriptions[hoveredCategory]}</span>
+                  <div className="bg-popover border border-border rounded-lg px-2.5 sm:px-3 py-1.5 sm:py-2 text-xs text-popover-foreground shadow-lg max-w-xs">
+                    <div className="flex items-start gap-1.5 sm:gap-2">
+                      <HelpCircle className="h-2.5 w-2.5 sm:h-3 sm:w-3 mt-0.5 flex-shrink-0 text-muted-foreground" />
+                      <span className="text-xs">{categoryDescriptions[hoveredCategory]}</span>
                     </div>
                   </div>
                 </div>
@@ -206,8 +208,8 @@ export function FilterBar({
           </div>
 
           {/* Region Filter */}
-          <div className="flex flex-col gap-1.5 sm:flex-row sm:items-center sm:gap-2 w-full sm:w-auto">
-            <label htmlFor="region-filter" className="text-xs sm:text-sm font-medium text-muted-foreground">
+          <div className="flex flex-col gap-1 sm:gap-1.5 sm:flex-row sm:items-center sm:gap-2 w-full sm:w-auto">
+            <label htmlFor="region-filter" className="text-[10px] sm:text-xs md:text-sm font-medium text-muted-foreground whitespace-nowrap">
               Region:
             </label>
             <div className="relative flex-1 sm:flex-initial">
@@ -215,7 +217,7 @@ export function FilterBar({
                 id="region-filter"
                 value={selectedRegion}
                 onChange={(e) => onRegionChange(e.target.value)}
-                className="w-full sm:w-auto appearance-none rounded-lg border border-border/50 bg-card/50 px-3 py-2.5 sm:px-4 sm:py-2 pr-10 text-sm text-foreground transition-colors duration-150 hover:bg-card focus:border-accent focus:outline-none focus:ring-2 focus:ring-accent/50"
+                className="w-full sm:w-auto appearance-none rounded-lg border border-border/50 bg-card/50 px-2.5 sm:px-3 md:px-4 py-2 sm:py-2.5 md:py-2 pr-8 sm:pr-10 text-base sm:text-sm text-foreground transition-colors duration-150 hover:bg-card focus:border-accent focus:outline-none focus:ring-2 focus:ring-accent/50 touch-manipulation"
               >
                 {regions.map((reg) => (
                   <option key={reg} value={reg === "All" ? "" : reg}>
@@ -223,13 +225,13 @@ export function FilterBar({
                   </option>
                 ))}
               </select>
-              <ChevronDown className="pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+              <ChevronDown className="pointer-events-none absolute right-2 sm:right-3 top-1/2 h-3.5 w-3.5 sm:h-4 sm:w-4 -translate-y-1/2 text-muted-foreground" />
             </div>
           </div>
 
           {/* Access Type Filter */}
-          <div className="flex flex-col gap-1.5 sm:flex-row sm:items-center sm:gap-2 w-full sm:w-auto">
-            <label htmlFor="access-filter" className="text-xs sm:text-sm font-medium text-muted-foreground">
+          <div className="flex flex-col gap-1 sm:gap-1.5 sm:flex-row sm:items-center sm:gap-2 w-full sm:w-auto">
+            <label htmlFor="access-filter" className="text-[10px] sm:text-xs md:text-sm font-medium text-muted-foreground whitespace-nowrap">
               Access:
             </label>
             <div className="relative flex-1 sm:flex-initial">
@@ -237,7 +239,7 @@ export function FilterBar({
                 id="access-filter"
                 value={selectedAccessType}
                 onChange={(e) => onAccessTypeChange(e.target.value)}
-                className="w-full sm:w-auto appearance-none rounded-lg border border-border/50 bg-card/50 px-3 py-2.5 sm:px-4 sm:py-2 pr-10 text-sm text-foreground transition-colors duration-150 hover:bg-card focus:border-accent focus:outline-none focus:ring-2 focus:ring-accent/50"
+                className="w-full sm:w-auto appearance-none rounded-lg border border-border/50 bg-card/50 px-2.5 sm:px-3 md:px-4 py-2 sm:py-2.5 md:py-2 pr-8 sm:pr-10 text-base sm:text-sm text-foreground transition-colors duration-150 hover:bg-card focus:border-accent focus:outline-none focus:ring-2 focus:ring-accent/50 touch-manipulation"
               >
                 {accessTypes.map((type) => (
                   <option key={type} value={type === "All" ? "" : type}>
@@ -245,7 +247,7 @@ export function FilterBar({
                   </option>
                 ))}
               </select>
-              <ChevronDown className="pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+              <ChevronDown className="pointer-events-none absolute right-2 sm:right-3 top-1/2 h-3.5 w-3.5 sm:h-4 sm:w-4 -translate-y-1/2 text-muted-foreground" />
             </div>
           </div>
         </div>

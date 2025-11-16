@@ -1,7 +1,31 @@
-import { aiEntries } from "@/lib/ai-data"
+import type { AIEntry } from "@/lib/ai-data"
+import { getSupabaseAdmin, transformToAIEntry } from '@/lib/supabase'
 
-export function generateSitemapXML() {
+// Load AI entries from Supabase for sitemap generation
+async function loadAiEntries(): Promise<AIEntry[]> {
+  try {
+    const supabase = getSupabaseAdmin()
+    const { data, error } = await supabase
+      .from('ai_tools')
+      .select('*')
+      .order('popularity', { ascending: false })
+      .limit(10000) // Limit for sitemap size
+    
+    if (error || !data) {
+      console.error('Error loading AI entries from Supabase:', error)
+      return []
+    }
+    
+    return data.map(transformToAIEntry)
+  } catch (error) {
+    console.error('Error loading AI entries for sitemap:', error)
+    return []
+  }
+}
+
+export async function generateSitemapXML() {
   const baseUrl = "https://arcyn-find.com"
+  const aiEntries = await loadAiEntries()
 
   // Static pages
   const staticPages = [

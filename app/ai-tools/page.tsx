@@ -8,7 +8,7 @@ import { AICard } from "@/components/ai-card"
 import { FilterBar } from "@/components/filter-bar"
 import { EnhancedSearchBar } from "@/components/enhanced-search-bar"
 import { searchAIEntries, addToSearchHistory } from "@/lib/search-utils"
-import { aiEntries, type AIEntry } from "@/lib/ai-data"
+import type { AIEntry } from "@/lib/ai-data"
 import { ThemeToggle } from "@/components/theme-toggle"
 import { Footer } from "@/components/footer"
 
@@ -23,7 +23,7 @@ export default function AllAIToolsPage() {
   const [selectedAccessType, setSelectedAccessType] = useState("")
   const [viewMode, setViewMode] = useState<"grid" | "list">("grid")
   const [currentPage, setCurrentPage] = useState(1)
-  const [aiModels, setAiModels] = useState<AIEntry[]>(aiEntries)
+  const [aiModels, setAiModels] = useState<AIEntry[]>([]) // Load from API, not bundled
   const [loading, setLoading] = useState(false)
   const [infiniteScroll, setInfiniteScroll] = useState(false)
   const [comparisonTools, setComparisonTools] = useState<AIEntry[]>([])
@@ -36,7 +36,8 @@ export default function AllAIToolsPage() {
         const controller = new AbortController()
         const timeoutId = setTimeout(() => controller.abort(), 10000)
         
-        const response = await fetch('/api/ai-models', {
+        // Load all tools for the all tools page
+        const response = await fetch('/api/ai-models?limit=1000', {
           cache: 'no-store',
           signal: controller.signal,
         })
@@ -81,13 +82,13 @@ export default function AllAIToolsPage() {
     }
   }, [aiModels])
 
-  // Enhanced search and filter with relevance sorting
+  // Enhanced search and filter with relevance sorting (increased limit to show all results)
   const { results: filteredAIs } = useMemo(() => {
     return searchAIEntries(aiModels, searchQuery, {
       category: selectedCategory,
       region: selectedRegion,
       accessType: selectedAccessType,
-    })
+    }, { maxResults: 10000 })
   }, [aiModels, searchQuery, selectedCategory, selectedRegion, selectedAccessType])
 
   // Reset to page 1 when filters/search change
@@ -124,9 +125,7 @@ export default function AllAIToolsPage() {
     }
 
     return () => {
-      if (sentinel) {
-        observer.unobserve(sentinel)
-      }
+      observer.disconnect() // Disconnect all observations for proper cleanup
     }
   }, [infiniteScroll, hasMore])
 
@@ -217,27 +216,27 @@ export default function AllAIToolsPage() {
       />
 
       {/* Main Content */}
-      <section className="py-12 md:py-16">
-        <div className="mx-auto max-w-7xl px-4">
+      <section className="py-8 sm:py-12 md:py-16">
+        <div className="mx-auto max-w-7xl px-3 sm:px-4">
           {/* Header with View Toggle */}
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             whileInView={{ opacity: 1, y: 0 }}
             viewport={{ once: true }}
-            className="mb-6 sm:mb-8 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4"
+            className="mb-4 sm:mb-8 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 sm:gap-4"
           >
-            <div>
-              <h1 className="text-2xl font-bold text-foreground md:text-3xl">All AI Tools</h1>
-              <p className="mt-2 text-muted-foreground">
+            <div className="flex-1 min-w-0">
+              <h1 className="text-xl sm:text-2xl font-bold text-foreground md:text-3xl">All AI Tools</h1>
+              <p className="mt-1.5 sm:mt-2 text-sm sm:text-base text-muted-foreground">
                 Showing {startIndex + 1}-{Math.min(endIndex, filteredAIs.length)} of {filteredAIs.length} {filteredAIs.length === 1 ? "result" : "results"}
               </p>
             </div>
 
-            <div className="flex gap-2">
+            <div className="flex gap-1.5 sm:gap-2 flex-shrink-0 flex-wrap">
               <button
                 onClick={handleOpenComparison}
                 disabled={comparisonTools.length === 0}
-                className={`rounded-lg p-2.5 sm:p-2 transition-all touch-manipulation relative ${
+                className={`rounded-lg p-2 sm:p-2.5 transition-all touch-manipulation relative ${
                   comparisonTools.length > 0 
                     ? 'hover:bg-muted text-muted-foreground hover:text-foreground cursor-pointer' 
                     : 'text-muted-foreground/30 cursor-not-allowed opacity-50'
@@ -245,40 +244,41 @@ export default function AllAIToolsPage() {
                 aria-label={comparisonTools.length > 0 ? `Compare ${comparisonTools.length} tools` : "No tools in comparison"}
                 title={comparisonTools.length > 0 ? `Compare ${comparisonTools.length} tool${comparisonTools.length > 1 ? 's' : ''}` : "Add tools to comparison first"}
               >
-                <GitCompare className="h-5 w-5" />
+                <GitCompare className="h-4 w-4 sm:h-5 sm:w-5" />
                 {comparisonTools.length > 0 && (
-                  <span className="absolute -top-1 -right-1 flex h-5 w-5 items-center justify-center rounded-full bg-accent text-xs font-bold text-accent-foreground animate-pulse">
+                  <span className="absolute -top-0.5 -right-0.5 sm:-top-1 sm:-right-1 flex h-4 w-4 sm:h-5 sm:w-5 items-center justify-center rounded-full bg-accent text-[10px] sm:text-xs font-bold text-accent-foreground animate-pulse">
                     {comparisonTools.length}
                   </span>
                 )}
               </button>
               <button
                 onClick={() => setInfiniteScroll(!infiniteScroll)}
-                className={`rounded-lg px-3 py-2 text-sm transition-all touch-manipulation ${
+                className={`rounded-lg px-2.5 sm:px-3 py-1.5 sm:py-2 text-xs sm:text-sm transition-all touch-manipulation ${
                   infiniteScroll ? "bg-accent/20 text-accent" : "hover:bg-muted text-muted-foreground"
                 }`}
                 aria-label={infiniteScroll ? "Switch to pagination" : "Switch to infinite scroll"}
                 title={infiniteScroll ? "Switch to pagination" : "Switch to infinite scroll"}
               >
-                {infiniteScroll ? "Pagination" : "Infinite Scroll"}
+                <span className="hidden sm:inline">{infiniteScroll ? "Pagination" : "Infinite Scroll"}</span>
+                <span className="sm:hidden">{infiniteScroll ? "Page" : "Scroll"}</span>
               </button>
               <button
                 onClick={() => setViewMode("grid")}
-                className={`rounded-lg p-2.5 sm:p-2 transition-all touch-manipulation ${
+                className={`rounded-lg p-2 sm:p-2.5 transition-all touch-manipulation ${
                   viewMode === "grid" ? "bg-accent/20 text-accent" : "hover:bg-muted text-muted-foreground"
                 }`}
                 aria-label="Grid view"
               >
-                <Grid3x3 className="h-5 w-5 sm:h-5 sm:w-5" />
+                <Grid3x3 className="h-4 w-4 sm:h-5 sm:w-5" />
               </button>
               <button
                 onClick={() => setViewMode("list")}
-                className={`rounded-lg p-2.5 sm:p-2 transition-all touch-manipulation ${
+                className={`rounded-lg p-2 sm:p-2.5 transition-all touch-manipulation ${
                   viewMode === "list" ? "bg-accent/20 text-accent" : "hover:bg-muted text-muted-foreground"
                 }`}
                 aria-label="List view"
               >
-                <List className="h-5 w-5 sm:h-5 sm:w-5" />
+                <List className="h-4 w-4 sm:h-5 sm:w-5" />
               </button>
             </div>
           </motion.div>
@@ -296,7 +296,7 @@ export default function AllAIToolsPage() {
             <>
               <motion.div
                 layout
-                className={`grid gap-6 ${
+                className={`grid gap-4 sm:gap-6 ${
                   viewMode === "grid" ? "sm:grid-cols-2 lg:grid-cols-3" : "grid-cols-1 max-w-4xl"
                 }`}
               >
@@ -314,11 +314,11 @@ export default function AllAIToolsPage() {
                         e.stopPropagation()
                         handleAddToComparison(ai)
                       }}
-                      className="absolute top-3 right-3 z-20 rounded-lg bg-background/90 backdrop-blur-md p-2 shadow-lg border border-border/50 hover:bg-background hover:scale-110 transition-all opacity-0 group-hover:opacity-100"
+                      className="absolute top-2 right-2 sm:top-3 sm:right-3 z-20 rounded-lg bg-background/90 backdrop-blur-md p-1.5 sm:p-2 shadow-lg border border-border/50 hover:bg-background active:scale-110 sm:hover:scale-110 transition-all opacity-100 sm:opacity-0 sm:group-hover:opacity-100 touch-manipulation"
                       aria-label={comparisonTools.find((t) => t.id === ai.id) ? "Remove from comparison" : "Add to comparison"}
                       title={comparisonTools.find((t) => t.id === ai.id) ? "Remove from comparison" : "Add to comparison"}
                     >
-                      <GitCompare className={`h-4 w-4 transition-colors ${comparisonTools.find((t) => t.id === ai.id) ? 'text-accent fill-accent/20' : 'text-muted-foreground hover:text-accent'}`} />
+                      <GitCompare className={`h-3.5 w-3.5 sm:h-4 sm:w-4 transition-colors ${comparisonTools.find((t) => t.id === ai.id) ? 'text-accent fill-accent/20' : 'text-muted-foreground hover:text-accent'}`} />
                     </button>
                   </div>
                 ))}

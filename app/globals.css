@@ -243,3 +243,103 @@
 [class*="border-"] {
   contain: style;
 }
+
+/* Mobile optimizations - reduce sizes by 5% */
+@media (max-width: 640px) {
+  /* Reduce font sizes by 5% */
+  html {
+    font-size: 95%;
+  }
+  
+  /* Reduce padding and margins */
+  .mobile-scale {
+    transform: scale(0.95);
+    transform-origin: top left;
+  }
+  
+  /* Better mobile spacing */
+  section {
+    padding-left: 0.95rem;
+    padding-right: 0.95rem;
+  }
+  
+  /* Reduce card padding on mobile */
+  .card-hover {
+    padding: 0.95rem;
+  }
+}
+
+/* iOS Safari specific fixes */
+@supports (-webkit-touch-callout: none) {
+  /* Fix iOS Safari viewport height issues */
+  html {
+    height: -webkit-fill-available;
+  }
+  
+  body {
+    min-height: 100vh;
+    min-height: -webkit-fill-available;
+  }
+  
+  /* Fix iOS Safari input zoom on focus */
+  input[type="text"],
+  input[type="search"],
+  input[type="email"],
+  input[type="tel"],
+  textarea,
+  select {
+    font-size: 16px !important; /* Prevents zoom on iOS */
+  }
+  
+  /* Fix iOS Safari button tap highlight */
+  button,
+  a {
+    -webkit-tap-highlight-color: rgba(139, 92, 246, 0.2);
+  }
+  
+  /* Fix iOS Safari scroll bounce */
+  body {
+    overscroll-behavior-y: none;
+    -webkit-overflow-scrolling: touch;
+  }
+}
+
+/* Touch device optimizations */
+@media (hover: none) and (pointer: coarse) {
+  /* Larger touch targets on mobile */
+  button,
+  a,
+  [role="button"] {
+    min-height: 44px;
+    min-width: 44px;
+  }
+  
+  /* Remove hover effects on touch devices */
+  .card-hover:hover {
+    transform: none;
+    box-shadow: none;
+  }
+  
+  /* Show active states instead of hover */
+  button:active,
+  a:active,
+  [role="button"]:active {
+    opacity: 0.7;
+    transform: scale(0.98);
+  }
+}
+
+/* Safe area insets for iOS notch */
+@supports (padding: max(0px)) {
+  body {
+    padding-left: max(0px, env(safe-area-inset-left));
+    padding-right: max(0px, env(safe-area-inset-right));
+  }
+  
+  /* Fix bottom safe area for iOS home indicator */
+  footer,
+  .fixed.bottom-4,
+  .fixed.bottom-8 {
+    padding-bottom: max(1rem, env(safe-area-inset-bottom));
+  }
+}
