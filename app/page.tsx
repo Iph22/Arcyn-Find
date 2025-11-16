@@ -14,10 +14,10 @@ import { Grid3x3, List, Loader2, ArrowUp, Share2, Heart, GitCompare } from "luci
 import { Footer } from "@/components/footer"
 import { getTrendingAIs, trackAIView } from "@/lib/trending-utils"
 import { useURLState, useKeyboardShortcuts, useScrollToTop, useFavorites, useShare } from "@/lib/hooks"
-import { ComparisonModal } from "@/components/comparison-modal"
-
 // Lazy load heavy components
 const TrendingSection = lazy(() => import("@/components/trending-section").then(m => ({ default: m.TrendingSection })))
+
+const COMPARISON_STORAGE_KEY = 'arcyn-find-comparison-tools'
 
 export default function Home() {
   const router = useRouter()
@@ -41,7 +41,6 @@ export default function Home() {
   const [trendingAIs, setTrendingAIs] = useState<AIEntry[]>([])
   const [trendingLoading, setTrendingLoading] = useState(true)
   const [comparisonTools, setComparisonTools] = useState<AIEntry[]>([])
-  const [showComparison, setShowComparison] = useState(false)
 
   // Custom hooks
   const { isVisible: showBackToTop, scrollToTop } = useScrollToTop()
@@ -104,6 +103,24 @@ export default function Home() {
 
     return () => clearInterval(interval)
   }, [])
+
+  // Load comparison tools from localStorage
+  useEffect(() => {
+    if (typeof window !== 'undefined' && aiModels.length > 0) {
+      const stored = localStorage.getItem(COMPARISON_STORAGE_KEY)
+      if (stored) {
+        try {
+          const toolIds = JSON.parse(stored) as string[]
+          const loadedTools = toolIds
+            .map(id => aiModels.find(ai => ai.id === id))
+            .filter((ai): ai is AIEntry => ai !== undefined)
+          setComparisonTools(loadedTools)
+        } catch (error) {
+          console.error('Failed to load comparison tools:', error)
+        }
+      }
+    }
+  }, [aiModels])
 
   // Enhanced search and filter with relevance sorting
   const { results: filteredAIs } = useMemo(() => {
@@ -194,21 +211,33 @@ export default function Home() {
 
   const handleAddToComparison = useCallback((ai: AIEntry) => {
     setComparisonTools((prev) => {
+      let updated: AIEntry[]
       if (prev.find((t) => t.id === ai.id)) {
-        return prev.filter((t) => t.id !== ai.id)
+        updated = prev.filter((t) => t.id !== ai.id)
+      } else if (prev.length >= 3) {
+        updated = [...prev.slice(1), ai]
+      } else {
+        updated = [...prev, ai]
       }
-      if (prev.length >= 3) {
-        return [...prev.slice(1), ai]
+
+      // Save to localStorage
+      if (typeof window !== 'undefined') {
+        if (updated.length === 0) {
+          localStorage.removeItem(COMPARISON_STORAGE_KEY)
+        } else {
+          localStorage.setItem(COMPARISON_STORAGE_KEY, JSON.stringify(updated.map(t => t.id)))
+        }
       }
-      return [...prev, ai]
+
+      return updated
     })
   }, [])
 
   const handleOpenComparison = useCallback(() => {
     if (comparisonTools.length > 0) {
-      setShowComparison(true)
+      router.push('/compare')
     }
-  }, [comparisonTools.length])
+  }, [comparisonTools.length, router])
 
   return (
     <main className="min-h-screen bg-background text-foreground">
@@ -418,12 +447,6 @@ export default function Home() {
         </motion.button>
       )}
 
-      {/* Comparison Modal */}
-      <ComparisonModal
-        isOpen={showComparison}
-        onClose={() => setShowComparison(false)}
-        tools={comparisonTools}
-      />
     </main>
   )
 }
