@@ -11,6 +11,7 @@ interface TrendingSectionProps {
 }
 
 export function TrendingSection({ trendingAIs, onSelectAI }: TrendingSectionProps) {
+  // Show loading state or empty state
   if (trendingAIs.length === 0) return null
 
   return (

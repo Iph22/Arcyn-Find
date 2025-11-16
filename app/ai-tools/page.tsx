@@ -24,6 +24,7 @@ export default function AllAIToolsPage() {
   const [currentPage, setCurrentPage] = useState(1)
   const [aiModels, setAiModels] = useState<AIEntry[]>(aiEntries)
   const [loading, setLoading] = useState(false)
+  const [infiniteScroll, setInfiniteScroll] = useState(false)
 
   // Fetch AI models from API
   useEffect(() => {
@@ -74,11 +75,40 @@ export default function AllAIToolsPage() {
     setCurrentPage(1)
   }, [searchQuery, selectedCategory, selectedRegion, selectedAccessType])
 
-  // Calculate pagination
+  // Infinite scroll or pagination
+  const displayedAIs = infiniteScroll
+    ? filteredAIs.slice(0, currentPage * ITEMS_PER_PAGE)
+    : filteredAIs.slice((currentPage - 1) * ITEMS_PER_PAGE, currentPage * ITEMS_PER_PAGE)
+
   const totalPages = Math.ceil(filteredAIs.length / ITEMS_PER_PAGE)
-  const startIndex = (currentPage - 1) * ITEMS_PER_PAGE
-  const endIndex = startIndex + ITEMS_PER_PAGE
-  const paginatedAIs = filteredAIs.slice(startIndex, endIndex)
+  const startIndex = infiniteScroll ? 0 : (currentPage - 1) * ITEMS_PER_PAGE
+  const endIndex = infiniteScroll ? displayedAIs.length : startIndex + ITEMS_PER_PAGE
+  const hasMore = infiniteScroll && displayedAIs.length < filteredAIs.length
+
+  // Infinite scroll observer
+  useEffect(() => {
+    if (!infiniteScroll || !hasMore) return
+
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (entries[0].isIntersecting) {
+          setCurrentPage((prev) => prev + 1)
+        }
+      },
+      { threshold: 0.1 }
+    )
+
+    const sentinel = document.getElementById('infinite-scroll-sentinel')
+    if (sentinel) {
+      observer.observe(sentinel)
+    }
+
+    return () => {
+      if (sentinel) {
+        observer.unobserve(sentinel)
+      }
+    }
+  }, [infiniteScroll, hasMore])
 
   const handleSelectAI = (ai: AIEntry) => {
     router.push(`/ai/${ai.id}`)
@@ -155,6 +185,16 @@ export default function AllAIToolsPage() {
 
             <div className="flex gap-2">
               <button
+                onClick={() => setInfiniteScroll(!infiniteScroll)}
+                className={`rounded-lg px-3 py-2 text-sm transition-all touch-manipulation ${
+                  infiniteScroll ? "bg-accent/20 text-accent" : "hover:bg-muted text-muted-foreground"
+                }`}
+                aria-label={infiniteScroll ? "Switch to pagination" : "Switch to infinite scroll"}
+                title={infiniteScroll ? "Switch to pagination" : "Switch to infinite scroll"}
+              >
+                {infiniteScroll ? "Pagination" : "Infinite Scroll"}
+              </button>
+              <button
                 onClick={() => setViewMode("grid")}
                 className={`rounded-lg p-2.5 sm:p-2 transition-all touch-manipulation ${
                   viewMode === "grid" ? "bg-accent/20 text-accent" : "hover:bg-muted text-muted-foreground"
@@ -192,7 +232,7 @@ export default function AllAIToolsPage() {
                   viewMode === "grid" ? "sm:grid-cols-2 lg:grid-cols-3" : "grid-cols-1 max-w-4xl"
                 }`}
               >
-                {paginatedAIs.map((ai, idx) => (
+                {displayedAIs.map((ai, idx) => (
                   <AICard
                     key={ai.id}
                     ai={ai}
@@ -203,8 +243,13 @@ export default function AllAIToolsPage() {
                 ))}
               </motion.div>
 
+              {/* Infinite scroll sentinel */}
+              {infiniteScroll && hasMore && (
+                <div id="infinite-scroll-sentinel" className="h-10 w-full" />
+              )}
+
               {/* Pagination Controls */}
-              {totalPages > 1 && (
+              {!infiniteScroll && totalPages > 1 && (
                 <motion.div
                   initial={{ opacity: 0, y: 20 }}
                   animate={{ opacity: 1, y: 0 }}

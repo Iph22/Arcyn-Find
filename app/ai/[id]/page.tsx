@@ -1,10 +1,13 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, useCallback } from "react"
 import { useRouter, useParams } from "next/navigation"
 import { motion } from "framer-motion"
-import { ArrowLeft, ExternalLink, Copy, Check } from "lucide-react"
+import { ArrowLeft, ExternalLink, Copy, Check, Share2, Heart } from "lucide-react"
 import { aiEntries, type AIEntry } from "@/lib/ai-data"
+import { trackAIView } from "@/lib/trending-utils"
+import { useFavorites, useShare } from "@/lib/hooks"
+import { StructuredData } from "./structured-data"
 
 export default function AIDetailPage() {
   const router = useRouter()
@@ -12,6 +15,10 @@ export default function AIDetailPage() {
   const [ai, setAi] = useState<AIEntry | null>(null)
   const [copied, setCopied] = useState(false)
   const [loading, setLoading] = useState(true)
+  const { toggleFavorite, isFavorite } = useFavorites()
+  const { share } = useShare()
+  
+  const favorited = ai ? isFavorite(ai.id) : false
 
   useEffect(() => {
     async function fetchAI() {
@@ -59,13 +66,35 @@ export default function AIDetailPage() {
     }
   }, [params.id, router])
 
-  const handleCopy = () => {
+  // Track view when AI tool is loaded
+  useEffect(() => {
+    if (ai) {
+      trackAIView(ai.id)
+    }
+  }, [ai])
+
+  const handleCopy = useCallback(() => {
     if (ai) {
       navigator.clipboard.writeText(ai.platform)
       setCopied(true)
       setTimeout(() => setCopied(false), 2000)
     }
-  }
+  }, [ai])
+
+  const handleShare = useCallback(async () => {
+    if (!ai) return
+    const url = window.location.href
+    const title = `${ai.name} - AI Tool`
+    const text = `Check out ${ai.name}: ${ai.description}`
+    
+    await share({ title, text, url })
+  }, [ai, share])
+
+  const handleFavorite = useCallback(() => {
+    if (ai) {
+      toggleFavorite(ai.id)
+    }
+  }, [ai, toggleFavorite])
 
   const getAccessTypeColor = (type: string) => {
     switch (type) {
@@ -110,6 +139,7 @@ export default function AIDetailPage() {
 
   return (
     <div className="min-h-screen bg-background text-foreground">
+      {ai && <StructuredData ai={ai} />}
       <div className="mx-auto max-w-4xl px-4 py-8 md:py-12">
         {/* Back Button */}
         <motion.button
@@ -134,6 +164,28 @@ export default function AIDetailPage() {
             <div className="flex-1">
               <h1 className="mb-2 text-4xl font-bold text-foreground">{ai.name}</h1>
               <p className="text-xl text-accent">{ai.category}</p>
+            </div>
+            <div className="flex gap-2">
+              <button
+                onClick={handleFavorite}
+                className="rounded-lg p-2 border border-border hover:bg-muted transition-colors"
+                aria-label={favorited ? "Remove from favorites" : "Add to favorites"}
+                title={favorited ? "Remove from favorites" : "Add to favorites"}
+              >
+                <Heart
+                  className={`h-5 w-5 transition-colors ${
+                    favorited ? "fill-red-500 text-red-500" : "text-muted-foreground hover:text-red-500"
+                  }`}
+                />
+              </button>
+              <button
+                onClick={handleShare}
+                className="rounded-lg p-2 border border-border hover:bg-muted transition-colors"
+                aria-label="Share this AI tool"
+                title="Share"
+              >
+                <Share2 className="h-5 w-5 text-muted-foreground hover:text-foreground" />
+              </button>
             </div>
           </div>
 

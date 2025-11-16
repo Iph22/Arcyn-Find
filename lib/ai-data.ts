@@ -272,7 +272,7 @@ export const aiEntries: AIEntry[] = [
   {
     id: "5",
     name: "Whisper",
-    category: "NLP/Audio",
+    category: "Audio/NLP",
     description: "Speech-to-text model supporting 99 languages with high accuracy.",
     platform: "https://openai.com/research/whisper",
     region: "USA",

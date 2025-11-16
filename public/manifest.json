@@ -1,7 +1,7 @@
 {
   "name": "Arcyn Find - Discover AI Tools Worldwide",
   "short_name": "Arcyn Find",
-  "description": "Search, filter, and explore AI tools, models, platforms, and research worldwide",
+  "description": "Search, filter, and explore AI tools, models, platforms, and research worldwide. Find the perfect AI for your needs.",
   "start_url": "/",
   "display": "standalone",
   "background_color": "#000000",
@@ -23,11 +23,26 @@
     {
       "src": "/apple-touch-icon.png",
       "sizes": "180x180",
-      "type": "image/png"
+      "type": "image/png",
+      "purpose": "any"
     }
   ],
   "categories": ["productivity", "utilities", "education"],
-  "lang": "en-US",
-  "dir": "ltr"
+  "screenshots": [],
+  "shortcuts": [
+    {
+      "name": "Search AI Tools",
+      "short_name": "Search",
+      "description": "Search for AI tools",
+      "url": "/?action=search",
+      "icons": [{ "src": "/icon-192x192.png", "sizes": "192x192" }]
+    },
+    {
+      "name": "All AI Tools",
+      "short_name": "All Tools",
+      "description": "Browse all AI tools",
+      "url": "/ai-tools",
+      "icons": [{ "src": "/icon-192x192.png", "sizes": "192x192" }]
+    }
+  ]
 }
-

@@ -1,20 +1,30 @@
 "use client"
 
 import { motion } from "framer-motion"
-import { Star, ExternalLink, Zap } from "lucide-react"
+import { Star, ExternalLink, Zap, Heart } from "lucide-react"
 import type { AIEntry } from "@/lib/ai-data"
-import { useState } from "react"
+import { useState, useCallback } from "react"
 import { HighlightText } from "./highlight-text"
+import { trackAIView } from "@/lib/trending-utils"
+import { useFavorites } from "@/lib/hooks"
 
 interface AICardProps {
   ai: AIEntry
   onClick: () => void
   delay?: number
   searchQuery?: string
+  showFavorite?: boolean
 }
 
-export function AICard({ ai, onClick, delay = 0, searchQuery = "" }: AICardProps) {
+export function AICard({ ai, onClick, delay = 0, searchQuery = "", showFavorite = true }: AICardProps) {
   const [isHovered, setIsHovered] = useState(false)
+  const { toggleFavorite, isFavorite } = useFavorites()
+  const favorited = isFavorite(ai.id)
+
+  const handleFavoriteClick = useCallback((e: React.MouseEvent) => {
+    e.stopPropagation()
+    toggleFavorite(ai.id)
+  }, [ai.id, toggleFavorite])
 
   const getAccessTypeColor = (type: string) => {
     switch (type) {
@@ -37,13 +47,17 @@ export function AICard({ ai, onClick, delay = 0, searchQuery = "" }: AICardProps
       transition={{ duration: 0.5, delay }}
       onHoverStart={() => setIsHovered(true)}
       onHoverEnd={() => setIsHovered(false)}
-      onClick={onClick}
+      onClick={() => {
+        trackAIView(ai.id)
+        onClick()
+      }}
       className="group cursor-pointer"
       role="button"
       tabIndex={0}
       onKeyDown={(e) => {
         if (e.key === "Enter" || e.key === " ") {
           e.preventDefault()
+          trackAIView(ai.id)
           onClick()
         }
       }}
@@ -58,7 +72,7 @@ export function AICard({ ai, onClick, delay = 0, searchQuery = "" }: AICardProps
         <div className="relative z-10 p-6">
           <div className="mb-4 flex items-start justify-between">
             <div className="flex-1">
-              <div className="mb-2 flex items-center gap-2">
+              <div className="mb-2 flex items-center gap-2 flex-wrap">
                 <h3 className="text-lg font-bold text-foreground">
                   <HighlightText text={ai.name} query={searchQuery} />
                 </h3>
@@ -76,9 +90,25 @@ export function AICard({ ai, onClick, delay = 0, searchQuery = "" }: AICardProps
               </div>
               <p className="text-xs text-muted-foreground">{ai.category}</p>
             </div>
-            <motion.div animate={{ rotate: isHovered ? 15 : 0 }} transition={{ type: "spring", stiffness: 200 }}>
-              <ExternalLink className="h-5 w-5 text-accent/60 group-hover:text-accent" aria-hidden="true" />
-            </motion.div>
+            <div className="flex items-center gap-2">
+              {showFavorite && (
+                <button
+                  onClick={handleFavoriteClick}
+                  className="rounded p-1.5 transition-colors hover:bg-muted"
+                  aria-label={favorited ? "Remove from favorites" : "Add to favorites"}
+                  title={favorited ? "Remove from favorites" : "Add to favorites"}
+                >
+                  <Heart
+                    className={`h-4 w-4 transition-colors ${
+                      favorited ? "fill-red-500 text-red-500" : "text-muted-foreground hover:text-red-500"
+                    }`}
+                  />
+                </button>
+              )}
+              <motion.div animate={{ rotate: isHovered ? 15 : 0 }} transition={{ type: "spring", stiffness: 200 }}>
+                <ExternalLink className="h-5 w-5 text-accent/60 group-hover:text-accent" aria-hidden="true" />
+              </motion.div>
+            </div>
           </div>
 
           <p className="mb-4 line-clamp-2 text-sm text-muted-foreground">

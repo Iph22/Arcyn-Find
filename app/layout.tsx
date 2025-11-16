@@ -102,6 +102,11 @@ export const metadata: Metadata = {
     shortcut: "/favicon.ico",
   },
   manifest: "/manifest.json",
+  appleWebApp: {
+    capable: true,
+    statusBarStyle: "black-translucent",
+    title: "Arcyn Find",
+  },
   category: "Technology",
 }
 
@@ -125,6 +130,24 @@ export default function RootLayout({
                   document.documentElement.style.colorScheme = theme;
                 } catch (e) {}
               })();
+            `,
+          }}
+        />
+        {/* Service Worker Registration for PWA */}
+        <script
+          dangerouslySetInnerHTML={{
+            __html: `
+              if ('serviceWorker' in navigator) {
+                window.addEventListener('load', () => {
+                  navigator.serviceWorker.register('/sw.js')
+                    .then((registration) => {
+                      console.log('SW registered: ', registration);
+                    })
+                    .catch((registrationError) => {
+                      console.log('SW registration failed: ', registrationError);
+                    });
+                });
+              }
             `,
           }}
         />

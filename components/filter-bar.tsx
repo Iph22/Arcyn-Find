@@ -16,7 +16,6 @@ const categories = [
   "All",
   "Generative AI",
   "Computer Vision",
-  "NLP/Audio",
   "Audio/NLP",
   "Code Generation",
   "Multimodal Platform",

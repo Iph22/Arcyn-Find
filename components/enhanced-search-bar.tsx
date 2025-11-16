@@ -1,9 +1,21 @@
 "use client"
 
-import { useState, useRef, useEffect } from "react"
+import { useState, useRef, useEffect, useMemo, useCallback } from "react"
 import { motion, AnimatePresence } from "framer-motion"
-import { Search, X, Clock, ArrowUp, ArrowDown } from "lucide-react"
-import { generateSuggestions, getSearchHistory, addToSearchHistory, clearSearchHistory } from "@/lib/search-utils"
+import { Search, X, Clock, ArrowUp, ArrowDown, Tag, Folder, Sparkles } from "lucide-react"
+import { 
+  generateSuggestions, 
+  generateEnhancedSuggestions,
+  getSearchHistory, 
+  addToSearchHistory, 
+  clearSearchHistory,
+  getAutocompleteSuggestion,
+  searchAIEntries,
+  highlightMatches,
+  getPopularSearches,
+  type SearchSuggestion
+} from "@/lib/search-utils"
+import { useDebounce } from "@/lib/hooks"
 import type { AIEntry } from "@/lib/ai-data"
 
 interface EnhancedSearchBarProps {
@@ -11,54 +23,108 @@ interface EnhancedSearchBarProps {
   onChange: (value: string) => void
   aiModels: AIEntry[]
   onSearch?: (query: string) => void
+  onResultCountChange?: (count: number) => void
+  showResultCount?: boolean
 }
 
-export function EnhancedSearchBar({ value, onChange, aiModels, onSearch }: EnhancedSearchBarProps) {
+export function EnhancedSearchBar({ 
+  value, 
+  onChange, 
+  aiModels, 
+  onSearch,
+  onResultCountChange,
+  showResultCount = false
+}: EnhancedSearchBarProps) {
   const [isFocused, setIsFocused] = useState(false)
   const [showSuggestions, setShowSuggestions] = useState(false)
   const [selectedIndex, setSelectedIndex] = useState(-1)
-  const [suggestions, setSuggestions] = useState<string[]>([])
+  const [suggestions, setSuggestions] = useState<SearchSuggestion[]>([])
   const [history, setHistory] = useState<string[]>([])
+  const [autocompleteText, setAutocompleteText] = useState<string>("")
+  const [resultCount, setResultCount] = useState<number>(0)
   const inputRef = useRef<HTMLInputElement>(null)
   const containerRef = useRef<HTMLDivElement>(null)
+  
+  // Debounce search value for suggestions (but keep immediate input update)
+  const debouncedValue = useDebounce(value, 300)
+  
+  // Get popular searches for empty state
+  const popularSearches = useMemo(() => getPopularSearches(5), [])
 
   useEffect(() => {
     setHistory(getSearchHistory())
   }, [])
 
+  // Update suggestions based on debounced value
   useEffect(() => {
-    if (value.trim() && isFocused) {
-      const newSuggestions = generateSuggestions(aiModels, value, 8)
-      setSuggestions(newSuggestions)
-      setShowSuggestions(newSuggestions.length > 0 || history.length > 0)
+    if (debouncedValue.trim() && isFocused) {
+      const enhancedSuggestions = generateEnhancedSuggestions(aiModels, debouncedValue, 8)
+      setSuggestions(enhancedSuggestions)
+      setShowSuggestions(enhancedSuggestions.length > 0 || history.length > 0)
+      
+      // Calculate result count
+      const { results } = searchAIEntries(aiModels, debouncedValue, {})
+      setResultCount(results.length)
+      if (onResultCountChange) {
+        onResultCountChange(results.length)
+      }
     } else if (isFocused && history.length > 0) {
       setSuggestions([])
       setShowSuggestions(true)
+      setResultCount(aiModels.length)
+      if (onResultCountChange) {
+        onResultCountChange(aiModels.length)
+      }
     } else {
       setShowSuggestions(false)
+      setResultCount(0)
+      if (onResultCountChange) {
+        onResultCountChange(0)
+      }
     }
     setSelectedIndex(-1)
-  }, [value, isFocused, aiModels, history.length])
+  }, [debouncedValue, isFocused, aiModels, history.length, onResultCountChange])
+  
+  // Autocomplete suggestion
+  useEffect(() => {
+    if (value.trim() && value.length >= 2) {
+      const suggestion = getAutocompleteSuggestion(value)
+      setAutocompleteText(suggestion || "")
+    } else {
+      setAutocompleteText("")
+    }
+  }, [value])
 
-  const handleInputChange = (newValue: string) => {
+  const handleInputChange = useCallback((newValue: string) => {
     onChange(newValue)
     setSelectedIndex(-1)
-  }
+  }, [onChange])
 
-  const handleSelectSuggestion = (suggestion: string) => {
-    onChange(suggestion)
-    addToSearchHistory(suggestion)
+  const handleSelectSuggestion = useCallback((suggestion: string | SearchSuggestion) => {
+    const query = typeof suggestion === 'string' ? suggestion : suggestion.text
+    onChange(query)
+    addToSearchHistory(query)
     setHistory(getSearchHistory())
     setShowSuggestions(false)
     setIsFocused(false)
     inputRef.current?.blur()
     if (onSearch) {
-      onSearch(suggestion)
+      onSearch(query)
     }
-  }
+  }, [onChange, onSearch])
+  
+  const handleTabAutocomplete = useCallback((e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === 'Tab' && autocompleteText && !e.shiftKey) {
+      e.preventDefault()
+      onChange(autocompleteText)
+      setAutocompleteText("")
+    }
+  }, [autocompleteText, onChange])
 
-  const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
-    const allItems = [...suggestions, ...history].slice(0, 8)
+  const handleKeyDown = useCallback((e: React.KeyboardEvent<HTMLInputElement>) => {
+    const allItems = value.trim() 
+      ? suggestions.map(s => s.text)
+      : [...history, ...popularSearches].slice(0, 8)
 
     if (e.key === "ArrowDown") {
       e.preventDefault()
@@ -69,7 +135,10 @@ export function EnhancedSearchBar({ value, onChange, aiModels, onSearch }: Enhan
     } else if (e.key === "Enter") {
       e.preventDefault()
       if (selectedIndex >= 0 && selectedIndex < allItems.length) {
-        handleSelectSuggestion(allItems[selectedIndex])
+        const selected = value.trim() 
+          ? suggestions[selectedIndex]
+          : allItems[selectedIndex]
+        handleSelectSuggestion(selected)
       } else if (value.trim()) {
         addToSearchHistory(value)
         setHistory(getSearchHistory())
@@ -81,22 +150,41 @@ export function EnhancedSearchBar({ value, onChange, aiModels, onSearch }: Enhan
       setShowSuggestions(false)
       setIsFocused(false)
       inputRef.current?.blur()
+    } else {
+      handleTabAutocomplete(e)
     }
-  }
+  }, [suggestions, history, popularSearches, selectedIndex, value, handleSelectSuggestion, onSearch, handleTabAutocomplete])
 
-  const handleClear = () => {
+  const handleClear = useCallback(() => {
     onChange("")
     inputRef.current?.focus()
-  }
+  }, [onChange])
 
-  const handleClearHistory = () => {
+  const handleClearHistory = useCallback(() => {
     clearSearchHistory()
     setHistory([])
-  }
+  }, [])
 
-  const displayItems = value.trim()
-    ? suggestions
-    : history.slice(0, 8)
+  const displayItems = useMemo(() => {
+    if (value.trim()) {
+      return suggestions
+    }
+    // Show popular searches if no history
+    return history.length > 0 ? history.slice(0, 8) : popularSearches.slice(0, 8)
+  }, [value, suggestions, history, popularSearches])
+  
+  const getSuggestionIcon = (type: SearchSuggestion['type']) => {
+    switch (type) {
+      case 'tool':
+        return <Sparkles className="h-4 w-4" />
+      case 'tag':
+        return <Tag className="h-4 w-4" />
+      case 'category':
+        return <Folder className="h-4 w-4" />
+      default:
+        return <Search className="h-4 w-4" />
+    }
+  }
 
   return (
     <div ref={containerRef} className="relative w-full">
@@ -114,25 +202,39 @@ export function EnhancedSearchBar({ value, onChange, aiModels, onSearch }: Enhan
             className="absolute left-4 top-1/2 h-5 w-5 -translate-y-1/2 text-muted-foreground pointer-events-none"
             aria-hidden="true"
           />
-          <input
-            ref={inputRef}
-            id="ai-search"
-            type="text"
-            placeholder="Search by name, tags, keywords... (try: tag:api, category:vision, AND, OR)"
-            value={value}
-            onChange={(e) => handleInputChange(e.target.value)}
-            onFocus={() => setIsFocused(true)}
-            onBlur={() => {
-              // Delay to allow click events on suggestions
-              setTimeout(() => setIsFocused(false), 200)
-            }}
-            onKeyDown={handleKeyDown}
-            className="w-full rounded-lg border border-border bg-card px-4 py-3 pl-12 pr-10 text-foreground placeholder-muted-foreground transition-all focus:border-accent focus:outline-none focus:ring-2 focus:ring-accent/50"
-            aria-label="Search AI tools by name or keyword"
-            aria-autocomplete="list"
-            aria-expanded={showSuggestions}
-            aria-controls="search-suggestions"
-          />
+          <div className="relative">
+            <input
+              ref={inputRef}
+              id="ai-search"
+              type="text"
+              placeholder="Search by name, tags, keywords... (try: tag:api, category:vision, AND, OR)"
+              value={value}
+              onChange={(e) => handleInputChange(e.target.value)}
+              onFocus={() => setIsFocused(true)}
+              onBlur={() => {
+                // Delay to allow click events on suggestions
+                setTimeout(() => setIsFocused(false), 200)
+              }}
+              onKeyDown={handleKeyDown}
+              className="w-full rounded-lg border border-border bg-card px-4 py-3 pl-12 pr-10 text-foreground placeholder-muted-foreground transition-all focus:border-accent focus:outline-none focus:ring-2 focus:ring-accent/50"
+              aria-label="Search AI tools by name or keyword"
+              aria-autocomplete="list"
+              aria-expanded={showSuggestions}
+              aria-controls="search-suggestions"
+            />
+            {/* Autocomplete hint */}
+            {autocompleteText && value.trim() && (
+              <div className="absolute left-12 top-1/2 -translate-y-1/2 pointer-events-none text-muted-foreground/50">
+                {autocompleteText.slice(value.length)}
+              </div>
+            )}
+            {/* Result count */}
+            {showResultCount && value.trim() && resultCount > 0 && (
+              <div className="absolute right-12 top-1/2 -translate-y-1/2 text-xs text-muted-foreground pointer-events-none">
+                {resultCount} {resultCount === 1 ? 'result' : 'results'}
+              </div>
+            )}
+          </div>
           {value && (
             <button
               onClick={handleClear}
@@ -160,12 +262,15 @@ export function EnhancedSearchBar({ value, onChange, aiModels, onSearch }: Enhan
             <div className="p-2">
               {value.trim() ? (
                 <>
-                  <div className="px-3 py-2 text-xs font-semibold text-muted-foreground uppercase">
-                    Suggestions
+                  <div className="px-3 py-2 text-xs font-semibold text-muted-foreground uppercase flex items-center justify-between">
+                    <span>Suggestions</span>
+                    {resultCount > 0 && (
+                      <span className="text-xs font-normal">{resultCount} results</span>
+                    )}
                   </div>
                   {suggestions.map((suggestion, idx) => (
                     <motion.button
-                      key={suggestion}
+                      key={`${suggestion.type}-${suggestion.text}-${idx}`}
                       onClick={() => handleSelectSuggestion(suggestion)}
                       onMouseEnter={() => setSelectedIndex(idx)}
                       className={`w-full rounded-md px-3 py-2 text-left text-sm transition-colors flex items-center justify-between ${
@@ -176,20 +281,48 @@ export function EnhancedSearchBar({ value, onChange, aiModels, onSearch }: Enhan
                       role="option"
                       aria-selected={selectedIndex === idx}
                     >
-                      <span className="flex items-center gap-2">
-                        <Search className="h-4 w-4" />
-                        {suggestion}
-                      </span>
-                      {selectedIndex === idx && <ArrowUp className="h-4 w-4" />}
+                      <div className="flex items-center gap-2 flex-1 min-w-0">
+                        {getSuggestionIcon(suggestion.type)}
+                        <span className="truncate" dangerouslySetInnerHTML={{
+                          __html: highlightMatches(suggestion.text, value)
+                        }} />
+                        {suggestion.matchCount && suggestion.matchCount > 1 && (
+                          <span className="text-xs text-muted-foreground ml-auto">
+                            {suggestion.matchCount}
+                          </span>
+                        )}
+                      </div>
+                      {selectedIndex === idx && <ArrowUp className="h-4 w-4 ml-2 flex-shrink-0" />}
                     </motion.button>
                   ))}
+                  {/* Show tool preview for first suggestion if it's a tool */}
+                  {suggestions.length > 0 && suggestions[0].type === 'tool' && suggestions[0].tool && (
+                    <div className="border-t border-border mt-2 pt-2 px-3">
+                      <div className="text-xs font-semibold text-muted-foreground mb-1">
+                        {suggestions[0].tool.name}
+                      </div>
+                      <div className="text-xs text-muted-foreground line-clamp-2">
+                        {suggestions[0].tool.description}
+                      </div>
+                      <div className="flex gap-1 mt-2">
+                        <span className="text-xs px-2 py-0.5 rounded-full bg-accent/10 text-accent">
+                          {suggestions[0].tool.category}
+                        </span>
+                        {suggestions[0].tool.tags.slice(0, 2).map(tag => (
+                          <span key={tag} className="text-xs px-2 py-0.5 rounded-full bg-muted text-muted-foreground">
+                            {tag}
+                          </span>
+                        ))}
+                      </div>
+                    </div>
+                  )}
                 </>
               ) : (
                 <>
                   <div className="flex items-center justify-between px-3 py-2">
                     <div className="text-xs font-semibold text-muted-foreground uppercase flex items-center gap-2">
                       <Clock className="h-3 w-3" />
-                      Recent Searches
+                      {history.length > 0 ? 'Recent Searches' : 'Popular Searches'}
                     </div>
                     {history.length > 0 && (
                       <button
@@ -200,10 +333,10 @@ export function EnhancedSearchBar({ value, onChange, aiModels, onSearch }: Enhan
                       </button>
                     )}
                   </div>
-                  {history.map((item, idx) => (
+                  {displayItems.map((item, idx) => (
                     <motion.button
-                      key={item}
-                      onClick={() => handleSelectSuggestion(item)}
+                      key={typeof item === 'string' ? item : item.text}
+                      onClick={() => handleSelectSuggestion(typeof item === 'string' ? item : item)}
                       onMouseEnter={() => setSelectedIndex(idx)}
                       className={`w-full rounded-md px-3 py-2 text-left text-sm transition-colors flex items-center justify-between ${
                         selectedIndex === idx
@@ -214,8 +347,12 @@ export function EnhancedSearchBar({ value, onChange, aiModels, onSearch }: Enhan
                       aria-selected={selectedIndex === idx}
                     >
                       <span className="flex items-center gap-2">
-                        <Clock className="h-4 w-4" />
-                        {item}
+                        {history.length > 0 ? (
+                          <Clock className="h-4 w-4" />
+                        ) : (
+                          <Sparkles className="h-4 w-4" />
+                        )}
+                        {typeof item === 'string' ? item : item.text}
                       </span>
                       {selectedIndex === idx && <ArrowUp className="h-4 w-4" />}
                     </motion.button>
