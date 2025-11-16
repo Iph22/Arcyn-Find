@@ -3,7 +3,7 @@
 import { useState, useMemo, useEffect } from "react"
 import { useRouter } from "next/navigation"
 import { motion } from "framer-motion"
-import { ArrowLeft, Grid3x3, List, ChevronLeft, ChevronRight } from "lucide-react"
+import { ArrowLeft, Grid3x3, List, ChevronLeft, ChevronRight, GitCompare } from "lucide-react"
 import { AICard } from "@/components/ai-card"
 import { FilterBar } from "@/components/filter-bar"
 import { EnhancedSearchBar } from "@/components/enhanced-search-bar"
@@ -13,6 +13,7 @@ import { ThemeToggle } from "@/components/theme-toggle"
 import { Footer } from "@/components/footer"
 
 const ITEMS_PER_PAGE = 12
+const COMPARISON_STORAGE_KEY = 'arcyn-find-comparison-tools'
 
 export default function AllAIToolsPage() {
   const router = useRouter()
@@ -25,6 +26,7 @@ export default function AllAIToolsPage() {
   const [aiModels, setAiModels] = useState<AIEntry[]>(aiEntries)
   const [loading, setLoading] = useState(false)
   const [infiniteScroll, setInfiniteScroll] = useState(false)
+  const [comparisonTools, setComparisonTools] = useState<AIEntry[]>([])
 
   // Fetch AI models from API
   useEffect(() => {
@@ -60,6 +62,24 @@ export default function AllAIToolsPage() {
 
     fetchModels()
   }, [])
+
+  // Load comparison tools from localStorage
+  useEffect(() => {
+    if (typeof window !== 'undefined' && aiModels.length > 0) {
+      const stored = localStorage.getItem(COMPARISON_STORAGE_KEY)
+      if (stored) {
+        try {
+          const toolIds = JSON.parse(stored) as string[]
+          const loadedTools = toolIds
+            .map(id => aiModels.find(ai => ai.id === id))
+            .filter((ai): ai is AIEntry => ai !== undefined)
+          setComparisonTools(loadedTools)
+        } catch (error) {
+          console.error('Failed to load comparison tools:', error)
+        }
+      }
+    }
+  }, [aiModels])
 
   // Enhanced search and filter with relevance sorting
   const { results: filteredAIs } = useMemo(() => {
@@ -117,6 +137,36 @@ export default function AllAIToolsPage() {
   const handleSearch = (query: string) => {
     if (query.trim()) {
       addToSearchHistory(query)
+    }
+  }
+
+  const handleAddToComparison = (ai: AIEntry) => {
+    setComparisonTools((prev) => {
+      let updated: AIEntry[]
+      if (prev.find((t) => t.id === ai.id)) {
+        updated = prev.filter((t) => t.id !== ai.id)
+      } else if (prev.length >= 3) {
+        updated = [...prev.slice(1), ai]
+      } else {
+        updated = [...prev, ai]
+      }
+
+      // Save to localStorage
+      if (typeof window !== 'undefined') {
+        if (updated.length === 0) {
+          localStorage.removeItem(COMPARISON_STORAGE_KEY)
+        } else {
+          localStorage.setItem(COMPARISON_STORAGE_KEY, JSON.stringify(updated.map(t => t.id)))
+        }
+      }
+
+      return updated
+    })
+  }
+
+  const handleOpenComparison = () => {
+    if (comparisonTools.length > 0) {
+      router.push('/compare')
     }
   }
 
@@ -185,6 +235,24 @@ export default function AllAIToolsPage() {
 
             <div className="flex gap-2">
               <button
+                onClick={handleOpenComparison}
+                disabled={comparisonTools.length === 0}
+                className={`rounded-lg p-2.5 sm:p-2 transition-all touch-manipulation relative ${
+                  comparisonTools.length > 0 
+                    ? 'hover:bg-muted text-muted-foreground hover:text-foreground cursor-pointer' 
+                    : 'text-muted-foreground/30 cursor-not-allowed opacity-50'
+                }`}
+                aria-label={comparisonTools.length > 0 ? `Compare ${comparisonTools.length} tools` : "No tools in comparison"}
+                title={comparisonTools.length > 0 ? `Compare ${comparisonTools.length} tool${comparisonTools.length > 1 ? 's' : ''}` : "Add tools to comparison first"}
+              >
+                <GitCompare className="h-5 w-5" />
+                {comparisonTools.length > 0 && (
+                  <span className="absolute -top-1 -right-1 flex h-5 w-5 items-center justify-center rounded-full bg-accent text-xs font-bold text-accent-foreground animate-pulse">
+                    {comparisonTools.length}
+                  </span>
+                )}
+              </button>
+              <button
                 onClick={() => setInfiniteScroll(!infiniteScroll)}
                 className={`rounded-lg px-3 py-2 text-sm transition-all touch-manipulation ${
                   infiniteScroll ? "bg-accent/20 text-accent" : "hover:bg-muted text-muted-foreground"
@@ -233,13 +301,26 @@ export default function AllAIToolsPage() {
                 }`}
               >
                 {displayedAIs.map((ai, idx) => (
-                  <AICard
-                    key={ai.id}
-                    ai={ai}
-                    onClick={() => handleSelectAI(ai)}
-                    delay={idx * 0.02}
-                    searchQuery={searchQuery}
-                  />
+                  <div key={ai.id} className="relative group">
+                    <AICard
+                      ai={ai}
+                      onClick={() => handleSelectAI(ai)}
+                      delay={idx * 0.02}
+                      searchQuery={searchQuery}
+                      showFavorite={true}
+                    />
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation()
+                        handleAddToComparison(ai)
+                      }}
+                      className="absolute top-3 right-3 z-20 rounded-lg bg-background/90 backdrop-blur-md p-2 shadow-lg border border-border/50 hover:bg-background hover:scale-110 transition-all opacity-0 group-hover:opacity-100"
+                      aria-label={comparisonTools.find((t) => t.id === ai.id) ? "Remove from comparison" : "Add to comparison"}
+                      title={comparisonTools.find((t) => t.id === ai.id) ? "Remove from comparison" : "Add to comparison"}
+                    >
+                      <GitCompare className={`h-4 w-4 transition-colors ${comparisonTools.find((t) => t.id === ai.id) ? 'text-accent fill-accent/20' : 'text-muted-foreground hover:text-accent'}`} />
+                    </button>
+                  </div>
                 ))}
               </motion.div>
 

@@ -337,21 +337,23 @@ export default function Home() {
             </div>
 
             <div className="flex gap-2">
-              {comparisonTools.length > 0 && (
-                <button
-                  onClick={handleOpenComparison}
-                  className="rounded-lg p-2.5 sm:p-2 transition-all touch-manipulation hover:bg-muted text-muted-foreground hover:text-foreground relative"
-                  aria-label={`Compare ${comparisonTools.length} tools`}
-                  title={`Compare ${comparisonTools.length} tool${comparisonTools.length > 1 ? 's' : ''}`}
-                >
-                  <GitCompare className="h-5 w-5" />
-                  {comparisonTools.length > 0 && (
-                    <span className="absolute -top-1 -right-1 flex h-5 w-5 items-center justify-center rounded-full bg-accent text-xs font-bold text-accent-foreground">
-                      {comparisonTools.length}
-                    </span>
-                  )}
-                </button>
-              )}
+              <button
+                onClick={handleOpenComparison}
+                disabled={comparisonTools.length === 0}
+                className={`rounded-lg p-2.5 sm:p-2 transition-all touch-manipulation relative ${comparisonTools.length > 0
+                  ? 'hover:bg-muted text-muted-foreground hover:text-foreground cursor-pointer'
+                  : 'text-muted-foreground/30 cursor-not-allowed opacity-50'
+                  }`}
+                aria-label={comparisonTools.length > 0 ? `Compare ${comparisonTools.length} tools` : "No tools in comparison"}
+                title={comparisonTools.length > 0 ? `Compare ${comparisonTools.length} tool${comparisonTools.length > 1 ? 's' : ''}` : "Add tools to comparison first"}
+              >
+                <GitCompare className="h-5 w-5" />
+                {comparisonTools.length > 0 && (
+                  <span className="absolute -top-1 -right-1 flex h-5 w-5 items-center justify-center rounded-full bg-accent text-xs font-bold text-accent-foreground animate-pulse">
+                    {comparisonTools.length}
+                  </span>
+                )}
+              </button>
               <button
                 onClick={handleShare}
                 className="rounded-lg p-2.5 sm:p-2 transition-all touch-manipulation hover:bg-muted text-muted-foreground hover:text-foreground"
@@ -394,23 +396,24 @@ export default function Home() {
                   }`}
               >
                 {filteredAIs.slice(0, 25).map((ai, idx) => (
-                  <div key={ai.id} className="relative">
+                  <div key={ai.id} className="relative group">
                     <AICard
                       ai={ai}
                       onClick={() => handleSelectAI(ai)}
                       delay={idx * 0.05}
                       searchQuery={searchQuery}
+                      showFavorite={true}
                     />
                     <button
                       onClick={(e) => {
                         e.stopPropagation()
                         handleAddToComparison(ai)
                       }}
-                      className="absolute top-2 right-2 z-10 rounded-lg bg-background/80 p-1.5 backdrop-blur-sm hover:bg-background transition-colors"
+                      className="absolute top-3 right-3 z-20 rounded-lg bg-background/90 backdrop-blur-md p-2 shadow-lg border border-border/50 hover:bg-background hover:scale-110 transition-all opacity-0 group-hover:opacity-100"
                       aria-label={comparisonTools.find((t) => t.id === ai.id) ? "Remove from comparison" : "Add to comparison"}
                       title={comparisonTools.find((t) => t.id === ai.id) ? "Remove from comparison" : "Add to comparison"}
                     >
-                      <GitCompare className={`h-4 w-4 ${comparisonTools.find((t) => t.id === ai.id) ? 'text-accent' : 'text-muted-foreground'}`} />
+                      <GitCompare className={`h-4 w-4 transition-colors ${comparisonTools.find((t) => t.id === ai.id) ? 'text-accent fill-accent/20' : 'text-muted-foreground hover:text-accent'}`} />
                     </button>
                   </div>
                 ))}
