@@ -54,10 +54,22 @@ export async function generateSitemapXML(page: number = 0): Promise<string> {
     { url: `${baseUrl}/terms`, changefreq: "yearly", priority: "0.3" },
   ] : []
 
-  // Calculate pagination
+  // Calculate pagination - FIXED LOGIC
   const staticCount = staticPages.length
-  const aiStart = Math.max(0, page * MAX_URLS_PER_SITEMAP - staticCount)
-  const aiEnd = Math.min(aiEntries.length, (page + 1) * MAX_URLS_PER_SITEMAP - staticCount)
+  let aiStart: number
+  let aiEnd: number
+
+  if (page === 0) {
+    // First page: include static pages + first batch of AI tools
+    aiStart = 0
+    aiEnd = Math.min(aiEntries.length, MAX_URLS_PER_SITEMAP - staticCount)
+  } else {
+    // Subsequent pages: only AI tools, accounting for static pages in page 0
+    const aiToolsInFirstPage = MAX_URLS_PER_SITEMAP - staticCount
+    aiStart = aiToolsInFirstPage + (page - 1) * MAX_URLS_PER_SITEMAP
+    aiEnd = Math.min(aiEntries.length, aiStart + MAX_URLS_PER_SITEMAP)
+  }
+
   const aiToolPages = aiEntries.slice(aiStart, aiEnd).map((ai) => ({
     url: `${baseUrl}/ai/${ai.id}`,
     changefreq: "weekly",
@@ -94,32 +106,67 @@ ${allPages
 
 export async function generateSitemapIndex(): Promise<string> {
   const baseUrl = process.env.NEXT_PUBLIC_SITE_URL || "https://arcyn-find.vercel.app"
-  const aiEntries = await loadAiEntries()
 
-  // Calculate how many sitemaps we need
-  const staticPagesCount = 7
-  const totalUrls = staticPagesCount + aiEntries.length
-  const sitemapCount = Math.ceil(totalUrls / MAX_URLS_PER_SITEMAP)
+  // Get count only to avoid loading all entries (faster, less memory)
+  try {
+    const supabase = getSupabaseAdmin()
+    const { count, error } = await supabase
+      .from('ai_tools')
+      .select('*', { count: 'exact', head: true })
+      .limit(1)
 
-  const sitemaps = []
-  for (let i = 0; i < sitemapCount; i++) {
-    sitemaps.push({
-      loc: `${baseUrl}/sitemap.xml${i === 0 ? '' : `?page=${i}`}`,
-      lastmod: new Date().toISOString().split('T')[0],
-    })
-  }
+    if (error) {
+      console.error('Error getting AI tools count:', error)
+      // Fallback: return just the main sitemap
+      return `<?xml version="1.0" encoding="UTF-8"?>
+<sitemapindex xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
+  <sitemap>
+    <loc>${baseUrl}/sitemap.xml</loc>
+    <lastmod>${new Date().toISOString().split('T')[0]}</lastmod>
+  </sitemap>
+</sitemapindex>`
+    }
 
-  const xml = `<?xml version="1.0" encoding="UTF-8"?>
+    const aiToolsCount = count || 0
+    const staticPagesCount = 7
+    const totalUrls = staticPagesCount + aiToolsCount
+    const sitemapCount = Math.max(1, Math.ceil(totalUrls / MAX_URLS_PER_SITEMAP))
+
+    const sitemaps = []
+    for (let i = 0; i < sitemapCount; i++) {
+      // Use clean URLs without query parameters for better Google compatibility
+      const sitemapUrl = i === 0
+        ? `${baseUrl}/sitemap.xml`
+        : `${baseUrl}/sitemap-${i}.xml`
+
+      sitemaps.push({
+        loc: sitemapUrl,
+        lastmod: new Date().toISOString().split('T')[0],
+      })
+    }
+
+    const xml = `<?xml version="1.0" encoding="UTF-8"?>
 <sitemapindex xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
 ${sitemaps
-      .map(
-        (sitemap) => `  <sitemap>
+        .map(
+          (sitemap) => `  <sitemap>
     <loc>${escapeXml(sitemap.loc)}</loc>
     <lastmod>${sitemap.lastmod}</lastmod>
   </sitemap>`
-      )
-      .join("\n")}
+        )
+        .join("\n")}
 </sitemapindex>`
 
-  return xml
+    return xml
+  } catch (error) {
+    console.error('Error generating sitemap index:', error)
+    // Fallback
+    return `<?xml version="1.0" encoding="UTF-8"?>
+<sitemapindex xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
+  <sitemap>
+    <loc>${baseUrl}/sitemap.xml</loc>
+    <lastmod>${new Date().toISOString().split('T')[0]}</lastmod>
+  </sitemap>
+</sitemapindex>`
+  }
 }
