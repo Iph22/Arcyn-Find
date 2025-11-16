@@ -4,6 +4,9 @@
 # Allow all search engines
 User-agent: *
 Allow: /
+Allow: /sitemap.xml
+Allow: /sitemap-index.xml
+Allow: /sitemap-*.xml
 Disallow: /api/
 Disallow: /admin
 Disallow: /_next/
@@ -12,11 +15,17 @@ Disallow: /private
 # Google
 User-agent: Googlebot
 Allow: /
+Allow: /sitemap.xml
+Allow: /sitemap-index.xml
+Allow: /sitemap-*.xml
 Disallow: /api/
 
 # Bing
 User-agent: Bingbot
 Allow: /
+Allow: /sitemap.xml
+Allow: /sitemap-index.xml
+Allow: /sitemap-*.xml
 Disallow: /api/
 
 # Block AI training bots
