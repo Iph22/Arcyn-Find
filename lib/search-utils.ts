@@ -612,8 +612,8 @@ export function searchAIEntries(
         : normalizedQueryCategory.toLowerCase() === normalizedAICategory.toLowerCase()
       
       if (!categoryMatches) {
-        if (parsedQuery.operators.and) {
-          matches = false
+      if (parsedQuery.operators.and) {
+        matches = false
         }
       } else {
         score += 40
@@ -645,7 +645,7 @@ export function searchAIEntries(
       const normalizedFilterCategory = normalizeCategory(filters.category)
       const normalizedAICategory = normalizeCategory(ai.category)
       if (normalizedFilterCategory !== normalizedAICategory) {
-        matches = false
+      matches = false
       }
     }
     if (filters.region && ai.region !== filters.region) {

@@ -105,9 +105,9 @@ export const AICard = memo(function AICard({ ai, onClick, delay = 0, searchQuery
                   />
                 </button>
               )}
-              <motion.div animate={{ rotate: isHovered ? 15 : 0 }} transition={{ type: "spring", stiffness: 200 }}>
+            <motion.div animate={{ rotate: isHovered ? 15 : 0 }} transition={{ type: "spring", stiffness: 200 }}>
                 <ExternalLink className="h-4 w-4 sm:h-5 sm:w-5 text-accent/60 group-hover:text-accent" aria-hidden="true" />
-              </motion.div>
+            </motion.div>
             </div>
           </div>
 

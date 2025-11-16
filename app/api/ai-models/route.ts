@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server'
 import { getSupabaseAdmin, transformToAIEntry } from '@/lib/supabase'
 import { fetchAIModelsFromSources } from '@/lib/data-sources'
 import type { AIEntry } from '@/lib/ai-data'
+import { checkRateLimit, getRateLimitHeaders } from '@/lib/rate-limit'
 
 // Increase timeout for Vercel Pro (30s), or remove for Hobby plan (10s max)
 export const maxDuration = 30
@@ -13,6 +14,28 @@ export const runtime = 'nodejs'
  * Falls back to external sources if Supabase fails
  */
 export async function GET(request: Request) {
+  // Rate limiting
+  const rateLimit = checkRateLimit(request, {
+    windowMs: 60 * 1000, // 1 minute
+    maxRequests: 100, // 100 requests per minute (more lenient for API)
+  })
+  
+  if (!rateLimit.allowed) {
+    return NextResponse.json(
+      { 
+        error: 'Too many requests. Please try again later.',
+        message: 'Rate limit exceeded. Maximum 100 requests per minute.',
+        retryAfter: Math.ceil((rateLimit.resetTime - Date.now()) / 1000)
+      },
+      { 
+        status: 429,
+        headers: {
+          ...getRateLimitHeaders(rateLimit.remaining, rateLimit.resetTime),
+          'Retry-After': Math.ceil((rateLimit.resetTime - Date.now()) / 1000).toString(),
+        }
+      }
+    )
+  }
   const { searchParams } = new URL(request.url)
   const category = searchParams.get('category')
   const region = searchParams.get('region')
@@ -129,18 +152,30 @@ export async function GET(request: Request) {
     return NextResponse.json(aiEntries, {
       headers: {
         'Cache-Control': 'public, s-maxage=300, stale-while-revalidate=600',
+        ...getRateLimitHeaders(rateLimit.remaining, rateLimit.resetTime),
       },
     })
   } catch (error) {
     console.error('Error in /api/ai-models:', error)
     
-    // Return empty array instead of failing - better UX
+    // User-friendly error message
+    const errorMessage = error instanceof Error 
+      ? error.message 
+      : 'An unexpected error occurred while fetching AI tools.'
+    
+    // Return user-friendly error with empty data - better UX
     return NextResponse.json(
-      { error: 'Failed to fetch AI models', data: [] },
       { 
-        status: 200, // Return 200 with empty data instead of 500
-        headers: { 
-          'Cache-Control': 'public, s-maxage=60' 
+        error: 'Unable to load AI tools at this time',
+        message: 'We encountered an issue while fetching the data. Please try again in a moment.',
+        details: process.env.NODE_ENV === 'development' ? errorMessage : undefined,
+        data: [] 
+      },
+      { 
+        status: 200, // Return 200 with empty data instead of 500 for better UX
+      headers: {
+          'Cache-Control': 'public, s-maxage=60',
+          ...getRateLimitHeaders(rateLimit.remaining, rateLimit.resetTime),
         } 
       }
     )

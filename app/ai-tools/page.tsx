@@ -36,8 +36,8 @@ export default function AllAIToolsPage() {
         const controller = new AbortController()
         const timeoutId = setTimeout(() => controller.abort(), 10000)
         
-        // Load all tools for the all tools page
-        const response = await fetch('/api/ai-models?limit=1000', {
+        // Load all tools for the all tools page (API will batch fetch if needed)
+        const response = await fetch('/api/ai-models?limit=10000', {
           cache: 'no-store',
           signal: controller.signal,
         })

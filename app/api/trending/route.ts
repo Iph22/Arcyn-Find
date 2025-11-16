@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server'
 import * as cheerio from 'cheerio'
+import { checkRateLimit, getRateLimitHeaders } from '@/lib/rate-limit'
 
 interface TrendingSource {
   name: string
@@ -20,12 +21,21 @@ function delay(ms: number): Promise<void> {
 }
 
 /**
- * Safe fetch with retries and error handling
+ * Safe fetch with retries, exponential backoff, and error handling
  */
-async function safeFetch(url: string, options: RequestInit = {}, retries = MAX_RETRIES): Promise<Response | null> {
+async function safeFetch(
+  url: string, 
+  options: RequestInit = {}, 
+  retries = MAX_RETRIES,
+  attempt = 1
+): Promise<Response | null> {
   try {
+    const controller = new AbortController()
+    const timeoutId = setTimeout(() => controller.abort(), 10000) // 10 second timeout
+    
     const response = await fetch(url, {
       ...options,
+      signal: controller.signal,
       headers: {
         'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
         'Accept': 'text/html,application/json,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
@@ -35,16 +45,23 @@ async function safeFetch(url: string, options: RequestInit = {}, retries = MAX_R
       next: { revalidate: 300 }, // 5 minute cache
     })
     
+    clearTimeout(timeoutId)
+    
     if (!response.ok && retries > 0) {
-      await delay(REQUEST_DELAY)
-      return safeFetch(url, options, retries - 1)
+      // Exponential backoff: delay increases with each retry
+      const backoffDelay = REQUEST_DELAY * Math.pow(2, attempt - 1)
+      await delay(backoffDelay)
+      return safeFetch(url, options, retries - 1, attempt + 1)
     }
     
     return response.ok ? response : null
   } catch (error) {
-    if (retries > 0) {
-      await delay(REQUEST_DELAY)
-      return safeFetch(url, options, retries - 1)
+    // Handle timeout and network errors
+    if (retries > 0 && (error instanceof Error && error.name !== 'AbortError')) {
+      // Exponential backoff for network errors
+      const backoffDelay = REQUEST_DELAY * Math.pow(2, attempt - 1)
+      await delay(backoffDelay)
+      return safeFetch(url, options, retries - 1, attempt + 1)
     }
     return null
   }
@@ -465,7 +482,30 @@ async function scrapeTwitterTrends(): Promise<TrendingSource[]> {
  * GET /api/trending
  * Fetches real-time trending AI tools from multiple sources
  */
-export async function GET() {
+export async function GET(request: Request) {
+  // Rate limiting - more lenient for trending (cached longer)
+  const rateLimit = checkRateLimit(request, {
+    windowMs: 60 * 1000, // 1 minute
+    maxRequests: 30, // 30 requests per minute (trending is expensive)
+  })
+  
+  if (!rateLimit.allowed) {
+    return NextResponse.json(
+      { 
+        error: 'Too many requests. Please try again later.',
+        message: 'Rate limit exceeded. Maximum 30 requests per minute for trending data.',
+        retryAfter: Math.ceil((rateLimit.resetTime - Date.now()) / 1000)
+      },
+      { 
+        status: 429,
+        headers: {
+          ...getRateLimitHeaders(rateLimit.remaining, rateLimit.resetTime),
+          'Retry-After': Math.ceil((rateLimit.resetTime - Date.now()) / 1000).toString(),
+        }
+      }
+    )
+  }
+  
   const startTime = Date.now()
   
   try {
@@ -561,18 +601,33 @@ export async function GET() {
       {
         headers: {
           'Cache-Control': 'public, s-maxage=300, stale-while-revalidate=600', // 5 min cache, 10 min stale
+          ...getRateLimitHeaders(rateLimit.remaining, rateLimit.resetTime),
         },
       }
     )
   } catch (error) {
     console.error('Error fetching trending data:', error)
+    
+    // User-friendly error message
+    const errorMessage = error instanceof Error 
+      ? error.message 
+      : 'An unexpected error occurred while fetching trending data.'
+    
     return NextResponse.json(
       {
-        error: 'Failed to fetch trending data',
+        error: 'Unable to load trending data at this time',
+        message: 'We encountered an issue while fetching trending information. Please try again in a moment.',
+        details: process.env.NODE_ENV === 'development' ? errorMessage : undefined,
         trending: {},
         timestamp: Date.now(),
       },
-      { status: 500 }
+      { 
+        status: 200, // Return 200 with empty data for better UX
+        headers: {
+          'Cache-Control': 'public, s-maxage=60',
+          ...getRateLimitHeaders(rateLimit.remaining, rateLimit.resetTime),
+        }
+      }
     )
   }
 }

@@ -5,7 +5,7 @@ import type React from "react"
 import { motion, AnimatePresence } from "framer-motion"
 import { X, ExternalLink, Copy, Check } from "lucide-react"
 import type { AIEntry } from "@/lib/ai-data"
-import { useState, useEffect } from "react"
+import { useState, useEffect, useRef } from "react"
 
 interface AIModalProps {
   ai: AIEntry | null
@@ -17,14 +17,20 @@ interface AIModalProps {
 export function AIModal({ ai, isOpen, onClose, cardPosition }: AIModalProps) {
   const [copied, setCopied] = useState(false)
   const [isScrolling, setIsScrolling] = useState(false)
+  const modalRef = useRef<HTMLDivElement>(null)
+  const previousActiveElement = useRef<HTMLElement | null>(null)
   const [modalStyle, setModalStyle] = useState<React.CSSProperties>({
     top: '50%',
     left: '50%',
     transform: 'translate(-50%, -50%)',
   })
 
+  // Focus trap and scroll lock
   useEffect(() => {
     if (isOpen) {
+      // Save current active element for restoration
+      previousActiveElement.current = document.activeElement as HTMLElement
+      
       // Save current scroll position
       const scrollY = window.scrollY
       // Prevent body scroll and lock position
@@ -35,32 +41,79 @@ export function AIModal({ ai, isOpen, onClose, cardPosition }: AIModalProps) {
       
       // Store scroll position for restoration
       document.body.setAttribute('data-scroll-y', scrollY.toString())
-    } else {
-      // Restore scroll position
-      const scrollY = document.body.getAttribute('data-scroll-y')
-      document.body.style.overflow = "unset"
-      document.body.style.position = ""
-      document.body.style.top = ""
-      document.body.style.width = ""
-      document.body.removeAttribute('data-scroll-y')
       
-      if (scrollY) {
-        window.scrollTo(0, parseInt(scrollY, 10))
+      // Focus trap: Get all focusable elements in modal
+      const getFocusableElements = (): HTMLElement[] => {
+        if (!modalRef.current) return []
+        const selector = 'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])'
+        return Array.from(modalRef.current.querySelectorAll<HTMLElement>(selector))
+          .filter(el => !el.hasAttribute('disabled') && !el.hasAttribute('aria-hidden'))
       }
-    }
-    return () => {
-      // Cleanup on unmount
-      const scrollY = document.body.getAttribute('data-scroll-y')
+      
+      // Focus first focusable element
+      const focusableElements = getFocusableElements()
+      if (focusableElements.length > 0) {
+        focusableElements[0].focus()
+      }
+      
+      // Handle Tab key for focus trap
+      const handleTabKey = (e: KeyboardEvent) => {
+        if (e.key !== 'Tab') return
+        
+        const focusableElements = getFocusableElements()
+        if (focusableElements.length === 0) return
+        
+        const firstElement = focusableElements[0]
+        const lastElement = focusableElements[focusableElements.length - 1]
+        
+        if (e.shiftKey) {
+          // Shift + Tab
+          if (document.activeElement === firstElement) {
+            e.preventDefault()
+            lastElement.focus()
+          }
+    } else {
+          // Tab
+          if (document.activeElement === lastElement) {
+            e.preventDefault()
+            firstElement.focus()
+          }
+        }
+      }
+      
+      // Handle Escape key
+      const handleEscape = (e: KeyboardEvent) => {
+        if (e.key === 'Escape') {
+          onClose()
+        }
+      }
+      
+      document.addEventListener('keydown', handleTabKey)
+      document.addEventListener('keydown', handleEscape)
+      
+      return () => {
+        document.removeEventListener('keydown', handleTabKey)
+        document.removeEventListener('keydown', handleEscape)
+        
+        // Restore scroll position
+        const scrollY = document.body.getAttribute('data-scroll-y')
       document.body.style.overflow = "unset"
-      document.body.style.position = ""
-      document.body.style.top = ""
-      document.body.style.width = ""
-      if (scrollY) {
+        document.body.style.position = ""
+        document.body.style.top = ""
+        document.body.style.width = ""
         document.body.removeAttribute('data-scroll-y')
-        window.scrollTo(0, parseInt(scrollY, 10))
+        
+        if (scrollY) {
+          window.scrollTo(0, parseInt(scrollY, 10))
+        }
+        
+        // Restore focus to previous element
+        if (previousActiveElement.current) {
+          previousActiveElement.current.focus()
+        }
       }
     }
-  }, [isOpen])
+  }, [isOpen, onClose])
 
   // Calculate modal position - always center in visible viewport
   useEffect(() => {
@@ -153,6 +206,7 @@ export function AIModal({ ai, isOpen, onClose, cardPosition }: AIModalProps) {
 
           <motion.div
             key="modal-content"
+            ref={modalRef}
             initial={{ opacity: 0, scale: 0.95, y: 20 }}
             animate={{ opacity: 1, scale: 1, y: 0 }}
             exit={{ opacity: 0, scale: 0.95, y: 20 }}

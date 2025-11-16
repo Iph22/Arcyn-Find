@@ -3,7 +3,7 @@
 import { useState, useMemo, useEffect, useCallback, Suspense } from "react"
 import { useRouter, useSearchParams } from "next/navigation"
 import dynamic from "next/dynamic"
-import { motion } from "framer-motion"
+import { motion, AnimatePresence } from "framer-motion"
 import { HeroSection } from "@/components/hero-section"
 import { EnhancedSearchBar } from "@/components/enhanced-search-bar"
 import { searchAIEntries, addToSearchHistory, trackSearch, groupResultsByCategory } from "@/lib/search-utils"
@@ -57,6 +57,7 @@ export default function Home() {
   const [trendingAIs, setTrendingAIs] = useState<AIEntry[]>([])
   const [trendingLoading, setTrendingLoading] = useState(true)
   const [comparisonTools, setComparisonTools] = useState<AIEntry[]>([])
+  const [showCopiedToast, setShowCopiedToast] = useState(false)
 
   // Custom hooks
   const { isVisible: showBackToTop, scrollToTop } = useScrollToTop()
@@ -236,8 +237,8 @@ export default function Home() {
           // Fallback to clipboard
           try {
             await navigator.clipboard.writeText(url)
-            // Show feedback (you could add a toast here)
-            console.log('Link copied to clipboard!')
+            setShowCopiedToast(true)
+            setTimeout(() => setShowCopiedToast(false), 2000)
           } catch (clipboardError) {
             console.error('Failed to copy to clipboard:', clipboardError)
           }
@@ -247,8 +248,8 @@ export default function Home() {
       // Fallback: copy to clipboard
       try {
         await navigator.clipboard.writeText(url)
-        // Show feedback (you could add a toast here)
-        console.log('Link copied to clipboard!')
+        setShowCopiedToast(true)
+        setTimeout(() => setShowCopiedToast(false), 2000)
       } catch (error) {
         console.error('Failed to copy to clipboard:', error)
       }
@@ -495,6 +496,26 @@ export default function Home() {
           <ArrowUp className="h-4 w-4 sm:h-5 sm:w-5" />
         </motion.button>
       )}
+
+      {/* Copy to Clipboard Toast */}
+      <AnimatePresence>
+        {showCopiedToast && (
+          <motion.div
+            initial={{ opacity: 0, y: 20, scale: 0.9 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            exit={{ opacity: 0, y: 20, scale: 0.9 }}
+            transition={{ duration: 0.2 }}
+            className="fixed bottom-4 left-1/2 -translate-x-1/2 z-50 bg-accent text-accent-foreground px-4 py-2.5 sm:px-5 sm:py-3 rounded-lg shadow-lg flex items-center gap-2 text-sm sm:text-base font-medium"
+            role="alert"
+            aria-live="polite"
+          >
+            <svg className="h-4 w-4 sm:h-5 sm:w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+            </svg>
+            Link copied to clipboard!
+          </motion.div>
+        )}
+      </AnimatePresence>
 
     </main>
   )

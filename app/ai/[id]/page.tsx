@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback } from "react"
 import { useRouter, useParams } from "next/navigation"
-import { motion } from "framer-motion"
+import { motion, AnimatePresence } from "framer-motion"
 import { ArrowLeft, ExternalLink, Copy, Check, Share2, Heart } from "lucide-react"
 import type { AIEntry } from "@/lib/ai-data"
 import { trackAIView } from "@/lib/trending-utils"
@@ -15,6 +15,7 @@ export default function AIDetailPage() {
   const [ai, setAi] = useState<AIEntry | null>(null)
   const [copied, setCopied] = useState(false)
   const [loading, setLoading] = useState(true)
+  const [showCopiedToast, setShowCopiedToast] = useState(false)
   const { toggleFavorite, isFavorite } = useFavorites()
   const { share } = useShare()
   
@@ -100,7 +101,8 @@ export default function AIDetailPage() {
           // Fallback to clipboard
           try {
             await navigator.clipboard.writeText(url)
-            console.log('Link copied to clipboard!')
+            setShowCopiedToast(true)
+            setTimeout(() => setShowCopiedToast(false), 2000)
           } catch (clipboardError) {
             console.error('Failed to copy to clipboard:', clipboardError)
           }
@@ -110,7 +112,8 @@ export default function AIDetailPage() {
       // Fallback: copy to clipboard
       try {
         await navigator.clipboard.writeText(url)
-        console.log('Link copied to clipboard!')
+        setShowCopiedToast(true)
+        setTimeout(() => setShowCopiedToast(false), 2000)
       } catch (error) {
         console.error('Failed to copy to clipboard:', error)
       }
@@ -307,6 +310,26 @@ export default function AIDetailPage() {
           </div>
         </motion.div>
       </div>
+
+      {/* Copy to Clipboard Toast */}
+      <AnimatePresence>
+        {showCopiedToast && (
+          <motion.div
+            initial={{ opacity: 0, y: 20, scale: 0.9 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            exit={{ opacity: 0, y: 20, scale: 0.9 }}
+            transition={{ duration: 0.2 }}
+            className="fixed bottom-4 left-1/2 -translate-x-1/2 z-50 bg-accent text-accent-foreground px-4 py-2.5 sm:px-5 sm:py-3 rounded-lg shadow-lg flex items-center gap-2 text-sm sm:text-base font-medium"
+            role="alert"
+            aria-live="polite"
+          >
+            <svg className="h-4 w-4 sm:h-5 sm:w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+            </svg>
+            Link copied to clipboard!
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   )
 }
