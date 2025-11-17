@@ -8,7 +8,8 @@
     "start": "next start",
     "lint": "eslint .",
     "format": "prettier --write \"**/*.{ts,tsx,md,json}\"",
-    "migrate:supabase": "tsx scripts/migrate-to-supabase.ts"
+    "migrate:supabase": "tsx scripts/migrate-to-supabase.ts",
+    "sync:tools": "tsx scripts/add-missing-tools.ts"
   },
   "dependencies": {
     "@hookform/resolvers": "^3.10.0",

@@ -139108,5 +139108,29 @@
     "tags": [],
     "popularity": 50,
     "lastUpdated": "2025-11-16"
+  },
+  {
+    "id": "notebooklm-google",
+    "name": "NotebookLM",
+    "category": "Generative AI",
+    "description": "NotebookLM is an AI-powered notebook from Google that helps you learn faster by creating study guides, summaries, and insights from your notes and documents. It can answer questions about your sources and help you understand complex topics.",
+    "platform": "https://notebooklm.google/",
+    "region": "Global",
+    "accessType": "Free",
+    "pricing": "Free",
+    "tags": [
+      "AI notebook",
+      "study tool",
+      "document analysis",
+      "note-taking",
+      "Google",
+      "learning",
+      "education",
+      "summarization",
+      "research"
+    ],
+    "popularity": 85,
+    "lastUpdated": "2025-11-17",
+    "isTrending": true
   }
 ]
