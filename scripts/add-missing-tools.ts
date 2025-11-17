@@ -233,6 +233,11 @@ async function fetchNewToolsFromOpenTools() {
       popularity = Math.min(100, popularity + (tool.average_rating - 3) * 10)
     }
 
+    const tags: string[] = (tool.tags || [])
+      .slice(0, 10)
+      .map((t: any) => String(t))
+      .filter((t: string) => t.length > 0)
+    
     return {
       id: `ot-${tool.id}`,
       name: tool.tool_name.trim(),
@@ -242,11 +247,11 @@ async function fetchNewToolsFromOpenTools() {
       region: 'Global',
       accessType: accessType as 'Free' | 'Freemium' | 'Paid',
       pricing,
-      tags: [...new Set((tool.tags || []).slice(0, 10))],
+      tags: [...new Set(tags)],
       popularity: Math.round(popularity),
       lastUpdated: new Date().toISOString().split('T')[0],
       isTrending: tool.featured_default || false,
-    }
+    } as AIEntry
   })
 
   // Add to existing data
