@@ -1,7 +1,7 @@
 "use client"
 
 import { useState, useMemo, useEffect } from "react"
-import { useRouter } from "next/navigation"
+import { useRouter, useSearchParams } from "next/navigation"
 import { motion } from "framer-motion"
 import { ArrowLeft, Grid3x3, List, ChevronLeft, ChevronRight, GitCompare } from "lucide-react"
 import { AICard } from "@/components/ai-card"
@@ -17,27 +17,49 @@ const COMPARISON_STORAGE_KEY = 'arcyn-find-comparison-tools'
 
 export default function AllAIToolsPage() {
   const router = useRouter()
-  const [searchQuery, setSearchQuery] = useState("")
-  const [selectedCategory, setSelectedCategory] = useState("")
-  const [selectedRegion, setSelectedRegion] = useState("")
-  const [selectedAccessType, setSelectedAccessType] = useState("")
+  const searchParams = useSearchParams()
+  
+  // Read URL params on mount - decode properly
+  const initialQ = searchParams?.get('q') ? decodeURIComponent(searchParams.get('q')!) : ''
+  const initialCategory = searchParams?.get('category') ? decodeURIComponent(searchParams.get('category')!) : ''
+  const initialRegion = searchParams?.get('region') ? decodeURIComponent(searchParams.get('region')!) : ''
+  const initialAccess = searchParams?.get('access') ? decodeURIComponent(searchParams.get('access')!) : ''
+  
+  const [searchQuery, setSearchQuery] = useState(initialQ)
+  const [selectedCategory, setSelectedCategory] = useState(initialCategory)
+  const [selectedRegion, setSelectedRegion] = useState(initialRegion)
+  const [selectedAccessType, setSelectedAccessType] = useState(initialAccess)
   const [viewMode, setViewMode] = useState<"grid" | "list">("grid")
   const [currentPage, setCurrentPage] = useState(1)
   const [aiModels, setAiModels] = useState<AIEntry[]>([]) // Load from API, not bundled
-  const [loading, setLoading] = useState(false)
+  const [loading, setLoading] = useState(true) // Start as true to show loading state on initial mount
   const [infiniteScroll, setInfiniteScroll] = useState(false)
   const [comparisonTools, setComparisonTools] = useState<AIEntry[]>([])
 
-  // Fetch AI models from API
+  // Fetch AI models from API - use server-side filtering when filters are present
   useEffect(() => {
     async function fetchModels() {
       try {
         setLoading(true)
         const controller = new AbortController()
-        const timeoutId = setTimeout(() => controller.abort(), 10000)
+        const timeoutId = setTimeout(() => controller.abort(), 15000) // Increased timeout for large requests
         
-        // Load all tools for the all tools page (API will batch fetch if needed)
-        const response = await fetch('/api/ai-models?limit=10000', {
+        // Build API URL with filters - use server-side filtering for efficiency
+        const params = new URLSearchParams()
+        params.set('limit', '10000')
+        
+        // Pass filters to API for server-side filtering (more efficient)
+        if (selectedCategory) {
+          params.set('category', selectedCategory)
+        }
+        if (selectedRegion) {
+          params.set('region', selectedRegion)
+        }
+        if (selectedAccessType) {
+          params.set('accessType', selectedAccessType)
+        }
+        
+        const response = await fetch(`/api/ai-models?${params.toString()}`, {
           cache: 'no-store',
           signal: controller.signal,
         })
@@ -46,9 +68,21 @@ export default function AllAIToolsPage() {
         
         if (response.ok) {
           const data = await response.json()
-          if (data && data.length > 0) {
-            setAiModels(data)
+          // Always set the data, even if empty (to show "no results" message)
+          setAiModels(Array.isArray(data) ? data : [])
+          
+          if (process.env.NODE_ENV === 'development') {
+            if (!data || data.length === 0) {
+              console.warn('API returned empty array. Filters:', { selectedCategory, selectedRegion, selectedAccessType })
+            } else {
+              console.log('API returned', data.length, 'tools')
+            }
           }
+        } else {
+          // Handle non-OK responses
+          const errorText = await response.text().catch(() => 'Unknown error')
+          console.error('API response not OK:', response.status, errorText)
+          setAiModels([])
         }
       } catch (error) {
         if (error instanceof Error && error.name === 'AbortError') {
@@ -62,7 +96,7 @@ export default function AllAIToolsPage() {
     }
 
     fetchModels()
-  }, [])
+  }, [selectedCategory, selectedRegion, selectedAccessType]) // Re-fetch when filters change
 
   // Load comparison tools from localStorage
   useEffect(() => {
@@ -82,12 +116,34 @@ export default function AllAIToolsPage() {
     }
   }, [aiModels])
 
+  // Sync URL params when they change (for browser back/forward)
+  useEffect(() => {
+    if (!searchParams) return
+    
+    const q = searchParams.get('q') ? decodeURIComponent(searchParams.get('q')!) : ''
+    const category = searchParams.get('category') ? decodeURIComponent(searchParams.get('category')!) : ''
+    const region = searchParams.get('region') ? decodeURIComponent(searchParams.get('region')!) : ''
+    const access = searchParams.get('access') ? decodeURIComponent(searchParams.get('access')!) : ''
+    
+    if (q !== searchQuery) setSearchQuery(q)
+    if (category !== selectedCategory) setSelectedCategory(category)
+    if (region !== selectedRegion) setSelectedRegion(region)
+    if (access !== selectedAccessType) setSelectedAccessType(access)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [searchParams])
+
   // Enhanced search and filter with relevance sorting (increased limit to show all results)
   const { results: filteredAIs } = useMemo(() => {
+    // If server-side filtering was applied, only apply search query client-side
+    // The server already filtered by category/region/accessType, so we don't filter again
+    const hasServerSideFilters = selectedCategory || selectedRegion || selectedAccessType
+    
     return searchAIEntries(aiModels, searchQuery, {
-      category: selectedCategory,
-      region: selectedRegion,
-      accessType: selectedAccessType,
+      // Only apply filters client-side if they weren't applied server-side
+      // This prevents double-filtering which can cause mismatches
+      category: hasServerSideFilters ? undefined : selectedCategory,
+      region: hasServerSideFilters ? undefined : selectedRegion,
+      accessType: hasServerSideFilters ? undefined : selectedAccessType,
     }, { maxResults: 10000 })
   }, [aiModels, searchQuery, selectedCategory, selectedRegion, selectedAccessType])
 

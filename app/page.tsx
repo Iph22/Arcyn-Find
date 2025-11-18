@@ -58,27 +58,42 @@ export default function Home() {
   const [trendingLoading, setTrendingLoading] = useState(true)
   const [comparisonTools, setComparisonTools] = useState<AIEntry[]>([])
   const [showCopiedToast, setShowCopiedToast] = useState(false)
+  const [shouldRedirect, setShouldRedirect] = useState<boolean | null>(null) // Track redirect status
 
   // Custom hooks
   const { isVisible: showBackToTop, scrollToTop } = useScrollToTop()
   const { toggleFavorite, isFavorite, favorites } = useFavorites()
   const { share } = useShare()
 
-  // Redirect first-time visitors to welcome page
+  // Redirect first-time visitors to welcome page - CHECK FIRST before any API calls
   useEffect(() => {
     if (typeof window !== 'undefined') {
+      // Don't redirect if already on welcome page
+      if (window.location.pathname === '/welcome') {
+        setShouldRedirect(false)
+        return
+      }
+      
       const hasSeenWelcomePermanent = localStorage.getItem('arcyn-find-welcome-seen')
       const hasSeenWelcomeSession = sessionStorage.getItem('arcyn-find-welcome-session')
 
       // Don't redirect if user has permanently disabled it OR has seen it this session
       if (!hasSeenWelcomePermanent && !hasSeenWelcomeSession && window.location.pathname === '/') {
+        setShouldRedirect(true)
         router.push('/welcome')
+      } else {
+        setShouldRedirect(false)
       }
     }
   }, [router])
 
-  // Fetch AI models from API (loads from JSON file on server, not bundled in client)
+  // Fetch AI models from API - ONLY if not redirecting
   useEffect(() => {
+    // Don't fetch if we're redirecting or still checking
+    if (shouldRedirect === true || shouldRedirect === null) {
+      return
+    }
+
     async function fetchModels() {
       try {
         setLoading(true)
@@ -113,14 +128,14 @@ export default function Home() {
       }
     }
 
-    // Fetch immediately on mount
+    // Fetch immediately on mount (only if not redirecting)
     fetchModels()
 
     // Set up polling for real-time updates (every 5 minutes)
     const interval = setInterval(fetchModels, 5 * 60 * 1000)
 
     return () => clearInterval(interval)
-  }, [])
+  }, [shouldRedirect]) // Re-run if redirect status changes
 
   // Load comparison tools from localStorage
   useEffect(() => {
@@ -162,14 +177,34 @@ export default function Home() {
   }, [filteredAIs])
 
   // Fetch real-time trending AIs (combines local views + online trending)
+  // When user searches, show trending from search results
   useEffect(() => {
+    // Don't fetch if we're redirecting or still checking
+    if (shouldRedirect === true || shouldRedirect === null) {
+      return
+    }
+
     async function fetchTrending() {
       if (aiModels.length === 0) return
 
       setTrendingLoading(true)
       try {
-        const trending = await getTrendingAIs(aiModels, 3)
-        setTrendingAIs(trending)
+        // If user is searching, get trending from filtered results
+        if (searchQuery.trim() || selectedCategory || selectedRegion || selectedAccessType) {
+          const { results: searchResults } = searchAIEntries(aiModels, searchQuery, {
+            category: selectedCategory,
+            region: selectedRegion,
+            accessType: selectedAccessType,
+          }, { maxResults: 100 })
+          
+          // Get trending from search results
+          const trending = await getTrendingAIs(searchResults, 3)
+          setTrendingAIs(trending)
+        } else {
+          // Normal trending when no search/filters
+          const trending = await getTrendingAIs(aiModels, 3)
+          setTrendingAIs(trending)
+        }
       } catch (error) {
         console.error('Failed to fetch trending AIs:', error)
         // Fallback to static trending if online fetch fails
@@ -188,7 +223,7 @@ export default function Home() {
     // Refresh trending every 5 minutes
     const interval = setInterval(fetchTrending, 5 * 60 * 1000)
     return () => clearInterval(interval)
-  }, [aiModels])
+  }, [aiModels, searchQuery, selectedCategory, selectedRegion, selectedAccessType, shouldRedirect])
 
   // Keyboard shortcuts
   useKeyboardShortcuts({
@@ -343,7 +378,12 @@ export default function Home() {
           </div>
         </section>
       }>
-        <TrendingSection trendingAIs={trendingAIs} onSelectAI={handleSelectAI} loading={trendingLoading} />
+        <TrendingSection 
+          trendingAIs={trendingAIs} 
+          onSelectAI={handleSelectAI} 
+          loading={trendingLoading}
+          isSearchBased={!!(searchQuery.trim() || selectedCategory || selectedRegion || selectedAccessType)}
+        />
       </Suspense>
 
       {/* Main Content */}
@@ -458,7 +498,14 @@ export default function Home() {
                   className="mt-8 flex justify-center"
                 >
                   <button
-                    onClick={() => router.push('/ai-tools')}
+                    onClick={() => {
+                      const params = new URLSearchParams()
+                      if (searchQuery.trim()) params.set('q', encodeURIComponent(searchQuery.trim()))
+                      if (selectedCategory) params.set('category', encodeURIComponent(selectedCategory))
+                      if (selectedRegion) params.set('region', encodeURIComponent(selectedRegion))
+                      if (selectedAccessType) params.set('access', encodeURIComponent(selectedAccessType))
+                      router.push(`/ai-tools?${params.toString()}`)
+                    }}
                     className="rounded-lg bg-accent px-8 py-3 font-medium text-accent-foreground transition-all hover:shadow-lg hover:shadow-accent/50 active:scale-95"
                   >
                     See More ({filteredAIs.length - 25} more)

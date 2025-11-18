@@ -44,15 +44,31 @@ export async function GET(request: Request) {
   const limit = parseInt(searchParams.get('limit') || '500') // Default to 500 for faster response
   const offset = parseInt(searchParams.get('offset') || '0')
   
+  // Log filters for debugging (only in development)
+  if (process.env.NODE_ENV === 'development' && (category || region || accessType)) {
+    console.log('API filters:', { category, region, accessType, limit, offset })
+  }
+  
   try {
     const supabase = getSupabaseAdmin()
     const SUPABASE_MAX_LIMIT = 1000 // Supabase PostgREST default max per query
     
     // Build base query for filters
     const buildBaseQuery = (queryBuilder: any) => {
-      if (category) queryBuilder = queryBuilder.eq('category', category)
-      if (region) queryBuilder = queryBuilder.eq('region', region)
-      if (accessType) queryBuilder = queryBuilder.eq('access_type', accessType)
+      // Category filter - use case-insensitive matching
+      if (category) {
+        // Decode URL-encoded category
+        const decodedCategory = decodeURIComponent(category)
+        queryBuilder = queryBuilder.eq('category', decodedCategory)
+      }
+      if (region) {
+        const decodedRegion = decodeURIComponent(region)
+        queryBuilder = queryBuilder.eq('region', decodedRegion)
+      }
+      if (accessType) {
+        const decodedAccessType = decodeURIComponent(accessType)
+        queryBuilder = queryBuilder.eq('access_type', decodedAccessType)
+      }
       if (search) {
         queryBuilder = queryBuilder.or(`name.ilike.%${search}%,description.ilike.%${search}%`)
       }
@@ -61,15 +77,20 @@ export async function GET(request: Request) {
     
     let allData: any[] = []
     
+    // Check if filters are applied
+    const hasFilters = category || region || accessType || search
+    
     // Fast path: single query for small requests
     if (limit <= SUPABASE_MAX_LIMIT) {
       let query = supabase
         .from('ai_tools')
         .select('*')
         .order('popularity', { ascending: false })
-        .range(offset, offset + limit - 1)
       
       query = buildBaseQuery(query)
+      
+      // Apply range after filters for correct pagination
+      query = query.range(offset, offset + limit - 1)
       
       const { data, error } = await query
       
@@ -81,8 +102,52 @@ export async function GET(request: Request) {
       if (data) {
         allData = data
       }
+    } else if (hasFilters) {
+      // When filters are applied, we need to fetch all matching results
+      // because we don't know how many match until we query
+      // Fetch sequentially in batches until we have enough or run out
+      let currentOffset = 0
+      const MAX_FETCH = Math.min(limit, 50000) // Safety limit
+      let hasMore = true
+      
+      while (hasMore && allData.length < MAX_FETCH) {
+        let query = supabase
+          .from('ai_tools')
+          .select('*')
+          .order('popularity', { ascending: false })
+        
+        query = buildBaseQuery(query)
+        
+        // Fetch next batch
+        const batchEnd = currentOffset + SUPABASE_MAX_LIMIT - 1
+        query = query.range(currentOffset, batchEnd)
+        
+        const { data: batchData, error: batchError } = await query
+        
+        if (batchError) {
+          console.error('Supabase batch error:', batchError)
+          break
+        }
+        
+        if (batchData && batchData.length > 0) {
+          allData.push(...batchData)
+          currentOffset += SUPABASE_MAX_LIMIT
+          
+          // If we got less than the max, we've reached the end
+          if (batchData.length < SUPABASE_MAX_LIMIT) {
+            hasMore = false
+          }
+        } else {
+          hasMore = false
+        }
+      }
+      
+      // Apply offset and limit client-side (since we fetched from offset 0)
+      if (offset > 0 || allData.length > limit) {
+        allData = allData.slice(offset, offset + limit)
+      }
     } else {
-      // Batch fetching for large requests - use parallel fetching for speed
+      // Batch fetching for large requests WITHOUT filters - use parallel fetching for speed
       const batches = Math.ceil(limit / SUPABASE_MAX_LIMIT)
       
       // Fetch batches in parallel (much faster than sequential)
@@ -95,9 +160,12 @@ export async function GET(request: Request) {
           .from('ai_tools')
           .select('*')
           .order('popularity', { ascending: false })
-          .range(batchOffset, batchOffset + batchLimit - 1)
         
         batchQuery = buildBaseQuery(batchQuery)
+        
+        // Apply range after filters for correct pagination
+        batchQuery = batchQuery.range(batchOffset, batchOffset + batchLimit - 1)
+        // Execute the query - Supabase queries are lazy, need to call them
         batchPromises.push(batchQuery)
       }
       
@@ -106,7 +174,8 @@ export async function GET(request: Request) {
       
       for (const result of batchResults) {
         if (result.status === 'fulfilled') {
-          const { data, error } = await result.value
+          // result.value is already the resolved { data, error } from Supabase
+          const { data, error } = result.value
           if (error) {
             console.error('Supabase batch error:', error)
             continue // Continue with other batches

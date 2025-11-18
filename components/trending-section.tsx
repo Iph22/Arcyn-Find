@@ -9,9 +9,10 @@ interface TrendingSectionProps {
   trendingAIs: AIEntry[]
   onSelectAI: (ai: AIEntry) => void
   loading?: boolean
+  isSearchBased?: boolean
 }
 
-export function TrendingSection({ trendingAIs, onSelectAI, loading = false }: TrendingSectionProps) {
+export function TrendingSection({ trendingAIs, onSelectAI, loading = false, isSearchBased = false }: TrendingSectionProps) {
   // Show loading state
   if (loading) {
     return (
@@ -47,7 +48,9 @@ export function TrendingSection({ trendingAIs, onSelectAI, loading = false }: Tr
             <Flame className="h-5 w-5 text-accent" />
             <h2 className="text-sm font-bold text-accent uppercase tracking-wider">Trending Now</h2>
           </div>
-          <h3 className="text-3xl font-bold text-foreground md:text-4xl">Popular AI Tools</h3>
+          <h3 className="text-3xl font-bold text-foreground md:text-4xl">
+            {isSearchBased ? 'Trending in Your Search' : 'Popular AI Tools'}
+          </h3>
         </motion.div>
 
         <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">

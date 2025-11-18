@@ -642,10 +642,11 @@ export function searchAIEntries(
 
     // Apply regular filters (with category normalization)
     if (filters.category) {
-      const normalizedFilterCategory = normalizeCategory(filters.category)
-      const normalizedAICategory = normalizeCategory(ai.category)
-      if (normalizedFilterCategory !== normalizedAICategory) {
-      matches = false
+      const normalizedFilterCategory = normalizeCategory(filters.category.trim())
+      const normalizedAICategory = normalizeCategory(ai.category.trim())
+      // Use case-insensitive comparison for category matching
+      if (normalizedFilterCategory.toLowerCase() !== normalizedAICategory.toLowerCase()) {
+        matches = false
       }
     }
     if (filters.region && ai.region !== filters.region) {
