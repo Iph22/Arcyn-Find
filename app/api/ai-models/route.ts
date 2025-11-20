@@ -119,7 +119,10 @@ export async function GET(request: Request) {
         queryBuilder = queryBuilder.ilike('access_type', decodedAccessType)
       }
       if (search) {
-        queryBuilder = queryBuilder.or(`name.ilike.%${search}%,description.ilike.%${search}%`)
+        // Use proper Supabase syntax for OR search across name and description
+        // Escape special characters in search term
+        const escapedSearch = search.replace(/%/g, '\\%').replace(/_/g, '\\_')
+        queryBuilder = queryBuilder.or(`name.ilike.%${escapedSearch}%,description.ilike.%${escapedSearch}%`)
       }
       return queryBuilder
     }
