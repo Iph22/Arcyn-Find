@@ -105,11 +105,17 @@ export default function Home() {
         const controller = new AbortController()
         const timeoutId = setTimeout(() => controller.abort(), 10000)
 
-        // Build API URL with filters if category is selected
+        // Build API URL with filters and search
+        // If user is searching, use server-side search and fetch more results
         // If a category is selected, fetch more tools for that category
         // Otherwise, fetch 500 tools for general browsing
         const params = new URLSearchParams()
-        if (selectedCategory && selectedCategory.trim()) {
+        
+        // Priority 1: If user is searching, use server-side search
+        if (searchQuery && searchQuery.trim()) {
+          params.set('search', searchQuery.trim())
+          params.set('limit', '2000') // Increased limit for comprehensive search results
+        } else if (selectedCategory && selectedCategory.trim()) {
           // When filtering by category, fetch more tools to ensure we get all in that category
           params.set('limit', '1000')
           params.set('category', selectedCategory)
@@ -118,7 +124,12 @@ export default function Home() {
           params.set('limit', '500')
         }
         
-        // Add region and access type filters if selected
+        // Add category filter if selected (can be combined with search)
+        if (selectedCategory && selectedCategory.trim()) {
+          params.set('category', selectedCategory)
+        }
+        
+        // Add region and access type filters if selected (can be combined with search)
         if (selectedRegion && selectedRegion.trim()) {
           params.set('region', selectedRegion)
         }
@@ -157,11 +168,11 @@ export default function Home() {
     // Fetch immediately on mount (only if not redirecting)
     fetchModels()
 
-    // Set up polling for real-time updates (every 5 minutes)
-    const interval = setInterval(fetchModels, 5 * 60 * 1000)
+    // Set up polling for real-time updates (every 2 minutes for trending/popularity)
+    const interval = setInterval(fetchModels, 2 * 60 * 1000)
 
     return () => clearInterval(interval)
-  }, [shouldRedirect, selectedCategory, selectedRegion, selectedAccessType]) // Re-fetch when filters change
+  }, [shouldRedirect, selectedCategory, selectedRegion, selectedAccessType, searchQuery]) // Re-fetch when filters or search change
 
   // Load comparison tools from localStorage
   useEffect(() => {
@@ -181,11 +192,20 @@ export default function Home() {
     }
   }, [aiModels])
 
-  // Enhanced search and filter with relevance sorting (optimized limit for performance)
-  // If filters are applied, the API already filtered by category/region/accessType
-  // So we only need to apply search query client-side
+  // Enhanced search and filter with relevance sorting
+  // If search query is present, API already filtered server-side, so just return the results
+  // Otherwise, apply client-side filtering and search
   const { results: filteredAIs } = useMemo(() => {
-    // If filters are applied, API already filtered, so only apply search
+    // If we're using server-side search, the API already filtered and sorted by relevance
+    // Just return the results (no additional client-side filtering needed)
+    if (searchQuery && searchQuery.trim()) {
+      // Server-side search already applied with relevance sorting, just return the results
+      // Track search analytics
+      trackSearch(searchQuery, aiModels.length)
+      return { results: aiModels, scores: new Map() }
+    }
+    
+    // Otherwise, do client-side filtering and search
     const hasFilters = selectedCategory || selectedRegion || selectedAccessType
     const searchResult = searchAIEntries(aiModels, searchQuery, {
       // Only apply filters client-side if they weren't applied server-side
@@ -272,10 +292,16 @@ export default function Home() {
       }
     }
 
-    fetchTrending()
+    if (aiModels.length > 0) {
+      fetchTrending()
+      
+      // Set up polling for real-time trending updates (every 2 minutes)
+      const trendingInterval = setInterval(fetchTrending, 2 * 60 * 1000)
+      return () => clearInterval(trendingInterval)
+    }
 
-    // Refresh trending every 5 minutes
-    const interval = setInterval(fetchTrending, 5 * 60 * 1000)
+    // Refresh trending every 2 minutes for real-time updates
+    const interval = setInterval(fetchTrending, 2 * 60 * 1000)
     return () => clearInterval(interval)
   }, [aiModels, searchQuery, selectedCategory, selectedRegion, selectedAccessType, shouldRedirect])
 

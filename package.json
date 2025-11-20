@@ -10,7 +10,10 @@
     "format": "prettier --write \"**/*.{ts,tsx,md,json}\"",
     "migrate:supabase": "tsx scripts/migrate-to-supabase.ts",
     "sync:tools": "tsx scripts/add-missing-tools.ts",
-    "add:ai-detection": "tsx scripts/fetch-ai-detection-tools.ts"
+    "add:ai-detection": "tsx scripts/fetch-ai-detection-tools.ts",
+    "fetch:all-sources": "tsx scripts/fetch-from-all-sources.ts",
+    "add:new-models": "tsx scripts/add-new-models.ts",
+    "add:tixu": "tsx scripts/add-tixu-ai.ts"
   },
   "dependencies": {
     "@hookform/resolvers": "^3.10.0",
@@ -51,6 +54,7 @@
     "cmdk": "1.0.4",
     "date-fns": "4.1.0",
     "embla-carousel-react": "8.5.1",
+    "fast-xml-parser": "^5.3.2",
     "framer-motion": "12.23.24",
     "input-otp": "1.4.1",
     "lucide-react": "^0.553.0",
@@ -62,6 +66,7 @@
     "react-hook-form": "^7.60.0",
     "react-resizable-panels": "^2.1.7",
     "recharts": "2.15.4",
+    "rss-parser": "^3.13.0",
     "sonner": "^1.7.4",
     "tailwind-merge": "^3.3.1",
     "tailwindcss-animate": "^1.0.7",

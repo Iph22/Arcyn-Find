@@ -36,17 +36,30 @@ export default function AIDetailPage() {
         setLoading(true)
         const id = params.id as string
 
-        // Fetch all tools from API
-        const response = await fetch('/api/ai-models')
+        if (!id) {
+          router.push('/')
+          return
+        }
+
+        // Fetch the specific tool by ID using the API's id parameter
+        const response = await fetch(`/api/ai-models?id=${encodeURIComponent(id)}`)
         if (response.ok) {
-          const data = await response.json() as AIEntry[]
-          setAllTools(data)
-          const found = data.find((entry: AIEntry) => entry.id === id)
-          if (found) {
+          const data = await response.json()
+          if (data && data.length > 0 && data[0]) {
+            const found = data[0]
             setAi(found)
-            // Find similar tools
-            const similar = findSimilarTools(found, data, 5)
-            setSimilarTools(similar)
+            
+            // Fetch all tools for similar tools and health status
+            const allToolsResponse = await fetch('/api/ai-models?limit=1000')
+            if (allToolsResponse.ok) {
+              const allToolsData = await allToolsResponse.json() as AIEntry[]
+              setAllTools(allToolsData)
+              
+              // Find similar tools
+              const similar = findSimilarTools(found, allToolsData, 5)
+              setSimilarTools(similar)
+            }
+            
             // Check tool health
             const cachedHealth = getToolHealthStatus(found.id)
             if (cachedHealth) {
@@ -55,12 +68,43 @@ export default function AIDetailPage() {
               // Check health in background
               checkToolHealth(found.platform, found.id).then(setHealthStatus)
             }
-          } else {
-            router.push('/')
+            
+            setLoading(false)
+            return
           }
-        } else {
-          router.push('/')
         }
+
+        // Fallback: If ID parameter doesn't work, try searching with high limit
+        if (response.status === 404) {
+          const searchResponse = await fetch(`/api/ai-models?search=${encodeURIComponent(id)}&limit=1000`)
+          if (searchResponse.ok) {
+            const searchData = await searchResponse.json()
+            const foundById = searchData.find((entry: AIEntry) => entry.id === id)
+            if (foundById) {
+              setAi(foundById)
+              setAllTools(searchData)
+              
+              // Find similar tools
+              const similar = findSimilarTools(foundById, searchData, 5)
+              setSimilarTools(similar)
+              
+              // Check tool health
+              const cachedHealth = getToolHealthStatus(foundById.id)
+              if (cachedHealth) {
+                setHealthStatus(cachedHealth)
+              } else {
+                checkToolHealth(foundById.platform, foundById.id).then(setHealthStatus)
+              }
+              
+              setLoading(false)
+              return
+            }
+          }
+        }
+
+        // If still not found, redirect to home
+        console.warn(`AI tool with ID "${id}" not found`)
+        router.push('/')
       } catch (error) {
         console.error('Failed to fetch AI details:', error)
         router.push('/')

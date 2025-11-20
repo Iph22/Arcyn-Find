@@ -2,8 +2,8 @@ import { AIEntry } from './ai-data'
 
 const VIEWS_STORAGE_KEY = 'arcyn-find-views'
 const TRENDING_CACHE_KEY = 'arcyn-find-online-trending'
-const TRENDING_CACHE_DURATION = 60 * 60 * 1000 // 1 hour cache
-const TRENDING_WINDOW_HOURS = 48 // Trending based on last 48 hours
+const TRENDING_CACHE_DURATION = 2 * 60 * 1000 // 2 minutes cache for real-time updates
+const TRENDING_WINDOW_HOURS = 24 // Trending based on last 24 hours for more real-time
 
 interface ViewRecord {
   aiId: string
@@ -16,12 +16,13 @@ interface OnlineTrendingData {
 }
 
 /**
- * Track a view/click on an AI tool
+ * Track a view/click on an AI tool and update popularity in real-time
  */
 export function trackAIView(aiId: string): void {
   if (typeof window === 'undefined') return
   
   try {
+    // Store view locally for trending calculation
     const views = getViews()
     views.push({
       aiId,
@@ -33,6 +34,20 @@ export function trackAIView(aiId: string): void {
     const recentViews = views.filter(v => v.timestamp > sevenDaysAgo)
     
     localStorage.setItem(VIEWS_STORAGE_KEY, JSON.stringify(recentViews))
+    
+    // Update popularity in real-time via API (fire and forget)
+    fetch('/api/track-view', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ aiId }),
+    }).catch(error => {
+      // Silently fail - popularity update is not critical
+      if (process.env.NODE_ENV === 'development') {
+        console.warn('Failed to update popularity:', error)
+      }
+    })
   } catch (error) {
     console.error('Failed to track view:', error)
   }
@@ -140,8 +155,8 @@ async function getOnlineTrendingData(): Promise<Record<string, number>> {
       const cachedData: OnlineTrendingData = JSON.parse(cached)
       const now = Date.now()
       
-      // Return cached data if still fresh (5 minutes instead of 1 hour)
-      if (cachedData.timestamp && (now - cachedData.timestamp) < 5 * 60 * 1000) {
+      // Return cached data if still fresh (2 minutes for real-time updates)
+      if (cachedData.timestamp && (now - cachedData.timestamp) < 2 * 60 * 1000) {
         const { timestamp, ...trending } = cachedData
         return trending
       }
@@ -323,8 +338,8 @@ export async function getTrendingAIs(aiModels: AIEntry[], limit: number = 3): Pr
     const localScore = calculateLocalTrendingScore(ai.id, views)
     const onlineScore = matchToTrendingData(ai.name, onlineTrending)
     
-    // Combine scores: 40% local views, 60% online trending
-    const combinedTrendingScore = (localScore * 0.4) + (onlineScore * 0.6)
+    // Combine scores: 30% local views, 70% online trending (prioritize real-time online trends)
+    const combinedTrendingScore = (localScore * 0.3) + (onlineScore * 0.7)
     
     return {
       ai,
