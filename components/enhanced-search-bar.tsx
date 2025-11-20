@@ -3,6 +3,8 @@
 import { useState, useRef, useEffect, useMemo, useCallback } from "react"
 import { motion, AnimatePresence } from "framer-motion"
 import { Search, X, Clock, ArrowUp, ArrowDown, Tag, Folder, Sparkles } from "lucide-react"
+import { VoiceSearchButton } from "./voice-search-button"
+import { ImageSearchButton } from "./image-search-button"
 import { 
   generateSuggestions, 
   generateEnhancedSuggestions,
@@ -235,15 +237,26 @@ export function EnhancedSearchBar({
               </div>
             )}
           </div>
-          {value && (
-            <button
-              onClick={handleClear}
-              className="absolute right-2 sm:right-3 top-1/2 -translate-y-1/2 rounded p-1 text-muted-foreground hover:text-foreground transition-colors touch-manipulation"
-              aria-label="Clear search"
-            >
-              <X className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
-            </button>
-          )}
+          <div className="absolute right-2 sm:right-3 top-1/2 -translate-y-1/2 flex items-center gap-1">
+            <ImageSearchButton aiModels={aiModels} />
+            <VoiceSearchButton
+              onTranscript={(text) => {
+                handleInputChange(text)
+                if (onSearch) {
+                  onSearch(text)
+                }
+              }}
+            />
+            {value && (
+              <button
+                onClick={handleClear}
+                className="rounded p-1 text-muted-foreground hover:text-foreground transition-colors touch-manipulation"
+                aria-label="Clear search"
+              >
+                <X className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
+              </button>
+            )}
+          </div>
         </div>
       </motion.div>
 

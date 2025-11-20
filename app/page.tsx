@@ -11,10 +11,11 @@ import { FilterBar } from "@/components/filter-bar"
 import { AICard } from "@/components/ai-card"
 import { ThemeToggle } from "@/components/theme-toggle"
 import type { AIEntry } from "@/lib/ai-data"
-import { Grid3x3, List, Loader2, ArrowUp, Share2, Heart, GitCompare } from "lucide-react"
+import { Grid3x3, List, Loader2, ArrowUp, Share2, Heart, GitCompare, Download } from "lucide-react"
 import { Footer } from "@/components/footer"
 import { getTrendingAIs, trackAIView } from "@/lib/trending-utils"
 import { useURLState, useKeyboardShortcuts, useScrollToTop, useFavorites, useShare } from "@/lib/hooks"
+import { exportFavoritesToCSV, exportFavoritesToJSON, downloadFile } from "@/lib/export-utils"
 
 // Lazy load heavy components using Next.js dynamic import
 const TrendingSection = dynamic(() => import("@/components/trending-section").then(m => ({ default: m.TrendingSection })), {
@@ -48,6 +49,8 @@ export default function Home() {
   const [selectedCategory, setSelectedCategory] = useURLState('category', initialCategory)
   const [selectedRegion, setSelectedRegion] = useURLState('region', initialRegion)
   const [selectedAccessType, setSelectedAccessType] = useURLState('access', initialAccess)
+  const [sortBy, setSortBy] = useState<string>("relevance")
+  const [minPopularity, setMinPopularity] = useState<number>(0)
 
   const [viewMode, setViewMode] = useState<"grid" | "list">("grid")
   // Start with empty array - data will be loaded from API (not bundled in client)
@@ -157,19 +160,42 @@ export default function Home() {
 
   // Enhanced search and filter with relevance sorting (optimized limit for performance)
   const { results: filteredAIs } = useMemo(() => {
-    const searchResult = searchAIEntries(aiModels, searchQuery, {
+    let searchResult = searchAIEntries(aiModels, searchQuery, {
       category: selectedCategory,
       region: selectedRegion,
       accessType: selectedAccessType,
     }, { maxResults: 500 }) // Reduced from 10000 to 500 for better performance
 
-    // Track search analytics
-    if (searchQuery.trim()) {
-      trackSearch(searchQuery, searchResult.results.length)
+    // Apply popularity filter
+    if (minPopularity > 0) {
+      searchResult.results = searchResult.results.filter(ai => ai.popularity >= minPopularity)
     }
 
-    return searchResult
-  }, [aiModels, searchQuery, selectedCategory, selectedRegion, selectedAccessType])
+    // Apply sorting
+    const sorted = [...searchResult.results]
+    switch (sortBy) {
+      case "popularity":
+        sorted.sort((a, b) => b.popularity - a.popularity)
+        break
+      case "newest":
+        sorted.sort((a, b) => new Date(b.lastUpdated).getTime() - new Date(a.lastUpdated).getTime())
+        break
+      case "oldest":
+        sorted.sort((a, b) => new Date(a.lastUpdated).getTime() - new Date(b.lastUpdated).getTime())
+        break
+      case "relevance":
+      default:
+        // Keep relevance-based sorting from searchAIEntries
+        break
+    }
+
+    // Track search analytics
+    if (searchQuery.trim()) {
+      trackSearch(searchQuery, sorted.length)
+    }
+
+    return { results: sorted, scores: searchResult.scores }
+  }, [aiModels, searchQuery, selectedCategory, selectedRegion, selectedAccessType, sortBy, minPopularity])
 
   // Group results by category (optional - can be used for display)
   const groupedResults = useMemo(() => {
@@ -361,9 +387,13 @@ export default function Home() {
         onCategoryChange={setSelectedCategory}
         onRegionChange={setSelectedRegion}
         onAccessTypeChange={setSelectedAccessType}
+        onSortChange={setSortBy}
+        onPopularityFilterChange={setMinPopularity}
         selectedCategory={selectedCategory}
         selectedRegion={selectedRegion}
         selectedAccessType={selectedAccessType}
+        selectedSort={sortBy}
+        minPopularity={minPopularity}
       />
 
       {/* Trending Section */}
@@ -434,6 +464,52 @@ export default function Home() {
               >
                 <Share2 className="h-4 w-4 sm:h-5 sm:w-5" />
               </button>
+              {favorites.size > 0 && (
+                <div className="relative group">
+                  <button
+                    onClick={() => {
+                      const favoriteTools = aiModels.filter(ai => favorites.has(ai.id))
+                      const csv = exportFavoritesToCSV(favoriteTools)
+                      downloadFile(csv, `my-favorites-${Date.now()}.csv`, 'text/csv')
+                    }}
+                    className="rounded-lg p-2 sm:p-2.5 transition-all touch-manipulation hover:bg-muted text-muted-foreground hover:text-foreground relative"
+                    aria-label={`Export ${favorites.size} favorites`}
+                    title={`Export ${favorites.size} favorites (CSV)`}
+                  >
+                    <Download className="h-4 w-4 sm:h-5 sm:w-5" />
+                    <span className="absolute -top-0.5 -right-0.5 sm:-top-1 sm:-right-1 flex h-4 w-4 sm:h-5 sm:w-5 items-center justify-center rounded-full bg-accent text-[10px] sm:text-xs font-bold text-accent-foreground">
+                      {favorites.size}
+                    </span>
+                  </button>
+                  {/* Dropdown for export options */}
+                  <div className="absolute right-0 top-full mt-2 hidden group-hover:block z-50">
+                    <div className="rounded-lg border border-border bg-card shadow-lg p-1 min-w-[120px]">
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation()
+                          const favoriteTools = aiModels.filter(ai => favorites.has(ai.id))
+                          const csv = exportFavoritesToCSV(favoriteTools)
+                          downloadFile(csv, `my-favorites-${Date.now()}.csv`, 'text/csv')
+                        }}
+                        className="w-full text-left px-3 py-2 text-sm hover:bg-muted rounded transition-colors"
+                      >
+                        Export CSV
+                      </button>
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation()
+                          const favoriteTools = aiModels.filter(ai => favorites.has(ai.id))
+                          const json = exportFavoritesToJSON(favoriteTools)
+                          downloadFile(json, `my-favorites-${Date.now()}.json`, 'application/json')
+                        }}
+                        className="w-full text-left px-3 py-2 text-sm hover:bg-muted rounded transition-colors"
+                      >
+                        Export JSON
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              )}
               <button
                 onClick={() => setViewMode("grid")}
                 className={`rounded-lg p-2 sm:p-2.5 transition-all touch-manipulation ${viewMode === "grid" ? "bg-accent/20 text-accent" : "hover:bg-muted text-muted-foreground"

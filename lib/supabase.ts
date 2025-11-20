@@ -1,20 +1,63 @@
 import { createClient } from '@supabase/supabase-js'
 import type { AIEntry } from './ai-data'
 
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || 'https://otrtjqomyukafgnyylij.supabase.co'
-const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im90cnRqcW9teXVrYWZnbnl5bGlqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTY0MjAyODksImV4cCI6MjA3MTk5NjI4OX0.RN5EOwFIf10jC3ffvF3KDeqZDms7KlEVpfkD5rBHW6A'
+const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
+const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
+
+// Validate required environment variables
+if (!supabaseUrl || !supabaseAnonKey) {
+  if (typeof window === 'undefined') {
+    // Server-side: throw error
+    throw new Error(
+      'Missing required Supabase environment variables. Please set NEXT_PUBLIC_SUPABASE_URL and NEXT_PUBLIC_SUPABASE_ANON_KEY'
+    )
+  } else {
+    // Client-side: log warning but don't break the app
+    console.error(
+      'Missing required Supabase environment variables. Some features may not work.'
+    )
+  }
+}
 
 // Client-side Supabase client (uses anon key)
-export const supabase = createClient(supabaseUrl, supabaseAnonKey)
+export const supabase = supabaseUrl && supabaseAnonKey
+  ? createClient(supabaseUrl, supabaseAnonKey)
+  : createClient('https://placeholder.supabase.co', 'placeholder-key')
 
 // Server-side Supabase client (uses service role key for admin operations)
 export function getSupabaseAdmin() {
-  const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im90cnRqcW9teXVrYWZnbnl5bGlqIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc1NjQyMDI4OSwiZXhwIjoyMDcxOTk2Mjg5fQ.7HbYt7VN2n_suJ2koccrjc282306D2lDsWFuJq2KQYA'
+  const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY
+  
+  if (!supabaseUrl || !serviceRoleKey) {
+    throw new Error(
+      'Missing required Supabase environment variables for admin operations. Please set NEXT_PUBLIC_SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY'
+    )
+  }
+  
   return createClient(supabaseUrl, serviceRoleKey)
 }
 
 // Transform database row to AIEntry
-export function transformToAIEntry(row: any): AIEntry {
+export function transformToAIEntry(row: {
+  id: string
+  name: string
+  category: string
+  description?: string | null
+  platform: string
+  region: string
+  access_type: string
+  pricing?: string | null
+  tags?: string[] | null
+  popularity?: number | null
+  last_updated?: string | null
+  is_trending?: boolean | null
+}): AIEntry {
+  // Validate and cast accessType to the expected union type
+  const validAccessTypes = ['Free', 'Freemium', 'Paid'] as const
+  const accessType = validAccessTypes.includes(row.access_type as typeof validAccessTypes[number])
+    ? (row.access_type as 'Free' | 'Freemium' | 'Paid')
+    : 'Free' // Default to 'Free' if invalid
+  
   return {
     id: row.id,
     name: row.name,
@@ -22,7 +65,7 @@ export function transformToAIEntry(row: any): AIEntry {
     description: row.description || '',
     platform: row.platform,
     region: row.region,
-    accessType: row.access_type,
+    accessType,
     pricing: row.pricing || '',
     tags: row.tags || [],
     popularity: row.popularity || 50,

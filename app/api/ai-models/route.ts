@@ -41,8 +41,12 @@ export async function GET(request: Request) {
   const region = searchParams.get('region')
   const accessType = searchParams.get('accessType')
   const search = searchParams.get('search')
-  const limit = parseInt(searchParams.get('limit') || '500') // Default to 500 for faster response
-  const offset = parseInt(searchParams.get('offset') || '0')
+  
+  // Validate and sanitize limit and offset
+  const limitParam = searchParams.get('limit') || '500'
+  const offsetParam = searchParams.get('offset') || '0'
+  const limit = Math.max(1, Math.min(1000, parseInt(limitParam, 10) || 500))
+  const offset = Math.max(0, parseInt(offsetParam, 10) || 0)
   
   // Log filters for debugging (only in development)
   if (process.env.NODE_ENV === 'development' && (category || region || accessType)) {
@@ -54,28 +58,72 @@ export async function GET(request: Request) {
     const SUPABASE_MAX_LIMIT = 1000 // Supabase PostgREST default max per query
     
     // Build base query for filters
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const buildBaseQuery = (queryBuilder: any) => {
       // Category filter - use case-insensitive matching
       if (category) {
-        // Decode URL-encoded category
-        const decodedCategory = decodeURIComponent(category)
-        queryBuilder = queryBuilder.eq('category', decodedCategory)
+        try {
+          const decodedCategory = decodeURIComponent(category)
+          // Use ilike for case-insensitive matching
+          queryBuilder = queryBuilder.ilike('category', `%${decodedCategory}%`)
+        } catch (e) {
+          // If decode fails, use original value
+          if (process.env.NODE_ENV === 'development') {
+            console.warn('Invalid category encoding:', category, e)
+          }
+          queryBuilder = queryBuilder.ilike('category', `%${category}%`)
+        }
       }
       if (region) {
-        const decodedRegion = decodeURIComponent(region)
-        queryBuilder = queryBuilder.eq('region', decodedRegion)
+        try {
+          const decodedRegion = decodeURIComponent(region)
+          queryBuilder = queryBuilder.ilike('region', `%${decodedRegion}%`)
+        } catch (e) {
+          if (process.env.NODE_ENV === 'development') {
+            console.warn('Invalid region encoding:', region, e)
+          }
+          queryBuilder = queryBuilder.ilike('region', `%${region}%`)
+        }
       }
       if (accessType) {
-        const decodedAccessType = decodeURIComponent(accessType)
-        queryBuilder = queryBuilder.eq('access_type', decodedAccessType)
+        try {
+          const decodedAccessType = decodeURIComponent(accessType)
+          queryBuilder = queryBuilder.ilike('access_type', `%${decodedAccessType}%`)
+        } catch (e) {
+          if (process.env.NODE_ENV === 'development') {
+            console.warn('Invalid accessType encoding:', accessType, e)
+          }
+          queryBuilder = queryBuilder.ilike('access_type', `%${accessType}%`)
+        }
       }
       if (search) {
-        queryBuilder = queryBuilder.or(`name.ilike.%${search}%,description.ilike.%${search}%`)
+        try {
+          const decodedSearch = decodeURIComponent(search)
+          queryBuilder = queryBuilder.or(`name.ilike.%${decodedSearch}%,description.ilike.%${decodedSearch}%`)
+        } catch (e) {
+          if (process.env.NODE_ENV === 'development') {
+            console.warn('Invalid search encoding:', search, e)
+          }
+          queryBuilder = queryBuilder.or(`name.ilike.%${search}%,description.ilike.%${search}%`)
+        }
       }
       return queryBuilder
     }
     
-    let allData: any[] = []
+    let allData: Array<{
+      id: string
+      name: string
+      category: string
+      description?: string | null
+      platform: string
+      region: string
+      access_type: string
+      pricing?: string | null
+      tags?: string[] | null
+      popularity?: number | null
+      last_updated?: string | null
+      is_trending?: boolean | null
+    }> = []
     
     // Check if filters are applied
     const hasFilters = category || region || accessType || search

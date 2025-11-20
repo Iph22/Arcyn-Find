@@ -1,21 +1,23 @@
-// Service Worker for Arcyn Find PWA
+// Service Worker for PWA
+// Cache strategy: Network first, fallback to cache
+
 const CACHE_NAME = 'arcyn-find-v1'
-const urlsToCache = [
+const STATIC_CACHE_NAME = 'arcyn-find-static-v1'
+
+// Assets to cache on install
+const STATIC_ASSETS = [
   '/',
-  '/ai-tools',
   '/manifest.json',
+  '/icon-192.png',
+  '/icon-512.png',
 ]
 
-// Install event - cache resources
+// Install event - cache static assets
 self.addEventListener('install', (event) => {
   event.waitUntil(
-    caches.open(CACHE_NAME)
-      .then((cache) => {
-        return cache.addAll(urlsToCache)
-      })
-      .catch((err) => {
-        console.log('Cache install failed:', err)
-      })
+    caches.open(STATIC_CACHE_NAME).then((cache) => {
+      return cache.addAll(STATIC_ASSETS)
+    })
   )
   self.skipWaiting()
 })
@@ -25,31 +27,71 @@ self.addEventListener('activate', (event) => {
   event.waitUntil(
     caches.keys().then((cacheNames) => {
       return Promise.all(
-        cacheNames.map((cacheName) => {
-          if (cacheName !== CACHE_NAME) {
-            return caches.delete(cacheName)
-          }
-        })
+        cacheNames
+          .filter((name) => name !== CACHE_NAME && name !== STATIC_CACHE_NAME)
+          .map((name) => caches.delete(name))
       )
     })
   )
-  return self.clients.claim()
+  self.clients.claim()
 })
 
-// Fetch event - serve from cache, fallback to network
+// Fetch event - network first strategy
 self.addEventListener('fetch', (event) => {
+  // Skip non-GET requests
+  if (event.request.method !== 'GET') {
+    return
+  }
+
+  // Skip API requests (always fetch fresh)
+  if (event.request.url.includes('/api/')) {
+    return
+  }
+
   event.respondWith(
-    caches.match(event.request)
+    fetch(event.request)
       .then((response) => {
-        // Return cached version or fetch from network
-        return response || fetch(event.request)
+        // Clone the response
+        const responseToCache = response.clone()
+
+        // Cache successful responses
+        if (response.status === 200) {
+          caches.open(CACHE_NAME).then((cache) => {
+            cache.put(event.request, responseToCache)
+          })
+        }
+
+        return response
       })
       .catch(() => {
-        // If both fail, return offline page or fallback
-        if (event.request.destination === 'document') {
-          return caches.match('/')
-        }
+        // Network failed, try cache
+        return caches.match(event.request).then((cachedResponse) => {
+          if (cachedResponse) {
+            return cachedResponse
+          }
+
+          // If no cache, return offline page for navigation requests
+          if (event.request.mode === 'navigate') {
+            return caches.match('/')
+          }
+
+          return new Response('Offline', {
+            status: 503,
+            statusText: 'Service Unavailable',
+          })
+        })
       })
   )
 })
 
+// Background sync for offline actions (future enhancement)
+self.addEventListener('sync', (event) => {
+  if (event.tag === 'sync-reviews') {
+    event.waitUntil(syncReviews())
+  }
+})
+
+async function syncReviews() {
+  // Sync pending reviews when back online
+  // Implementation depends on your offline storage strategy
+}

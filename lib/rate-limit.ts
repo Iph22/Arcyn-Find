@@ -13,14 +13,30 @@ interface RateLimitStore {
 const store: RateLimitStore = {}
 
 // Clean up old entries every 5 minutes
-setInterval(() => {
+let cleanupInterval: NodeJS.Timeout | null = null
+
+// Initialize cleanup interval only in Node.js environment (server-side)
+if (typeof global !== 'undefined' && typeof window === 'undefined') {
+  cleanupInterval = setInterval(() => {
     const now = Date.now()
     Object.keys(store).forEach((key) => {
-        if (store[key].resetTime < now) {
-            delete store[key]
-        }
+      if (store[key].resetTime < now) {
+        delete store[key]
+      }
     })
-}, 5 * 60 * 1000)
+  }, 5 * 60 * 1000)
+}
+
+/**
+ * Cleanup function for graceful shutdown
+ * Call this when shutting down the server (e.g., in a cleanup handler)
+ */
+export function cleanupRateLimit(): void {
+  if (cleanupInterval) {
+    clearInterval(cleanupInterval)
+    cleanupInterval = null
+  }
+}
 
 /**
  * Rate limit configuration

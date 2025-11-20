@@ -3,16 +3,25 @@
 import { useState, useEffect, useCallback } from "react"
 import { useRouter, useParams } from "next/navigation"
 import { motion, AnimatePresence } from "framer-motion"
-import { ArrowLeft, ExternalLink, Copy, Check, Share2, Heart } from "lucide-react"
+import { ArrowLeft, ExternalLink, Copy, Check, Share2, Heart, Sparkles, Activity } from "lucide-react"
 import type { AIEntry } from "@/lib/ai-data"
 import { trackAIView } from "@/lib/trending-utils"
 import { useFavorites, useShare } from "@/lib/hooks"
 import { StructuredData } from "./structured-data"
+import { findSimilarTools } from "@/lib/similar-tools"
+import { checkToolHealth, getToolHealthStatus, getHealthStatusColor, getHealthStatusLabel } from "@/lib/tool-health"
+import { ReviewsSection } from "@/components/reviews-section"
+import { CollectionsSection } from "@/components/collections-section"
+import { PricingHistory } from "@/components/pricing-history"
+import Link from "next/link"
 
 export default function AIDetailPage() {
   const router = useRouter()
   const params = useParams()
   const [ai, setAi] = useState<AIEntry | null>(null)
+  const [allTools, setAllTools] = useState<AIEntry[]>([])
+  const [similarTools, setSimilarTools] = useState<ReturnType<typeof findSimilarTools>>([])
+  const [healthStatus, setHealthStatus] = useState<ReturnType<typeof getToolHealthStatus> | null>(null)
   const [copied, setCopied] = useState(false)
   const [loading, setLoading] = useState(true)
   const [showCopiedToast, setShowCopiedToast] = useState(false)
@@ -27,25 +36,25 @@ export default function AIDetailPage() {
         setLoading(true)
         const id = params.id as string
 
-        // Try to fetch from API first
+        // Fetch all tools from API
         const response = await fetch('/api/ai-models')
         if (response.ok) {
-          const data = await response.json()
+          const data = await response.json() as AIEntry[]
+          setAllTools(data)
           const found = data.find((entry: AIEntry) => entry.id === id)
           if (found) {
             setAi(found)
-            setLoading(false)
-            return
-          }
-        }
-
-        // Fallback: try fetching from API
-        const apiResponse = await fetch('/api/ai-models')
-        if (apiResponse.ok) {
-          const allEntries = await apiResponse.json() as AIEntry[]
-          const found = allEntries.find((entry) => entry.id === id)
-          if (found) {
-            setAi(found)
+            // Find similar tools
+            const similar = findSimilarTools(found, data, 5)
+            setSimilarTools(similar)
+            // Check tool health
+            const cachedHealth = getToolHealthStatus(found.id)
+            if (cachedHealth) {
+              setHealthStatus(cachedHealth)
+            } else {
+              // Check health in background
+              checkToolHealth(found.platform, found.id).then(setHealthStatus)
+            }
           } else {
             router.push('/')
           }
@@ -283,6 +292,24 @@ export default function AIDetailPage() {
             </div>
           </div>
 
+          {/* Health Status */}
+          {healthStatus && (
+            <div className="mb-6 rounded-lg border border-border/50 bg-muted/30 p-4">
+              <div className="flex items-center gap-2">
+                <Activity className="h-4 w-4 text-muted-foreground" />
+                <p className="text-xs font-semibold text-muted-foreground">Platform Status:</p>
+                <span className={`text-xs font-medium px-2 py-1 rounded ${getHealthStatusColor(healthStatus.status)}`}>
+                  {getHealthStatusLabel(healthStatus.status)}
+                </span>
+                {healthStatus.responseTime && (
+                  <span className="text-xs text-muted-foreground ml-auto">
+                    {healthStatus.responseTime}ms
+                  </span>
+                )}
+              </div>
+            </div>
+          )}
+
           {/* Last Updated */}
           <p className="mb-6 text-xs text-muted-foreground">
             Last updated: {new Date(ai.lastUpdated).toLocaleDateString('en-US', { year: 'numeric', month: '2-digit', day: '2-digit' })}
@@ -309,6 +336,71 @@ export default function AIDetailPage() {
             </button>
           </div>
         </motion.div>
+
+        {/* Similar Tools Section */}
+        {similarTools.length > 0 && (
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.5, delay: 0.2 }}
+            className="mt-8 rounded-2xl border border-border/50 bg-card shadow-xl p-8"
+          >
+            <div className="mb-6 flex items-center gap-2">
+              <Sparkles className="h-5 w-5 text-accent" />
+              <h2 className="text-2xl font-bold text-foreground">Similar Tools</h2>
+            </div>
+            <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+              {similarTools.map(({ tool, similarityScore, reasons }) => (
+                <Link
+                  key={tool.id}
+                  href={`/ai/${tool.id}`}
+                  className="group rounded-lg border border-border/50 bg-muted/30 p-4 hover:bg-muted/50 transition-all hover:shadow-md"
+                >
+                  <div className="flex items-start justify-between mb-2">
+                    <h3 className="font-semibold text-foreground group-hover:text-accent transition-colors">
+                      {tool.name}
+                    </h3>
+                    <span className="text-xs text-muted-foreground bg-accent/10 px-2 py-1 rounded">
+                      {similarityScore.toFixed(0)}% match
+                    </span>
+                  </div>
+                  <p className="text-sm text-muted-foreground mb-3 line-clamp-2">
+                    {tool.description}
+                  </p>
+                  <div className="flex items-center gap-2 flex-wrap">
+                    {reasons.map((reason, idx) => (
+                      <span
+                        key={idx}
+                        className="text-xs bg-accent/10 text-accent px-2 py-0.5 rounded"
+                      >
+                        {reason}
+                      </span>
+                    ))}
+                  </div>
+                  <div className="mt-3 flex items-center justify-between">
+                    <span className="text-xs text-muted-foreground">{tool.category}</span>
+                    <span className={`text-xs px-2 py-1 rounded ${
+                      tool.accessType === 'Free' ? 'bg-green-500/20 text-green-400' :
+                      tool.accessType === 'Freemium' ? 'bg-blue-500/20 text-blue-400' :
+                      'bg-purple-500/20 text-purple-400'
+                    }`}>
+                      {tool.accessType}
+                    </span>
+                  </div>
+                </Link>
+              ))}
+            </div>
+          </motion.div>
+        )}
+
+        {/* Pricing History Section */}
+        <PricingHistory toolId={ai.id} currentPricing={ai.pricing} />
+
+        {/* Collections Section */}
+        <CollectionsSection toolId={ai.id} toolName={ai.name} />
+
+        {/* Reviews Section */}
+        <ReviewsSection toolId={ai.id} />
       </div>
 
       {/* Copy to Clipboard Toast */}

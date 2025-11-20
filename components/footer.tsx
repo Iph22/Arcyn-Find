@@ -10,8 +10,29 @@ export function Footer() {
     <footer className="border-t border-border/50 bg-background/50 py-6 md:py-8 mt-12 md:mt-16">
       <div className="mx-auto max-w-7xl px-3 sm:px-4">
         <div className="flex flex-col items-center justify-center gap-4 text-xs sm:text-sm text-muted-foreground text-center">
-          {/* Privacy, Terms, and About Links */}
+          {/* Navigation Links */}
           <div className="flex flex-wrap items-center justify-center gap-4 sm:gap-6">
+            <Link
+              href="/leaderboard"
+              className="text-muted-foreground hover:text-foreground transition-colors underline-offset-4 hover:underline"
+            >
+              Leaderboard
+            </Link>
+            <span className="text-muted-foreground/50">•</span>
+            <Link
+              href="/activity"
+              className="text-muted-foreground hover:text-foreground transition-colors underline-offset-4 hover:underline"
+            >
+              Activity
+            </Link>
+            <span className="text-muted-foreground/50">•</span>
+            <Link
+              href="/collections"
+              className="text-muted-foreground hover:text-foreground transition-colors underline-offset-4 hover:underline"
+            >
+              Collections
+            </Link>
+            <span className="text-muted-foreground/50">•</span>
             <Link
               href="/about"
               className="text-muted-foreground hover:text-foreground transition-colors underline-offset-4 hover:underline"
@@ -23,14 +44,14 @@ export function Footer() {
               href="/privacy"
               className="text-muted-foreground hover:text-foreground transition-colors underline-offset-4 hover:underline"
             >
-              Privacy Policy
+              Privacy
             </Link>
             <span className="text-muted-foreground/50">•</span>
             <Link
               href="/terms"
               className="text-muted-foreground hover:text-foreground transition-colors underline-offset-4 hover:underline"
             >
-              Terms of Service
+              Terms
             </Link>
           </div>
 

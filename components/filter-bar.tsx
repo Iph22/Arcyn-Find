@@ -8,9 +8,13 @@ interface FilterBarProps {
   onCategoryChange: (category: string) => void
   onRegionChange: (region: string) => void
   onAccessTypeChange: (type: string) => void
+  onSortChange?: (sort: string) => void
+  onPopularityFilterChange?: (min: number) => void
   selectedCategory: string
   selectedRegion: string
   selectedAccessType: string
+  selectedSort?: string
+  minPopularity?: number
 }
 
 // Developer category mapping: Display name -> Internal category name
@@ -92,14 +96,31 @@ const studentCategoryDescriptions: Record<string, string> = {
 
 const regions = ["All", "USA", "EU", "Canada", "China", "Israel", "UAE", "Global"]
 const accessTypes = ["All", "Free", "Freemium", "Paid"]
+const sortOptions = [
+  { value: "relevance", label: "Relevance" },
+  { value: "popularity", label: "Most Popular" },
+  { value: "newest", label: "Newest First" },
+  { value: "oldest", label: "Oldest First" },
+]
+const popularityRanges = [
+  { value: 0, label: "All" },
+  { value: 50, label: "50%+" },
+  { value: 70, label: "70%+" },
+  { value: 85, label: "85%+" },
+  { value: 95, label: "95%+" },
+]
 
 export function FilterBar({
   onCategoryChange,
   onRegionChange,
   onAccessTypeChange,
+  onSortChange,
+  onPopularityFilterChange,
   selectedCategory,
   selectedRegion,
   selectedAccessType,
+  selectedSort = "relevance",
+  minPopularity = 0,
 }: FilterBarProps) {
   const [hoveredCategory, setHoveredCategory] = useState<string | null>(null)
   const [viewMode, setViewMode] = useState<"student" | "developer">("developer")
@@ -250,6 +271,54 @@ export function FilterBar({
               <ChevronDown className="pointer-events-none absolute right-2 sm:right-3 top-1/2 h-3.5 w-3.5 sm:h-4 sm:w-4 -translate-y-1/2 text-muted-foreground" />
             </div>
           </div>
+
+          {/* Sort Filter */}
+          {onSortChange && (
+            <div className="flex flex-col gap-1 sm:gap-1.5 sm:flex-row sm:items-center sm:gap-2 w-full sm:w-auto">
+              <label htmlFor="sort-filter" className="text-[10px] sm:text-xs md:text-sm font-medium text-muted-foreground whitespace-nowrap">
+                Sort:
+              </label>
+              <div className="relative flex-1 sm:flex-initial">
+                <select
+                  id="sort-filter"
+                  value={selectedSort}
+                  onChange={(e) => onSortChange(e.target.value)}
+                  className="w-full sm:w-auto appearance-none rounded-lg border border-border/50 bg-card/50 px-2.5 sm:px-3 md:px-4 py-2 sm:py-2.5 md:py-2 pr-8 sm:pr-10 text-base sm:text-sm text-foreground transition-colors duration-150 hover:bg-card focus:border-accent focus:outline-none focus:ring-2 focus:ring-accent/50 touch-manipulation"
+                >
+                  {sortOptions.map((option) => (
+                    <option key={option.value} value={option.value}>
+                      {option.label}
+                    </option>
+                  ))}
+                </select>
+                <ChevronDown className="pointer-events-none absolute right-2 sm:right-3 top-1/2 h-3.5 w-3.5 sm:h-4 sm:w-4 -translate-y-1/2 text-muted-foreground" />
+              </div>
+            </div>
+          )}
+
+          {/* Popularity Filter */}
+          {onPopularityFilterChange && (
+            <div className="flex flex-col gap-1 sm:gap-1.5 sm:flex-row sm:items-center sm:gap-2 w-full sm:w-auto">
+              <label htmlFor="popularity-filter" className="text-[10px] sm:text-xs md:text-sm font-medium text-muted-foreground whitespace-nowrap">
+                Min Popularity:
+              </label>
+              <div className="relative flex-1 sm:flex-initial">
+                <select
+                  id="popularity-filter"
+                  value={minPopularity}
+                  onChange={(e) => onPopularityFilterChange(Number(e.target.value))}
+                  className="w-full sm:w-auto appearance-none rounded-lg border border-border/50 bg-card/50 px-2.5 sm:px-3 md:px-4 py-2 sm:py-2.5 md:py-2 pr-8 sm:pr-10 text-base sm:text-sm text-foreground transition-colors duration-150 hover:bg-card focus:border-accent focus:outline-none focus:ring-2 focus:ring-accent/50 touch-manipulation"
+                >
+                  {popularityRanges.map((range) => (
+                    <option key={range.value} value={range.value}>
+                      {range.label}
+                    </option>
+                  ))}
+                </select>
+                <ChevronDown className="pointer-events-none absolute right-2 sm:right-3 top-1/2 h-3.5 w-3.5 sm:h-4 sm:w-4 -translate-y-1/2 text-muted-foreground" />
+              </div>
+            </div>
+          )}
         </div>
       </div>
     </motion.div>

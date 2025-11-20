@@ -23,8 +23,9 @@ async function loadAIEntry(id: string): Promise<AIEntry | null> {
   }
 }
 
-export async function generateMetadata({ params }: { params: { id: string } }): Promise<Metadata> {
-  const ai = await loadAIEntry(params.id)
+export async function generateMetadata({ params }: { params: Promise<{ id: string }> }): Promise<Metadata> {
+  const { id } = await params
+  const ai = await loadAIEntry(id)
 
   if (!ai) {
     return {

@@ -3,11 +3,12 @@
 import { useState, useEffect } from "react"
 import { useRouter } from "next/navigation"
 import { motion } from "framer-motion"
-import { ArrowLeft, ExternalLink, X } from "lucide-react"
+import { ArrowLeft, ExternalLink, X, Download, FileText } from "lucide-react"
 import type { AIEntry } from "@/lib/ai-data"
 // Data loaded from API, not imported directly
 import { ThemeToggle } from "@/components/theme-toggle"
 import { Footer } from "@/components/footer"
+import { exportComparisonToCSV, exportComparisonToJSON, exportComparisonToPDF, downloadFile } from "@/lib/export-utils"
 
 const COMPARISON_STORAGE_KEY = 'arcyn-find-comparison-tools'
 
@@ -121,10 +122,44 @@ export default function ComparePage() {
                     transition={{ duration: 0.5 }}
                 >
                     {/* Header */}
-                    <div className="mb-6 flex items-center justify-between">
-                        <h1 className="text-3xl font-bold md:text-4xl">Compare AI Tools</h1>
-                        <div className="text-sm text-muted-foreground">
-                            {tools.length} of 3 tools
+                    <div className="mb-6 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+                        <div>
+                            <h1 className="text-3xl font-bold md:text-4xl">Compare AI Tools</h1>
+                            <div className="text-sm text-muted-foreground mt-1">
+                                {tools.length} of 3 tools
+                            </div>
+                        </div>
+                        <div className="flex gap-2">
+                            <button
+                                onClick={() => {
+                                    const csv = exportComparisonToCSV(tools)
+                                    downloadFile(csv, `ai-tools-comparison-${Date.now()}.csv`, 'text/csv')
+                                }}
+                                className="flex items-center gap-2 rounded-lg border border-border bg-card px-4 py-2 text-sm font-medium hover:bg-muted transition-colors"
+                            >
+                                <Download className="h-4 w-4" />
+                                <span className="hidden sm:inline">Export CSV</span>
+                                <span className="sm:hidden">CSV</span>
+                            </button>
+                            <button
+                                onClick={() => {
+                                    const json = exportComparisonToJSON(tools)
+                                    downloadFile(json, `ai-tools-comparison-${Date.now()}.json`, 'application/json')
+                                }}
+                                className="flex items-center gap-2 rounded-lg border border-border bg-card px-4 py-2 text-sm font-medium hover:bg-muted transition-colors"
+                            >
+                                <Download className="h-4 w-4" />
+                                <span className="hidden sm:inline">Export JSON</span>
+                                <span className="sm:hidden">JSON</span>
+                            </button>
+                            <button
+                                onClick={() => exportComparisonToPDF(tools)}
+                                className="flex items-center gap-2 rounded-lg bg-accent px-4 py-2 text-sm font-medium text-accent-foreground hover:bg-accent/90 transition-colors"
+                            >
+                                <FileText className="h-4 w-4" />
+                                <span className="hidden sm:inline">Export PDF</span>
+                                <span className="sm:hidden">PDF</span>
+                            </button>
                         </div>
                     </div>
 
