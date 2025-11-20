@@ -27,31 +27,39 @@ export default function AIDetailPage() {
         setLoading(true)
         const id = params.id as string
 
-        // Try to fetch from API first
-        const response = await fetch('/api/ai-models')
+        if (!id) {
+          router.push('/')
+          return
+        }
+
+        // Fetch the specific tool by ID using the API's id parameter
+        const response = await fetch(`/api/ai-models?id=${encodeURIComponent(id)}`)
         if (response.ok) {
           const data = await response.json()
-          const found = data.find((entry: AIEntry) => entry.id === id)
-          if (found) {
-            setAi(found)
+          if (data && data.length > 0 && data[0]) {
+            setAi(data[0])
             setLoading(false)
             return
           }
         }
 
-        // Fallback: try fetching from API
-        const apiResponse = await fetch('/api/ai-models')
-        if (apiResponse.ok) {
-          const allEntries = await apiResponse.json() as AIEntry[]
-          const found = allEntries.find((entry) => entry.id === id)
-          if (found) {
-            setAi(found)
-          } else {
-            router.push('/')
+        // Fallback: If ID parameter doesn't work, try searching with high limit
+        if (response.status === 404) {
+          const searchResponse = await fetch(`/api/ai-models?search=${encodeURIComponent(id)}&limit=1000`)
+          if (searchResponse.ok) {
+            const searchData = await searchResponse.json()
+            const foundById = searchData.find((entry: AIEntry) => entry.id === id)
+            if (foundById) {
+              setAi(foundById)
+              setLoading(false)
+              return
+            }
           }
-        } else {
-          router.push('/')
         }
+
+        // If still not found, redirect to home
+        console.warn(`AI tool with ID "${id}" not found`)
+        router.push('/')
       } catch (error) {
         console.error('Failed to fetch AI details:', error)
         router.push('/')

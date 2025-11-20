@@ -12,7 +12,8 @@
     "sync:tools": "tsx scripts/add-missing-tools.ts",
     "add:ai-detection": "tsx scripts/fetch-ai-detection-tools.ts",
     "fetch:all-sources": "tsx scripts/fetch-from-all-sources.ts",
-    "add:new-models": "tsx scripts/add-new-models.ts"
+    "add:new-models": "tsx scripts/add-new-models.ts",
+    "add:tixu": "tsx scripts/add-tixu-ai.ts"
   },
   "dependencies": {
     "@hookform/resolvers": "^3.10.0",

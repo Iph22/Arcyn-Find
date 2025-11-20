@@ -600,7 +600,7 @@ export async function GET(request: Request) {
       },
       {
         headers: {
-          'Cache-Control': 'public, s-maxage=300, stale-while-revalidate=600', // 5 min cache, 10 min stale
+          'Cache-Control': 'public, s-maxage=120, stale-while-revalidate=300', // 2 min cache, 5 min stale for real-time
           ...getRateLimitHeaders(rateLimit.remaining, rateLimit.resetTime),
         },
       }

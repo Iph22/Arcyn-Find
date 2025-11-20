@@ -37,6 +37,7 @@ export async function GET(request: Request) {
     )
   }
   const { searchParams } = new URL(request.url)
+  const id = searchParams.get('id') // Support fetching by specific ID
   const category = searchParams.get('category')
   const region = searchParams.get('region')
   const accessType = searchParams.get('accessType')
@@ -62,6 +63,28 @@ export async function GET(request: Request) {
         .from('ai_tools')
         .select('*', { count: 'exact', head: true })
       console.log(`[API] Total tools in database: ${count}`)
+    }
+    
+    // If fetching by specific ID, return early with just that tool
+    if (id) {
+      const { data, error } = await supabase
+        .from('ai_tools')
+        .select('*')
+        .eq('id', id)
+        .single()
+      
+      if (error || !data) {
+        return NextResponse.json(
+          { error: 'Tool not found' },
+          { status: 404 }
+        )
+      }
+      
+      return NextResponse.json([transformToAIEntry(data)], {
+        headers: {
+          'Cache-Control': 'public, s-maxage=60, stale-while-revalidate=300',
+        },
+      })
     }
     
     // Build base query for filters
@@ -119,10 +142,35 @@ export async function GET(request: Request) {
         queryBuilder = queryBuilder.ilike('access_type', decodedAccessType)
       }
       if (search) {
-        // Use proper Supabase syntax for OR search across name and description
+        // Use proper Supabase syntax for search across name, description, and platform
+        // Tags will be searched client-side since Supabase array search is complex
         // Escape special characters in search term
         const escapedSearch = search.replace(/%/g, '\\%').replace(/_/g, '\\_')
-        queryBuilder = queryBuilder.or(`name.ilike.%${escapedSearch}%,description.ilike.%${escapedSearch}%`)
+        
+        // For multi-word queries, search for each word individually
+        // We'll filter client-side to ensure all words match
+        const searchWords = escapedSearch.trim().split(/\s+/).filter(w => w.length > 0)
+        
+        if (searchWords.length > 1) {
+          // Multi-word query: search for each word in name, description, or platform
+          // Use OR to match if any word appears in any field
+          // Client-side filtering will ensure all words match
+          const conditions: string[] = []
+          for (const word of searchWords) {
+            conditions.push(`name.ilike.%${word}%`)
+            conditions.push(`description.ilike.%${word}%`)
+            conditions.push(`platform.ilike.%${word}%`)
+          }
+          // Also search for the full phrase
+          conditions.push(`name.ilike.%${escapedSearch}%`)
+          conditions.push(`description.ilike.%${escapedSearch}%`)
+          conditions.push(`platform.ilike.%${escapedSearch}%`)
+          
+          queryBuilder = queryBuilder.or(conditions.join(','))
+        } else {
+          // Single word query: search in name, description, and platform
+          queryBuilder = queryBuilder.or(`name.ilike.%${escapedSearch}%,description.ilike.%${escapedSearch}%,platform.ilike.%${escapedSearch}%`)
+        }
       }
       return queryBuilder
     }
@@ -379,7 +427,102 @@ export async function GET(request: Request) {
     }
     
     // Transform database rows to AIEntry format
-    const aiEntries: AIEntry[] = allData.map(transformToAIEntry)
+    let aiEntries: AIEntry[] = allData.map(transformToAIEntry)
+    
+    // For search queries, filter and sort by relevance
+    if (search && search.trim()) {
+      const searchLower = search.toLowerCase().trim()
+      const searchWords = searchLower.split(/\s+/).filter(w => w.length > 0)
+      
+      // Filter: ensure all words match (for multi-word queries) and check tags
+      if (searchWords.length > 1) {
+        // Multi-word: all words must be present
+        aiEntries = aiEntries.filter(entry => {
+          const searchableText = `${entry.name} ${entry.description} ${entry.platform} ${entry.tags.join(' ')}`.toLowerCase()
+          return searchWords.every(word => searchableText.includes(word))
+        })
+      } else {
+        // Single-word: check all fields including tags
+        aiEntries = aiEntries.filter(entry => {
+          const searchableText = `${entry.name} ${entry.description} ${entry.platform} ${entry.tags.join(' ')}`.toLowerCase()
+          return searchableText.includes(searchLower)
+        })
+      }
+      
+      // PRIORITY: Sort by relevance score
+      aiEntries = aiEntries.map(entry => {
+        let relevanceScore = 0
+        const entryName = entry.name.toLowerCase()
+        const entryDesc = entry.description.toLowerCase()
+        const entryPlatform = entry.platform.toLowerCase()
+        const entryTags = entry.tags.join(' ').toLowerCase()
+        const searchableText = `${entryName} ${entryDesc} ${entryPlatform} ${entryTags}`
+        
+        // Exact name match (highest priority)
+        if (entryName === searchLower) {
+          relevanceScore += 1000
+        } else if (entryName.startsWith(searchLower)) {
+          relevanceScore += 800
+        } else if (entryName.includes(searchLower)) {
+          relevanceScore += 600
+        }
+        
+        // For multi-word queries, check if all words appear in name
+        if (searchWords.length > 1) {
+          const allWordsInName = searchWords.every(word => entryName.includes(word))
+          if (allWordsInName) {
+            relevanceScore += 700
+          }
+        }
+        
+        // Description match
+        if (entryDesc.includes(searchLower)) {
+          relevanceScore += 300
+        }
+        
+        // Platform match
+        if (entryPlatform.includes(searchLower)) {
+          relevanceScore += 200
+        }
+        
+        // Tag matches (higher weight for exact tag matches)
+        const matchingTags = entry.tags.filter(tag => {
+          const tagLower = tag.toLowerCase()
+          return tagLower === searchLower || tagLower.includes(searchLower) || searchLower.includes(tagLower)
+        })
+        relevanceScore += matchingTags.length * 250
+        
+        // For multi-word queries, check tag matches
+        if (searchWords.length > 1) {
+          const tagsWithAllWords = entry.tags.filter(tag => {
+            const tagLower = tag.toLowerCase()
+            return searchWords.every(word => tagLower.includes(word))
+          })
+          relevanceScore += tagsWithAllWords.length * 300
+        }
+        
+        // Popularity boost (scaled)
+        relevanceScore += entry.popularity * 0.5
+        
+        // Trending boost
+        if (entry.isTrending) {
+          relevanceScore += 150
+        }
+        
+        // Position bonus: earlier in searchable text = more relevant
+        const nameIndex = entryName.indexOf(searchLower)
+        if (nameIndex >= 0 && nameIndex < 10) {
+          relevanceScore += 100
+        }
+        
+        return { ...entry, _relevanceScore: relevanceScore }
+      }).sort((a, b) => {
+        // Sort by relevance score (descending), then by popularity
+        const scoreDiff = (b as any)._relevanceScore - (a as any)._relevanceScore
+        if (scoreDiff !== 0) return scoreDiff
+        return b.popularity - a.popularity
+      }).map(({ _relevanceScore, ...entry }) => entry) // Remove temporary score field
+    }
     
     // Log response size for debugging
     if (process.env.NODE_ENV === 'development') {
