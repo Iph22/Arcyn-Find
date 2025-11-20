@@ -29,6 +29,7 @@ const developerCategoryMap: Record<string, string> = {
   "Audio/Video Processing": "Audio/Video Processing",
   "NLP Platform": "NLP Platform",
   "ML Infrastructure": "ML Infrastructure",
+  "AI Detection Tool": "AI Detection Tool",
 }
 
 // Student-friendly category mapping
@@ -46,6 +47,7 @@ const studentCategoryMap: Record<string, string> = {
   "Media Editing": "Audio/Video Processing",
   "Language Learning": "NLP Platform",
   "Tech & Development": "ML Infrastructure",
+  "AI Detection": "AI Detection Tool",
 }
 
 // Reverse mapping for display (developer)
@@ -72,6 +74,7 @@ const developerCategoryDescriptions: Record<string, string> = {
   "Audio/Video Processing": "Media editing, transcription, multimedia processing",
   "NLP Platform": "Natural language processing APIs, text analysis, language models",
   "ML Infrastructure": "MLOps, model hosting, APIs, infrastructure tools",
+  "AI Detection Tool": "AI content detection, plagiarism detection, deepfake detection, AI-generated text identification (GPTZero, Originality.ai, Copyleaks)",
 }
 
 // Student-friendly category descriptions
@@ -88,6 +91,7 @@ const studentCategoryDescriptions: Record<string, string> = {
   "Media Editing": "Edit audio and video files for projects and presentations",
   "Language Learning": "Learn new languages, translate text, improve writing",
   "Tech & Development": "Advanced tools for tech projects and development work",
+  "AI Detection": "Check if text, images, or videos were made by AI. Detect plagiarism and verify content authenticity for school work",
 }
 
 const regions = ["All", "USA", "EU", "Canada", "China", "Israel", "UAE", "Global"]
@@ -116,6 +120,14 @@ export function FilterBar({
     : "All"
   
   const handleCategoryChange = (displayName: string) => {
+    // If "All" is selected, pass empty string to clear the filter
+    if (displayName === "All") {
+      onCategoryChange("")
+      return
+    }
+    // Map display name to internal category name
+    // If the display name is not in the map, it might be an unmapped category
+    // In that case, use it as-is (it's already an internal category name)
     const internalCategory = categoryMap[displayName] || displayName
     onCategoryChange(internalCategory)
   }

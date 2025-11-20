@@ -212,9 +212,9 @@ export default function RootLayout({
         />
       </head>
       <body className="font-sans antialiased h-full overscroll-none" suppressHydrationWarning>
-        <ThemeProvider
-          attribute="class"
-          defaultTheme="dark"
+        <ThemeProvider 
+          attribute="class" 
+          defaultTheme="dark" 
           enableSystem={false}
           disableTransitionOnChange={true}
           storageKey="arcyn-theme"

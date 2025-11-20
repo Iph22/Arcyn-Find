@@ -69,6 +69,11 @@ export function normalizeCategory(category: string): string {
     "Learning & Education": "Learning & Education",
     "Learning and Education": "Learning & Education",
     "Education": "Learning & Education",
+    "AI Detection": "AI Detection Tool",
+    "AI Detection Tool": "AI Detection Tool",
+    "ai detection": "AI Detection Tool",
+    "ai-detection": "AI Detection Tool",
+    "AI-Detection": "AI Detection Tool",
   }
   
   return categoryMap[category] || category
@@ -166,6 +171,16 @@ function extractKeywordsFromNaturalLanguage(query: string): {
       "audio video", "audio and video", "multimedia", "media processing",
       "streaming", "video audio", "media editing", "media conversion",
       "media analysis", "media ai"
+    ],
+    "AI Detection Tool": [
+      "ai detection", "detect ai", "ai detector", "ai checker", "ai content detection",
+      "plagiarism detection", "plagiarism checker", "plagiarism", "detect plagiarism",
+      "deepfake detection", "deepfake detector", "fake content", "content authenticity",
+      "ai generated", "ai-generated", "gpt detector", "chatgpt detector", "ai text detector",
+      "originality check", "content verification", "ai writing detection", "ai content checker",
+      "detect ai writing", "ai-generated text", "machine-generated", "synthetic content",
+      "ai authenticity", "content originality", "ai verification", "text authenticity",
+      "gptzero", "originality.ai", "copyleaks", "winston ai", "zerogpt", "turnitin ai"
     ]
   }
   
@@ -646,7 +661,7 @@ export function searchAIEntries(
       const normalizedAICategory = normalizeCategory(ai.category.trim())
       // Use case-insensitive comparison for category matching
       if (normalizedFilterCategory.toLowerCase() !== normalizedAICategory.toLowerCase()) {
-        matches = false
+      matches = false
       }
     }
     if (filters.region && ai.region !== filters.region) {

@@ -43,6 +43,6 @@
       "description": "Browse all AI tools",
       "url": "/ai-tools",
       "icons": [{ "src": "/icon-192x192.png", "sizes": "192x192" }]
-    }
+}
   ]
 }

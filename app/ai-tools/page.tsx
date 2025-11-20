@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useMemo, useEffect } from "react"
+import { useState, useMemo, useEffect, useRef } from "react"
 import { useRouter, useSearchParams } from "next/navigation"
 import { motion } from "framer-motion"
 import { ArrowLeft, Grid3x3, List, ChevronLeft, ChevronRight, GitCompare } from "lucide-react"
@@ -21,7 +21,9 @@ export default function AllAIToolsPage() {
   
   // Read URL params on mount - decode properly
   const initialQ = searchParams?.get('q') ? decodeURIComponent(searchParams.get('q')!) : ''
-  const initialCategory = searchParams?.get('category') ? decodeURIComponent(searchParams.get('category')!) : ''
+  const initialCategoryRaw = searchParams?.get('category') ? decodeURIComponent(searchParams.get('category')!) : ''
+  // Normalize "All" to empty string (no filter)
+  const initialCategory = initialCategoryRaw === 'All' ? '' : initialCategoryRaw
   const initialRegion = searchParams?.get('region') ? decodeURIComponent(searchParams.get('region')!) : ''
   const initialAccess = searchParams?.get('access') ? decodeURIComponent(searchParams.get('access')!) : ''
   
@@ -35,67 +37,130 @@ export default function AllAIToolsPage() {
   const [loading, setLoading] = useState(true) // Start as true to show loading state on initial mount
   const [infiniteScroll, setInfiniteScroll] = useState(false)
   const [comparisonTools, setComparisonTools] = useState<AIEntry[]>([])
+  
+  // Track if we're updating URL ourselves to prevent sync effect from overwriting
+  const isUpdatingURL = useRef(false)
 
   // Fetch AI models from API - use server-side filtering when filters are present
   useEffect(() => {
+    let isCancelled = false
+    const controller = new AbortController()
+    let timeoutId: NodeJS.Timeout | null = null
+    
     async function fetchModels() {
       try {
         setLoading(true)
-        const controller = new AbortController()
-        const timeoutId = setTimeout(() => controller.abort(), 15000) // Increased timeout for large requests
+        // Clear old data immediately when filters change to prevent showing stale counts
+        setAiModels([])
+        
+        timeoutId = setTimeout(() => controller.abort(), 15000) // Increased timeout for large requests
         
         // Build API URL with filters - use server-side filtering for efficiency
         const params = new URLSearchParams()
         params.set('limit', '10000')
         
         // Pass filters to API for server-side filtering (more efficient)
-        if (selectedCategory) {
+        // Only add to params if they have actual values (not empty strings)
+        if (selectedCategory && selectedCategory.trim()) {
           params.set('category', selectedCategory)
         }
-        if (selectedRegion) {
+        if (selectedRegion && selectedRegion.trim()) {
           params.set('region', selectedRegion)
         }
-        if (selectedAccessType) {
+        if (selectedAccessType && selectedAccessType.trim()) {
           params.set('accessType', selectedAccessType)
         }
         
-        const response = await fetch(`/api/ai-models?${params.toString()}`, {
+        const apiUrl = `/api/ai-models?${params.toString()}`
+        if (process.env.NODE_ENV === 'development') {
+          console.log(`[Frontend] Fetching from: ${apiUrl}`)
+        }
+        
+        const response = await fetch(apiUrl, {
           cache: 'no-store',
           signal: controller.signal,
         })
         
-        clearTimeout(timeoutId)
+        if (timeoutId) {
+          clearTimeout(timeoutId)
+          timeoutId = null
+        }
         
         if (response.ok) {
-          const data = await response.json()
-          // Always set the data, even if empty (to show "no results" message)
-          setAiModels(Array.isArray(data) ? data : [])
+          // Check response content type and size
+          const contentType = response.headers.get('content-type')
+          const contentLength = response.headers.get('content-length')
           
           if (process.env.NODE_ENV === 'development') {
-            if (!data || data.length === 0) {
-              console.warn('API returned empty array. Filters:', { selectedCategory, selectedRegion, selectedAccessType })
-            } else {
-              console.log('API returned', data.length, 'tools')
+            console.log(`[Frontend] Response headers:`, { contentType, contentLength })
+          }
+          
+          const data = await response.json()
+          
+          // Only update state if this request hasn't been cancelled
+          if (!isCancelled) {
+            // Always set the data, even if empty (to show "no results" message)
+            const toolsArray = Array.isArray(data) ? data : []
+            setAiModels(toolsArray)
+            
+            if (process.env.NODE_ENV === 'development') {
+              if (!data || data.length === 0) {
+                console.warn('[Frontend] API returned empty array. Filters:', { selectedCategory, selectedRegion, selectedAccessType })
+              } else {
+                console.log(`[Frontend] API returned ${toolsArray.length} tools (requested limit=10000)`)
+                console.log(`[Frontend] Active filters: category="${selectedCategory || 'All'}", region="${selectedRegion || 'All'}", access="${selectedAccessType || 'All'}"`)
+                if (toolsArray.length < 100 && !selectedCategory && !selectedRegion && !selectedAccessType) {
+                  console.warn(`[Frontend] ⚠️ Only received ${toolsArray.length} tools with no filters, expected more! Check server logs.`)
+                }
+                // Check if data looks truncated
+                if (toolsArray.length > 0 && toolsArray.length % 1000 === 0 && toolsArray.length < 10000) {
+                  console.warn(`[Frontend] ⚠️ Received exactly ${toolsArray.length} tools (multiple of 1000) - might be a batch limit issue`)
+                }
+                // Log unique categories when "All" is selected
+                if (!selectedCategory && !selectedRegion && !selectedAccessType && toolsArray.length > 0) {
+                  const uniqueCategories = [...new Set(toolsArray.map((ai: any) => ai.category))].slice(0, 20)
+                  console.log(`[Frontend] Sample categories in response (${uniqueCategories.length} shown):`, uniqueCategories)
+                }
+              }
             }
           }
         } else {
           // Handle non-OK responses
           const errorText = await response.text().catch(() => 'Unknown error')
           console.error('API response not OK:', response.status, errorText)
-          setAiModels([])
+          if (!isCancelled) {
+            setAiModels([])
+          }
         }
       } catch (error) {
         if (error instanceof Error && error.name === 'AbortError') {
-          console.warn('API request timed out, using fallback data')
+          console.warn('API request timed out or was aborted')
+          // Don't update state if request was aborted (new request is in progress)
+          return
         } else {
-          console.error('Failed to fetch AI models, using fallback data:', error)
+          console.error('Failed to fetch AI models:', error)
+          // Clear data on error to prevent showing stale data
+          if (!isCancelled) {
+            setAiModels([])
+          }
         }
       } finally {
-        setLoading(false)
+        if (!isCancelled) {
+          setLoading(false)
+        }
       }
     }
 
     fetchModels()
+    
+    // Cleanup: abort request if component unmounts or filters change
+    return () => {
+      isCancelled = true
+      if (timeoutId) {
+        clearTimeout(timeoutId)
+      }
+      controller.abort()
+    }
   }, [selectedCategory, selectedRegion, selectedAccessType]) // Re-fetch when filters change
 
   // Load comparison tools from localStorage
@@ -116,15 +181,65 @@ export default function AllAIToolsPage() {
     }
   }, [aiModels])
 
-  // Sync URL params when they change (for browser back/forward)
+  // Update URL when filters change (so URL stays in sync with state)
   useEffect(() => {
-    if (!searchParams) return
+    if (typeof window === 'undefined') return
+    
+    isUpdatingURL.current = true
+    
+    const params = new URLSearchParams(window.location.search)
+    
+    // Preserve search query if it exists
+    if (searchQuery && searchQuery.trim()) {
+      params.set('q', searchQuery)
+    } else {
+      params.delete('q')
+    }
+    
+    // Update or remove category param
+    if (selectedCategory && selectedCategory.trim()) {
+      params.set('category', selectedCategory)
+    } else {
+      params.delete('category')
+    }
+    
+    // Update or remove region param
+    if (selectedRegion && selectedRegion.trim()) {
+      params.set('region', selectedRegion)
+    } else {
+      params.delete('region')
+    }
+    
+    // Update or remove access param
+    if (selectedAccessType && selectedAccessType.trim()) {
+      params.set('access', selectedAccessType)
+    } else {
+      params.delete('access')
+    }
+    
+    // Update URL without page reload
+    const newURL = `${window.location.pathname}${params.toString() ? `?${params.toString()}` : ''}`
+    window.history.replaceState({}, '', newURL)
+    
+    // Reset flag after a short delay to allow URL to update
+    setTimeout(() => {
+      isUpdatingURL.current = false
+    }, 100)
+  }, [searchQuery, selectedCategory, selectedRegion, selectedAccessType])
+
+  // Sync URL params when they change externally (for browser back/forward)
+  // This only runs when the URL changes externally (not from our own updates)
+  useEffect(() => {
+    if (!searchParams || isUpdatingURL.current) return
     
     const q = searchParams.get('q') ? decodeURIComponent(searchParams.get('q')!) : ''
-    const category = searchParams.get('category') ? decodeURIComponent(searchParams.get('category')!) : ''
+    const categoryRaw = searchParams.get('category') ? decodeURIComponent(searchParams.get('category')!) : ''
+    const category = categoryRaw === 'All' ? '' : categoryRaw // Normalize "All" to empty string
     const region = searchParams.get('region') ? decodeURIComponent(searchParams.get('region')!) : ''
     const access = searchParams.get('access') ? decodeURIComponent(searchParams.get('access')!) : ''
     
+    // Only update state if URL params differ from current state
+    // This prevents overwriting state changes we just made
     if (q !== searchQuery) setSearchQuery(q)
     if (category !== selectedCategory) setSelectedCategory(category)
     if (region !== selectedRegion) setSelectedRegion(region)
@@ -134,16 +249,26 @@ export default function AllAIToolsPage() {
 
   // Enhanced search and filter with relevance sorting (increased limit to show all results)
   const { results: filteredAIs } = useMemo(() => {
+    // If aiModels is empty (being cleared/fetched), return empty array immediately
+    // This prevents showing stale counts during filter changes
+    if (aiModels.length === 0) {
+      return { results: [], scores: new Map() }
+    }
+    
+    // Check if filters have actual values (not empty strings)
     // If server-side filtering was applied, only apply search query client-side
     // The server already filtered by category/region/accessType, so we don't filter again
-    const hasServerSideFilters = selectedCategory || selectedRegion || selectedAccessType
+    const hasServerSideFilters = 
+      (selectedCategory && selectedCategory.trim()) || 
+      (selectedRegion && selectedRegion.trim()) || 
+      (selectedAccessType && selectedAccessType.trim())
     
     return searchAIEntries(aiModels, searchQuery, {
       // Only apply filters client-side if they weren't applied server-side
       // This prevents double-filtering which can cause mismatches
-      category: hasServerSideFilters ? undefined : selectedCategory,
-      region: hasServerSideFilters ? undefined : selectedRegion,
-      accessType: hasServerSideFilters ? undefined : selectedAccessType,
+      category: hasServerSideFilters ? undefined : (selectedCategory && selectedCategory.trim() ? selectedCategory : undefined),
+      region: hasServerSideFilters ? undefined : (selectedRegion && selectedRegion.trim() ? selectedRegion : undefined),
+      accessType: hasServerSideFilters ? undefined : (selectedAccessType && selectedAccessType.trim() ? selectedAccessType : undefined),
     }, { maxResults: 10000 })
   }, [aiModels, searchQuery, selectedCategory, selectedRegion, selectedAccessType])
 
@@ -151,6 +276,24 @@ export default function AllAIToolsPage() {
   useEffect(() => {
     setCurrentPage(1)
   }, [searchQuery, selectedCategory, selectedRegion, selectedAccessType])
+  
+  // Track previous filter values to detect when filters are cleared
+  const prevFiltersRef = useRef({ category: selectedCategory, region: selectedRegion, access: selectedAccessType })
+  
+  // When filters are cleared (switching to "All"), ensure we clear data immediately
+  useEffect(() => {
+    const filtersCleared = 
+      (prevFiltersRef.current.category && !selectedCategory) ||
+      (prevFiltersRef.current.region && !selectedRegion) ||
+      (prevFiltersRef.current.access && !selectedAccessType)
+    
+    if (filtersCleared && aiModels.length > 0) {
+      // Clear data immediately when filters are cleared to prevent stale counts
+      setAiModels([])
+    }
+    
+    prevFiltersRef.current = { category: selectedCategory, region: selectedRegion, access: selectedAccessType }
+  }, [selectedCategory, selectedRegion, selectedAccessType, aiModels.length])
 
   // Infinite scroll or pagination
   const displayedAIs = infiniteScroll

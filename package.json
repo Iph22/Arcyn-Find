@@ -9,7 +9,8 @@
     "lint": "eslint .",
     "format": "prettier --write \"**/*.{ts,tsx,md,json}\"",
     "migrate:supabase": "tsx scripts/migrate-to-supabase.ts",
-    "sync:tools": "tsx scripts/add-missing-tools.ts"
+    "sync:tools": "tsx scripts/add-missing-tools.ts",
+    "add:ai-detection": "tsx scripts/fetch-ai-detection-tools.ts"
   },
   "dependencies": {
     "@hookform/resolvers": "^3.10.0",
