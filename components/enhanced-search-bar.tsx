@@ -205,25 +205,25 @@ export function EnhancedSearchBar({
             aria-hidden="true"
           />
           <div className="relative">
-            <input
-              ref={inputRef}
-              id="ai-search"
-              type="text"
-              placeholder="Search by name, tags, keywords... (try: tag:api, category:vision, AND, OR)"
-              value={value}
-              onChange={(e) => handleInputChange(e.target.value)}
-              onFocus={() => setIsFocused(true)}
-              onBlur={() => {
-                // Delay to allow click events on suggestions
-                setTimeout(() => setIsFocused(false), 200)
-              }}
-              onKeyDown={handleKeyDown}
+          <input
+            ref={inputRef}
+            id="ai-search"
+            type="text"
+            placeholder="Search by name, tags, keywords... (try: tag:api, category:vision, AND, OR)"
+            value={value}
+            onChange={(e) => handleInputChange(e.target.value)}
+            onFocus={() => setIsFocused(true)}
+            onBlur={() => {
+              // Delay to allow click events on suggestions
+              setTimeout(() => setIsFocused(false), 200)
+            }}
+            onKeyDown={handleKeyDown}
               className="w-full rounded-lg border border-border bg-card px-3 sm:px-4 py-2.5 sm:py-3 pl-10 sm:pl-12 pr-8 sm:pr-10 text-base sm:text-base text-foreground placeholder-muted-foreground transition-all focus:border-accent focus:outline-none focus:ring-2 focus:ring-accent/50"
-              aria-label="Search AI tools by name or keyword"
-              aria-autocomplete="list"
-              aria-expanded={showSuggestions}
-              aria-controls="search-suggestions"
-            />
+            aria-label="Search AI tools by name or keyword"
+            aria-autocomplete="list"
+            aria-expanded={showSuggestions}
+            aria-controls="search-suggestions"
+          />
             {/* Autocomplete hint */}
             {autocompleteText && value.trim() && (
               <div className="absolute left-10 sm:left-12 top-1/2 -translate-y-1/2 pointer-events-none text-muted-foreground/50 text-sm sm:text-base">
@@ -302,7 +302,7 @@ export function EnhancedSearchBar({
                         {suggestion.matchCount && suggestion.matchCount > 1 && (
                           <span className="text-xs text-muted-foreground ml-auto">
                             {suggestion.matchCount}
-                          </span>
+                      </span>
                         )}
                       </div>
                       {selectedIndex === idx && <ArrowUp className="h-4 w-4 ml-2 flex-shrink-0" />}
@@ -361,7 +361,7 @@ export function EnhancedSearchBar({
                     >
                       <span className="flex items-center gap-2">
                         {history.length > 0 ? (
-                          <Clock className="h-4 w-4" />
+                        <Clock className="h-4 w-4" />
                         ) : (
                           <Sparkles className="h-4 w-4" />
                         )}

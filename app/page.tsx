@@ -105,8 +105,28 @@ export default function Home() {
         const controller = new AbortController()
         const timeoutId = setTimeout(() => controller.abort(), 10000)
 
-        // Load tools for search/filter functionality (500 is enough for search)
-        const response = await fetch('/api/ai-models?limit=500', {
+        // Build API URL with filters if category is selected
+        // If a category is selected, fetch more tools for that category
+        // Otherwise, fetch 500 tools for general browsing
+        const params = new URLSearchParams()
+        if (selectedCategory && selectedCategory.trim()) {
+          // When filtering by category, fetch more tools to ensure we get all in that category
+          params.set('limit', '1000')
+          params.set('category', selectedCategory)
+        } else {
+          // For general browsing, 500 is enough
+          params.set('limit', '500')
+        }
+        
+        // Add region and access type filters if selected
+        if (selectedRegion && selectedRegion.trim()) {
+          params.set('region', selectedRegion)
+        }
+        if (selectedAccessType && selectedAccessType.trim()) {
+          params.set('accessType', selectedAccessType)
+        }
+
+        const response = await fetch(`/api/ai-models?${params.toString()}`, {
           cache: 'no-store', // Always fetch fresh data on client
           signal: controller.signal,
         })
@@ -118,6 +138,9 @@ export default function Home() {
           if (data && data.length > 0) {
             setAiModels(data)
             setLastUpdated(new Date())
+          } else if (selectedCategory) {
+            // If category filter is applied but no results, still set empty array
+            setAiModels([])
           }
         }
       } catch (error) {
@@ -138,7 +161,7 @@ export default function Home() {
     const interval = setInterval(fetchModels, 5 * 60 * 1000)
 
     return () => clearInterval(interval)
-  }, [shouldRedirect]) // Re-run if redirect status changes
+  }, [shouldRedirect, selectedCategory, selectedRegion, selectedAccessType]) // Re-fetch when filters change
 
   // Load comparison tools from localStorage
   useEffect(() => {
@@ -159,11 +182,16 @@ export default function Home() {
   }, [aiModels])
 
   // Enhanced search and filter with relevance sorting (optimized limit for performance)
+  // If filters are applied, the API already filtered by category/region/accessType
+  // So we only need to apply search query client-side
   const { results: filteredAIs } = useMemo(() => {
-    let searchResult = searchAIEntries(aiModels, searchQuery, {
-      category: selectedCategory,
-      region: selectedRegion,
-      accessType: selectedAccessType,
+    // If filters are applied, API already filtered, so only apply search
+    const hasFilters = selectedCategory || selectedRegion || selectedAccessType
+    const searchResult = searchAIEntries(aiModels, searchQuery, {
+      // Only apply filters client-side if they weren't applied server-side
+      category: hasFilters ? undefined : (selectedCategory || undefined),
+      region: hasFilters ? undefined : (selectedRegion || undefined),
+      accessType: hasFilters ? undefined : (selectedAccessType || undefined),
     }, { maxResults: 500 }) // Reduced from 10000 to 500 for better performance
 
     // Apply popularity filter

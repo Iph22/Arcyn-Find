@@ -38,6 +38,13 @@
       "description": "Browse public collections",
       "url": "/collections",
       "icons": [{ "src": "/icon-192.png", "sizes": "192x192" }]
+    },
+    {
+      "name": "All AI Tools",
+      "short_name": "All Tools",
+      "description": "Browse all AI tools",
+      "url": "/ai-tools",
+      "icons": [{ "src": "/icon-192.png", "sizes": "192x192" }]
     }
   ],
   "share_target": {
