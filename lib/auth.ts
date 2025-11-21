@@ -173,8 +173,12 @@ export async function signOut(): Promise<{ success: boolean; error?: string }> {
 export async function signInWithProvider(provider: 'google' | 'github'): Promise<{ success: boolean; error?: string }> {
   try {
     // Use production URL for OAuth redirect, or fallback to current origin
+    // Always use production URL in production, current origin in development
+    const isProduction = typeof window !== 'undefined' && window.location.hostname !== 'localhost'
     const redirectUrl = typeof window !== 'undefined' 
-      ? (process.env.NEXT_PUBLIC_SITE_URL || window.location.origin)
+      ? (isProduction 
+          ? (process.env.NEXT_PUBLIC_SITE_URL || 'https://arcyn-find.vercel.app')
+          : window.location.origin)
       : 'https://arcyn-find.vercel.app'
     
     const { error } = await supabase.auth.signInWithOAuth({
@@ -205,8 +209,16 @@ export async function signInWithProvider(provider: 'google' | 'github'): Promise
  */
 export async function resetPassword(email: string): Promise<{ success: boolean; error?: string }> {
   try {
+    // Get redirect URL - use production URL in production, current origin in development
+    const isProduction = typeof window !== 'undefined' && window.location.hostname !== 'localhost'
+    const redirectUrl = typeof window !== 'undefined'
+      ? (isProduction
+          ? (process.env.NEXT_PUBLIC_SITE_URL || 'https://arcyn-find.vercel.app')
+          : window.location.origin)
+      : 'https://arcyn-find.vercel.app'
+    
     const { error } = await supabase.auth.resetPasswordForEmail(email, {
-      redirectTo: `${window.location.origin}/auth/reset-password`,
+      redirectTo: `${redirectUrl}/auth/reset-password`,
     })
 
     if (error) throw error

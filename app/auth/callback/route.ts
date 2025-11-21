@@ -9,23 +9,33 @@ if (!supabaseUrl || !supabaseAnonKey) {
   throw new Error('Missing required Supabase environment variables')
 }
 
+// Production URL for OAuth callbacks
+const PRODUCTION_URL = 'https://arcyn-find.vercel.app'
+
 export async function GET(request: NextRequest) {
   const requestUrl = new URL(request.url)
   const code = requestUrl.searchParams.get('code')
   const error = requestUrl.searchParams.get('error')
   const errorDescription = requestUrl.searchParams.get('error_description')
 
+  // Get the proper redirect URL (production or current origin)
+  // Use production URL if in production environment, otherwise use request origin
+  const isProduction = requestUrl.hostname !== 'localhost' && !requestUrl.hostname.includes('127.0.0.1')
+  const redirectUrl = isProduction 
+    ? (process.env.NEXT_PUBLIC_SITE_URL || PRODUCTION_URL)
+    : requestUrl.origin
+
   // Handle OAuth errors
   if (error) {
     console.error('OAuth error:', error, errorDescription)
     return NextResponse.redirect(
-      new URL(`/?error=${encodeURIComponent(errorDescription || error)}`, requestUrl.origin)
+      new URL(`/?error=${encodeURIComponent(errorDescription || error)}`, redirectUrl)
     )
   }
 
   // Handle OAuth callback with code
   if (!code) {
-    return NextResponse.redirect(new URL('/', requestUrl.origin))
+    return NextResponse.redirect(new URL('/', redirectUrl))
   }
 
   try {
@@ -40,7 +50,7 @@ export async function GET(request: NextRequest) {
     if (exchangeError) {
       console.error('Error exchanging code for session:', exchangeError)
       return NextResponse.redirect(
-        new URL(`/?error=${encodeURIComponent('Authentication failed. Please try again.')}`, requestUrl.origin)
+        new URL(`/?error=${encodeURIComponent('Authentication failed. Please try again.')}`, redirectUrl)
       )
     }
 
@@ -93,12 +103,13 @@ export async function GET(request: NextRequest) {
       }
     }
 
-    // Redirect to home page with success
-    return NextResponse.redirect(new URL('/?auth=success', requestUrl.origin))
+    // Mark as authenticated and redirect to onboarding
+    // The onboarding page will check if user has already completed onboarding
+    return NextResponse.redirect(new URL('/onboarding?auth=success', redirectUrl))
   } catch (error) {
     console.error('Error in OAuth callback:', error)
     return NextResponse.redirect(
-      new URL(`/?error=${encodeURIComponent('Authentication failed. Please try again.')}`, requestUrl.origin)
+      new URL(`/?error=${encodeURIComponent('Authentication failed. Please try again.')}`, redirectUrl)
     )
   }
 }

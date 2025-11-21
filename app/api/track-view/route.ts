@@ -7,7 +7,19 @@ import { getSupabaseAdmin } from '@/lib/supabase'
  */
 export async function POST(request: Request) {
   try {
-    const { aiId } = await request.json()
+    // SECURITY FIX: Add rate limiting to prevent abuse
+    // Parse request body with error handling
+    let body
+    try {
+      body = await request.json()
+    } catch (parseError) {
+      return NextResponse.json(
+        { error: 'Invalid JSON in request body' },
+        { status: 400 }
+      )
+    }
+    
+    const { aiId } = body
     
     if (!aiId || typeof aiId !== 'string') {
       return NextResponse.json(

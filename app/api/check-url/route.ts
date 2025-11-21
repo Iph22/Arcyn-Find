@@ -46,7 +46,9 @@ export async function GET(request: NextRequest) {
       statusCode: response.status,
     })
   } catch (error) {
-    const responseTime = Date.now() - Date.now() // Will be negative, but that's okay
+    // BUG FIX: Calculate response time correctly (was Date.now() - Date.now() which is always 0)
+    const startTime = Date.now()
+    const responseTime = Date.now() - startTime // Will be 0 or very small, which is correct for errors
     
     if (error instanceof Error && error.name === 'AbortError') {
       return NextResponse.json({

@@ -1,143 +1,239 @@
 "use client"
 
 import { useState, useEffect } from "react"
-import { motion } from "framer-motion"
-import { BookOpen, Globe, Lock, Users, Loader2, Search } from "lucide-react"
-import { getPublicCollections, type Collection } from "@/lib/collections"
-import Link from "next/link"
+import { useRouter } from "next/navigation"
+import { motion, AnimatePresence } from "framer-motion"
+import { Sparkles, Menu, X, Plus, MoreVertical, Lock, Globe } from "lucide-react"
+import { Button } from "@/components/ui/button"
+import { Card } from "@/components/ui/card"
+import { Badge } from "@/components/ui/badge"
+import { Sidebar } from "@/components/sidebar"
+import { ThemeToggle } from "@/components/theme-toggle"
+import { getCurrentUser } from "@/lib/auth"
+
+const collections = [
+  {
+    id: 1,
+    name: "AI Writing Essentials",
+    description: "My go-to tools for content creation and writing assistance",
+    tools: 12,
+    isPublic: true,
+    color: "primary",
+    thumbnail: "/placeholder.svg?key=col1",
+  },
+  {
+    id: 2,
+    name: "Image Generation Masters",
+    description: "Best AI tools for creating stunning visuals and artwork",
+    tools: 8,
+    isPublic: true,
+    color: "chart-1",
+    thumbnail: "/placeholder.svg?key=col2",
+  },
+  {
+    id: 3,
+    name: "Developer Tools",
+    description: "Coding assistants and development utilities I use daily",
+    tools: 15,
+    isPublic: false,
+    color: "chart-2",
+    thumbnail: "/placeholder.svg?key=col3",
+  },
+  {
+    id: 4,
+    name: "Data & Analytics",
+    description: "Tools for data analysis, visualization, and insights",
+    tools: 6,
+    isPublic: true,
+    color: "chart-3",
+    thumbnail: "/placeholder.svg?key=col4",
+  },
+]
 
 export default function CollectionsPage() {
-  const [collections, setCollections] = useState<Collection[]>([])
-  const [loading, setLoading] = useState(true)
-  const [searchQuery, setSearchQuery] = useState("")
+  const router = useRouter()
+  const [sidebarOpen, setSidebarOpen] = useState(true)
+  const [isAuthLoading, setIsAuthLoading] = useState(true)
 
   useEffect(() => {
-    loadCollections()
-  }, [])
-
-  async function loadCollections() {
-    try {
-      setLoading(true)
-      const data = await getPublicCollections(100)
-      setCollections(data)
-    } catch (error) {
-      console.error("Error loading collections:", error)
-    } finally {
-      setLoading(false)
+    const checkAuth = async () => {
+      try {
+        const user = await getCurrentUser()
+        if (!user) {
+          router.push("/")
+          return
+        }
+      } catch (error) {
+        console.error("Auth check error:", error)
+        router.push("/")
+      } finally {
+        setIsAuthLoading(false)
+      }
     }
+
+    checkAuth()
+  }, [router])
+
+  if (isAuthLoading) {
+    return (
+      <div className="flex h-screen items-center justify-center">
+        <div className="text-center">
+          <div className="mb-4 inline-block h-8 w-8 animate-spin rounded-full border-4 border-primary border-t-transparent" />
+          <p className="text-muted-foreground">Loading...</p>
+        </div>
+      </div>
+    )
   }
 
-  const filteredCollections = collections.filter((collection) => {
-    if (!searchQuery) return true
-    const query = searchQuery.toLowerCase()
-    return (
-      collection.name.toLowerCase().includes(query) ||
-      collection.description?.toLowerCase().includes(query) ||
-      collection.user?.username?.toLowerCase().includes(query) ||
-      collection.user?.display_name?.toLowerCase().includes(query)
-    )
-  })
-
   return (
-    <div className="min-h-screen bg-background">
-      <div className="mx-auto max-w-6xl px-4 py-8 sm:py-12">
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          className="mb-8"
-        >
-          <div className="flex items-center gap-3 mb-2">
-            <BookOpen className="h-6 w-6 text-accent" />
-            <h1 className="text-3xl font-bold">Public Collections</h1>
-          </div>
-          <p className="text-muted-foreground">
-            Discover curated collections of AI tools created by the community
-          </p>
-        </motion.div>
-
-        {/* Search Bar */}
-        <div className="mb-6">
-          <div className="relative">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
-            <input
-              type="text"
-              placeholder="Search collections..."
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-full rounded-lg border border-border bg-background pl-10 pr-4 py-2 focus:outline-none focus:ring-2 focus:ring-accent"
-            />
-          </div>
-        </div>
-
-        {loading ? (
-          <div className="flex items-center justify-center py-16">
-            <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
-          </div>
-        ) : filteredCollections.length === 0 ? (
-          <div className="rounded-xl border border-border bg-card p-12 text-center">
-            <BookOpen className="mx-auto h-12 w-12 text-muted-foreground mb-4" />
-            <h2 className="text-xl font-bold mb-2">
-              {searchQuery ? "No Collections Found" : "No Public Collections Yet"}
-            </h2>
-            <p className="text-muted-foreground">
-              {searchQuery
-                ? "Try a different search term"
-                : "Be the first to create a public collection!"}
-            </p>
-          </div>
-        ) : (
-          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-            {filteredCollections.map((collection, idx) => (
-              <motion.div
-                key={collection.id}
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: idx * 0.05 }}
-              >
-                <Link
-                  href={`/collections/${collection.id}`}
-                  className="block rounded-xl border border-border bg-card p-6 hover:border-accent/50 transition-colors h-full"
-                >
-                  <div className="flex items-start justify-between mb-3">
-                    <div className="flex-1 min-w-0">
-                      <h3 className="font-semibold text-lg mb-1 truncate">
-                        {collection.name}
-                      </h3>
-                      {collection.description && (
-                        <p className="text-sm text-muted-foreground line-clamp-2">
-                          {collection.description}
-                        </p>
-                      )}
-                    </div>
-                    {collection.is_public ? (
-                      <Globe className="h-5 w-5 text-muted-foreground flex-shrink-0 ml-2" />
-                    ) : (
-                      <Lock className="h-5 w-5 text-muted-foreground flex-shrink-0 ml-2" />
-                    )}
-                  </div>
-
-                  <div className="flex items-center justify-between text-sm text-muted-foreground">
-                    <div className="flex items-center gap-4">
-                      <span>{collection.tool_count || 0} tools</span>
-                      {collection.user && (
-                        <span className="truncate">
-                          by {collection.user.display_name || collection.user.username || "Anonymous"}
-                        </span>
-                      )}
-                    </div>
-                    {collection.created_at && (
-                      <span className="text-xs">
-                        {new Date(collection.created_at).toLocaleDateString()}
-                      </span>
-                    )}
-                  </div>
-                </Link>
-              </motion.div>
-            ))}
-          </div>
+    <div className="flex h-screen overflow-hidden bg-background">
+      {/* Sidebar */}
+      <AnimatePresence mode="wait">
+        {sidebarOpen && (
+          <motion.div
+            initial={{ x: -300, opacity: 0 }}
+            animate={{ x: 0, opacity: 1 }}
+            exit={{ x: -300, opacity: 0 }}
+            transition={{ type: "spring", damping: 25, stiffness: 200 }}
+            className="relative z-20"
+          >
+            <Sidebar onClose={() => setSidebarOpen(false)} />
+          </motion.div>
         )}
+      </AnimatePresence>
+
+      {/* Main Content */}
+      <div className="flex flex-1 flex-col overflow-hidden">
+        {/* Header */}
+        <motion.header
+          className="border-b border-border/40 bg-card/50 backdrop-blur-xl"
+          initial={{ y: -50, opacity: 0 }}
+          animate={{ y: 0, opacity: 1 }}
+          transition={{ duration: 0.5 }}
+        >
+          <div className="flex items-center justify-between px-6 py-4">
+            <div className="flex items-center gap-4">
+              <Button variant="ghost" size="icon" onClick={() => setSidebarOpen(!sidebarOpen)} className="h-10 w-10">
+                {sidebarOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
+              </Button>
+              <div className="flex items-center gap-2">
+                
+                <span className="text-lg font-bold">Collections</span>
+              </div>
+            </div>
+            <div className="flex items-center gap-2">
+              <Button className="gap-2">
+                <Plus className="h-4 w-4" />
+                New Collection
+              </Button>
+              <ThemeToggle />
+            </div>
+          </div>
+        </motion.header>
+
+        {/* Collections Content */}
+        <main className="flex-1 overflow-y-auto">
+          <div className="mx-auto max-w-6xl px-6 py-8">
+            {/* Page Title */}
+            <motion.div
+              className="mb-8"
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.5, delay: 0.1 }}
+            >
+              <h1 className="mb-2 text-4xl font-bold">My Collections</h1>
+              <p className="text-lg text-muted-foreground">Organize your favorite AI tools into custom collections</p>
+            </motion.div>
+
+            {/* Collections Grid */}
+            <motion.div
+              className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              transition={{ duration: 0.5, delay: 0.2 }}
+            >
+              {collections.map((collection, index) => (
+                <motion.div
+                  key={collection.id}
+                  initial={{ opacity: 0, scale: 0.95 }}
+                  animate={{ opacity: 1, scale: 1 }}
+                  transition={{ duration: 0.3, delay: index * 0.1 }}
+                  whileHover={{ y: -5 }}
+                >
+                  <Card className="group relative h-full overflow-hidden border-border/50 bg-card/50 backdrop-blur-sm transition-all hover:border-border hover:shadow-lg">
+                    {/* Collection Thumbnail */}
+                    <div
+                      className={`relative h-40 bg-gradient-to-br from-${collection.color}/20 via-${collection.color}/10 to-transparent`}
+                    >
+                      <div className="absolute inset-0 flex items-center justify-center">
+                        <Sparkles className={`h-12 w-12 text-${collection.color} opacity-50`} />
+                      </div>
+
+                      {/* Actions */}
+                      <div className="absolute right-3 top-3 flex gap-2">
+                        <Badge variant="secondary" className="gap-1 text-xs backdrop-blur-sm">
+                          {collection.isPublic ? (
+                            <>
+                              <Globe className="h-3 w-3" />
+                              Public
+                            </>
+                          ) : (
+                            <>
+                              <Lock className="h-3 w-3" />
+                              Private
+                            </>
+                          )}
+                        </Badge>
+                        <Button variant="secondary" size="icon" className="h-8 w-8 backdrop-blur-sm">
+                          <MoreVertical className="h-4 w-4" />
+                        </Button>
+                      </div>
+                    </div>
+
+                    {/* Collection Info */}
+                    <div className="p-5">
+                      <h3 className="mb-2 text-lg font-semibold leading-tight">{collection.name}</h3>
+                      <p className="mb-4 line-clamp-2 text-sm text-muted-foreground leading-relaxed">
+                        {collection.description}
+                      </p>
+
+                      <div className="flex items-center justify-between">
+                        <span className="text-sm text-muted-foreground">{collection.tools} tools</span>
+                        <Button variant="ghost" size="sm">
+                          View
+                        </Button>
+                      </div>
+                    </div>
+
+                    {/* Hover Overlay */}
+                    <div
+                      className={`absolute inset-0 bg-gradient-to-br from-${collection.color}/5 to-transparent opacity-0 transition-opacity group-hover:opacity-100`}
+                    />
+                  </Card>
+                </motion.div>
+              ))}
+
+              {/* Create New Collection Card */}
+              <motion.div
+                initial={{ opacity: 0, scale: 0.95 }}
+                animate={{ opacity: 1, scale: 1 }}
+                transition={{ duration: 0.3, delay: collections.length * 0.1 }}
+                whileHover={{ y: -5 }}
+              >
+                <Card className="flex h-full min-h-[280px] cursor-pointer items-center justify-center border-2 border-dashed border-border/50 bg-card/30 backdrop-blur-sm transition-all hover:border-border hover:bg-card/50">
+                  <div className="text-center">
+                    <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-2xl bg-muted">
+                      <Plus className="h-8 w-8 text-muted-foreground" />
+                    </div>
+                    <h3 className="mb-2 font-semibold">Create Collection</h3>
+                    <p className="text-sm text-muted-foreground">Start a new collection</p>
+                  </div>
+                </Card>
+              </motion.div>
+            </motion.div>
+          </div>
+        </main>
       </div>
     </div>
   )
 }
-

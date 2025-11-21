@@ -2,8 +2,17 @@ import { createClient } from '@supabase/supabase-js'
 import { readFileSync } from 'fs'
 import { join } from 'path'
 
-const supabaseUrl = 'https://otrtjqomyukafgnyylij.supabase.co'
-const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im90cnRqcW9teXVrYWZnbnl5bGlqIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc1NjQyMDI4OSwiZXhwIjoyMDcxOTk2Mjg5fQ.7HbYt7VN2n_suJ2koccrjc282306D2lDsWFuJq2KQYA'
+// SECURITY FIX: Use environment variables instead of hardcoded credentials
+const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || process.env.SUPABASE_URL
+const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY
+
+if (!supabaseUrl || !supabaseKey) {
+  console.error('❌ Missing required environment variables:')
+  console.error('   - NEXT_PUBLIC_SUPABASE_URL or SUPABASE_URL')
+  console.error('   - SUPABASE_SERVICE_ROLE_KEY')
+  console.error('\nPlease set these in your .env file or environment.')
+  process.exit(1)
+}
 
 const supabase = createClient(supabaseUrl, supabaseKey)
 

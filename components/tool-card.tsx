@@ -1,0 +1,143 @@
+"use client"
+
+import { useState } from "react"
+import { motion } from "framer-motion"
+import { ExternalLink, Star, Bookmark, BookmarkCheck } from "lucide-react"
+import { Card } from "@/components/ui/card"
+import { Badge } from "@/components/ui/badge"
+import { Button } from "@/components/ui/button"
+import { cn } from "@/lib/utils"
+import type { AIEntry } from "@/lib/ai-data"
+
+interface ToolCardProps {
+  tool: AIEntry
+  onSelect?: (tool: AIEntry) => void
+  onBookmark?: (tool: AIEntry) => void
+  isBookmarked?: boolean
+  className?: string
+}
+
+export function ToolCard({
+  tool,
+  onSelect,
+  onBookmark,
+  isBookmarked = false,
+  className,
+}: ToolCardProps) {
+  const [imageError, setImageError] = useState(false)
+
+  return (
+    <motion.div
+      initial={{ opacity: 0, scale: 0.9 }}
+      animate={{ opacity: 1, scale: 1 }}
+      exit={{ opacity: 0, scale: 0.9 }}
+      whileHover={{ y: -4 }}
+      transition={{ duration: 0.2 }}
+      className={cn("h-full", className)}
+    >
+      <Card className="group relative h-full overflow-hidden border-border/50 bg-card/50 backdrop-blur-sm transition-all hover:border-border hover:shadow-lg">
+        {/* Tool Image */}
+        <div className="relative h-48 overflow-hidden bg-muted">
+          {!imageError && (tool as any).image ? (
+            <img
+              src={(tool as any).image}
+              alt={tool.name}
+              className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-105"
+              onError={() => setImageError(true)}
+            />
+          ) : (
+            <div className="flex h-full w-full items-center justify-center bg-gradient-to-br from-primary/20 to-chart-1/20">
+              <span className="text-4xl font-bold text-primary/50">
+                {tool.name.charAt(0).toUpperCase()}
+              </span>
+            </div>
+          )}
+          <div className="absolute inset-0 bg-gradient-to-t from-background/80 via-transparent to-transparent" />
+          <div className="absolute top-3 right-3 flex gap-2">
+            {(tool as any).rating && (
+              <Badge variant="secondary" className="gap-1">
+                <Star className="h-3 w-3 fill-yellow-400 text-yellow-400" />
+                {(tool as any).rating.toFixed(1)}
+              </Badge>
+            )}
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-8 w-8 bg-background/80 backdrop-blur-sm hover:bg-background"
+              onClick={(e) => {
+                e.stopPropagation()
+                onBookmark?.(tool)
+              }}
+            >
+              {isBookmarked ? (
+                <BookmarkCheck className="h-4 w-4 text-primary" />
+              ) : (
+                <Bookmark className="h-4 w-4" />
+              )}
+            </Button>
+          </div>
+        </div>
+
+        {/* Tool Info */}
+        <div className="p-4">
+          <div className="mb-2 flex items-start justify-between gap-2">
+            <h3 className="line-clamp-1 font-semibold text-lg">{tool.name}</h3>
+            {(tool as any).url && (
+              <Button
+                variant="ghost"
+                size="icon"
+                className="h-6 w-6 flex-shrink-0"
+                onClick={(e) => {
+                  e.stopPropagation()
+                  window.open((tool as any).url, "_blank", "noopener,noreferrer")
+                }}
+              >
+                <ExternalLink className="h-4 w-4" />
+              </Button>
+            )}
+          </div>
+
+          <p className="mb-3 line-clamp-2 text-sm text-muted-foreground">
+            {tool.description}
+          </p>
+
+          <div className="mb-3 flex flex-wrap gap-1">
+            {tool.category && (
+              <Badge variant="outline" className="text-xs">
+                {tool.category}
+              </Badge>
+            )}
+            {tool.accessType && (
+              <Badge variant="outline" className="text-xs">
+                {tool.accessType}
+              </Badge>
+            )}
+          </div>
+
+          {tool.tags && tool.tags.length > 0 && (
+            <div className="flex flex-wrap gap-1">
+              {tool.tags.slice(0, 3).map((tag, index) => (
+                <Badge key={index} variant="secondary" className="text-xs">
+                  {tag}
+                </Badge>
+              ))}
+              {tool.tags.length > 3 && (
+                <Badge variant="secondary" className="text-xs">
+                  +{tool.tags.length - 3}
+                </Badge>
+              )}
+            </div>
+          )}
+
+          <Button
+            className="mt-4 w-full"
+            onClick={() => onSelect?.(tool)}
+          >
+            View Details
+          </Button>
+        </div>
+      </Card>
+    </motion.div>
+  )
+}
+

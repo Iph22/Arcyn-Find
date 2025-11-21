@@ -1,0 +1,47 @@
+{
+  "appName": "Arcyn Find",
+  "packageName": "com.arcyn.find",
+  "versionCode": 1,
+  "versionName": "1.0.0",
+  "title": "Arcyn Find - Discover AI Tools",
+  "shortDescription": "Discover AI tools worldwide",
+  "fullDescription": "Your intelligent companion for discovering AI tools, insights, and everything in between. Search, filter, and explore thousands of AI tools, models, platforms, and research worldwide.\n\nFeatures:\n• Search thousands of AI tools\n• Filter by category, region, and pricing\n• Save favorite tools\n• Compare AI tools\n• Personalized recommendations\n• Offline access to saved tools",
+  "category": "PRODUCTIVITY",
+  "contentRating": "EVERYONE",
+  "privacyPolicyUrl": "https://arcyn-find.vercel.app/privacy",
+  "supportUrl": "https://arcyn-find.vercel.app/support",
+  "websiteUrl": "https://arcyn-find.vercel.app",
+  "screenshots": {
+    "phone": [
+      "screenshots/phone-1.png",
+      "screenshots/phone-2.png",
+      "screenshots/phone-3.png",
+      "screenshots/phone-4.png"
+    ],
+    "tablet": [
+      "screenshots/tablet-1.png",
+      "screenshots/tablet-2.png"
+    ]
+  },
+  "featureGraphic": "feature-graphic-1024x500.png",
+  "icon": "icon-512x512.png",
+  "promoGraphic": "promo-graphic-180x120.png",
+  "tvBanner": "tv-banner-1280x720.png",
+  "keywords": [
+    "AI tools",
+    "artificial intelligence",
+    "machine learning",
+    "AI discovery",
+    "AI search",
+    "productivity",
+    "utilities"
+  ],
+  "containsAds": false,
+  "inAppPurchases": false,
+  "requiresAccount": false,
+  "permissions": [
+    "android.permission.INTERNET",
+    "android.permission.ACCESS_NETWORK_STATE"
+  ]
+}
+

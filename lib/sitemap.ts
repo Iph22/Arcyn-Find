@@ -46,10 +46,13 @@ export async function generateSitemapXML(page: number = 0): Promise<string> {
   // Static pages (only include in first page)
   const staticPages = page === 0 ? [
     { url: `${baseUrl}/`, changefreq: "daily", priority: "1.0" },
-    { url: `${baseUrl}/about`, changefreq: "monthly", priority: "0.8" },
-    { url: `${baseUrl}/ai-tools`, changefreq: "daily", priority: "0.9" },
-    { url: `${baseUrl}/compare`, changefreq: "weekly", priority: "0.7" },
-    { url: `${baseUrl}/welcome`, changefreq: "monthly", priority: "0.5" },
+    { url: `${baseUrl}/home`, changefreq: "daily", priority: "0.9" },
+    { url: `${baseUrl}/tools`, changefreq: "daily", priority: "0.9" },
+    { url: `${baseUrl}/collections`, changefreq: "daily", priority: "0.8" },
+    { url: `${baseUrl}/profile`, changefreq: "weekly", priority: "0.7" },
+    { url: `${baseUrl}/reviews`, changefreq: "daily", priority: "0.8" },
+    { url: `${baseUrl}/onboarding`, changefreq: "monthly", priority: "0.6" },
+    { url: `${baseUrl}/instructions`, changefreq: "monthly", priority: "0.5" },
     { url: `${baseUrl}/privacy`, changefreq: "yearly", priority: "0.3" },
     { url: `${baseUrl}/terms`, changefreq: "yearly", priority: "0.3" },
   ] : []
@@ -71,7 +74,7 @@ export async function generateSitemapXML(page: number = 0): Promise<string> {
   }
 
   const aiToolPages = aiEntries.slice(aiStart, aiEnd).map((ai) => ({
-    url: `${baseUrl}/ai/${ai.id}`,
+    url: `${baseUrl}/tools?id=${ai.id}`,
     changefreq: "weekly",
     priority: "0.8",
   }))

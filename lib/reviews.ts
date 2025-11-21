@@ -55,38 +55,72 @@ export async function getToolReviews(
       .range(offset, offset + limit - 1)
 
     if (error) {
+      // Check if it's a table doesn't exist error first
+      const err = error as any
+      const errorCode = err?.code
+      const errorMessage = err?.message || String(error)
+      
+      if (errorCode === '42P01' || 
+          (typeof errorMessage === 'string' && (
+            errorMessage.includes('does not exist') || 
+            (errorMessage.includes('relation') && errorMessage.includes('does not exist'))
+          ))) {
+        console.warn('Reviews table does not exist. Please run the database schema.')
+        return { reviews: [], total: 0 }
+      }
+      
       // Log detailed error information - Supabase errors have specific structure
       const errorInfo: Record<string, any> = {
         type: 'SupabaseError',
+        message: errorMessage,
       }
       
       // Try to extract properties from error object
       try {
         if (error && typeof error === 'object') {
           // Check for PostgREST error properties
-          const err = error as any
-          if (err.message !== undefined) errorInfo.message = err.message
+          if (err.code !== undefined) errorInfo.code = err.code
           if (err.details !== undefined) errorInfo.details = err.details
           if (err.hint !== undefined) errorInfo.hint = err.hint
-          if (err.code !== undefined) errorInfo.code = err.code
           
-          // Try to stringify if we got nothing
-          if (Object.keys(errorInfo).length === 1) {
+          // Try to get all enumerable properties
+          try {
+            const props = Object.keys(err)
+            if (props.length > 0) {
+              props.forEach(prop => {
+                try {
+                  const value = err[prop]
+                  if (value !== undefined && value !== null) {
+                    errorInfo[prop] = value
+                  }
+                } catch {
+                  // Skip non-serializable properties
+                }
+              })
+            }
+          } catch {
+            // If we can't enumerate, try stringify
             try {
-              errorInfo.raw = JSON.stringify(error, Object.getOwnPropertyNames(error))
+              errorInfo.raw = JSON.stringify(error, null, 2)
             } catch {
               errorInfo.raw = String(error)
             }
           }
-        } else {
-          errorInfo.raw = String(error)
         }
       } catch (e) {
         errorInfo.fallback = String(error)
+        errorInfo.extractionError = String(e)
       }
       
-      console.error('Supabase query error:', errorInfo)
-      throw error
+      // Only log if we have meaningful information
+      if (Object.keys(errorInfo).length > 1) {
+        console.error('Supabase query error:', errorInfo)
+      } else {
+        console.error('Supabase query error:', error)
+      }
+      
+      // Return empty results instead of throwing for better UX
+      return { reviews: [], total: 0 }
     }
 
     // Get user votes if authenticated
@@ -153,38 +187,44 @@ export async function getToolReviews(
         if (err.details !== undefined) errorDetails.details = err.details
         if (err.hint !== undefined) errorDetails.hint = err.hint
         
-        // If we still have nothing, try to get all properties
-        if (Object.keys(errorDetails).length === 1) {
-          try {
-            const props = Object.getOwnPropertyNames(error)
+        // Try to get all enumerable properties
+        try {
+          const props = Object.keys(err)
+          if (props.length > 0) {
             props.forEach(prop => {
               try {
-                const value = (error as any)[prop]
-                if (value !== undefined) {
+                const value = err[prop]
+                if (value !== undefined && value !== null) {
                   errorDetails[prop] = value
                 }
               } catch {
                 // Skip non-serializable properties
               }
             })
-          } catch {
-            errorDetails.raw = String(error)
           }
+        } catch {
+          errorDetails.raw = String(error)
         }
       } else {
         errorDetails.raw = String(error)
       }
     } catch (e) {
       errorDetails.fallback = String(error)
+      errorDetails.extractionError = String(e)
     }
     
-    console.error('Error fetching reviews:', errorDetails)
+    // Only log if we have meaningful information
+    if (Object.keys(errorDetails).length > 1) {
+      console.error('Error fetching reviews:', errorDetails)
+    } else {
+      console.error('Error fetching reviews:', error)
+    }
     
     // If it's a table doesn't exist error, return empty gracefully
     if (error && typeof error === 'object') {
       const err = error as any
       const errorCode = err?.code
-      const errorMessage = err?.message
+      const errorMessage = err?.message || String(error)
       
       if (errorCode === '42P01' || 
           (typeof errorMessage === 'string' && (
@@ -196,6 +236,7 @@ export async function getToolReviews(
       }
     }
     
+    // Return empty results gracefully instead of crashing
     return { reviews: [], total: 0 }
   }
 }

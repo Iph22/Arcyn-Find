@@ -1,79 +1,130 @@
 @import "tailwindcss";
 @import "tw-animate-css";
 
+/* Mobile optimizations */
+@supports (-webkit-touch-callout: none) {
+  /* iOS specific styles */
+  body {
+    -webkit-tap-highlight-color: transparent;
+    -webkit-touch-callout: none;
+  }
+}
+
+/* Safe area insets for iOS notch */
+:root {
+  --safe-area-inset-top: env(safe-area-inset-top, 0px);
+  --safe-area-inset-right: env(safe-area-inset-right, 0px);
+  --safe-area-inset-bottom: env(safe-area-inset-bottom, 0px);
+  --safe-area-inset-left: env(safe-area-inset-left, 0px);
+}
+
+/* Mobile touch optimizations */
+@media (hover: none) and (pointer: coarse) {
+  /* Touch device styles */
+  button, a {
+    min-height: 44px;
+    min-width: 44px;
+  }
+  
+  /* Prevent text selection on tap */
+  * {
+    -webkit-tap-highlight-color: transparent;
+    -webkit-touch-callout: none;
+  }
+}
+
+/* Responsive typography */
+@media (max-width: 640px) {
+  html {
+    font-size: 14px;
+  }
+}
+
+/* Smooth scrolling */
+html {
+  scroll-behavior: smooth;
+  -webkit-overflow-scrolling: touch;
+}
+
+/* Prevent horizontal scroll on mobile */
+body {
+  overflow-x: hidden;
+  position: relative;
+}
+
 @custom-variant dark (&:is(.dark *));
 
 :root {
-  /* Light mode colors */
-  --background: oklch(0.98 0 0);
-  --foreground: oklch(0.12 0 0);
-  --card: oklch(1 0 0);
-  --card-foreground: oklch(0.12 0 0);
-  --popover: oklch(1 0 0);
-  --popover-foreground: oklch(0.12 0 0);
-  --primary: oklch(0.2 0 0);
-  --primary-foreground: oklch(0.985 0 0);
-  --secondary: oklch(0.95 0 0);
-  --secondary-foreground: oklch(0.2 0 0);
-  --muted: oklch(0.93 0 0);
-  --muted-foreground: oklch(0.5 0 0);
-  --accent: oklch(0.5 0.2 280);
-  --accent-foreground: oklch(1 0 0);
+  /* Crystal Midnight Light Mode */
+  --background: oklch(0.98 0.008 250);
+  --foreground: oklch(0.12 0.015 250);
+  --card: oklch(0.99 0.005 250);
+  --card-foreground: oklch(0.12 0.015 250);
+  --popover: oklch(0.99 0.005 250);
+  --popover-foreground: oklch(0.12 0.015 250);
+  --primary: oklch(0.5 0.2 250);
+  --primary-foreground: oklch(0.98 0.008 250);
+  --secondary: oklch(0.94 0.012 250);
+  --secondary-foreground: oklch(0.12 0.015 250);
+  --muted: oklch(0.95 0.01 250);
+  --muted-foreground: oklch(0.48 0.015 250);
+  --accent: oklch(0.96 0.01 250);
+  --accent-foreground: oklch(0.12 0.015 250);
   --destructive: oklch(0.577 0.245 27.325);
-  --destructive-foreground: oklch(0.577 0.245 27.325);
-  --border: oklch(0.9 0 0);
-  --input: oklch(0.95 0 0);
-  --ring: oklch(0.5 0.15 280);
-  --chart-1: oklch(0.5 0.2 280);
-  --chart-2: oklch(0.6 0.15 200);
-  --chart-3: oklch(0.7 0.1 100);
-  --chart-4: oklch(0.4 0.18 350);
-  --chart-5: oklch(0.55 0.2 250);
-  --radius: 0.625rem;
-  --sidebar: oklch(0.985 0 0);
-  --sidebar-foreground: oklch(0.145 0 0);
-  --sidebar-primary: oklch(0.205 0 0);
-  --sidebar-primary-foreground: oklch(0.985 0 0);
-  --sidebar-accent: oklch(0.97 0 0);
-  --sidebar-accent-foreground: oklch(0.205 0 0);
-  --sidebar-border: oklch(0.922 0 0);
-  --sidebar-ring: oklch(0.708 0 0);
+  --destructive-foreground: oklch(0.98 0.008 250);
+  --border: oklch(0.88 0.012 250);
+  --input: oklch(0.88 0.012 250);
+  --ring: oklch(0.5 0.2 250);
+  --chart-1: oklch(0.58 0.22 280);
+  --chart-2: oklch(0.62 0.18 220);
+  --chart-3: oklch(0.55 0.24 260);
+  --chart-4: oklch(0.6 0.2 240);
+  --chart-5: oklch(0.65 0.19 270);
+  --radius: 0.75rem;
+  --sidebar: oklch(0.99 0.005 250);
+  --sidebar-foreground: oklch(0.12 0.015 250);
+  --sidebar-primary: oklch(0.5 0.2 250);
+  --sidebar-primary-foreground: oklch(0.98 0.008 250);
+  --sidebar-accent: oklch(0.96 0.01 250);
+  --sidebar-accent-foreground: oklch(0.12 0.015 250);
+  --sidebar-border: oklch(0.88 0.012 250);
+  --sidebar-ring: oklch(0.5 0.2 250);
 }
 
 .dark {
-  /* Dark mode theme - deep space with neon blues/purples */
-  --background: oklch(0.08 0 0);
-  --foreground: oklch(0.95 0 0);
-  --card: oklch(0.12 0 0);
-  --card-foreground: oklch(0.95 0 0);
-  --popover: oklch(0.12 0 0);
-  --popover-foreground: oklch(0.95 0 0);
-  --primary: oklch(0.3 0.15 280);
-  --primary-foreground: oklch(0.95 0 0);
-  --secondary: oklch(0.15 0 0);
-  --secondary-foreground: oklch(0.95 0 0);
-  --muted: oklch(0.25 0 0);
-  --muted-foreground: oklch(0.65 0 0);
-  --accent: oklch(0.55 0.22 280);
-  --accent-foreground: oklch(0.08 0 0);
-  --destructive: oklch(0.55 0.2 20);
-  --destructive-foreground: oklch(0.95 0 0);
-  --border: oklch(0.18 0 0);
-  --input: oklch(0.15 0 0);
-  --ring: oklch(0.55 0.22 280);
-  --chart-1: oklch(0.55 0.22 280);
-  --chart-2: oklch(0.6 0.2 200);
-  --chart-3: oklch(0.7 0.15 100);
-  --chart-4: oklch(0.5 0.2 350);
-  --chart-5: oklch(0.65 0.22 250);
-  --sidebar: oklch(0.205 0 0);
-  --sidebar-foreground: oklch(0.985 0 0);
-  --sidebar-primary: oklch(0.488 0.243 264.376);
-  --sidebar-primary-foreground: oklch(0.985 0 0);
-  --sidebar-accent: oklch(0.269 0 0);
-  --sidebar-accent-foreground: oklch(0.985 0 0);
-  --sidebar-border: oklch(0.269 0 0);
-  --sidebar-ring: oklch(0.439 0 0);
+  /* Crystal Midnight Dark Mode */
+  --background: oklch(0.1 0.02 250);
+  --foreground: oklch(0.95 0.008 250);
+  --card: oklch(0.13 0.022 250);
+  --card-foreground: oklch(0.95 0.008 250);
+  --popover: oklch(0.13 0.022 250);
+  --popover-foreground: oklch(0.95 0.008 250);
+  --primary: oklch(0.65 0.22 250);
+  --primary-foreground: oklch(0.1 0.02 250);
+  --secondary: oklch(0.18 0.025 250);
+  --secondary-foreground: oklch(0.95 0.008 250);
+  --muted: oklch(0.17 0.022 250);
+  --muted-foreground: oklch(0.58 0.015 250);
+  --accent: oklch(0.2 0.025 250);
+  --accent-foreground: oklch(0.95 0.008 250);
+  --destructive: oklch(0.55 0.25 27);
+  --destructive-foreground: oklch(0.95 0.008 250);
+  --border: oklch(0.22 0.025 250);
+  --input: oklch(0.22 0.025 250);
+  --ring: oklch(0.65 0.22 250);
+  --chart-1: oklch(0.68 0.24 280);
+  --chart-2: oklch(0.72 0.2 220);
+  --chart-3: oklch(0.65 0.26 260);
+  --chart-4: oklch(0.7 0.22 240);
+  --chart-5: oklch(0.75 0.21 270);
+  --sidebar: oklch(0.13 0.022 250);
+  --sidebar-foreground: oklch(0.95 0.008 250);
+  --sidebar-primary: oklch(0.65 0.22 250);
+  --sidebar-primary-foreground: oklch(0.1 0.02 250);
+  --sidebar-accent: oklch(0.2 0.025 250);
+  --sidebar-accent-foreground: oklch(0.95 0.008 250);
+  --sidebar-border: oklch(0.22 0.025 250);
+  --sidebar-ring: oklch(0.65 0.22 250);
 }
 
 @theme inline {
@@ -124,222 +175,58 @@
   body {
     @apply bg-background text-foreground;
   }
-  
-  /* Fast theme transitions - only for colors */
+
+  /* Enhanced smooth scroll-snap behavior for frame-by-frame scrolling */
   html {
-    color-scheme: light dark;
+    scroll-behavior: smooth;
   }
-  
-  /* Isolate repaints for better performance */
-  body {
-    contain: layout style paint;
-  }
-  
-  /* Note: Global transitions removed for instant theme switching */
-  /* Transitions are only applied to specific interactive elements */
-}
 
-/* Custom animations for AI Finder */
-@keyframes glow {
-  0%,
-  100% {
-    text-shadow: 0 0 10px rgba(139, 92, 246, 0.5);
+  /* Scroll snap for main containers */
+  .snap-y {
+    scroll-snap-type: y mandatory;
   }
-  50% {
-    text-shadow: 0 0 20px rgba(139, 92, 246, 0.8);
-  }
-}
 
-@keyframes slide-up {
-  from {
-    opacity: 0;
-    transform: translateY(20px);
+  .snap-mandatory {
+    scroll-snap-type: y mandatory;
   }
-  to {
-    opacity: 1;
-    transform: translateY(0);
+
+  .snap-start {
+    scroll-snap-align: start;
+  }
+
+  .snap-always {
+    scroll-snap-stop: always;
+  }
+
+  /* Smooth scrolling for all scrollable containers */
+  * {
+    scroll-behavior: smooth;
   }
 }
 
-@keyframes card-glow {
-  0%,
-  100% {
-    box-shadow: 0 0 20px rgba(139, 92, 246, 0.2);
-  }
-  50% {
-    box-shadow: 0 0 30px rgba(139, 92, 246, 0.4);
-  }
-}
-
-.animate-glow {
-  animation: glow 3s ease-in-out infinite;
-}
-
-.animate-slide-up {
-  animation: slide-up 0.6s ease-out;
-}
-
-.card-hover {
-  transition: transform 0.2s ease, box-shadow 0.2s ease;
-  contain: layout style paint; /* Isolate repaints for better performance */
-  will-change: transform, box-shadow; /* GPU hint */
-}
-
-.card-hover:hover {
-  transform: translateY(-4px) scale(1.02);
-  box-shadow: 0 0 30px rgba(139, 92, 246, 0.4);
-}
-
-/* Add custom scrollbar styling with animations */
-/* Scrollbar track */
+/* Custom Scrollbar Styling */
 ::-webkit-scrollbar {
-  width: 8px;
+  width: 10px;
+  height: 10px;
 }
 
 ::-webkit-scrollbar-track {
-  background: rgba(139, 92, 246, 0.05);
-  border-radius: 10px;
+  background: rgba(10, 10, 20, 0.5);
+  backdrop-filter: blur(10px);
 }
 
 ::-webkit-scrollbar-thumb {
-  background: linear-gradient(180deg, rgba(139, 92, 246, 0.6), rgba(99, 102, 241, 0.6));
-  border-radius: 10px;
-  transition: background 0.2s ease;
+  background: rgba(59, 130, 246, 0.3);
+  border-radius: 5px;
+  border: 2px solid rgba(10, 10, 20, 0.5);
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background: linear-gradient(180deg, rgba(139, 92, 246, 0.9), rgba(99, 102, 241, 0.9));
-  box-shadow: 0 0 15px rgba(139, 92, 246, 0.5);
+  background: rgba(59, 130, 246, 0.5);
 }
 
-/* Firefox scrollbar */
+/* Firefox */
 * {
-  scrollbar-color: rgba(139, 92, 246, 0.6) rgba(139, 92, 246, 0.05);
   scrollbar-width: thin;
-}
-
-@keyframes scroll-pulse {
-  0%,
-  100% {
-    opacity: 0.6;
-  }
-  50% {
-    opacity: 1;
-  }
-}
-
-.scroll-animate {
-  animation: scroll-pulse 2s ease-in-out infinite;
-}
-
-/* Performance optimization - reduce repaints during theme transitions */
-.theme-transitioning {
-  contain: layout style paint;
-}
-
-/* Optimize specific elements for better theme switching performance */
-[class*="bg-"],
-[class*="text-"],
-[class*="border-"] {
-  contain: style;
-}
-
-/* Mobile optimizations - reduce sizes by 5% */
-@media (max-width: 640px) {
-  /* Reduce font sizes by 5% */
-  html {
-    font-size: 95%;
-  }
-  
-  /* Reduce padding and margins */
-  .mobile-scale {
-    transform: scale(0.95);
-    transform-origin: top left;
-  }
-  
-  /* Better mobile spacing */
-  section {
-    padding-left: 0.95rem;
-    padding-right: 0.95rem;
-  }
-  
-  /* Reduce card padding on mobile */
-  .card-hover {
-    padding: 0.95rem;
-  }
-}
-
-/* iOS Safari specific fixes */
-@supports (-webkit-touch-callout: none) {
-  /* Fix iOS Safari viewport height issues */
-  html {
-    height: -webkit-fill-available;
-  }
-  
-  body {
-    min-height: 100vh;
-    min-height: -webkit-fill-available;
-  }
-  
-  /* Fix iOS Safari input zoom on focus */
-  input[type="text"],
-  input[type="search"],
-  input[type="email"],
-  input[type="tel"],
-  textarea,
-  select {
-    font-size: 16px !important; /* Prevents zoom on iOS */
-  }
-  
-  /* Fix iOS Safari button tap highlight */
-  button,
-  a {
-    -webkit-tap-highlight-color: rgba(139, 92, 246, 0.2);
-  }
-  
-  /* Fix iOS Safari scroll bounce */
-  body {
-    overscroll-behavior-y: none;
-    -webkit-overflow-scrolling: touch;
-  }
-}
-
-/* Touch device optimizations */
-@media (hover: none) and (pointer: coarse) {
-  /* Larger touch targets on mobile */
-  button,
-  a,
-  [role="button"] {
-    min-height: 44px;
-    min-width: 44px;
-  }
-  
-  /* Remove hover effects on touch devices */
-  .card-hover:hover {
-    transform: none;
-    box-shadow: none;
-  }
-  
-  /* Show active states instead of hover */
-  button:active,
-  a:active,
-  [role="button"]:active {
-    opacity: 0.7;
-    transform: scale(0.98);
-  }
-}
-
-/* Safe area insets for iOS notch */
-@supports (padding: max(0px)) {
-  body {
-    padding-left: max(0px, env(safe-area-inset-left));
-    padding-right: max(0px, env(safe-area-inset-right));
-  }
-  
-  /* Fix bottom safe area for iOS home indicator */
-  footer,
-  .fixed.bottom-4,
-  .fixed.bottom-8 {
-    padding-bottom: max(1rem, env(safe-area-inset-bottom));
-  }
+  scrollbar-color: rgba(59, 130, 246, 0.3) rgba(10, 10, 20, 0.5);
 }

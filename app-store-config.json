@@ -1,0 +1,47 @@
+{
+  "appName": "Arcyn Find",
+  "bundleId": "com.arcyn.find",
+  "version": "1.0.0",
+  "buildNumber": "1",
+  "description": "Your intelligent companion for discovering AI tools, insights, and everything in between. Search, filter, and explore thousands of AI tools, models, platforms, and research worldwide.",
+  "shortDescription": "Discover AI tools worldwide",
+  "keywords": [
+    "AI tools",
+    "artificial intelligence",
+    "machine learning",
+    "AI discovery",
+    "AI search",
+    "productivity",
+    "utilities"
+  ],
+  "category": "Productivity",
+  "subcategory": "Utilities",
+  "ageRating": "4+",
+  "privacyPolicyUrl": "https://arcyn-find.vercel.app/privacy",
+  "supportUrl": "https://arcyn-find.vercel.app/support",
+  "marketingUrl": "https://arcyn-find.vercel.app",
+  "screenshots": {
+    "iphone": [
+      "screenshots/iphone-1.png",
+      "screenshots/iphone-2.png",
+      "screenshots/iphone-3.png"
+    ],
+    "ipad": [
+      "screenshots/ipad-1.png",
+      "screenshots/ipad-2.png"
+    ]
+  },
+  "appIcon": "app-icon-1024x1024.png",
+  "features": [
+    "Search thousands of AI tools",
+    "Filter by category, region, and pricing",
+    "Save favorite tools",
+    "Compare AI tools",
+    "Personalized recommendations",
+    "Offline access to saved tools"
+  ],
+  "inAppPurchases": false,
+  "subscriptions": false,
+  "requiresAccount": false
+}
+

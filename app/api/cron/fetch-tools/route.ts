@@ -1,9 +1,10 @@
 import { NextResponse } from 'next/server'
-import { fetchFromRSSFeeds } from '../../../../scripts/sources/rss-feeds'
-import { fetchFromAggregators } from '../../../../scripts/sources/aggregators'
-import { fetchFromScrapers } from '../../../../scripts/sources/scrapers'
-import { fetchFromCommunity } from '../../../../scripts/sources/community'
-import { deduplicateEntries, mergeEntries } from '../../../../scripts/utils/deduplicator'
+// FIX: Use absolute imports instead of relative paths for better maintainability
+import { fetchFromRSSFeeds } from '@/scripts/sources/rss-feeds'
+import { fetchFromAggregators } from '@/scripts/sources/aggregators'
+import { fetchFromScrapers } from '@/scripts/sources/scrapers'
+import { fetchFromCommunity } from '@/scripts/sources/community'
+import { deduplicateEntries, mergeEntries } from '@/scripts/utils/deduplicator'
 import { getSupabaseAdmin, transformToDBRow } from '@/lib/supabase'
 import type { AIEntry } from '@/lib/ai-data'
 
