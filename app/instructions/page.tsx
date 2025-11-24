@@ -97,16 +97,16 @@ export default function InstructionsPage() {
         }}
       />
 
-      <div className="relative z-10 mx-auto max-w-7xl px-4 py-20 sm:px-6 lg:px-8">
+      <div className="relative z-10 mx-auto max-w-7xl px-4 py-12 sm:py-16 md:py-20 sm:px-6 lg:px-8">
         {/* Header */}
         <motion.div
           initial={{ opacity: 0, y: -20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.6 }}
-          className="mb-16 text-center"
+          className="mb-8 sm:mb-12 md:mb-16 text-center"
         >
           <motion.div
-            className="mx-auto mb-6 inline-flex h-16 w-16 items-center justify-center rounded-2xl bg-gradient-to-br from-primary to-chart-1 shadow-2xl"
+            className="mx-auto mb-4 sm:mb-6 inline-flex h-12 w-12 sm:h-16 sm:w-16 items-center justify-center rounded-xl sm:rounded-2xl bg-gradient-to-br from-primary to-chart-1 shadow-2xl"
             animate={{
               rotate: [0, 10, -10, 0],
             }}
@@ -116,16 +116,16 @@ export default function InstructionsPage() {
               ease: "easeInOut",
             }}
           >
-            <Search className="h-8 w-8 text-primary-foreground" />
+            <Search className="h-6 w-6 sm:h-8 sm:w-8 text-primary-foreground" />
           </motion.div>
-          <h1 className="mb-4 text-5xl font-bold">How to Use Arcyn Find</h1>
-          <p className="mx-auto max-w-2xl text-xl text-muted-foreground">
+          <h1 className="mb-3 sm:mb-4 text-3xl sm:text-4xl md:text-5xl font-bold px-4">How to Use Arcyn Find</h1>
+          <p className="mx-auto max-w-2xl text-base sm:text-lg md:text-xl text-muted-foreground px-4">
             Master the platform in minutes with these essential features
           </p>
         </motion.div>
 
         {/* Instructions grid */}
-        <div className="mb-16 grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
+        <div className="mb-8 sm:mb-12 md:mb-16 grid gap-4 sm:gap-6 sm:grid-cols-2 lg:grid-cols-3">
           {instructions.map((instruction, index) => (
             <motion.div
               key={index}
@@ -133,15 +133,15 @@ export default function InstructionsPage() {
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.5, delay: index * 0.1 }}
             >
-              <Card className="group relative h-full overflow-hidden border-border/50 bg-card/50 p-8 backdrop-blur-sm transition-all hover:border-border hover:shadow-xl">
+              <Card className="group relative h-full overflow-hidden border-border/50 bg-card/50 p-5 sm:p-6 md:p-8 backdrop-blur-sm transition-all hover:border-border hover:shadow-xl active:scale-[0.98]">
                 <div className="relative z-10">
                   <div
-                    className={`mb-4 inline-flex h-12 w-12 items-center justify-center rounded-xl bg-${instruction.color}/10`}
+                    className={`mb-3 sm:mb-4 inline-flex h-10 w-10 sm:h-12 sm:w-12 items-center justify-center rounded-lg sm:rounded-xl bg-${instruction.color}/10`}
                   >
-                    <instruction.icon className={`h-6 w-6 text-${instruction.color}`} />
+                    <instruction.icon className={`h-5 w-5 sm:h-6 sm:w-6 text-${instruction.color}`} />
                   </div>
-                  <h3 className="mb-3 text-xl font-semibold">{instruction.title}</h3>
-                  <p className="text-muted-foreground leading-relaxed">{instruction.description}</p>
+                  <h3 className="mb-2 sm:mb-3 text-lg sm:text-xl font-semibold">{instruction.title}</h3>
+                  <p className="text-sm sm:text-base text-muted-foreground leading-relaxed">{instruction.description}</p>
                 </div>
                 <div
                   className={`absolute inset-0 bg-gradient-to-br from-${instruction.color}/5 to-transparent opacity-0 transition-opacity group-hover:opacity-100`}
@@ -158,7 +158,7 @@ export default function InstructionsPage() {
           transition={{ duration: 0.6, delay: 0.8 }}
           className="text-center"
         >
-          <Card className="relative mx-auto max-w-2xl overflow-hidden border-border/50 bg-card/80 p-12 backdrop-blur-xl">
+          <Card className="relative mx-auto max-w-2xl overflow-hidden border-border/50 bg-card/80 p-6 sm:p-8 md:p-12 backdrop-blur-xl">
             <motion.div
               className="absolute -right-10 -top-10 h-32 w-32 rounded-full bg-primary/20 blur-3xl"
               animate={{
@@ -172,15 +172,15 @@ export default function InstructionsPage() {
               }}
             />
             <div className="relative z-10">
-              <h2 className="mb-4 text-3xl font-bold">Ready to explore?</h2>
-              <p className="mb-8 text-lg text-muted-foreground">
+              <h2 className="mb-3 sm:mb-4 text-2xl sm:text-3xl font-bold">Ready to explore?</h2>
+              <p className="mb-6 sm:mb-8 text-base sm:text-lg text-muted-foreground">
                 Start discovering amazing AI tools tailored to your interests
               </p>
               <Button 
                 size="lg" 
                 onClick={handleGetStarted} 
                 disabled={isSaving}
-                className="group gap-2 shadow-lg"
+                className="group gap-2 shadow-lg w-full sm:w-auto h-12 sm:h-auto min-h-[48px] text-sm sm:text-base active:scale-[0.98]"
               >
                 {isSaving ? (
                   <>
@@ -190,7 +190,7 @@ export default function InstructionsPage() {
                 ) : (
                   <>
                     Go to Home
-                    <ArrowRight className="h-5 w-5 transition-transform group-hover:translate-x-1" />
+                    <ArrowRight className="h-4 w-4 sm:h-5 sm:w-5 transition-transform group-hover:translate-x-1" />
                   </>
                 )}
               </Button>

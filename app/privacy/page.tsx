@@ -134,7 +134,7 @@ export default function PrivacyPage() {
                 If you have questions about this privacy policy, please contact us at:
               </p>
               <p>
-                <strong>Email:</strong> <a href="mailto:privacy@arcyn-find.com" className="text-primary hover:underline">privacy@arcyn-find.com</a>
+                <strong>Email:</strong> <a href="mailto:arcynflow@gmail.com" className="text-primary hover:underline">arcynflow@gmail.com</a>
               </p>
             </section>
           </div>

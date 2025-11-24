@@ -25,7 +25,7 @@ interface Collection {
 export default function CollectionsPage() {
   const router = useRouter()
   const { user, isLoaded } = useUser()
-  const [sidebarOpen, setSidebarOpen] = useState(true)
+  const [sidebarOpen, setSidebarOpen] = useState(false) // Hidden by default on mobile
   const [collections, setCollections] = useState<Collection[]>([])
   const [isLoading, setIsLoading] = useState(true)
 
@@ -68,23 +68,33 @@ export default function CollectionsPage() {
 
   return (
     <div className="flex h-screen overflow-hidden bg-background">
-      {/* Sidebar */}
+      {/* Sidebar - Hidden on mobile */}
       <AnimatePresence mode="wait">
         {sidebarOpen && (
-          <motion.div
-            initial={{ x: -300, opacity: 0 }}
-            animate={{ x: 0, opacity: 1 }}
-            exit={{ x: -300, opacity: 0 }}
-            transition={{ type: "spring", damping: 25, stiffness: 200 }}
-            className="relative z-20"
-          >
-            <Sidebar onClose={() => setSidebarOpen(false)} />
-          </motion.div>
+          <>
+            {/* Mobile overlay backdrop */}
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              onClick={() => setSidebarOpen(false)}
+              className="fixed inset-0 bg-background/80 backdrop-blur-sm z-30 md:hidden"
+            />
+            <motion.div
+              initial={{ x: -300, opacity: 0 }}
+              animate={{ x: 0, opacity: 1 }}
+              exit={{ x: -300, opacity: 0 }}
+              transition={{ type: "spring", damping: 25, stiffness: 200 }}
+              className="hidden md:block fixed inset-y-0 left-0 z-40 h-full w-72"
+            >
+              <Sidebar onClose={() => setSidebarOpen(false)} />
+            </motion.div>
+          </>
         )}
       </AnimatePresence>
 
       {/* Main Content */}
-      <div className="flex flex-1 flex-col overflow-hidden">
+      <div className="flex flex-1 flex-col overflow-hidden pb-16 md:pb-0">
         {/* Header */}
         <motion.header
           className="border-b border-border/40 bg-card/50 backdrop-blur-xl"

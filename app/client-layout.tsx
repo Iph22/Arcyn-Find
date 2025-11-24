@@ -3,6 +3,7 @@
 import type React from "react"
 import { useEffect } from "react"
 import { initMobileOptimizations } from "@/lib/mobile-utils"
+import { MobileNav } from "@/components/mobile-nav"
 
 export default function ClientLayout({
   children,
@@ -14,5 +15,10 @@ export default function ClientLayout({
     initMobileOptimizations()
   }, [])
 
-  return <>{children}</>
+  return (
+    <>
+      {children}
+      <MobileNav />
+    </>
+  )
 }

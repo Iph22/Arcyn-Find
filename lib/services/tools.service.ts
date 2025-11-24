@@ -29,7 +29,35 @@ export class ToolsService {
       } catch {
         decodedCategory = filters.category.trim()
       }
-      queryBuilder = queryBuilder.ilike('category', decodedCategory)
+      
+      // Special handling for Marketing and Design - also search by tags
+      const isMarketing = decodedCategory.includes('Marketing') || decodedCategory.toLowerCase().includes('marketing')
+      const isDesign = decodedCategory.includes('Design') || decodedCategory.toLowerCase().includes('design')
+      
+      if (decodedCategory.includes(',')) {
+        const categories = decodedCategory.split(',').map(c => c.trim()).filter(Boolean)
+        // Build combined OR query with categories and tags
+        let orConditions = categories.map(cat => `category.ilike.${cat}`).join(',')
+        
+        // For Marketing and Design, add tag conditions to the OR query
+        if (isMarketing) {
+          orConditions += ',tags.cs.{marketing},tags.cs.{marketing-automation},tags.cs.{advertising},tags.cs.{seo}'
+        }
+        if (isDesign) {
+          orConditions += ',tags.cs.{design},tags.cs.{ui},tags.cs.{ux},tags.cs.{graphic-design},tags.cs.{design-tools}'
+        }
+        
+        queryBuilder = queryBuilder.or(orConditions)
+      } else {
+        // For single category, combine with tag search if needed
+        if (isMarketing) {
+          queryBuilder = queryBuilder.or(`category.ilike.${decodedCategory},tags.cs.{marketing},tags.cs.{marketing-automation},tags.cs.{advertising},tags.cs.{seo}`)
+        } else if (isDesign) {
+          queryBuilder = queryBuilder.or(`category.ilike.${decodedCategory},tags.cs.{design},tags.cs.{ui},tags.cs.{ux},tags.cs.{graphic-design},tags.cs.{design-tools}`)
+        } else {
+          queryBuilder = queryBuilder.ilike('category', decodedCategory)
+        }
+      }
     }
 
     if (filters.region) {

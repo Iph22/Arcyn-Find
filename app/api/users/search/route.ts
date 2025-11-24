@@ -27,7 +27,7 @@ export async function GET(request: NextRequest) {
     // Search users by username or display_name
     const { data: users, error } = await supabase
       .from('user_profiles')
-      .select('id, username, display_name, avatar_url, bio')
+      .select('id, username, display_name, avatar_url, banner_url, bio')
       .or(`username.ilike.%${query}%,display_name.ilike.%${query}%`)
       .neq('id', userId) // Exclude current user from results
       .limit(20)

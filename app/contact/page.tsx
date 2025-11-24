@@ -1,12 +1,13 @@
 "use client"
 
 import { motion } from "framer-motion"
-import { ArrowLeft, Mail, MessageSquare, Send } from "lucide-react"
+import { ArrowLeft, Mail, MessageSquare, Send, Instagram, Twitter } from "lucide-react"
 import Link from "next/link"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { useState } from "react"
 import { Textarea } from "@/components/ui/textarea"
+import { toast } from "sonner"
 
 export default function ContactPage() {
   const [formData, setFormData] = useState({
@@ -23,13 +24,41 @@ export default function ContactPage() {
     setIsSubmitting(true)
     setSubmitStatus("idle")
 
-    // Simulate form submission (replace with actual API call)
-    setTimeout(() => {
+    try {
+      const response = await fetch("/api/contact", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(formData),
+      })
+
+      // Check if response is JSON
+      const contentType = response.headers.get("content-type")
+      if (!contentType || !contentType.includes("application/json")) {
+        const text = await response.text()
+        console.error("Non-JSON response:", text.substring(0, 200))
+        throw new Error("Server returned an invalid response. Please try again or contact us directly at arcynflow@gmail.com")
+      }
+
+      const data = await response.json()
+
+      if (!response.ok) {
+        throw new Error(data.error || "Failed to send message")
+      }
+
       setIsSubmitting(false)
       setSubmitStatus("success")
       setFormData({ name: "", email: "", subject: "", message: "" })
+      toast.success("Message sent successfully! We'll get back to you soon.")
       setTimeout(() => setSubmitStatus("idle"), 5000)
-    }, 1000)
+    } catch (error) {
+      setIsSubmitting(false)
+      setSubmitStatus("error")
+      const errorMessage = error instanceof Error ? error.message : "Failed to send message"
+      toast.error(errorMessage)
+      console.error("Contact form error:", error)
+    }
   }
 
   return (
@@ -59,6 +88,11 @@ export default function ContactPage() {
                 <p className="text-muted-foreground mb-6">
                   Have a question or feedback? We'd love to hear from you. Send us a message and we'll respond as soon as possible.
                 </p>
+                <div className="p-4 bg-primary/10 border border-primary/20 rounded-lg mb-6">
+                  <p className="text-sm text-muted-foreground">
+                    <strong className="text-foreground">Arcyn</strong> is the powerhouse behind Arcyn Find, driving innovation and excellence in AI tool discovery.
+                  </p>
+                </div>
               </div>
 
               <div className="space-y-4">
@@ -66,8 +100,38 @@ export default function ContactPage() {
                   <Mail className="w-5 h-5 text-primary mt-1" />
                   <div>
                     <h3 className="font-semibold mb-1">Email</h3>
-                    <a href="mailto:support@arcyn-find.com" className="text-primary hover:underline">
-                      support@arcyn-find.com
+                    <a href="mailto:arcynflow@gmail.com" className="text-primary hover:underline">
+                      arcynflow@gmail.com
+                    </a>
+                  </div>
+                </div>
+
+                <div className="flex items-start gap-4">
+                  <Instagram className="w-5 h-5 text-primary mt-1" />
+                  <div>
+                    <h3 className="font-semibold mb-1">Instagram</h3>
+                    <a 
+                      href="https://instagram.com/arcyn.x" 
+                      target="_blank" 
+                      rel="noopener noreferrer"
+                      className="text-primary hover:underline"
+                    >
+                      @arcyn.x
+                    </a>
+                  </div>
+                </div>
+
+                <div className="flex items-start gap-4">
+                  <Twitter className="w-5 h-5 text-primary mt-1" />
+                  <div>
+                    <h3 className="font-semibold mb-1">X (Twitter)</h3>
+                    <a 
+                      href="https://x.com/Arcyn_x" 
+                      target="_blank" 
+                      rel="noopener noreferrer"
+                      className="text-primary hover:underline"
+                    >
+                      @Arcyn_x
                     </a>
                   </div>
                 </div>

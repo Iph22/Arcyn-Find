@@ -11,6 +11,7 @@ import { Separator } from "@/components/ui/separator"
 import { Textarea } from "@/components/ui/textarea"
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import { PricingBadge } from "@/components/pricing-badge"
 import { toast } from "sonner"
 import type { ToolWithRating } from "@/lib/types"
 
@@ -358,25 +359,46 @@ export function ToolDetailModal({ tool, isOpen, onClose }: ToolDetailModalProps)
                     <p className="text-muted-foreground text-lg leading-relaxed">{tool.description}</p>
                   </div>
 
-                  {/* Tags & Pricing */}
-                  <div className="flex flex-wrap gap-3 items-center">
-                    {tool.tags?.map((tag) => (
-                      <Badge key={tag} variant="outline" className="border-border">
-                        {tag}
-                      </Badge>
-                    ))}
-                    {tool.pricing && (
-                      <Badge className="bg-green-500/20 text-green-400 border-green-500/30">
-                        <DollarSign className="w-3 h-3 mr-1" />
-                        {tool.pricing}
-                      </Badge>
-                    )}
-                    {tool.accessType && (
-                      <Badge variant="secondary">
-                        {tool.accessType}
-                      </Badge>
-                    )}
-                  </div>
+                  {/* Pricing Section */}
+                  {(tool.pricing || tool.accessType) && (
+                    <Card className="p-4 bg-muted/50 border-border/50">
+                      <div className="flex items-center gap-3">
+                        <div className="flex items-center gap-2">
+                          <DollarSign className="w-5 h-5 text-muted-foreground" />
+                          <span className="font-semibold text-sm text-muted-foreground">Pricing:</span>
+                        </div>
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <PricingBadge 
+                            pricing={tool.pricing} 
+                            accessType={tool.accessType} 
+                            size="lg"
+                          />
+                          {tool.accessType && (
+                            <Badge variant="outline" className="text-xs">
+                              {tool.accessType}
+                            </Badge>
+                          )}
+                        </div>
+                      </div>
+                      {tool.pricing && (
+                        <p className="mt-2 text-sm text-muted-foreground">
+                          {tool.pricing}
+                        </p>
+                      )}
+                    </Card>
+                  )}
+
+                  {/* Tags */}
+                  {tool.tags && tool.tags.length > 0 && (
+                    <div className="flex flex-wrap gap-2 items-center">
+                      <span className="text-sm font-semibold text-muted-foreground mr-1">Tags:</span>
+                      {tool.tags.map((tag) => (
+                        <Badge key={tag} variant="outline" className="border-border">
+                          {tag}
+                        </Badge>
+                      ))}
+                    </div>
+                  )}
 
                   {/* Action Buttons */}
                   <div className="flex flex-wrap gap-3">

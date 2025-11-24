@@ -27,7 +27,7 @@ export default function ToolDetailPage() {
   const { tool, isLoading, error } = useAITool(toolId)
   const { isFavorite, toggleFavorite } = useFavorites()
   const { reviews, isLoading: reviewsLoading, fetchReviews } = useReviews(toolId || "")
-  const [sidebarOpen, setSidebarOpen] = useState(true)
+  const [sidebarOpen, setSidebarOpen] = useState(false) // Hidden by default on mobile
 
   useEffect(() => {
     if (toolId) {
@@ -38,8 +38,10 @@ export default function ToolDetailPage() {
   if (isLoading) {
     return (
       <div className="flex h-screen overflow-hidden bg-background">
-        <Sidebar onClose={() => setSidebarOpen(false)} />
-        <div className="flex-1 overflow-y-auto p-8">
+        <div className="hidden md:block">
+          <Sidebar onClose={() => setSidebarOpen(false)} />
+        </div>
+        <div className="flex-1 overflow-y-auto p-8 pb-24 md:pb-8">
           <ToolCardSkeleton />
         </div>
       </div>
@@ -49,8 +51,10 @@ export default function ToolDetailPage() {
   if (error || !tool) {
     return (
       <div className="flex h-screen overflow-hidden bg-background">
-        <Sidebar onClose={() => setSidebarOpen(false)} />
-        <div className="flex-1 overflow-y-auto p-8">
+        <div className="hidden md:block">
+          <Sidebar onClose={() => setSidebarOpen(false)} />
+        </div>
+        <div className="flex-1 overflow-y-auto p-8 pb-24 md:pb-8">
           <EmptyState
             icon={ArrowLeft}
             title="Tool not found"
@@ -84,8 +88,10 @@ export default function ToolDetailPage() {
 
   return (
     <div className="flex h-screen overflow-hidden bg-background">
-      <Sidebar onClose={() => setSidebarOpen(false)} />
-      <div className="flex-1 overflow-y-auto">
+      <div className="hidden md:block">
+        <Sidebar onClose={() => setSidebarOpen(false)} />
+      </div>
+      <div className="flex-1 overflow-y-auto pb-24 md:pb-0">
         <div className="container mx-auto max-w-4xl p-6">
           <Button
             variant="ghost"

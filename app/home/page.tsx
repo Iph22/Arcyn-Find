@@ -10,6 +10,7 @@ import { Card } from "@/components/ui/card"
 import { Sidebar } from "@/components/sidebar"
 import { ThemeToggle } from "@/components/theme-toggle"
 import { ToolDetailModal } from "@/components/enhanced-tool-detail-modal"
+import { PricingBadge } from "@/components/pricing-badge"
 import { usePreferences } from "@/contexts/preferences-context"
 import { useUser } from "@clerk/nextjs"
 import type { ToolWithRating } from "@/lib/types"
@@ -32,7 +33,7 @@ interface TrendingTool {
 export default function HomePage() {
   const router = useRouter()
   const [searchQuery, setSearchQuery] = useState("")
-  const [sidebarOpen, setSidebarOpen] = useState(true)
+  const [sidebarOpen, setSidebarOpen] = useState(false) // Hidden by default on mobile
   const { preferences, isLoading } = usePreferences()
   const { user, isLoaded } = useUser()
   const [selectedTool, setSelectedTool] = useState<ToolWithRating | TrendingTool | null>(null)
@@ -168,13 +169,13 @@ export default function HomePage() {
               onClick={() => setSidebarOpen(false)}
               className="fixed inset-0 bg-background/80 backdrop-blur-sm z-30 md:hidden"
             />
-            {/* Made sidebar fixed on mobile and relative on desktop for better responsiveness */}
+            {/* Sidebar - Hidden on mobile, shown on desktop */}
           <motion.div
             initial={{ x: -300, opacity: 0 }}
             animate={{ x: 0, opacity: 1 }}
             exit={{ x: -300, opacity: 0 }}
             transition={{ type: "spring", damping: 25, stiffness: 200 }}
-              className="fixed inset-y-0 left-0 z-40 h-full w-3/4 max-w-xs md:relative md:z-20 md:w-auto"
+              className="hidden md:block fixed inset-y-0 left-0 z-40 h-full w-72"
           >
             <Sidebar onClose={() => setSidebarOpen(false)} />
           </motion.div>
@@ -183,7 +184,7 @@ export default function HomePage() {
       </AnimatePresence>
 
       {/* Main Content */}
-      <div className="flex flex-1 flex-col overflow-hidden w-full">
+      <div className="flex flex-1 flex-col overflow-hidden w-full pb-16 md:pb-0">
         {/* Header */}
         <motion.header
           className="border-b border-border/40 bg-card/50 backdrop-blur-xl"
@@ -311,11 +312,18 @@ export default function HomePage() {
                                 <Sparkles className="w-6 h-6 text-primary" />
                               </div>
                             )}
-                            <div className="flex-1">
-                              <h3 className="font-medium">{tool.name}</h3>
-                              <p className="text-xs text-muted-foreground">{tool.category}</p>
+                            <div className="flex-1 min-w-0">
+                              <h3 className="font-medium truncate">{tool.name}</h3>
+                              <div className="flex items-center gap-2 mt-1">
+                                <p className="text-xs text-muted-foreground truncate">{tool.category}</p>
+                                <PricingBadge 
+                                  pricing={tool.pricing} 
+                                  accessType={tool.access_type} 
+                                  size="sm"
+                                />
+                              </div>
                             </div>
-                            <div className="flex items-center gap-1 text-yellow-400 text-xs">
+                            <div className="flex items-center gap-1 text-yellow-400 text-xs shrink-0">
                               <Star className="w-3 h-3 fill-current" />
                               {tool.rating > 0 ? tool.rating.toFixed(1) : 'New'}
                             </div>
@@ -410,27 +418,34 @@ export default function HomePage() {
 
       {selectedTool && (
         <ToolDetailModal 
-          tool={'platform' in selectedTool 
-            ? {
-                id: selectedTool.id,
-                name: selectedTool.name,
-                category: selectedTool.category,
-                description: selectedTool.description,
-                image: selectedTool.image || null,
-                rating: selectedTool.rating || null,
-                users: selectedTool.users?.toString() || null,
-                tags: selectedTool.tags,
-              }
-            : {
-                id: String(selectedTool.id),
-                name: selectedTool.name,
-                category: selectedTool.category,
-                description: selectedTool.description,
-                image: selectedTool.image,
-                rating: selectedTool.rating,
-                users: selectedTool.users,
-                tags: selectedTool.tags,
-              }
+          tool={
+            'platform' in selectedTool 
+              ? {
+                  id: selectedTool.id,
+                  name: selectedTool.name,
+                  category: selectedTool.category,
+                  description: selectedTool.description,
+                  image: selectedTool.image || null,
+                  rating: selectedTool.rating || null,
+                  users: selectedTool.users?.toString() || null,
+                  tags: selectedTool.tags,
+                  pricing: selectedTool.pricing || undefined,
+                  accessType: selectedTool.accessType || undefined,
+                  platform: typeof selectedTool.platform === 'string' ? selectedTool.platform : undefined,
+                }
+              : {
+                  id: String(selectedTool.id),
+                  name: selectedTool.name,
+                  category: selectedTool.category,
+                  description: selectedTool.description,
+                  image: selectedTool.image,
+                  rating: selectedTool.rating,
+                  users: selectedTool.users,
+                  tags: selectedTool.tags,
+                  pricing: selectedTool.pricing || undefined,
+                  accessType: selectedTool.access_type || undefined,
+                  platform: undefined,
+                }
           } 
           isOpen={!!selectedTool} 
           onClose={() => setSelectedTool(null)} 

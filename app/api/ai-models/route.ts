@@ -111,12 +111,50 @@ export async function GET(request: Request) {
           decodedCategory = category.trim()
         }
         
-        // Use ilike for case-insensitive matching
-        queryBuilder = queryBuilder.ilike('category', decodedCategory)
+        // Special handling for Marketing and Design - also search by tags
+        const isMarketing = decodedCategory.includes('Marketing') || decodedCategory.toLowerCase().includes('marketing')
+        const isDesign = decodedCategory.includes('Design') || decodedCategory.toLowerCase().includes('design')
         
-        // Debug logging in development
-        if (process.env.NODE_ENV === 'development') {
-          logger.debug(`[API] Filtering by category: "${decodedCategory}" (raw: "${category}")`)
+        // Use ilike for case-insensitive matching
+        // If category contains multiple values separated by comma, use OR logic
+        if (decodedCategory.includes(',')) {
+          const categories = decodedCategory.split(',').map(c => c.trim()).filter(Boolean)
+          // Build combined OR query with categories and tags
+          let orConditions = categories.map(cat => `category.ilike.${cat}`).join(',')
+          
+          // For Marketing and Design, add tag conditions to the OR query
+          if (isMarketing) {
+            orConditions += ',tags.cs.{marketing},tags.cs.{marketing-automation},tags.cs.{advertising},tags.cs.{seo}'
+          }
+          if (isDesign) {
+            orConditions += ',tags.cs.{design},tags.cs.{ui},tags.cs.{ux},tags.cs.{graphic-design},tags.cs.{design-tools}'
+          }
+          
+          queryBuilder = queryBuilder.or(orConditions)
+          
+          if (process.env.NODE_ENV === 'development') {
+            logger.debug(`[API] Filtering by multiple categories (OR): "${categories.join(', ')}"`)
+            if (isMarketing || isDesign) {
+              logger.debug(`[API] Also searching tags for ${isMarketing ? 'Marketing' : ''} ${isDesign ? 'Design' : ''}`)
+            }
+          }
+        } else {
+          // For single category, combine with tag search if needed
+          if (isMarketing) {
+            queryBuilder = queryBuilder.or(`category.ilike.${decodedCategory},tags.cs.{marketing},tags.cs.{marketing-automation},tags.cs.{advertising},tags.cs.{seo}`)
+          } else if (isDesign) {
+            queryBuilder = queryBuilder.or(`category.ilike.${decodedCategory},tags.cs.{design},tags.cs.{ui},tags.cs.{ux},tags.cs.{graphic-design},tags.cs.{design-tools}`)
+          } else {
+            queryBuilder = queryBuilder.ilike('category', decodedCategory)
+          }
+          
+          // Debug logging in development
+          if (process.env.NODE_ENV === 'development') {
+            logger.debug(`[API] Filtering by category: "${decodedCategory}" (raw: "${category}")`)
+            if (isMarketing || isDesign) {
+              logger.debug(`[API] Also searching tags for ${isMarketing ? 'Marketing' : ''} ${isDesign ? 'Design' : ''}`)
+            }
+          }
         }
       }
       if (region) {

@@ -18,6 +18,11 @@
   --safe-area-inset-left: env(safe-area-inset-left, 0px);
 }
 
+/* Mobile bottom navigation safe area */
+.safe-area-inset-bottom {
+  padding-bottom: env(safe-area-inset-bottom, 0px);
+}
+
 /* Mobile touch optimizations */
 @media (hover: none) and (pointer: coarse) {
   /* Touch device styles */
@@ -30,6 +35,17 @@
   * {
     -webkit-tap-highlight-color: transparent;
     -webkit-touch-callout: none;
+  }
+  
+  /* Better spacing for mobile cards */
+  .card, [class*="Card"] {
+    margin-bottom: 1rem;
+  }
+  
+  /* Larger touch targets for mobile */
+  input, textarea, select {
+    min-height: 44px;
+    font-size: 16px; /* Prevents zoom on iOS */
   }
 }
 

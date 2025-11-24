@@ -1,7 +1,7 @@
 "use client"
 
 import { motion } from "framer-motion"
-import { ArrowLeft, Target, Zap, Users, Globe } from "lucide-react"
+import { ArrowLeft, Target, Zap, Users, Globe, Instagram, Twitter } from "lucide-react"
 import Link from "next/link"
 import { Button } from "@/components/ui/button"
 
@@ -57,6 +57,11 @@ export default function AboutPage() {
                 the best AI tools for their needs. We curate and organize thousands of AI tools, making it easy to
                 find exactly what you're looking for.
               </p>
+              <p className="mt-4">
+                <strong>Arcyn</strong> is the powerhouse behind Arcyn Find, driving innovation and excellence in AI tool discovery. 
+                With a passion for technology and a commitment to quality, Arcyn ensures that Arcyn Find remains at the 
+                forefront of AI tool aggregation and discovery.
+              </p>
             </section>
 
             <section>
@@ -85,14 +90,22 @@ export default function AboutPage() {
           </div>
 
           <div className="p-8 bg-muted/30 rounded-xl">
-            <h2 className="text-2xl font-semibold mb-4">Get Involved</h2>
+            <h2 className="text-2xl font-semibold mb-4">Connect With Us</h2>
             <p className="text-muted-foreground mb-6">
-              Arcyn Find is open source and community-driven. We welcome contributions, feedback, and suggestions.
+              Follow us on social media to stay updated with the latest AI tools and platform updates. 
+              We welcome feedback, suggestions, and contributions from our community.
             </p>
             <div className="flex flex-wrap gap-4">
               <Button asChild>
-                <a href="https://github.com/Iph22/Arcyn-Find" target="_blank" rel="noopener noreferrer">
-                  View on GitHub
+                <a href="https://instagram.com/arcyn.x" target="_blank" rel="noopener noreferrer" className="gap-2">
+                  <Instagram className="w-4 h-4" />
+                  Instagram
+                </a>
+              </Button>
+              <Button asChild variant="outline">
+                <a href="https://x.com/Arcyn_x" target="_blank" rel="noopener noreferrer" className="gap-2">
+                  <Twitter className="w-4 h-4" />
+                  X (Twitter)
                 </a>
               </Button>
               <Button variant="outline" asChild>

@@ -1,6 +1,7 @@
 import type React from "react"
 import type { Metadata, Viewport } from "next"
 import { Geist, Geist_Mono } from "next/font/google"
+import Script from "next/script"
 import "./globals.css"
 import { PreferencesProvider } from "@/contexts/preferences-context"
 import { AvatarProvider } from "@/contexts/avatar-context"
@@ -186,6 +187,16 @@ export default function RootLayout({
           </ThemeProvider>
           <Analytics />
           <Toaster />
+          
+          {/* Datafast Analytics */}
+          <Script
+            defer
+            data-website-id="dfid_v5dvlwt0DbAG35I4MUzlO"
+            data-domain="arcyn-find.vercel.app"
+            data-allow-localhost="true"
+            src="https://datafa.st/js/script.js"
+            strategy="afterInteractive"
+          />
           
           {/* Service Worker Registration */}
           <script

@@ -27,6 +27,12 @@ export function useAITools(options: UseAIToolsOptions = {}): UseAIToolsReturn {
   const [error, setError] = useState<string | null>(null)
   const [hasMore, setHasMore] = useState(true)
 
+  // Reset tools when category, region, or searchQuery changes
+  useEffect(() => {
+    setTools([])
+    setHasMore(true)
+  }, [category, region, searchQuery])
+
   const fetchTools = useCallback(async () => {
     if (!enabled) return
 
@@ -48,17 +54,23 @@ export function useAITools(options: UseAIToolsOptions = {}): UseAIToolsReturn {
       }
 
       const data = await response.json()
-      setTools(Array.isArray(data) ? data : [])
-      setHasMore(Array.isArray(data) && data.length === limit)
+      const toolsArray = Array.isArray(data) ? data : []
+      
+      // Always return just the current page's tools (don't accumulate in hook)
+      setTools(toolsArray)
+      
+      // hasMore is true if we got exactly the limit (meaning there might be more)
+      setHasMore(toolsArray.length === limit)
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : "Failed to fetch AI tools"
       setError(errorMessage)
       console.error("Error fetching AI tools:", err)
       setTools([])
+      setHasMore(false)
     } finally {
       setIsLoading(false)
     }
-  }, [category, region, searchQuery, limit, enabled])
+  }, [category, region, searchQuery, limit, offset, enabled])
 
   useEffect(() => {
     fetchTools()

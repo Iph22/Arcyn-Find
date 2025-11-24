@@ -8,65 +8,126 @@ import type { AIEntry } from '../../lib/ai-data'
  * Category mapping from various sources to our standard categories
  */
 export const categoryMap: Record<string, string> = {
-  // Common variations
-  'text-generation': 'Generative AI',
+  // Text & Content Generation
+  'text-generation': 'Text Generation',
+  'text generation': 'Text Generation',
+  'ai-writing': 'Text Generation',
+  'ai writing': 'Text Generation',
+  'content-generation': 'Text Generation',
+  'content generation': 'Text Generation',
+  'writing': 'Text Generation',
   'chat': 'Generative AI',
-  'chatbot': 'Generative AI',
-  'conversational-ai': 'Generative AI',
+  'chatbot': 'ChatBots',
+  'conversational-ai': 'ChatBots',
+  'conversational ai': 'ChatBots',
   'llm': 'Generative AI',
   'language-model': 'Generative AI',
+  'language model': 'Generative AI',
+  'generative-ai': 'Generative AI',
+  'generative ai': 'Generative AI',
   
-  'image-generation': 'Computer Vision',
+  // Image & Visual
+  'image-generation': 'Image Generation',
+  'image generation': 'Image Generation',
   'image-editing': 'Computer Vision',
+  'image editing': 'Computer Vision',
   'image-recognition': 'Computer Vision',
+  'image recognition': 'Computer Vision',
   'computer-vision': 'Computer Vision',
+  'computer vision': 'Computer Vision',
   'vision': 'Computer Vision',
-  'image': 'Computer Vision',
+  'image': 'Image Generation',
   
+  // Audio & Speech
   'audio': 'Audio/NLP',
   'speech': 'Audio/NLP',
   'voice': 'Audio/NLP',
   'tts': 'Audio/NLP',
   'stt': 'Audio/NLP',
-  'nlp': 'Audio/NLP',
+  'nlp': 'NLP Platform',
+  'nlp-platform': 'NLP Platform',
+  'nlp platform': 'NLP Platform',
   'transcription': 'Audio/NLP',
+  'audio-nlp': 'Audio/NLP',
+  'audio/nlp': 'Audio/NLP',
   
+  // Code & Development
   'code': 'Code Generation',
   'coding': 'Code Generation',
   'programming': 'Code Generation',
   'developer': 'Code Generation',
   'code-assistant': 'Code Generation',
+  'code assistant': 'Code Generation',
+  'code-generation': 'Code Generation',
+  'code generation': 'Code Generation',
   
-  'education': 'Learning & Education',
-  'learning': 'Learning & Education',
-  'study': 'Learning & Education',
-  'tutoring': 'Learning & Education',
-  'academic': 'Learning & Education',
-  
+  // Video
   'video': 'Video Generation',
   'video-editing': 'Video Generation',
+  'video editing': 'Video Generation',
   'video-generation': 'Video Generation',
+  'video generation': 'Video Generation',
+  'audio-video-processing': 'Audio/Video Processing',
+  'audio/video processing': 'Audio/Video Processing',
   
-  'search': 'Search/QA',
-  'qa': 'Search/QA',
-  'question-answering': 'Search/QA',
-  'research': 'Search/QA',
-  
-  'multimodal': 'Multimodal Platform',
-  'multi-modal': 'Multimodal Platform',
-  
-  'automation': 'Autonomous AI',
-  'agent': 'Autonomous AI',
-  'workflow': 'Autonomous AI',
-  
+  // Data & Analytics
+  'data-analytics': 'Data Analytics',
+  'data analytics': 'Data Analytics',
+  'data-analysis': 'Data Analytics',
+  'data analysis': 'Data Analytics',
   'ml-infrastructure': 'ML Infrastructure',
+  'ml infrastructure': 'ML Infrastructure',
   'mlops': 'ML Infrastructure',
   'infrastructure': 'ML Infrastructure',
   'api': 'ML Infrastructure',
   
+  // Research & Education
+  'education': 'Learning & Education',
+  'learning': 'Learning & Education',
+  'learning-education': 'Learning & Education',
+  'learning & education': 'Learning & Education',
+  'study': 'Learning & Education',
+  'tutoring': 'Learning & Education',
+  'academic': 'Learning & Education',
+  'search': 'Search/QA',
+  'qa': 'Search/QA',
+  'question-answering': 'Search/QA',
+  'question answering': 'Search/QA',
+  'research': 'Research',
+  'search-qa': 'Search/QA',
+  'search/qa': 'Search/QA',
+  
+  // Multimodal
+  'multimodal': 'Multimodal Platform',
+  'multi-modal': 'Multimodal Platform',
+  'multimodal-platform': 'Multimodal Platform',
+  'multimodal platform': 'Multimodal Platform',
+  
+  // Automation & Productivity
+  'automation': 'Autonomous AI',
+  'agent': 'Autonomous AI',
+  'autonomous-ai': 'Autonomous AI',
+  'autonomous ai': 'Autonomous AI',
+  'workflow': 'Productivity',
+  'productivity': 'Productivity',
+  'business-automation': 'Productivity',
+  'business automation': 'Productivity',
+  
+  // Marketing & Design
+  'marketing': 'Marketing',
+  'marketing-automation': 'Marketing',
+  'marketing automation': 'Marketing',
+  'design': 'Design',
+  'design-assistance': 'Design',
+  'design assistance': 'Design',
+  
+  // AI Detection
   'ai-detection': 'AI Detection Tool',
+  'ai detection': 'AI Detection Tool',
   'detection': 'AI Detection Tool',
   'plagiarism': 'AI Detection Tool',
+  'ai-detection-tool': 'AI Detection Tool',
+  'ai detection tool': 'AI Detection Tool',
 }
 
 /**

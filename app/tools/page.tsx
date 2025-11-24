@@ -11,51 +11,129 @@ import { Badge } from "@/components/ui/badge"
 import { Sidebar } from "@/components/sidebar"
 import { ThemeToggle } from "@/components/theme-toggle"
 import { ToolDetailModal } from "@/components/enhanced-tool-detail-modal"
+import { PricingBadge } from "@/components/pricing-badge"
 import { usePreferences } from "@/contexts/preferences-context"
 import { useAITools } from "@/lib/hooks/use-ai-tools"
+import { toast } from "sonner"
+import { useUser } from "@clerk/nextjs"
 import type { AIEntry } from "@/lib/ai-data"
 
-// Category mapping from API categories to display categories
+// Comprehensive category mapping from API/database categories to user-friendly display categories
+// Based on industry standards and actual database categories
 const categoryMapping: Record<string, string> = {
-  "Text Generation": "AI Writing",
+  // Text & Content Generation
+  "Text Generation": "Content Generation",
+  "Generative AI": "Content Generation",
+  "AI Writing": "Content Generation",
+  
+  // Image & Visual
   "Image Generation": "Image Generation",
+  "Computer Vision": "Image Generation",
+  
+  // Code & Development
   "Code Generation": "Code Assistants",
-  "Data Analytics": "Data Analysis",
-  "Audio/NLP": "Audio",
-  "Video Generation": "Video",
-  "AI Detection": "AI Detection",
+  "Code Assistants": "Code Assistants",
+  
+  // Audio & Speech
+  "Audio/NLP": "Voice & Speech",
+  "NLP Platform": "Voice & Speech",
+  "Audio": "Voice & Speech",
+  "Audio/Video Processing": "Voice & Speech",
+  
+  // Video
+  "Video Generation": "Video & Audio",
+  "Video": "Video & Audio",
+  
+  // Chatbots & Conversational
   "ChatBots": "Chatbots",
+  "Chatbots": "Chatbots",
+  "Conversational AI": "Chatbots",
+  
+  // Data & Analytics
+  "Data Analytics": "Data & Analytics",
+  "Data Analysis": "Data & Analytics",
+  "ML Infrastructure": "Data & Analytics",
+  
+  // AI Detection
+  "AI Detection": "AI Detection",
+  "AI Detection Tool": "AI Detection",
+  
+  // Productivity & Business
   "Productivity": "Productivity",
+  "Autonomous AI": "Productivity",
+  "Business Automation": "Productivity",
+  
+  // Marketing
   "Marketing": "Marketing",
+  "Marketing Automation": "Marketing",
+  
+  // Design
   "Design": "Design",
-  "Research": "Research",
+  "Design Assistance": "Design",
+  
+  // Research & Education
+  "Research": "Research & Education",
+  "Learning & Education": "Research & Education",
+  "Search/QA": "Research & Education",
+  "Education": "Research & Education",
+  
+  // Multimodal & Platforms
+  "Multimodal Platform": "Multimodal AI",
+  "Multimodal": "Multimodal AI",
 }
 
+// Reverse mapping from display categories to API/database categories
+// Maps user-friendly names back to what's actually in the database
+// Note: Many chatbots are categorized as "Generative AI" in the database
+const reverseCategoryMapping: Record<string, string[]> = {
+  "Content Generation": ["Text Generation", "AI Writing", "Generative AI"],
+  "Image Generation": ["Image Generation", "Computer Vision"],
+  "Code Assistants": ["Code Generation", "Code Assistants"],
+  "Voice & Speech": ["Audio/NLP", "NLP Platform", "Audio", "Audio/Video Processing"],
+  "Video & Audio": ["Video Generation", "Video"],
+  // Chatbots: Include Generative AI since most LLMs (ChatGPT, Claude, etc.) are chatbots
+  "Chatbots": ["ChatBots", "Chatbots", "Conversational AI", "Generative AI"],
+  "Data & Analytics": ["Data Analytics", "Data Analysis", "ML Infrastructure"],
+  "AI Detection": ["AI Detection", "AI Detection Tool"],
+  "Productivity": ["Productivity", "Autonomous AI", "Business Automation"],
+  // Marketing: May be under various categories, also check tags/descriptions
+  "Marketing": ["Marketing", "Marketing Automation"],
+  // Design: Tools might be under Computer Vision or other categories
+  "Design": ["Design", "Design Assistance"],
+  "Research & Education": ["Research", "Learning & Education", "Search/QA", "Education"],
+  "Multimodal AI": ["Multimodal Platform", "Multimodal"],
+}
+
+// User-friendly display categories in order of popularity/importance
 const displayCategories = [
-  "All", 
-  "AI Writing", 
-  "Image Generation", 
-  "Code Assistants", 
-  "Data Analysis", 
-  "Audio", 
-  "Video",
-  "AI Detection",
-  "Chatbots",
-  "Productivity",
-  "Marketing",
-  "Design",
-  "Research"
+  "All",
+  "Content Generation",      // Writing, text generation, LLMs
+  "Image Generation",          // DALL-E, Midjourney, etc.
+  "Code Assistants",          // GitHub Copilot, etc.
+  "Chatbots",                 // ChatGPT, Claude, etc.
+  "Video & Audio",            // Video generation and editing
+  "Voice & Speech",           // TTS, STT, voice AI
+  "Data & Analytics",         // Data analysis, ML infrastructure
+  "Productivity",             // Automation, workflow tools
+  "Marketing",                // Marketing automation
+  "Design",                   // Design tools
+  "Research & Education",     // Research, learning, education
+  "AI Detection",             // AI detection tools
+  "Multimodal AI",            // Multimodal platforms
 ]
 
 export default function ToolsPage() {
   const [searchQuery, setSearchQuery] = useState("")
   const [debouncedSearch, setDebouncedSearch] = useState("")
   const [selectedCategory, setSelectedCategory] = useState("All")
-  const [sidebarOpen, setSidebarOpen] = useState(true)
+  const [sidebarOpen, setSidebarOpen] = useState(false) // Hidden by default on mobile
   const [selectedTool, setSelectedTool] = useState<any>(null)
   const [page, setPage] = useState(1)
   const [allTools, setAllTools] = useState<AIEntry[]>([])
+  const [favoritedTools, setFavoritedTools] = useState<Set<string>>(new Set())
+  const [togglingFavorite, setTogglingFavorite] = useState<string | null>(null)
   const { preferences } = usePreferences()
+  const { user, isLoaded } = useUser()
 
   const ITEMS_PER_PAGE = 24 // Load 24 tools at a time (divisible by 2 and 3 for grid)
 
@@ -68,30 +146,128 @@ export default function ToolsPage() {
     return () => clearTimeout(timer)
   }, [searchQuery])
 
+  // Map display category to API category
+  // Since reverse mapping can have multiple categories, join them with comma
+  // The API will use OR logic to match any of them
+  const getApiCategory = () => {
+    if (selectedCategory === "All") return undefined
+    
+    const mapping = reverseCategoryMapping[selectedCategory]
+    if (Array.isArray(mapping)) {
+      return mapping.join(',')
+    }
+    return mapping || selectedCategory
+  }
+  
+  const apiCategory = getApiCategory()
+
   // Fetch AI tools from API with pagination
-  const { tools: apiTools, isLoading, error } = useAITools({
+  const { tools: apiTools, isLoading, error, hasMore } = useAITools({
     searchQuery: debouncedSearch || undefined,
+    category: apiCategory,
     limit: ITEMS_PER_PAGE,
     offset: (page - 1) * ITEMS_PER_PAGE,
   })
 
-  // Append new tools to existing ones
+  // Accumulate tools from multiple pages
   useEffect(() => {
     if (apiTools.length > 0) {
-      setAllTools(prev => {
-        // Avoid duplicates
-        const existingIds = new Set(prev.map(t => t.id))
-        const newTools = apiTools.filter(t => !existingIds.has(t.id))
-        return [...prev, ...newTools]
-      })
+      if (page === 1) {
+        // First page: replace all tools
+        setAllTools(apiTools)
+      } else {
+        // Subsequent pages: append new tools (avoid duplicates)
+        setAllTools(prev => {
+          const existingIds = new Set(prev.map(t => t.id))
+          const newTools = apiTools.filter(t => !existingIds.has(t.id))
+          return [...prev, ...newTools]
+        })
+      }
+    } else if (page === 1) {
+      // No results on first page: clear tools
+      setAllTools([])
     }
-  }, [apiTools])
+  }, [apiTools, page])
 
-  // Reset tools when debounced search or category changes
+  // Reset tools and page when debounced search or category changes
   useEffect(() => {
     setAllTools([])
     setPage(1)
   }, [debouncedSearch, selectedCategory])
+
+  // Load favorited tools
+  useEffect(() => {
+    if (isLoaded && user) {
+      const loadFavorites = async () => {
+        try {
+          const response = await fetch('/api/favorites')
+          if (response.ok) {
+            const data = await response.json()
+            const favoriteIds = new Set<string>((data.favorites || []).map((f: any) => String(f.tool_id)))
+            setFavoritedTools(favoriteIds)
+          }
+        } catch (error) {
+          console.error('Error loading favorites:', error)
+        }
+      }
+      loadFavorites()
+    }
+  }, [isLoaded, user])
+
+  const handleToggleFavorite = async (toolId: string, e: React.MouseEvent) => {
+    e.stopPropagation()
+    
+    if (!user) {
+      toast.error("Please sign in to save tools")
+      return
+    }
+
+    setTogglingFavorite(toolId)
+    const isFavorited = favoritedTools.has(toolId)
+
+    try {
+      let response: Response
+      
+      if (isFavorited) {
+        // Remove favorite
+        response = await fetch(`/api/favorites/${toolId}`, { method: 'DELETE' })
+      } else {
+        // Add favorite - use POST with tool_id in body
+        response = await fetch('/api/favorites', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ tool_id: toolId })
+        })
+      }
+      
+      if (response.ok) {
+        if (isFavorited) {
+          setFavoritedTools(prev => {
+            const next = new Set(prev)
+            next.delete(toolId)
+            return next
+          })
+          toast.success("Removed from favorites")
+        } else {
+          setFavoritedTools(prev => new Set(prev).add(toolId))
+          toast.success("Added to favorites")
+        }
+      } else {
+        const errorData = await response.json().catch(() => ({}))
+        if (response.status === 409) {
+          // Already favorited, just update UI
+          setFavoritedTools(prev => new Set(prev).add(toolId))
+        } else {
+          toast.error(errorData.error || "Failed to update favorite")
+        }
+      }
+    } catch (error) {
+      console.error('Error toggling favorite:', error)
+      toast.error("An error occurred")
+    } finally {
+      setTogglingFavorite(null)
+    }
+  }
 
   // Map API tools to display format
   const tools = useMemo(() => {
@@ -106,6 +282,7 @@ export default function ToolsPage() {
       featured: tool.isTrending || false,
       platform: tool.platform,
       accessType: tool.accessType,
+      pricing: tool.pricing,
       tags: tool.tags,
     }))
   }, [allTools])
@@ -140,34 +317,51 @@ export default function ToolsPage() {
 
   const sortedTools = getSortedTools()
 
+  // Client-side search filtering (category filtering is done server-side via API)
+  // Only filter by search if search is being done client-side (for already loaded tools)
+  // Note: If search is passed to API, it's handled server-side, so this is mainly for
+  // filtering already-loaded tools when user types quickly
   const filteredTools = sortedTools.filter((tool) => {
-    const matchesSearch = !debouncedSearch || 
-      tool.name.toLowerCase().includes(debouncedSearch.toLowerCase()) ||
-      tool.description.toLowerCase().includes(debouncedSearch.toLowerCase()) ||
-      tool.tags?.some((tag) => tag.toLowerCase().includes(debouncedSearch.toLowerCase()))
-    const matchesCategory = selectedCategory === "All" || tool.category === selectedCategory
-    return matchesSearch && matchesCategory
+    // If we have a search query, the API handles it, but we can still do client-side
+    // filtering for better UX on already-loaded tools
+    if (debouncedSearch) {
+      return tool.name.toLowerCase().includes(debouncedSearch.toLowerCase()) ||
+        tool.description.toLowerCase().includes(debouncedSearch.toLowerCase()) ||
+        tool.tags?.some((tag) => tag.toLowerCase().includes(debouncedSearch.toLowerCase()))
+    }
+    // No search query - show all tools (category already filtered by API)
+    return true
   })
 
   return (
     <div className="flex h-screen overflow-hidden bg-background">
-      {/* Sidebar */}
+      {/* Sidebar - Hidden on mobile */}
       <AnimatePresence mode="wait">
         {sidebarOpen && (
-          <motion.div
-            initial={{ x: -300, opacity: 0 }}
-            animate={{ x: 0, opacity: 1 }}
-            exit={{ x: -300, opacity: 0 }}
-            transition={{ type: "spring", damping: 25, stiffness: 200 }}
-            className="relative z-20"
-          >
-            <Sidebar onClose={() => setSidebarOpen(false)} />
-          </motion.div>
+          <>
+            {/* Mobile overlay backdrop */}
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              onClick={() => setSidebarOpen(false)}
+              className="fixed inset-0 bg-background/80 backdrop-blur-sm z-30 md:hidden"
+            />
+            <motion.div
+              initial={{ x: -300, opacity: 0 }}
+              animate={{ x: 0, opacity: 1 }}
+              exit={{ x: -300, opacity: 0 }}
+              transition={{ type: "spring", damping: 25, stiffness: 200 }}
+              className="hidden md:block fixed inset-y-0 left-0 z-40 h-full w-72"
+            >
+              <Sidebar onClose={() => setSidebarOpen(false)} />
+            </motion.div>
+          </>
         )}
       </AnimatePresence>
 
       {/* Main Content */}
-      <div className="flex flex-1 flex-col overflow-hidden">
+      <div className="flex flex-1 flex-col overflow-hidden pb-16 md:pb-0">
         {/* Header */}
         <motion.header
           className="border-b border-border/40 bg-card/50 backdrop-blur-xl"
@@ -324,12 +518,11 @@ export default function ToolsPage() {
                             variant="ghost" 
                             size="icon" 
                             className="h-8 w-8 shrink-0 rounded-lg"
-                            onClick={(e) => {
-                              e.stopPropagation()
-                              setSelectedTool(tool)
-                            }}
+                            onClick={(e) => handleToggleFavorite(tool.id, e)}
+                            disabled={togglingFavorite === tool.id || !user}
+                            title={favoritedTools.has(tool.id) ? "Remove from favorites" : "Add to favorites"}
                           >
-                            <Bookmark className="h-4 w-4" />
+                            <Bookmark className={`h-4 w-4 ${favoritedTools.has(tool.id) ? 'fill-primary text-primary' : ''}`} />
                           </Button>
                         </div>
 
@@ -337,10 +530,15 @@ export default function ToolsPage() {
                           {tool.description}
                         </p>
 
-                        <div className="mb-4 flex items-center gap-2">
+                        <div className="mb-4 flex items-center gap-2 flex-wrap">
                           <Badge variant="secondary" className="text-xs">
                             {tool.category}
                           </Badge>
+                          <PricingBadge 
+                            pricing={tool.pricing} 
+                            accessType={tool.accessType} 
+                            size="sm"
+                          />
                         </div>
 
                         <div className="flex items-center justify-between">
@@ -377,7 +575,7 @@ export default function ToolsPage() {
             )}
 
             {/* Load More Button */}
-            {!isLoading && !error && filteredTools.length > 0 && filteredTools.length % ITEMS_PER_PAGE === 0 && (
+            {!isLoading && !error && filteredTools.length > 0 && hasMore && (
               <div className="mt-8 text-center">
                 <Button
                   size="lg"
@@ -401,7 +599,7 @@ export default function ToolsPage() {
             )}
 
             {/* Empty State */}
-            {filteredTools.length === 0 && (
+            {!isLoading && !error && filteredTools.length === 0 && (
               <motion.div className="py-20 text-center" initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}>
                 <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-2xl bg-muted">
                   <Search className="h-8 w-8 text-muted-foreground" />

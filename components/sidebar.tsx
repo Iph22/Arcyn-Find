@@ -3,7 +3,7 @@ import { useState } from "react"
 import Link from "next/link"
 import { usePathname, useRouter } from "next/navigation"
 import { motion } from "framer-motion"
-import { User, Bookmark, Star, Users, Sparkles, LogOut, Settings, ChevronLeft, ChevronRight, Home } from "lucide-react"
+import { User, Bookmark, Star, Users, Sparkles, LogOut, Settings, ChevronLeft, ChevronRight, Home, Search } from "lucide-react"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { cn } from "@/lib/utils"
 import { usePreferences } from "@/contexts/preferences-context"
@@ -67,22 +67,11 @@ export function Sidebar({ onClose }: SidebarProps) {
     >
       {/* Profile Section */}
       <div className="border-b border-sidebar-border/40">
-        {/* Collapse Button */}
-        <div className="p-4 flex justify-end">
-          <button
-            onClick={toggleCollapse}
-            className="p-2 hover:bg-sidebar-accent rounded-lg transition-colors"
-            title={isCollapsed ? "Expand sidebar" : "Collapse sidebar"}
-          >
-            {isCollapsed ? <ChevronRight className="h-5 w-5" /> : <ChevronLeft className="h-5 w-5" />}
-          </button>
-        </div>
-        
-        <div className={`px-4 pb-6 ${isCollapsed ? 'flex flex-col items-center' : ''}`}>
-          <div className={`flex ${isCollapsed ? 'flex-col items-center gap-2' : 'items-center gap-3'}`}>
-            <Avatar className={`${isCollapsed ? 'h-10 w-10' : 'h-12 w-12'} ring-2 ring-primary/20`}>
+        <div className={`p-3 flex ${isCollapsed ? 'flex-col items-center gap-2' : 'items-center justify-between'}`}>
+          <div className={`flex ${isCollapsed ? 'flex-col items-center' : 'items-center gap-3 flex-1 min-w-0'}`}>
+            <Avatar className={`${isCollapsed ? 'h-10 w-10' : 'h-10 w-10'} ring-2 ring-primary/20 shrink-0`}>
               <AvatarImage src={avatarUrl || undefined} alt="User" />
-              <AvatarFallback className="bg-gradient-to-br from-primary to-chart-1 text-primary-foreground">
+              <AvatarFallback className="bg-gradient-to-br from-primary to-chart-1 text-primary-foreground text-sm">
                 {preferences?.userName ? preferences.userName.charAt(0).toUpperCase() : "U"}
               </AvatarFallback>
             </Avatar>
@@ -95,14 +84,21 @@ export function Sidebar({ onClose }: SidebarProps) {
               </div>
             )}
           </div>
+          <button
+            onClick={toggleCollapse}
+            className="p-1.5 hover:bg-sidebar-accent rounded-lg transition-colors shrink-0"
+            title={isCollapsed ? "Expand sidebar" : "Collapse sidebar"}
+          >
+            {isCollapsed ? <ChevronRight className="h-4 w-4" /> : <ChevronLeft className="h-4 w-4" />}
+          </button>
         </div>
       </div>
 
       {/* Navigation */}
-      <nav className="flex-1 overflow-y-auto p-4">
-        <div className="space-y-1">
+      <nav className="flex-1 overflow-y-auto p-3">
+        <div className="space-y-0.5">
           {navItems.map((item, index) => {
-            const isActive = pathname === item.href
+            const isActive = pathname === item.href || (item.href === "/profile" && pathname?.startsWith("/profile"))
             const Icon = item.icon
 
             return (
@@ -110,22 +106,21 @@ export function Sidebar({ onClose }: SidebarProps) {
                 key={item.href}
                 initial={{ opacity: 0, x: -20 }}
                 animate={{ opacity: 1, x: 0 }}
-                transition={{ duration: 0.3, delay: index * 0.1 }}
+                transition={{ duration: 0.3, delay: index * 0.05 }}
               >
                 <Link
-                  key={item.href}
                   href={item.href}
                   className={cn(
-                    "flex items-center gap-3 rounded-xl px-4 py-3 text-sm font-medium transition-all",
-                    isCollapsed ? "justify-center" : "",
+                    "flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-all",
+                    isCollapsed ? "justify-center px-2" : "",
                     isActive
                       ? "bg-sidebar-accent text-sidebar-accent-foreground shadow-sm"
                       : "text-sidebar-foreground/70 hover:bg-sidebar-accent/50 hover:text-sidebar-foreground"
                   )}
                   title={isCollapsed ? item.label : undefined}
                 >
-                  <Icon className="h-5 w-5" />
-                  {!isCollapsed && item.label}
+                  <Icon className="h-4 w-4 shrink-0" />
+                  {!isCollapsed && <span className="truncate">{item.label}</span>}
                 </Link>
               </motion.div>
             )
@@ -133,50 +128,62 @@ export function Sidebar({ onClose }: SidebarProps) {
         </div>
 
         {/* AI Tools Section */}
-        <div className="mt-8">
-          <h4 className="mb-3 px-4 text-xs font-semibold uppercase tracking-wide text-sidebar-foreground/50">
-            Discover
-          </h4>
-          <Link
-            href="/tools"
-            className="flex items-center gap-3 rounded-xl px-4 py-3 text-sm font-medium text-sidebar-foreground/70 transition-all hover:bg-sidebar-accent/50 hover:text-sidebar-accent-foreground"
-          >
-            <Sparkles className="h-5 w-5" />
-            AI Tools
-          </Link>
+        {!isCollapsed && (
+          <div className="mt-6">
+            <h4 className="mb-2 px-3 text-xs font-semibold uppercase tracking-wide text-sidebar-foreground/50">
+              Discover
+            </h4>
+            <Link
+              href="/tools"
+              className="flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium text-sidebar-foreground/70 transition-all hover:bg-sidebar-accent/50 hover:text-sidebar-accent-foreground"
+            >
+              <Sparkles className="h-4 w-4 shrink-0" />
+              <span className="truncate">AI Tools</span>
+            </Link>
+          </div>
+        )}
+
+        {/* User Search Section */}
+        <div className="mt-6">
+          {isCollapsed ? (
+            <div className="px-3">
+              <UserSearch />
+            </div>
+          ) : (
+            <div className="px-3">
+              <h4 className="mb-2 text-xs font-semibold uppercase tracking-wide text-sidebar-foreground/50">
+                Search
+              </h4>
+              <UserSearch />
+            </div>
+          )}
         </div>
       </nav>
 
       {/* Footer Actions */}
-      <div className="border-t border-sidebar-border/40 p-4 space-y-2">
-        {!isCollapsed && (
-          <div className="mb-2">
-            <UserSearch />
-          </div>
-        )}
-        
+      <div className="border-t border-sidebar-border/40 p-4 space-y-1">
         <Link
           href="/settings"
           className={cn(
-            "w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sidebar-foreground/70 hover:bg-sidebar-accent/50 hover:text-sidebar-accent-foreground transition-all text-sm font-medium",
-            isCollapsed ? "justify-center" : ""
+            "w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sidebar-foreground/70 hover:bg-sidebar-accent/50 hover:text-sidebar-accent-foreground transition-all text-sm font-medium",
+            isCollapsed ? "justify-center px-2" : ""
           )}
           title="Settings"
         >
-          <Settings className="w-5 h-5" />
-          {!isCollapsed && "Settings"}
+          <Settings className="w-4 h-4 shrink-0" />
+          {!isCollapsed && <span className="truncate">Settings</span>}
         </Link>
 
         <button
           onClick={handleLogout}
           className={cn(
-            "w-full flex items-center gap-3 px-4 py-3 rounded-xl text-destructive hover:bg-destructive/10 transition-all text-sm font-medium",
-            isCollapsed ? "justify-center" : ""
+            "w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-destructive hover:bg-destructive/10 transition-all text-sm font-medium",
+            isCollapsed ? "justify-center px-2" : ""
           )}
           title="Sign Out"
         >
-          <LogOut className="w-5 h-5" />
-          {!isCollapsed && "Sign Out"}
+          <LogOut className="w-4 h-4 shrink-0" />
+          {!isCollapsed && <span className="truncate">Sign Out</span>}
         </button>
       </div>
     </motion.aside>

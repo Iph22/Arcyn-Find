@@ -171,16 +171,16 @@ export default function OnboardingPage() {
                     setRole(item.id as UserRole)
                     setTimeout(() => scrollToSection("section-2"), 500)
                   }}
-                  className={`p-4 sm:p-6 rounded-2xl border transition-all duration-300 flex flex-col items-center gap-3 sm:gap-4 ${
+                  className={`p-4 sm:p-5 md:p-6 rounded-xl sm:rounded-2xl border transition-all duration-300 flex flex-col items-center gap-2 sm:gap-3 md:gap-4 min-h-[100px] sm:min-h-[120px] ${
                     role === item.id
                       ? "bg-primary/10 border-primary shadow-lg ring-1 ring-primary"
-                      : "bg-card/50 border-border hover:bg-accent hover:border-accent-foreground/20"
+                      : "bg-card/50 border-border hover:bg-accent hover:border-accent-foreground/20 active:scale-[0.98]"
                   }`}
                 >
                   <item.icon
-                    className={`w-6 h-6 sm:w-8 sm:h-8 ${role === item.id ? "text-primary" : "text-muted-foreground"}`}
+                    className={`w-5 h-5 sm:w-6 sm:h-6 md:w-8 md:h-8 ${role === item.id ? "text-primary" : "text-muted-foreground"}`}
                   />
-                  <span className="font-medium text-base sm:text-lg">{item.label}</span>
+                  <span className="font-medium text-sm sm:text-base md:text-lg">{item.label}</span>
                 </motion.button>
               ))}
             </div>
@@ -209,7 +209,7 @@ export default function OnboardingPage() {
               <p className="text-lg sm:text-xl text-muted-foreground">We'll help you find exactly what you need.</p>
             </motion.div>
 
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-6 max-w-3xl mx-auto">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4 md:gap-6 max-w-3xl mx-auto">
               {[
                 { id: "work", title: "Work & Productivity", desc: "Automate tasks and boost efficiency" },
                 { id: "creative", title: "Creative Projects", desc: "Generate art, music, and content" },
@@ -219,18 +219,19 @@ export default function OnboardingPage() {
                 <motion.div
                   key={item.id}
                   whileHover={{ scale: 1.02 }}
+                  whileTap={{ scale: 0.98 }}
                   onClick={() => {
                     setPurpose(item.id)
                     setTimeout(() => scrollToSection("section-3"), 500)
                   }}
-                  className={`p-4 sm:p-6 rounded-2xl border cursor-pointer transition-all duration-300 ${
+                  className={`p-4 sm:p-5 md:p-6 rounded-xl sm:rounded-2xl border cursor-pointer transition-all duration-300 min-h-[100px] ${
                     purpose === item.id
                       ? "bg-chart-1/10 border-chart-1 shadow-lg ring-1 ring-chart-1"
-                      : "bg-card/50 border-border hover:bg-accent"
+                      : "bg-card/50 border-border hover:bg-accent active:scale-[0.98]"
                   }`}
                 >
-                  <h3 className="text-lg sm:text-xl font-bold mb-1 sm:mb-2">{item.title}</h3>
-                  <p className="text-sm sm:text-base text-muted-foreground">{item.desc}</p>
+                  <h3 className="text-base sm:text-lg md:text-xl font-bold mb-1 sm:mb-2">{item.title}</h3>
+                  <p className="text-xs sm:text-sm md:text-base text-muted-foreground">{item.desc}</p>
                 </motion.div>
               ))}
             </div>
@@ -255,7 +256,7 @@ export default function OnboardingPage() {
               <p className="text-lg sm:text-xl text-muted-foreground">Select as many as you like.</p>
             </motion.div>
 
-            <div className="flex flex-wrap justify-center gap-3 sm:gap-4 max-w-3xl mx-auto">
+            <div className="flex flex-wrap justify-center gap-2.5 sm:gap-3 md:gap-4 max-w-3xl mx-auto">
               {["text", "vision", "coding", "agents", "automation", "knowledge", "research", "productivity"].map(
                 (tag) => (
                   <motion.button
@@ -265,7 +266,7 @@ export default function OnboardingPage() {
                     onClick={() => {
                       setInterests((prev) => (prev.includes(tag) ? prev.filter((i) => i !== tag) : [...prev, tag]))
                     }}
-                    className={`px-4 sm:px-6 py-2 sm:py-3 rounded-full border transition-all duration-300 capitalize text-sm sm:text-base ${
+                    className={`px-4 sm:px-5 md:px-6 py-2.5 sm:py-3 rounded-full border transition-all duration-300 capitalize text-xs sm:text-sm md:text-base min-h-[44px] ${
                       interests.includes(tag)
                         ? "bg-chart-2/20 border-chart-2 text-chart-2 shadow-lg"
                         : "bg-card/50 border-border text-muted-foreground hover:bg-accent"
@@ -277,13 +278,13 @@ export default function OnboardingPage() {
               )}
             </div>
 
-            <div className="mt-8 sm:mt-12 text-center">
+            <div className="mt-6 sm:mt-8 md:mt-12 text-center">
               <Button
                 onClick={() => scrollToSection("section-4")}
                 disabled={interests.length === 0}
-                className="rounded-full px-6 sm:px-8 py-4 sm:py-6 text-base sm:text-lg"
+                className="rounded-full px-6 sm:px-8 py-3 sm:py-4 md:py-6 text-sm sm:text-base md:text-lg h-12 sm:h-auto min-h-[48px]"
               >
-                Continue <ChevronDown className="ml-2" />
+                Continue <ChevronDown className="ml-2 w-4 h-4" />
               </Button>
             </div>
           </div>
@@ -307,7 +308,7 @@ export default function OnboardingPage() {
               <p className="text-lg sm:text-xl text-muted-foreground">How familiar are you with AI tools?</p>
             </motion.div>
 
-            <div className="space-y-3 sm:space-y-4 max-w-xl mx-auto mb-8 sm:mb-12">
+            <div className="space-y-2.5 sm:space-y-3 md:space-y-4 max-w-xl mx-auto mb-6 sm:mb-8 md:mb-12">
               {[
                 { id: "beginner", label: "Newbie", desc: "Just starting out" },
                 { id: "intermediate", label: "Explorer", desc: "Used a few tools" },
@@ -317,18 +318,19 @@ export default function OnboardingPage() {
                 <motion.div
                   key={item.id}
                   whileHover={{ x: 10 }}
+                  whileTap={{ scale: 0.98 }}
                   onClick={() => setExperience(item.id)}
-                  className={`p-3 sm:p-4 rounded-xl border cursor-pointer flex items-center justify-between transition-all duration-300 ${
+                  className={`p-3 sm:p-4 rounded-xl border cursor-pointer flex items-center justify-between transition-all duration-300 min-h-[60px] sm:min-h-[70px] ${
                     experience === item.id
                       ? "bg-chart-3/10 border-chart-3 ring-1 ring-chart-3"
-                      : "bg-card/50 border-border hover:bg-accent"
+                      : "bg-card/50 border-border hover:bg-accent active:scale-[0.98]"
                   }`}
                 >
                   <div>
-                    <h4 className="font-bold text-base sm:text-lg">{item.label}</h4>
+                    <h4 className="font-bold text-sm sm:text-base md:text-lg">{item.label}</h4>
                     <p className="text-xs sm:text-sm text-muted-foreground">{item.desc}</p>
                   </div>
-                  {experience === item.id && <Check className="text-chart-3 w-5 h-5 sm:w-6 sm:h-6" />}
+                  {experience === item.id && <Check className="text-chart-3 w-5 h-5 sm:w-6 sm:h-6 shrink-0" />}
                 </motion.div>
               ))}
             </div>
@@ -337,7 +339,7 @@ export default function OnboardingPage() {
               <Button
                 onClick={handleComplete}
                 disabled={!experience || !role || !purpose || interests.length === 0 || isSaving}
-                className="bg-gradient-to-r from-primary to-chart-1 hover:from-primary/90 hover:to-chart-1/90 text-primary-foreground rounded-full px-8 sm:px-12 py-6 sm:py-8 text-lg sm:text-xl shadow-2xl transition-all duration-300 hover:scale-105 w-full sm:w-auto"
+                className="bg-gradient-to-r from-primary to-chart-1 hover:from-primary/90 hover:to-chart-1/90 text-primary-foreground rounded-full px-6 sm:px-8 md:px-12 py-4 sm:py-6 md:py-8 text-sm sm:text-base md:text-lg lg:text-xl shadow-2xl transition-all duration-300 active:scale-[0.98] w-full sm:w-auto min-h-[56px] sm:min-h-[64px]"
               >
                 {isSaving ? (
                   <>
@@ -346,7 +348,7 @@ export default function OnboardingPage() {
                   </>
                 ) : (
                   <>
-                    Start Your Journey <ArrowRight className="ml-2" />
+                    Start Your Journey <ArrowRight className="ml-2 w-4 h-4 sm:w-5 sm:h-5" />
                   </>
                 )}
               </Button>

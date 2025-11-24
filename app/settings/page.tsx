@@ -1,7 +1,7 @@
 "use client"
 
 import { useState, useEffect, useRef } from "react"
-import { Settings as SettingsIcon, User, Bell, Shield, Palette, Upload, X, Camera } from "lucide-react"
+import { Settings as SettingsIcon, User, Bell, Shield, Palette, Upload, X, Camera, Plus } from "lucide-react"
 import { Card } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -507,6 +507,70 @@ export default function SettingsPage() {
                         Recommended size: 400x400px. Max file size: 5MB
                       </p>
                     </div>
+                  </div>
+
+                  {/* Preview Section */}
+                  <div className="mb-6">
+                    <Label className="mb-2 block">Preview (How you appear in search)</Label>
+                    <Card className="overflow-hidden border-border/50 bg-card/50 backdrop-blur-sm">
+                      {/* Banner */}
+                      <div className="relative h-24 bg-gradient-to-br from-primary/20 via-chart-1/20 to-chart-3/20">
+                        {(bannerPreview || bannerUrl) && (
+                          <img
+                            src={bannerPreview || bannerUrl}
+                            alt="Banner preview"
+                            className="w-full h-full object-cover"
+                          />
+                        )}
+                        
+                        {/* Profile Picture - Overlapping banner */}
+                        <div className="absolute bottom-0 left-4 translate-y-1/2">
+                          <div className="relative">
+                            <Avatar className="h-16 w-16 border-4 border-card ring-2 ring-border/20">
+                              <AvatarImage src={avatarPreview || avatarUrl || contextAvatarUrl || user?.imageUrl} />
+                              <AvatarFallback className="bg-gradient-to-br from-primary to-chart-1 text-lg font-bold text-primary-foreground">
+                                {displayName?.charAt(0).toUpperCase() || user?.fullName?.charAt(0).toUpperCase() || "U"}
+                              </AvatarFallback>
+                            </Avatar>
+                            {/* Online Status Indicator */}
+                            <div className="absolute bottom-0 right-0 h-4 w-4 rounded-full border-2 border-card bg-green-500"></div>
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* User Info */}
+                      <div className="pt-8 px-4 pb-4">
+                        <div className="flex items-start justify-between gap-2 mb-2">
+                          <div className="flex-1 min-w-0">
+                            <h3 className="font-bold text-lg truncate">{displayName || "Your Name"}</h3>
+                            <p className="text-sm text-muted-foreground truncate">@{username || "username"}</p>
+                          </div>
+                          <div className="p-1.5 rounded-full bg-muted shrink-0">
+                            <Plus className="h-3 w-3" />
+                          </div>
+                        </div>
+                        
+                        {/* Bio Preview */}
+                        {bio && (
+                          <p className="text-sm text-muted-foreground line-clamp-2 mb-3">
+                            {bio}
+                          </p>
+                        )}
+                        {!bio && (
+                          <p className="text-sm text-muted-foreground line-clamp-2 mb-3 italic">
+                            Your bio will appear here
+                          </p>
+                        )}
+
+                        {/* Action Button Preview */}
+                        <Button variant="default" size="sm" className="w-full" disabled>
+                          View Profile
+                        </Button>
+                      </div>
+                    </Card>
+                    <p className="mt-2 text-xs text-muted-foreground">
+                      This is how your profile appears when users search for you
+                    </p>
                   </div>
                 </div>
 

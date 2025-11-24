@@ -1,6 +1,5 @@
-// Hybrid approach: Static generation with ISR (revalidate every 30 minutes)
-// This allows the page to be pre-rendered at build time and updated periodically
-export const revalidate = 1800; // 30 minutes
+// Force dynamic rendering for real-time trends
+export const dynamic = 'force-dynamic'
 
 export default function HomeLayout({
   children,
