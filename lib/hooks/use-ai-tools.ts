@@ -105,6 +105,8 @@ export function useAITool(id: string | null) {
       return
     }
 
+    let isMounted = true
+
     setIsLoading(true)
     setError(null)
 
@@ -114,16 +116,27 @@ export function useAITool(id: string | null) {
         return res.json()
       })
       .then((data) => {
-        const toolData = Array.isArray(data.tools) ? data.tools[0] : data.tool || data
-        setTool(toolData)
+        // API returns an array when fetching by ID, not an object with tools/tool properties
+        const toolData = Array.isArray(data) ? data[0] : null
+        if (isMounted) {
+          setTool(toolData)
+        }
       })
       .catch((err) => {
-        setError(err.message)
-        console.error("Error fetching tool:", err)
+        if (isMounted) {
+          setError(err.message)
+          console.error("Error fetching tool:", err)
+        }
       })
       .finally(() => {
-        setIsLoading(false)
+        if (isMounted) {
+          setIsLoading(false)
+        }
       })
+
+    return () => {
+      isMounted = false
+    }
   }, [id])
 
   return { tool, isLoading, error }

@@ -25,7 +25,7 @@ export async function GET(request: Request) {
     return NextResponse.json(
       { 
         error: 'Too many requests. Please try again later.',
-        message: 'Rate limit exceeded. Maximum 100 requests per minute.',
+        message: 'Rate limit exceeded. Maximum 60 requests per minute.',
         retryAfter: Math.ceil((rateLimit.resetTime - Date.now()) / 1000)
       },
       { 

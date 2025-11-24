@@ -107,13 +107,17 @@ export default function ProfilePage() {
 
   useEffect(() => {
     // Check authentication and load user data
+    let isMounted = true
+    
     const loadUserData = async () => {
       try {
         if (!isLoaded) return
         
         if (!user) {
           // Not authenticated, redirect to landing
-          router.push("/")
+          if (isMounted) {
+            router.push("/")
+          }
           return
         }
 
@@ -125,37 +129,71 @@ export default function ProfilePage() {
           fetch('/api/user/activity')
         ])
         
+        if (!isMounted) return
+        
         if (profileRes.ok) {
-          const data = await profileRes.json()
-          setUserProfile(data.profile)
+          try {
+            const data = await profileRes.json()
+            if (isMounted) {
+              setUserProfile(data.profile)
+            }
+          } catch (err) {
+            console.error("Error parsing profile JSON:", err)
+          }
         }
         
         if (statsRes.ok) {
-          const data = await statsRes.json()
-          setUserStats(data.stats)
+          try {
+            const data = await statsRes.json()
+            if (isMounted) {
+              setUserStats(data.stats)
+            }
+          } catch (err) {
+            console.error("Error parsing stats JSON:", err)
+          }
         }
         
         if (toolsRes.ok) {
-          const data = await toolsRes.json()
-          setSavedTools(data.savedTools)
+          try {
+            const data = await toolsRes.json()
+            if (isMounted) {
+              setSavedTools(data.savedTools)
+            }
+          } catch (err) {
+            console.error("Error parsing tools JSON:", err)
+          }
         }
         
         if (activityRes.ok) {
-          const data = await activityRes.json()
-          setActivities(data.activities)
+          try {
+            const data = await activityRes.json()
+            if (isMounted) {
+              setActivities(data.activities)
+            }
+          } catch (err) {
+            console.error("Error parsing activity JSON:", err)
+          }
         }
       } catch (error) {
         if (process.env.NODE_ENV === 'development') {
           // eslint-disable-next-line no-console
           console.error("Error loading user data:", error)
         }
-        router.push("/")
+        if (isMounted) {
+          router.push("/")
+        }
       } finally {
-        setIsLoading(false)
+        if (isMounted) {
+          setIsLoading(false)
+        }
       }
     }
 
     loadUserData()
+    
+    return () => {
+      isMounted = false
+    }
   }, [user, isLoaded, router])
 
   const handleSignOut = async () => {

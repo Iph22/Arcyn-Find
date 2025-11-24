@@ -92,6 +92,15 @@ export function useSearch() {
     safeLocalStorage.removeItem("arcyn-search-history")
   }, [])
 
+  // Cleanup debounce timer on unmount
+  useEffect(() => {
+    return () => {
+      if (debounceTimer.current) {
+        clearTimeout(debounceTimer.current)
+      }
+    }
+  }, [])
+
   return {
     query,
     setQuery,

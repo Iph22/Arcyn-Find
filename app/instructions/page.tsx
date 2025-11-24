@@ -70,8 +70,8 @@ export default function InstructionsPage() {
       // Only update localStorage after DB save succeeds
       localStorage.setItem("arcyn-instructions-seen", "true")
       
-      // Now safe to redirect
-      router.push("/home")
+      // Now safe to redirect (use replace to avoid preserving query params)
+      router.replace("/home")
     } catch (error) {
       console.error('Error marking instructions as seen:', error)
       alert('An error occurred. Please try again.')

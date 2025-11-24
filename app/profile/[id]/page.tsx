@@ -87,9 +87,13 @@ export default function UserProfilePage() {
   }, [currentUser, userId, router])
 
   useEffect(() => {
+    let isMounted = true
+    
     const loadUserData = async () => {
       if (!userId) {
-        router.push("/")
+        if (isMounted) {
+          router.push("/")
+        }
         return
       }
 
@@ -99,61 +103,105 @@ export default function UserProfilePage() {
       }
 
       try {
-        setIsLoading(true)
+        if (isMounted) {
+          setIsLoading(true)
+        }
 
         // Fetch user profile
         const profileRes = await fetch(`/api/users/${userId}`)
+        if (!isMounted) return
+        
         if (!profileRes.ok) {
           if (profileRes.status === 404) {
-            toast.error("User not found")
-            router.push("/")
+            if (isMounted) {
+              toast.error("User not found")
+              router.push("/")
+            }
             return
           }
           throw new Error("Failed to fetch user profile")
         }
 
-        const profileData = await profileRes.json()
-        setUserProfile(profileData.user)
+        try {
+          const profileData = await profileRes.json()
+          if (isMounted) {
+            setUserProfile(profileData.user)
+          }
+        } catch (err) {
+          console.error("Error parsing profile JSON:", err)
+        }
 
         // Fetch user stats
         const statsRes = await fetch(`/api/users/${userId}/stats`)
-        if (statsRes.ok) {
-          const statsData = await statsRes.json()
-          setUserStats(statsData.stats)
+        if (statsRes.ok && isMounted) {
+          try {
+            const statsData = await statsRes.json()
+            if (isMounted) {
+              setUserStats(statsData.stats)
+            }
+          } catch (err) {
+            console.error("Error parsing stats JSON:", err)
+          }
         }
 
         // Fetch saved tools (public)
         const toolsRes = await fetch(`/api/users/${userId}/saved-tools`)
-        if (toolsRes.ok) {
-          const toolsData = await toolsRes.json()
-          setSavedTools(toolsData.savedTools || [])
+        if (toolsRes.ok && isMounted) {
+          try {
+            const toolsData = await toolsRes.json()
+            if (isMounted) {
+              setSavedTools(toolsData.savedTools || [])
+            }
+          } catch (err) {
+            console.error("Error parsing tools JSON:", err)
+          }
         }
 
         // Fetch reviews
         const reviewsRes = await fetch(`/api/users/${userId}/reviews`)
-        if (reviewsRes.ok) {
-          const reviewsData = await reviewsRes.json()
-          setReviews(reviewsData.reviews || [])
+        if (reviewsRes.ok && isMounted) {
+          try {
+            const reviewsData = await reviewsRes.json()
+            if (isMounted) {
+              setReviews(reviewsData.reviews || [])
+            }
+          } catch (err) {
+            console.error("Error parsing reviews JSON:", err)
+          }
         }
 
         // Check follow status if not own profile
-        if (!isOwnProfile && currentUser) {
+        if (!isOwnProfile && currentUser && isMounted) {
           const followRes = await fetch(`/api/users/${userId}/follow-status`)
           if (followRes.ok) {
-            const followData = await followRes.json()
-            setIsFollowing(followData.isFollowing || false)
+            try {
+              const followData = await followRes.json()
+              if (isMounted) {
+                setIsFollowing(followData.isFollowing || false)
+              }
+            } catch (err) {
+              console.error("Error parsing follow status JSON:", err)
+            }
           }
         }
       } catch (error) {
         console.error("Error loading user data:", error)
-        toast.error("Failed to load user profile")
-        router.push("/")
+        if (isMounted) {
+          toast.error("Failed to load user profile")
+          router.push("/")
+        }
       } finally {
-        setIsLoading(false)
+        if (isMounted) {
+          setIsLoading(false)
+        }
       }
     }
 
     loadUserData()
+    
+    return () => {
+      isMounted = false
+    }
   }, [userId, currentUser, isOwnProfile, router])
 
   const handleFollow = async () => {

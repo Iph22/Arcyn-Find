@@ -47,9 +47,9 @@ export const metadata: Metadata = {
     "AI comparison",
     "AI directory",
   ],
-  authors: [{ name: "Arcyn Find" }],
-  creator: "Arcyn Find",
-  publisher: "Arcyn Find",
+  authors: [{ name: "David iphy" }],
+  creator: "David iphy",
+  publisher: "David iphy",
   formatDetection: {
     email: false,
     address: false,
@@ -147,32 +147,32 @@ export default function RootLayout({
           {/* Preconnect to external domains for performance */}
           <link rel="preconnect" href="https://fonts.googleapis.com" />
           <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
-          
+
           {/* Preload critical resources */}
           <link rel="preload" href="/icon.svg" as="image" type="image/svg+xml" />
-          
+
           {/* Security headers via meta tags */}
           <meta httpEquiv="X-Content-Type-Options" content="nosniff" />
           <meta httpEquiv="X-Frame-Options" content="DENY" />
           <meta httpEquiv="X-XSS-Protection" content="1; mode=block" />
           <meta name="referrer" content="strict-origin-when-cross-origin" />
-          
+
           {/* Mobile web app meta tags */}
           <meta name="mobile-web-app-capable" content="yes" />
           <meta name="apple-mobile-web-app-capable" content="yes" />
           <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
           <meta name="apple-mobile-web-app-title" content="Arcyn Find" />
-          
+
           {/* Performance hints */}
           <link rel="prefetch" href="/api/ai-models" as="fetch" crossOrigin="anonymous" />
         </head>
-        <body 
+        <body
           className={`font-sans antialiased ${geistSans.variable} ${geistMono.variable}`}
           suppressHydrationWarning
         >
-          <ThemeProvider 
-            attribute="class" 
-            defaultTheme="dark" 
+          <ThemeProvider
+            attribute="class"
+            defaultTheme="dark"
             enableSystem
             disableTransitionOnChange={false}
             storageKey="arcyn-theme"
@@ -187,7 +187,7 @@ export default function RootLayout({
           </ThemeProvider>
           <Analytics />
           <Toaster />
-          
+
           {/* Datafast Analytics */}
           <Script
             defer
@@ -197,7 +197,7 @@ export default function RootLayout({
             src="https://datafa.st/js/script.js"
             strategy="afterInteractive"
           />
-          
+
           {/* Service Worker Registration */}
           <script
             dangerouslySetInnerHTML={{

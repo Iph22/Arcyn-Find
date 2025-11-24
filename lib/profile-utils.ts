@@ -93,20 +93,75 @@ export async function ensureProfile(user: { id: string; user_metadata?: Record<s
   const existing = await getProfileFromDB(user.id)
   
   if (existing) {
-    // Update with latest OAuth metadata
+    // Update with latest metadata (from OAuth or email)
     const updateData: {
       display_name?: string | null
       avatar_url?: string | null
+      username?: string | null
     } = {}
     
+    // Detect if this is an Apple user (Apple only provides name/email on first sign-up)
+    const isAppleUser = metadata.is_apple_user === true
+    const isApplePrivateEmail = metadata.is_apple_private_email === true
+    const hasExistingDisplayName = existing.display_name && existing.display_name !== 'Apple User'
+    
+    // Extract display name from metadata
     const displayName = metadata.full_name || metadata.name || metadata.preferred_username || metadata.login
-    if (displayName && typeof displayName === 'string') {
-      updateData.display_name = displayName
+    
+    // For Apple users: preserve existing name if new data is missing (Apple doesn't provide it on subsequent sign-ins)
+    if (isAppleUser) {
+      if (displayName && typeof displayName === 'string' && displayName !== 'Apple User') {
+        // We have real name data - update it
+        updateData.display_name = displayName
+      } else if (hasExistingDisplayName) {
+        // Apple user with existing name but no new data - preserve existing
+        // Don't update, keep what we have
+      } else if (displayName && typeof displayName === 'string') {
+        // First time or fallback - use what we have
+        updateData.display_name = displayName
+      }
+    } else {
+      // Non-Apple users: normal update logic
+      if (displayName && typeof displayName === 'string') {
+        updateData.display_name = displayName
+      }
+    }
+    
+    // Generate display_name from email if missing and no OAuth data (for non-Apple or first-time Apple users)
+    if (!updateData.display_name && metadata.email && typeof metadata.email === 'string') {
+      if (isApplePrivateEmail && hasExistingDisplayName) {
+        // Don't overwrite existing name with private email
+        // Keep existing display_name
+      } else {
+        const emailName = metadata.email.split('@')[0]
+        updateData.display_name = emailName.charAt(0).toUpperCase() + emailName.slice(1)
+      }
     }
     
     const avatarUrl = metadata.avatar_url || metadata.picture
     if (avatarUrl && typeof avatarUrl === 'string') {
       updateData.avatar_url = avatarUrl
+    }
+    
+    // Update username if not set and we have one from metadata
+    const username = metadata.preferred_username || metadata.user_name || metadata.login
+    if (username && typeof username === 'string' && !existing.username) {
+      updateData.username = username
+    }
+    
+    // Generate username from email if missing and no OAuth data
+    // For Apple private emails, generate a more user-friendly username
+    if (!updateData.username && !existing.username && metadata.email && typeof metadata.email === 'string') {
+      if (isApplePrivateEmail) {
+        // For Apple private email, use a combination approach
+        const emailPrefix = metadata.email.split('@')[0]
+        // Try to use existing display_name if available, otherwise use email prefix
+        updateData.username = (existing.display_name && existing.display_name !== 'Apple User'
+          ? existing.display_name.toLowerCase().replace(/\s+/g, '')
+          : emailPrefix.toLowerCase())
+      } else {
+        updateData.username = metadata.email.split('@')[0].toLowerCase()
+      }
     }
     
     if (Object.keys(updateData).length > 0) {
@@ -123,20 +178,45 @@ export async function ensureProfile(user: { id: string; user_metadata?: Record<s
   }
   
   // Create new profile
+  // Extract username from various sources (OAuth first, then email)
+  const isAppleUser = metadata.is_apple_user === true
+  const isApplePrivateEmail = metadata.is_apple_private_email === true
+  
   const username = metadata.preferred_username || metadata.user_name || metadata.login
   const usernameFromName = metadata.name && typeof metadata.name === 'string' 
     ? metadata.name.toLowerCase().replace(/\s+/g, '') 
     : null
+  const usernameFromEmail = metadata.email && typeof metadata.email === 'string' && !isApplePrivateEmail
+    ? metadata.email.split('@')[0].toLowerCase()
+    : null
   
+  // Use first available username source
+  // For Apple private email, prefer name-based username
+  const finalUsername = (username && typeof username === 'string' ? username : null) 
+    || usernameFromName 
+    || usernameFromEmail
+    || (isAppleUser ? 'appleuser' : null) // Fallback for Apple users
+  
+  // Extract display name (OAuth first, then email)
   const displayName = metadata.full_name || metadata.name || metadata.preferred_username || metadata.login
+  const displayNameFromEmail = metadata.email && typeof metadata.email === 'string' && !isApplePrivateEmail
+    ? metadata.email.split('@')[0].charAt(0).toUpperCase() + metadata.email.split('@')[0].slice(1)
+    : null
+  
+  // Use first available display name source
+  // For Apple: prefer actual name, fallback to generic if only private email
+  const finalDisplayName = (displayName && typeof displayName === 'string' ? displayName : null)
+    || displayNameFromEmail
+    || (isAppleUser ? 'Apple User' : null) // Fallback for Apple users with private email
+  
   const avatarUrl = metadata.avatar_url || metadata.picture
   
   const { data, error } = await supabaseAdmin
     .from('user_profiles')
     .insert({
       id: user.id,
-      username: (username && typeof username === 'string' ? username : usernameFromName) || null,
-      display_name: (displayName && typeof displayName === 'string' ? displayName : null) || null,
+      username: finalUsername || null,
+      display_name: finalDisplayName || null,
       avatar_url: (avatarUrl && typeof avatarUrl === 'string' ? avatarUrl : null) || null,
       onboarding_completed: false,
       instructions_seen: false,

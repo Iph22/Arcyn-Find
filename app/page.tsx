@@ -35,7 +35,8 @@ export default function LandingPage() {
   // Redirect authenticated users
   useEffect(() => {
     if (isLoaded && isSignedIn) {
-      router.push('/home')
+      // Use replace to avoid preserving query params from Google search
+      router.replace('/home')
     }
   }, [isLoaded, isSignedIn, router])
 
@@ -361,7 +362,10 @@ export default function LandingPage() {
               <Button size="lg" className="h-12 sm:h-14 px-6 sm:px-8 text-sm sm:text-base md:text-lg rounded-full w-full sm:w-auto active:scale-[0.98]" onClick={() => router.push("/sign-up")}>
                 Get Started Now
               </Button>
-              <Button size="lg" variant="outline" className="h-12 sm:h-14 px-6 sm:px-8 text-sm sm:text-base md:text-lg rounded-full bg-background/50 w-full sm:w-auto active:scale-[0.98]" onClick={() => router.push("/home")}>
+              <Button size="lg" variant="outline" className="h-12 sm:h-14 px-6 sm:px-8 text-sm sm:text-base md:text-lg rounded-full bg-background/50 w-full sm:w-auto active:scale-[0.98]" onClick={() => {
+                // Clear any query parameters and navigate to /home
+                router.replace("/home")
+              }}>
                 Explore Tools
               </Button>
             </div>

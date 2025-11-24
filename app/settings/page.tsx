@@ -72,34 +72,46 @@ export default function SettingsPage() {
   const [theme, setTheme] = useState("system")
 
   useEffect(() => {
+    let isMounted = true
+    
     const loadUserData = async () => {
       try {
         if (!isLoaded) return
         
         if (!user) {
-          router.push("/")
+          if (isMounted) {
+            router.push("/")
+          }
           return
         }
 
         // Load user profile via API
         const response = await fetch('/api/user/profile')
+        if (!isMounted) return
+        
         if (response.ok) {
-          const data = await response.json()
-          const profile = data.profile
-          
-          if (profile) {
-            setUserProfile(profile)
-            // Use profile data but fallback to Clerk for empty fields
-            setDisplayName(profile.display_name || user.fullName || user.emailAddresses[0]?.emailAddress?.split("@")[0] || "")
-            setUsername(profile.username || user.username || user.emailAddresses[0]?.emailAddress?.split("@")[0]?.toLowerCase() || "")
-            setBio(profile.bio || "")
-            setAvatarUrl(profile.avatar_url || user.imageUrl || "")
-            setBannerUrl(profile.banner_url || "")
-          } else {
-            // Initialize with Clerk user data
-            setDisplayName(user.fullName || user.emailAddresses[0]?.emailAddress?.split("@")[0] || "")
-            setUsername(user.username || user.emailAddresses[0]?.emailAddress?.split("@")[0]?.toLowerCase() || "")
-            setAvatarUrl(user.imageUrl || "")
+          try {
+            const data = await response.json()
+            const profile = data.profile
+            
+            if (isMounted) {
+              if (profile) {
+                setUserProfile(profile)
+                // Use profile data but fallback to Clerk for empty fields
+                setDisplayName(profile.display_name || user.fullName || user.emailAddresses[0]?.emailAddress?.split("@")[0] || "")
+                setUsername(profile.username || user.username || user.emailAddresses[0]?.emailAddress?.split("@")[0]?.toLowerCase() || "")
+                setBio(profile.bio || "")
+                setAvatarUrl(profile.avatar_url || user.imageUrl || "")
+                setBannerUrl(profile.banner_url || "")
+              } else {
+                // Initialize with Clerk user data
+                setDisplayName(user.fullName || user.emailAddresses[0]?.emailAddress?.split("@")[0] || "")
+                setUsername(user.username || user.emailAddresses[0]?.emailAddress?.split("@")[0]?.toLowerCase() || "")
+                setAvatarUrl(user.imageUrl || "")
+              }
+            }
+          } catch (err) {
+            console.error("Error parsing profile JSON:", err)
           }
         }
       } catch (error) {
@@ -107,13 +119,21 @@ export default function SettingsPage() {
           // eslint-disable-next-line no-console
           console.error("Error loading user data:", error)
         }
-        router.push("/")
+        if (isMounted) {
+          router.push("/")
+        }
       } finally {
-        setIsLoading(false)
+        if (isMounted) {
+          setIsLoading(false)
+        }
       }
     }
 
     loadUserData()
+    
+    return () => {
+      isMounted = false
+    }
   }, [user, isLoaded, router])
 
   useEffect(() => {
