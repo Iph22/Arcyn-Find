@@ -43,16 +43,13 @@ export async function generateSitemapXML(page: number = 0): Promise<string> {
   const baseUrl = process.env.NEXT_PUBLIC_SITE_URL || "https://arcyn-find.vercel.app"
   const aiEntries = await loadAiEntries()
 
-  // Static pages (only include in first page)
+  // Static pages (only include public, indexable pages - exclude user-specific pages)
   const staticPages = page === 0 ? [
     { url: `${baseUrl}/`, changefreq: "daily", priority: "1.0" },
-    { url: `${baseUrl}/home`, changefreq: "daily", priority: "0.9" },
     { url: `${baseUrl}/tools`, changefreq: "daily", priority: "0.9" },
-    { url: `${baseUrl}/collections`, changefreq: "daily", priority: "0.8" },
-    { url: `${baseUrl}/profile`, changefreq: "weekly", priority: "0.7" },
-    { url: `${baseUrl}/reviews`, changefreq: "daily", priority: "0.8" },
-    { url: `${baseUrl}/onboarding`, changefreq: "monthly", priority: "0.6" },
-    { url: `${baseUrl}/instructions`, changefreq: "monthly", priority: "0.5" },
+    { url: `${baseUrl}/about`, changefreq: "monthly", priority: "0.7" },
+    { url: `${baseUrl}/contact`, changefreq: "monthly", priority: "0.7" },
+    { url: `${baseUrl}/community`, changefreq: "daily", priority: "0.8" },
     { url: `${baseUrl}/privacy`, changefreq: "yearly", priority: "0.3" },
     { url: `${baseUrl}/terms`, changefreq: "yearly", priority: "0.3" },
   ] : []
