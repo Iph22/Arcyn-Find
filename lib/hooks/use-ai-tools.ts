@@ -8,6 +8,7 @@ interface UseAIToolsOptions {
   region?: string
   searchQuery?: string
   limit?: number
+  offset?: number
   enabled?: boolean
 }
 
@@ -20,7 +21,7 @@ interface UseAIToolsReturn {
 }
 
 export function useAITools(options: UseAIToolsOptions = {}): UseAIToolsReturn {
-  const { category, region, searchQuery, limit = 50, enabled = true } = options
+  const { category, region, searchQuery, limit = 50, offset = 0, enabled = true } = options
   const [tools, setTools] = useState<AIEntry[]>([])
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -38,6 +39,7 @@ export function useAITools(options: UseAIToolsOptions = {}): UseAIToolsReturn {
       if (region) params.append("region", region)
       if (searchQuery) params.append("search", searchQuery)
       if (limit) params.append("limit", limit.toString())
+      if (offset) params.append("offset", offset.toString())
 
       const response = await fetch(`/api/ai-models?${params.toString()}`)
       

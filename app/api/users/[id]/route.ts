@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from "next/server"
 import { getSupabaseAdmin } from "@/lib/supabase"
+import { createErrorResponse, createSuccessResponse, ErrorCodes } from "@/lib/api-errors"
+import { logger } from "@/lib/logger"
 
 export async function GET(
   request: NextRequest,
@@ -16,23 +18,25 @@ export async function GET(
 
     if (error) {
       if (error.code === "PGRST116") {
-        return NextResponse.json({ error: "User not found" }, { status: 404 })
+        return createErrorResponse("User not found", 404, ErrorCodes.NOT_FOUND)
       }
       if (error.code === "42P01") {
-        return NextResponse.json(
-          { error: "User profiles table does not exist" },
-          { status: 500 }
+        return createErrorResponse(
+          "User profiles table does not exist",
+          500,
+          ErrorCodes.INTERNAL_ERROR
         )
       }
       throw error
     }
 
-    return NextResponse.json({ user: data })
-  } catch (error: any) {
-    console.error("Error fetching user:", error)
-    return NextResponse.json(
-      { error: error.message || "Failed to fetch user" },
-      { status: 500 }
+    return createSuccessResponse({ user: data })
+  } catch (error) {
+    logger.error("Error fetching user:", error)
+    return createErrorResponse(
+      error instanceof Error ? error.message : "Failed to fetch user",
+      500,
+      ErrorCodes.INTERNAL_ERROR
     )
   }
 }

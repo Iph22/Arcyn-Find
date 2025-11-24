@@ -1,6 +1,28 @@
-import { NextRequest, NextResponse } from "next/server"
-import { getSupabaseAdmin } from "@/lib/supabase"
-import { getCurrentUser } from "@/lib/auth"
+import { NextRequest } from "next/server"
+import { getCurrentUser } from "@/lib/auth-server"
+import { createErrorResponse, createSuccessResponse, ErrorCodes } from "@/lib/api-errors"
+import { logger } from "@/lib/logger"
+import { FavoritesService } from "@/lib/services/favorites.service"
+
+export async function GET(
+  request: NextRequest,
+  { params }: { params: Promise<{ toolId: string }> }
+) {
+  try {
+    const { toolId } = await params
+    const user = await getCurrentUser()
+    if (!user) {
+      return createSuccessResponse({ isFavorite: false })
+    }
+
+    const favorites = await FavoritesService.getUserFavorites(user.id)
+    const isFavorite = favorites.some((fav: any) => fav.tool_id === toolId)
+    return createSuccessResponse({ isFavorite })
+  } catch (error) {
+    logger.error("Error checking favorite status:", error)
+    return createSuccessResponse({ isFavorite: false })
+  }
+}
 
 export async function DELETE(
   request: NextRequest,
@@ -10,29 +32,17 @@ export async function DELETE(
     const { toolId } = await params
     const user = await getCurrentUser()
     if (!user) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+      return createErrorResponse("Unauthorized", 401, ErrorCodes.UNAUTHORIZED)
     }
 
-    const supabase = getSupabaseAdmin()
-    const { error } = await supabase
-      .from("favorites")
-      .delete()
-      .eq("user_id", user.id)
-      .eq("tool_id", toolId)
-
-    if (error) {
-      if (error.code === "42P01") {
-        return NextResponse.json({ error: "Favorites table does not exist" }, { status: 500 })
-      }
-      throw error
-    }
-
-    return NextResponse.json({ success: true })
-  } catch (error: any) {
-    console.error("Error removing favorite:", error)
-    return NextResponse.json(
-      { error: error.message || "Failed to remove favorite" },
-      { status: 500 }
+    await FavoritesService.removeFavorite(user.id, toolId)
+    return createSuccessResponse({ success: true })
+  } catch (error) {
+    logger.error("Error removing favorite:", error)
+    return createErrorResponse(
+      error instanceof Error ? error.message : "Failed to remove favorite",
+      500,
+      ErrorCodes.INTERNAL_ERROR
     )
   }
 }

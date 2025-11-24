@@ -1,5 +1,7 @@
 import { NextResponse } from 'next/server'
 import { fetchAIModelsFromSources } from '@/lib/data-sources'
+import { logger } from '@/lib/logger'
+import { createErrorResponse, createSuccessResponse, ErrorCodes } from '@/lib/api-errors'
 
 /**
  * POST /api/cron/update-models
@@ -22,10 +24,7 @@ export async function POST(request: Request) {
   const cronSecret = process.env.CRON_SECRET
 
   if (cronSecret && authHeader !== `Bearer ${cronSecret}`) {
-    return NextResponse.json(
-      { error: 'Unauthorized' },
-      { status: 401 }
-    )
+    return createErrorResponse('Unauthorized', 401, ErrorCodes.UNAUTHORIZED)
   }
 
   try {
@@ -38,20 +37,17 @@ export async function POST(request: Request) {
     // 3. Trigger a rebuild
     // For now, we just fetch and let Next.js cache handle it
 
-    return NextResponse.json({
+    return createSuccessResponse({
       success: true,
       modelsCount: models.length,
       updatedAt: new Date().toISOString(),
     })
   } catch (error) {
-    console.error('Error updating models:', error)
-    return NextResponse.json(
-      {
-        success: false,
-        error: error instanceof Error ? error.message : 'Unknown error',
-        updatedAt: new Date().toISOString(),
-      },
-      { status: 500 }
+    logger.error('Error updating models:', error)
+    return createErrorResponse(
+      error instanceof Error ? error.message : 'Unknown error',
+      500,
+      ErrorCodes.INTERNAL_ERROR
     )
   }
 }

@@ -1,78 +1,44 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, useMemo } from "react"
 import { useRouter } from "next/navigation"
 import { motion, AnimatePresence } from "framer-motion"
-import { Sparkles, Menu, X, Star, ThumbsUp, MessageSquare } from "lucide-react"
+import { Menu, X, Star, ThumbsUp, MessageSquare, Loader2 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Card } from "@/components/ui/card"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Badge } from "@/components/ui/badge"
 import { Sidebar } from "@/components/sidebar"
 import { ThemeToggle } from "@/components/theme-toggle"
-import { getCurrentUser } from "@/lib/auth"
-
-const reviews = [
-  {
-    id: 1,
-    tool: "GPT-4 Turbo",
-    rating: 5,
-    title: "Incredible AI Assistant",
-    content:
-      "GPT-4 Turbo has completely transformed how I work. The reasoning capabilities are outstanding and it handles complex tasks with ease.",
-    date: "2 days ago",
-    likes: 24,
-    comments: 5,
-  },
-  {
-    id: 2,
-    tool: "Midjourney",
-    rating: 5,
-    title: "Best Image Generation Tool",
-    content:
-      "The quality and consistency of Midjourney's outputs are unmatched. Perfect for professional projects and creative exploration.",
-    date: "1 week ago",
-    likes: 42,
-    comments: 12,
-  },
-  {
-    id: 3,
-    tool: "GitHub Copilot",
-    rating: 4,
-    title: "Great Coding Assistant",
-    content:
-      "Copilot has sped up my development workflow significantly. It's not perfect but it's a valuable pair programming partner.",
-    date: "2 weeks ago",
-    likes: 18,
-    comments: 7,
-  },
-]
+import { EmptyState } from "@/components/empty-state"
+import { useUser } from "@clerk/nextjs"
+import { logger } from "@/lib/logger"
+import { formatDistanceToNow } from "date-fns"
+import type { ReviewWithProfile } from "@/lib/types"
 
 export default function ReviewsPage() {
   const router = useRouter()
+  const { user, isLoaded } = useUser()
   const [sidebarOpen, setSidebarOpen] = useState(true)
-  const [isAuthLoading, setIsAuthLoading] = useState(true)
+  const [reviews, setReviews] = useState<ReviewWithProfile[]>([])
+  const [isLoadingReviews, setIsLoadingReviews] = useState(false)
+  const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {
-    const checkAuth = async () => {
-      try {
-        const user = await getCurrentUser()
-        if (!user) {
-          router.push("/")
-          return
-        }
-      } catch (error) {
-        console.error("Auth check error:", error)
-        router.push("/")
-      } finally {
-        setIsAuthLoading(false)
-      }
+    if (isLoaded && !user) {
+      router.push("/")
     }
+  }, [user, isLoaded, router])
 
-    checkAuth()
-  }, [router])
+  useEffect(() => {
+    if (user?.id) {
+      fetchUserReviews(user.id)
+    }
+  }, [user])
 
-  if (isAuthLoading) {
+  const displayedReviews = reviews.slice(0, 20)
+
+  if (!isLoaded) {
     return (
       <div className="flex h-screen items-center justify-center">
         <div className="text-center">
@@ -82,6 +48,60 @@ export default function ReviewsPage() {
       </div>
     )
   }
+
+  const fetchUserReviews = async (userId: string) => {
+    setIsLoadingReviews(true)
+    setError(null)
+    try {
+      const response = await fetch(`/api/reviews?userId=${userId}&limit=100`)
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}))
+        throw new Error(errorData.error || "Failed to fetch reviews")
+      }
+      const data = await response.json()
+      setReviews(data.reviews || [])
+    } catch (err) {
+      const errorMessage = err instanceof Error ? err.message : "Failed to fetch reviews"
+      setError(errorMessage)
+      logger.error("Error fetching user reviews:", err)
+    } finally {
+      setIsLoadingReviews(false)
+    }
+  }
+
+  const handleMarkHelpful = async (reviewId: string) => {
+    try {
+      const response = await fetch(`/api/reviews/${reviewId}/helpful`, {
+        method: "POST",
+      })
+      if (!response.ok) throw new Error("Failed to mark helpful")
+      // Refresh reviews
+      if (user?.id) {
+        await fetchUserReviews(user.id)
+      }
+    } catch (err) {
+      logger.error("Failed to mark helpful:", err)
+    }
+  }
+
+  const formatDate = (dateString: string) => {
+    try {
+      return formatDistanceToNow(new Date(dateString), { addSuffix: true })
+    } catch {
+      return dateString
+    }
+  }
+
+  const getUserInitials = (review: ReviewWithProfile) => {
+    const displayName = review.user_profiles?.display_name || review.user_profiles?.username || "User"
+    return displayName
+      .split(" ")
+      .map((n) => n[0])
+      .join("")
+      .toUpperCase()
+      .slice(0, 2)
+  }
+
 
   return (
     <div className="flex h-screen overflow-hidden bg-background">
@@ -138,70 +158,106 @@ export default function ReviewsPage() {
             </motion.div>
 
             {/* Reviews List */}
-            <div className="space-y-6">
-              {reviews.map((review, index) => (
-                <motion.div
-                  key={review.id}
-                  initial={{ opacity: 0, y: 20 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ duration: 0.3, delay: index * 0.1 }}
-                >
-                  <Card className="overflow-hidden border-border/50 bg-card/50 backdrop-blur-sm transition-all hover:border-border hover:shadow-md">
-                    <div className="p-6">
-                      {/* Review Header */}
-                      <div className="mb-4 flex items-start justify-between gap-4">
-                        <div className="flex items-center gap-3">
-                          <Avatar className="h-12 w-12 ring-2 ring-border/20">
-                            <AvatarImage src="/placeholder.svg?key=u1" alt="User" />
-                            <AvatarFallback className="bg-gradient-to-br from-primary to-chart-1 text-primary-foreground">
-                              JD
-                            </AvatarFallback>
-                          </Avatar>
-                          <div>
-                            <div className="flex items-center gap-2">
-                              <h3 className="font-semibold">John Doe</h3>
-                              <span className="text-sm text-muted-foreground">reviewed</span>
-                              <Badge variant="secondary" className="text-xs">
-                                {review.tool}
-                              </Badge>
+            {isLoadingReviews ? (
+              <div className="flex items-center justify-center py-12">
+                <Loader2 className="h-8 w-8 animate-spin text-primary" />
+              </div>
+            ) : error ? (
+              <EmptyState
+                icon={MessageSquare}
+                title="Error loading reviews"
+                description={error}
+                action={{
+                  label: "Try again",
+                  onClick: () => user?.id && fetchUserReviews(user.id),
+                }}
+              />
+            ) : reviews.length === 0 ? (
+              <EmptyState
+                icon={MessageSquare}
+                title="No reviews yet"
+                description="You haven't reviewed any tools yet. Start exploring and share your experiences!"
+                action={{
+                  label: "Explore Tools",
+                  onClick: () => router.push("/tools"),
+                }}
+              />
+            ) : (
+              <div className="space-y-6">
+                {reviews.map((review, index) => (
+                  <motion.div
+                    key={review.id}
+                    initial={{ opacity: 0, y: 20 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ duration: 0.3, delay: index * 0.1 }}
+                  >
+                    <Card className="overflow-hidden border-border/50 bg-card/50 backdrop-blur-sm transition-all hover:border-border hover:shadow-md">
+                      <div className="p-6">
+                        {/* Review Header */}
+                        <div className="mb-4 flex items-start justify-between gap-4">
+                          <div className="flex items-center gap-3">
+                            <Avatar className="h-12 w-12 ring-2 ring-border/20">
+                              <AvatarImage
+                                src={review.user_profiles?.avatar_url || undefined}
+                                alt={review.user_profiles?.display_name || "User"}
+                              />
+                              <AvatarFallback className="bg-gradient-to-br from-primary to-chart-1 text-primary-foreground">
+                                {getUserInitials(review)}
+                              </AvatarFallback>
+                            </Avatar>
+                            <div>
+                              <div className="flex items-center gap-2">
+                                <h3 className="font-semibold">
+                                  {review.user_profiles?.display_name || review.user_profiles?.username || "User"}
+                                </h3>
+                                <span className="text-sm text-muted-foreground">reviewed</span>
+                                <Badge variant="secondary" className="text-xs">
+                                  {review.tool_id}
+                                </Badge>
+                              </div>
+                              <p className="text-sm text-muted-foreground">{formatDate(review.created_at)}</p>
                             </div>
-                            <p className="text-sm text-muted-foreground">{review.date}</p>
+                          </div>
+                          <div className="flex items-center gap-1">
+                            {Array.from({ length: 5 }).map((_, i) => (
+                              <Star
+                                key={i}
+                                className={`h-4 w-4 ${
+                                  i < review.rating
+                                    ? "fill-primary text-primary"
+                                    : "fill-muted text-muted"
+                                }`}
+                              />
+                            ))}
                           </div>
                         </div>
-                        <div className="flex items-center gap-1">
-                          {Array.from({ length: 5 }).map((_, i) => (
-                            <Star
-                              key={i}
-                              className={`h-4 w-4 ${
-                                i < review.rating ? "fill-primary text-primary" : "fill-muted text-muted"
-                              }`}
-                            />
-                          ))}
+
+                        {/* Review Content */}
+                        <div className="mb-4">
+                          {review.title && <h4 className="mb-2 text-lg font-semibold">{review.title}</h4>}
+                          <p className="text-muted-foreground leading-relaxed">
+                            {review.review_text || "No review text provided."}
+                          </p>
+                        </div>
+
+                        {/* Review Actions */}
+                        <div className="flex items-center gap-4 border-t border-border/40 pt-4">
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className="gap-2"
+                            onClick={() => handleMarkHelpful(review.id)}
+                          >
+                            <ThumbsUp className="h-4 w-4" />
+                            {review.helpful_count || 0}
+                          </Button>
                         </div>
                       </div>
-
-                      {/* Review Content */}
-                      <div className="mb-4">
-                        <h4 className="mb-2 text-lg font-semibold">{review.title}</h4>
-                        <p className="text-muted-foreground leading-relaxed">{review.content}</p>
-                      </div>
-
-                      {/* Review Actions */}
-                      <div className="flex items-center gap-4 border-t border-border/40 pt-4">
-                        <Button variant="ghost" size="sm" className="gap-2">
-                          <ThumbsUp className="h-4 w-4" />
-                          {review.likes}
-                        </Button>
-                        <Button variant="ghost" size="sm" className="gap-2">
-                          <MessageSquare className="h-4 w-4" />
-                          {review.comments}
-                        </Button>
-                      </div>
-                    </div>
-                  </Card>
-                </motion.div>
-              ))}
-            </div>
+                    </Card>
+                  </motion.div>
+                ))}
+              </div>
+            )}
           </div>
         </main>
       </div>

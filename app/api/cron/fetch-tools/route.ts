@@ -1,11 +1,12 @@
 import { NextResponse } from 'next/server'
-// FIX: Use absolute imports instead of relative paths for better maintainability
 import { fetchFromRSSFeeds } from '@/scripts/sources/rss-feeds'
 import { fetchFromAggregators } from '@/scripts/sources/aggregators'
 import { fetchFromScrapers } from '@/scripts/sources/scrapers'
 import { fetchFromCommunity } from '@/scripts/sources/community'
 import { deduplicateEntries, mergeEntries } from '@/scripts/utils/deduplicator'
 import { getSupabaseAdmin, transformToDBRow } from '@/lib/supabase'
+import { logger } from '@/lib/logger'
+import { createErrorResponse, createSuccessResponse, ErrorCodes } from '@/lib/api-errors'
 import type { AIEntry } from '@/lib/ai-data'
 
 /**
@@ -69,11 +70,11 @@ export async function GET(request: Request) {
   // Verify the request is from Vercel Cron (optional - can be enabled with CRON_SECRET env var)
   const authHeader = request.headers.get('authorization')
   if (process.env.CRON_SECRET && authHeader !== `Bearer ${process.env.CRON_SECRET}`) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    return createErrorResponse('Unauthorized', 401, ErrorCodes.UNAUTHORIZED)
   }
 
   try {
-    console.log('[Cron] Starting scheduled fetch from all sources...')
+    logger.log('[Cron] Starting scheduled fetch from all sources...')
     
     // Fetch from all sources
     const [rssEntries, aggregatorEntries, scraperEntries, communityEntries] = await Promise.all([
@@ -92,7 +93,7 @@ export async function GET(request: Request) {
     // Store in Supabase
     const { totalInserted, totalUpdated } = await storeInSupabase(merged)
     
-    return NextResponse.json({ 
+    return createSuccessResponse({ 
       success: true, 
       message: 'Fetch completed successfully',
       stats: {
@@ -103,12 +104,13 @@ export async function GET(request: Request) {
       },
       timestamp: new Date().toISOString()
     })
-  } catch (error: any) {
-    console.error('[Cron] Error:', error)
-    return NextResponse.json({ 
-      success: false, 
-      error: error.message 
-    }, { status: 500 })
+  } catch (error) {
+    logger.error('[Cron] Error:', error)
+    return createErrorResponse(
+      error instanceof Error ? error.message : 'Unknown error',
+      500,
+      ErrorCodes.INTERNAL_ERROR
+    )
   }
 }
 

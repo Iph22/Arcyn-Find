@@ -1,12 +1,51 @@
 import { NextResponse } from 'next/server'
 import * as cheerio from 'cheerio'
 import { checkRateLimit, getRateLimitHeaders } from '@/lib/rate-limit'
+import { logger } from '@/lib/logger'
 
 interface TrendingSource {
   name: string
   score: number
   source: string
   timestamp: number
+}
+
+interface ProductHuntStory {
+  name?: string
+  title?: string
+  tagline?: string
+  votes_count?: number
+  score?: number
+}
+
+interface RedditPost {
+  data?: {
+    title?: string
+    score?: number
+    subreddit?: string
+    num_comments?: number
+  }
+  title?: string
+  score?: number
+  subreddit?: string
+  num_comments?: number
+}
+
+interface GitHubRepo {
+  name?: string
+  full_name?: string
+  stargazers_count?: number
+  description?: string
+}
+
+interface AIToolData {
+  name?: string
+  title?: string
+  description?: string
+  votes?: number
+  score?: number
+  rating?: number
+  views?: number
 }
 
 // Rate limiting: delay between requests (ms)
@@ -140,7 +179,7 @@ async function scrapeProductHunt(): Promise<TrendingSource[]> {
     
     return trending
   } catch (error) {
-    console.error('Failed to scrape Product Hunt:', error)
+    logger.error('Failed to scrape Product Hunt:', error)
     return []
   }
 }
@@ -180,7 +219,7 @@ async function scrapeHackerNews(): Promise<TrendingSource[]> {
         })
       )
       
-      stories.forEach((story: any, batchIndex: number) => {
+      stories.forEach((story: ProductHuntStory, batchIndex: number) => {
         if (!story || !story.title) return
         
         const titleLower = story.title.toLowerCase()
@@ -205,7 +244,7 @@ async function scrapeHackerNews(): Promise<TrendingSource[]> {
     
     return trending
   } catch (error) {
-    console.error('Failed to scrape Hacker News:', error)
+    logger.error('Failed to scrape Hacker News:', error)
     return []
   }
 }
@@ -243,7 +282,7 @@ async function scrapeReddit(): Promise<TrendingSource[]> {
         const data = await response.json()
         const posts = data.data?.children || []
         
-        posts.forEach((post: any, index: number) => {
+        posts.forEach((post: RedditPost, index: number) => {
           if (!post.data?.title) return
           
           const toolName = extractToolName(post.data.title) || post.data.title.toLowerCase().substring(0, 50)
@@ -258,14 +297,14 @@ async function scrapeReddit(): Promise<TrendingSource[]> {
           })
         })
       } catch (error) {
-        console.error(`Failed to scrape r/${subreddit}:`, error)
+        logger.error(`Failed to scrape r/${subreddit}:`, error)
         // Continue with next subreddit
       }
     }
     
     return trending
   } catch (error) {
-    console.error('Failed to scrape Reddit:', error)
+    logger.error('Failed to scrape Reddit:', error)
     return []
   }
 }
@@ -300,23 +339,24 @@ async function scrapeGitHubTrending(): Promise<TrendingSource[]> {
         const data = await response.json()
         const repos = data.items || []
         
-        repos.forEach((repo: any, index: number) => {
+        repos.forEach((repo: GitHubRepo, index: number) => {
+          if (!repo.name) return
           const name = repo.name.toLowerCase()
           trending.push({
             name: name,
-            score: (10 - index) * 2 + Math.min(repo.stargazers_count / 1000, 20),
+            score: (10 - index) * 2 + Math.min((repo.stargazers_count || 0) / 1000, 20),
             source: 'github',
             timestamp: Date.now(),
           })
         })
       } catch (error) {
-        console.error(`Failed to fetch GitHub trending for ${keyword}:`, error)
+        logger.error(`Failed to fetch GitHub trending for ${keyword}:`, error)
       }
     }
     
     return trending
   } catch (error) {
-    console.error('Failed to scrape GitHub Trending:', error)
+    logger.error('Failed to scrape GitHub Trending:', error)
     return []
   }
 }
@@ -341,7 +381,7 @@ async function scrapeTheresAnAIForThat(): Promise<TrendingSource[]> {
     const trending: TrendingSource[] = []
     
     if (Array.isArray(data)) {
-      data.slice(0, 30).forEach((tool: any, index: number) => {
+      data.slice(0, 30).forEach((tool: AIToolData, index: number) => {
         if (tool.name) {
           trending.push({
             name: tool.name.toLowerCase().trim(),
@@ -355,7 +395,7 @@ async function scrapeTheresAnAIForThat(): Promise<TrendingSource[]> {
     
     return trending
   } catch (error) {
-    console.error('Failed to scrape There\'s An AI For That:', error)
+    logger.error('Failed to scrape There\'s An AI For That:', error)
     return []
   }
 }
@@ -379,7 +419,7 @@ async function scrapeFuturepedia(): Promise<TrendingSource[]> {
     const trending: TrendingSource[] = []
     
     if (data.tools && Array.isArray(data.tools)) {
-      data.tools.slice(0, 30).forEach((tool: any, index: number) => {
+      data.tools.slice(0, 30).forEach((tool: AIToolData, index: number) => {
         if (tool.name) {
           trending.push({
             name: tool.name.toLowerCase().trim(),
@@ -393,7 +433,7 @@ async function scrapeFuturepedia(): Promise<TrendingSource[]> {
     
     return trending
   } catch (error) {
-    console.error('Failed to scrape Futurepedia:', error)
+    logger.error('Failed to scrape Futurepedia:', error)
     return []
   }
 }
@@ -441,7 +481,7 @@ async function scrapeAIToolsDirectory(): Promise<TrendingSource[]> {
     const trending: TrendingSource[] = []
     
     if (data.tools && Array.isArray(data.tools)) {
-      data.tools.slice(0, 30).forEach((tool: any, index: number) => {
+      data.tools.slice(0, 30).forEach((tool: AIToolData, index: number) => {
         if (tool.name) {
           trending.push({
             name: tool.name.toLowerCase().trim(),
@@ -455,7 +495,7 @@ async function scrapeAIToolsDirectory(): Promise<TrendingSource[]> {
     
     return trending
   } catch (error) {
-    console.error('Failed to scrape AI Tools Directory:', error)
+    logger.error('Failed to scrape AI Tools Directory:', error)
     return []
   }
 }
@@ -473,7 +513,7 @@ async function scrapeTwitterTrends(): Promise<TrendingSource[]> {
     
     return []
   } catch (error) {
-    console.error('Failed to scrape Twitter trends:', error)
+    logger.error('Failed to scrape Twitter trends:', error)
     return []
   }
 }
@@ -606,7 +646,7 @@ export async function GET(request: Request) {
       }
     )
   } catch (error) {
-    console.error('Error fetching trending data:', error)
+    logger.error('Error fetching trending data:', error)
     
     // User-friendly error message
     const errorMessage = error instanceof Error 

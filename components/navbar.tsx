@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import Link from "next/link"
 import { usePathname, useRouter } from "next/navigation"
 import { Search, Menu, X, User, LogOut, Settings, Bookmark, Star } from "lucide-react"
@@ -15,6 +15,8 @@ import {
 } from "@/components/ui/dropdown-menu"
 import { ThemeToggle } from "@/components/theme-toggle"
 import { usePreferences } from "@/contexts/preferences-context"
+import { useAvatar } from "@/contexts/avatar-context"
+import { useUser, useClerk } from "@clerk/nextjs"
 import { cn } from "@/lib/utils"
 
 interface NavbarProps {
@@ -25,17 +27,27 @@ export function Navbar({ className }: NavbarProps) {
   const pathname = usePathname()
   const router = useRouter()
   const { logout, preferences } = usePreferences()
+  const { avatarUrl, displayName } = useAvatar()
+  const { user } = useUser()
+  const { signOut } = useClerk()
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
 
-  const handleSignOut = () => {
-    logout()
-    localStorage.removeItem("arcyn-authenticated")
-    localStorage.removeItem("arcyn-onboarding-complete")
-    localStorage.removeItem("arcyn-instructions-seen")
-    localStorage.removeItem("arcyn-preferences")
-    localStorage.removeItem("arcyn_onboarding")
-    router.push("/")
-    window.location.reload()
+  const handleSignOut = async () => {
+    try {
+      // Clear all preferences first
+      logout()
+      localStorage.clear()
+      sessionStorage.clear()
+      
+      // Sign out from Clerk with redirect
+      await signOut({ redirectUrl: '/' })
+    } catch (error) {
+      console.error("Error signing out:", error)
+      // Force clear and redirect on error
+      localStorage.clear()
+      sessionStorage.clear()
+      window.location.href = '/'
+    }
   }
 
   const isAuthPage = pathname === "/" || pathname.startsWith("/auth")
@@ -103,7 +115,7 @@ export function Navbar({ className }: NavbarProps) {
               <DropdownMenuTrigger asChild>
                 <Button variant="ghost" size="icon" className="h-9 w-9 rounded-full">
                   <Avatar className="h-9 w-9">
-                    <AvatarImage src="/abstract-geometric-shapes.png" />
+                    <AvatarImage src={avatarUrl || undefined} />
                     <AvatarFallback>
                       {preferences?.userName
                         ? preferences.userName.charAt(0).toUpperCase()
@@ -115,10 +127,10 @@ export function Navbar({ className }: NavbarProps) {
               <DropdownMenuContent align="end" className="w-56">
                 <div className="px-2 py-1.5">
                   <p className="text-sm font-medium">
-                    {preferences?.userName || "User"}
+                    {displayName || preferences?.userName || "User"}
                   </p>
                   <p className="text-xs text-muted-foreground">
-                    {preferences?.userEmail || ""}
+                    {user?.emailAddresses[0]?.emailAddress || preferences?.userEmail || ""}
                   </p>
                 </div>
                 <DropdownMenuSeparator />

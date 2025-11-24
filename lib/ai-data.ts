@@ -11,6 +11,7 @@ export interface AIEntry {
   popularity: number
   lastUpdated: string
   isTrending?: boolean
+  image?: string | null
 }
 
 export const aiEntries: AIEntry[] = [

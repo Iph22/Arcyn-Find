@@ -1,5 +1,7 @@
 import { NextResponse } from 'next/server'
-import { getSupabaseAdmin } from '@/lib/supabase'
+import { createErrorResponse, createSuccessResponse, ErrorCodes } from '@/lib/api-errors'
+import { logger } from '@/lib/logger'
+import { ToolsService } from '@/lib/services/tools.service'
 
 /**
  * POST /api/track-view
@@ -13,77 +15,30 @@ export async function POST(request: Request) {
     try {
       body = await request.json()
     } catch (parseError) {
-      return NextResponse.json(
-        { error: 'Invalid JSON in request body' },
-        { status: 400 }
-      )
+      return createErrorResponse('Invalid JSON in request body', 400, ErrorCodes.VALIDATION_ERROR)
     }
     
     const { aiId } = body
     
     if (!aiId || typeof aiId !== 'string') {
-      return NextResponse.json(
-        { error: 'Invalid aiId' },
-        { status: 400 }
-      )
+      return createErrorResponse('Invalid aiId', 400, ErrorCodes.VALIDATION_ERROR)
     }
 
-    const supabase = getSupabaseAdmin()
+    const newPopularity = await ToolsService.updatePopularity(aiId, 0.1)
     
-    // Get current tool data
-    const { data: tool, error: fetchError } = await supabase
-      .from('ai_tools')
-      .select('popularity, name')
-      .eq('id', aiId)
-      .single()
-    
-    if (fetchError || !tool) {
-      return NextResponse.json(
-        { error: 'Tool not found' },
-        { status: 404 }
-      )
-    }
-    
-    // Calculate new popularity based on views
-    // Formula: popularity increases by 0.1 per view, capped at 100
-    // Recent views have more weight (decay over time)
-    const currentPopularity = tool.popularity || 50
-    const popularityIncrease = 0.1
-    
-    // Calculate new popularity (with slight boost for trending tools)
-    let newPopularity = Math.min(100, currentPopularity + popularityIncrease)
-    
-    // If popularity is already high, increase more slowly
-    if (currentPopularity > 80) {
-      newPopularity = Math.min(100, currentPopularity + (popularityIncrease * 0.5))
-    }
-    
-    // Update popularity in database
-    const { error: updateError } = await supabase
-      .from('ai_tools')
-      .update({ 
-        popularity: Math.round(newPopularity),
-        updated_at: new Date().toISOString()
-      })
-      .eq('id', aiId)
-    
-    if (updateError) {
-      console.error('Error updating popularity:', updateError)
-      return NextResponse.json(
-        { error: 'Failed to update popularity' },
-        { status: 500 }
-      )
-    }
-    
-    return NextResponse.json({ 
+    return createSuccessResponse({ 
       success: true,
-      newPopularity: Math.round(newPopularity)
+      newPopularity
     })
   } catch (error) {
-    console.error('Error tracking view:', error)
-    return NextResponse.json(
-      { error: 'Internal server error' },
-      { status: 500 }
+    if (error instanceof Error && error.message === 'Tool not found') {
+      return createErrorResponse('Tool not found', 404, ErrorCodes.NOT_FOUND)
+    }
+    logger.error('Error tracking view:', error)
+    return createErrorResponse(
+      error instanceof Error ? error.message : 'Internal server error',
+      500,
+      ErrorCodes.INTERNAL_ERROR
     )
   }
 }

@@ -1,5 +1,6 @@
 "use client"
 
+import { useState } from "react"
 import { motion } from "framer-motion"
 import { ArrowRight, Search, Star, Heart, BookmarkPlus, TrendingUp, Users } from "lucide-react"
 import { useRouter } from "next/navigation"
@@ -50,9 +51,32 @@ const instructions = [
 
 export default function InstructionsPage() {
   const router = useRouter()
+  const [isSaving, setIsSaving] = useState(false)
 
-  const handleGetStarted = () => {
-    router.push("/home")
+  const handleGetStarted = async () => {
+    setIsSaving(true)
+    try {
+      // Mark instructions as seen in database first
+      const { markInstructionsSeen } = await import("@/lib/user-preferences")
+      const result = await markInstructionsSeen()
+      
+      if (!result.success) {
+        console.error('Failed to mark instructions as seen:', result.error)
+        alert('Failed to save. Please try again.')
+        setIsSaving(false)
+        return
+      }
+      
+      // Only update localStorage after DB save succeeds
+      localStorage.setItem("arcyn-instructions-seen", "true")
+      
+      // Now safe to redirect
+      router.push("/home")
+    } catch (error) {
+      console.error('Error marking instructions as seen:', error)
+      alert('An error occurred. Please try again.')
+      setIsSaving(false)
+    }
   }
 
   return (
@@ -152,9 +176,23 @@ export default function InstructionsPage() {
               <p className="mb-8 text-lg text-muted-foreground">
                 Start discovering amazing AI tools tailored to your interests
               </p>
-              <Button size="lg" onClick={handleGetStarted} className="group gap-2 shadow-lg">
-                Go to Home
-                <ArrowRight className="h-5 w-5 transition-transform group-hover:translate-x-1" />
+              <Button 
+                size="lg" 
+                onClick={handleGetStarted} 
+                disabled={isSaving}
+                className="group gap-2 shadow-lg"
+              >
+                {isSaving ? (
+                  <>
+                    <div className="mr-2 h-5 w-5 animate-spin rounded-full border-2 border-current border-t-transparent" />
+                    Saving...
+                  </>
+                ) : (
+                  <>
+                    Go to Home
+                    <ArrowRight className="h-5 w-5 transition-transform group-hover:translate-x-1" />
+                  </>
+                )}
               </Button>
             </div>
           </Card>

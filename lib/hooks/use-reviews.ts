@@ -1,7 +1,7 @@
 "use client"
 
 import { useState, useCallback } from "react"
-import { getCurrentUser } from "@/lib/auth"
+// Auth handled by API routes
 
 interface Review {
   id: string
@@ -44,11 +44,7 @@ export function useReviews(toolId: string) {
       setIsLoading(true)
       setError(null)
       try {
-        const user = await getCurrentUser()
-        if (!user) {
-          throw new Error("Not authenticated")
-        }
-
+        // Auth handled by API route
         const response = await fetch("/api/reviews", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
@@ -86,7 +82,11 @@ export function useReviews(toolId: string) {
         if (!response.ok) throw new Error("Failed to mark helpful")
         await fetchReviews()
       } catch (err) {
-        console.error("Failed to mark helpful:", err)
+        // Silently fail - helpful marking is not critical
+        if (process.env.NODE_ENV === 'development') {
+          // eslint-disable-next-line no-console
+          console.error("Failed to mark helpful:", err)
+        }
       }
     },
     [fetchReviews]

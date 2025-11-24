@@ -1,8 +1,8 @@
 "use client"
 
 import { useState, useEffect, useCallback } from "react"
-import { getCurrentUser } from "@/lib/auth"
-import { supabase } from "@/lib/supabase"
+// Auth handled by API routes
+// Supabase calls replaced with API routes
 
 export function useFavorites() {
   const [favorites, setFavorites] = useState<string[]>([])
@@ -13,19 +13,18 @@ export function useFavorites() {
     setIsLoading(true)
     setError(null)
     try {
-      const user = await getCurrentUser()
-      if (!user) {
-        setFavorites([])
-        return
+      const response = await fetch('/api/favorites')
+      
+      if (!response.ok) {
+        if (response.status === 401) {
+          setFavorites([])
+          return
+        }
+        throw new Error('Failed to fetch favorites')
       }
 
-      const { data, error: fetchError } = await supabase
-        .from("favorites")
-        .select("tool_id")
-        .eq("user_id", user.id)
-
-      if (fetchError) throw fetchError
-      setFavorites((data || []).map((item) => item.tool_id))
+      const data = await response.json()
+      setFavorites((data.favorites || []).map((item: any) => item.tool_id))
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to fetch favorites")
     } finally {
@@ -37,16 +36,16 @@ export function useFavorites() {
     setIsLoading(true)
     setError(null)
     try {
-      const user = await getCurrentUser()
-      if (!user) {
-        throw new Error("Not authenticated")
+      const response = await fetch('/api/favorites', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ toolId }),
+      })
+
+      if (!response.ok) {
+        throw new Error('Failed to add favorite')
       }
 
-      const { error: insertError } = await supabase
-        .from("favorites")
-        .insert({ user_id: user.id, tool_id: toolId })
-
-      if (insertError) throw insertError
       setFavorites((prev) => [...prev, toolId])
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : "Failed to add favorite"
@@ -61,18 +60,14 @@ export function useFavorites() {
     setIsLoading(true)
     setError(null)
     try {
-      const user = await getCurrentUser()
-      if (!user) {
-        throw new Error("Not authenticated")
+      const response = await fetch(`/api/favorites/${toolId}`, {
+        method: 'DELETE',
+      })
+
+      if (!response.ok) {
+        throw new Error('Failed to remove favorite')
       }
 
-      const { error: deleteError } = await supabase
-        .from("favorites")
-        .delete()
-        .eq("user_id", user.id)
-        .eq("tool_id", toolId)
-
-      if (deleteError) throw deleteError
       setFavorites((prev) => prev.filter((id) => id !== toolId))
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : "Failed to remove favorite"

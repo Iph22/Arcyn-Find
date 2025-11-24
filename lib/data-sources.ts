@@ -26,14 +26,22 @@ export async function fetchAIModelsFromSources(): Promise<AIEntry[]> {
       if (result.status === 'fulfilled') {
         allModels.push(...result.value)
       } else {
-        console.error('Error fetching from source:', result.reason?.message || result.reason)
+        // Silently fail - individual source failures shouldn't break the whole fetch
+        if (process.env.NODE_ENV === 'development') {
+          // eslint-disable-next-line no-console
+          console.error('Error fetching from source:', result.reason?.message || result.reason)
+        }
       }
     })
 
     // Merge and deduplicate models
     return mergeAndDeduplicate(allModels)
   } catch (error) {
-    console.error('Error fetching AI models:', error)
+    // Silently fail - return empty array on error
+    if (process.env.NODE_ENV === 'development') {
+      // eslint-disable-next-line no-console
+      console.error('Error fetching AI models:', error)
+    }
     return []
   }
 }

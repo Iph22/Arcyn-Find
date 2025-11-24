@@ -1,5 +1,6 @@
 "use client"
 
+import { memo } from "react"
 import { formatDistanceToNow } from "date-fns"
 import { ThumbsUp, ThumbsDown } from "lucide-react"
 import { Card } from "@/components/ui/card"
@@ -30,7 +31,7 @@ interface ReviewCardProps {
   className?: string
 }
 
-export function ReviewCard({
+function ReviewCardComponent({
   review,
   onHelpful,
   onNotHelpful,
@@ -97,4 +98,6 @@ export function ReviewCard({
     </Card>
   )
 }
+
+export const ReviewCard = memo(ReviewCardComponent)
 

@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useCallback, useRef } from "react"
 import { useAITools } from "./use-ai-tools"
+import { safeLocalStorage } from "@/lib/client-utils"
 
 interface SearchHistoryItem {
   query: string
@@ -21,11 +22,12 @@ export function useSearch() {
 
   // Load search history from localStorage
   useEffect(() => {
-    const stored = localStorage.getItem("arcyn-search-history")
+    const stored = safeLocalStorage.getItem("arcyn-search-history")
     if (stored) {
       try {
         setSearchHistory(JSON.parse(stored))
       } catch (err) {
+        // eslint-disable-next-line no-console
         console.error("Failed to parse search history:", err)
       }
     }
@@ -34,7 +36,7 @@ export function useSearch() {
   // Save search history to localStorage
   useEffect(() => {
     if (searchHistory.length > 0) {
-      localStorage.setItem("arcyn-search-history", JSON.stringify(searchHistory))
+      safeLocalStorage.setItem("arcyn-search-history", JSON.stringify(searchHistory))
     }
   }, [searchHistory])
 
@@ -87,7 +89,7 @@ export function useSearch() {
 
   const clearHistory = useCallback(() => {
     setSearchHistory([])
-    localStorage.removeItem("arcyn-search-history")
+    safeLocalStorage.removeItem("arcyn-search-history")
   }, [])
 
   return {

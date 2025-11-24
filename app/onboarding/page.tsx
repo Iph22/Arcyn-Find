@@ -21,6 +21,16 @@ export default function OnboardingPage() {
   const [purpose, setPurpose] = useState("")
   const [interests, setInterests] = useState<string[]>([])
   const [experience, setExperience] = useState("")
+  const [isSaving, setIsSaving] = useState(false)
+
+  // Clean up URL params if present
+  useEffect(() => {
+    const urlParams = new URLSearchParams(window.location.search)
+    if (urlParams.has("auth") || urlParams.has("verified")) {
+      // Clean up URL params
+      window.history.replaceState({}, '', "/onboarding")
+    }
+  }, [])
 
   // Ensure ref is attached to DOM before using useScroll
   useLayoutEffect(() => {
@@ -35,16 +45,45 @@ export default function OnboardingPage() {
   })
   const backgroundY = useTransform(scrollYProgress, [0, 1], ["0%", "20%"])
 
-  const handleComplete = () => {
-    updatePreferences({
-      userRole: role,
-      purpose,
-      categories: interests, // Mapping interests to categories
-      level: experience,
-      completed: true,
-      timestamp: new Date().toISOString(),
-    })
-    router.push("/instructions")
+  const handleComplete = async () => {
+    setIsSaving(true)
+    try {
+      // Save to database first and wait for confirmation
+      const { saveUserPreferences } = await import("@/lib/user-preferences")
+      const result = await saveUserPreferences({
+        userRole: role,
+        purpose,
+        categories: interests, // Mapping interests to categories
+        level: experience,
+        completed: true,
+        timestamp: new Date().toISOString(),
+      })
+      
+      if (!result.success) {
+        console.error('Failed to save onboarding:', result.error)
+        alert('Failed to save onboarding data. Please try again.')
+        setIsSaving(false)
+        return
+      }
+      
+      // Only update local state and redirect after DB save succeeds
+      await updatePreferences({
+        userRole: role,
+        purpose,
+        categories: interests,
+        level: experience,
+        completed: true,
+        timestamp: new Date().toISOString(),
+      })
+      localStorage.setItem("arcyn-onboarding-complete", "true")
+      
+      // Now safe to redirect
+      router.push("/instructions")
+    } catch (error) {
+      console.error('Error completing onboarding:', error)
+      alert('An error occurred. Please try again.')
+      setIsSaving(false)
+    }
   }
 
   const scrollToSection = (id: string) => {
@@ -297,10 +336,19 @@ export default function OnboardingPage() {
             <div className="text-center">
               <Button
                 onClick={handleComplete}
-                disabled={!experience || !role || !purpose || interests.length === 0}
+                disabled={!experience || !role || !purpose || interests.length === 0 || isSaving}
                 className="bg-gradient-to-r from-primary to-chart-1 hover:from-primary/90 hover:to-chart-1/90 text-primary-foreground rounded-full px-8 sm:px-12 py-6 sm:py-8 text-lg sm:text-xl shadow-2xl transition-all duration-300 hover:scale-105 w-full sm:w-auto"
               >
-                Start Your Journey <ArrowRight className="ml-2" />
+                {isSaving ? (
+                  <>
+                    <div className="mr-2 h-5 w-5 animate-spin rounded-full border-2 border-current border-t-transparent" />
+                    Saving...
+                  </>
+                ) : (
+                  <>
+                    Start Your Journey <ArrowRight className="ml-2" />
+                  </>
+                )}
               </Button>
             </div>
           </div>

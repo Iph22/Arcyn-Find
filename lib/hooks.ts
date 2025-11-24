@@ -118,20 +118,52 @@ export function useFavorites() {
   const FAVORITES_KEY = 'arcyn-find-favorites'
 
   const [favorites, setFavorites] = useState<Set<string>>(new Set())
+  const [isLoading, setIsLoading] = useState(true)
 
   useEffect(() => {
-    if (typeof window === 'undefined') return
-    try {
-      const stored = localStorage.getItem(FAVORITES_KEY)
-      if (stored) {
-        setFavorites(new Set(JSON.parse(stored)))
+    const loadFavorites = async () => {
+      if (typeof window === 'undefined') return
+      
+      try {
+        // Try to load from database first
+        const { getUserFavorites } = await import('@/lib/user-preferences')
+        const dbFavorites = await getUserFavorites()
+        
+        if (dbFavorites.length > 0) {
+          setFavorites(new Set(dbFavorites))
+        } else {
+          // Fallback to localStorage for migration
+          const stored = localStorage.getItem(FAVORITES_KEY)
+          if (stored) {
+            const localFavorites = JSON.parse(stored)
+            setFavorites(new Set(localFavorites))
+            // Migrate to database
+            const { addFavorite } = await import('@/lib/user-preferences')
+            for (const id of localFavorites) {
+              await addFavorite(id)
+            }
+          }
+        }
+      } catch (error) {
+        console.error('Failed to load favorites:', error)
+        // Fallback to localStorage
+        try {
+          const stored = localStorage.getItem(FAVORITES_KEY)
+          if (stored) {
+            setFavorites(new Set(JSON.parse(stored)))
+          }
+        } catch (e) {
+          console.error('Failed to load favorites from localStorage:', e)
+        }
+      } finally {
+        setIsLoading(false)
       }
-    } catch (error) {
-      console.error('Failed to load favorites:', error)
     }
+
+    loadFavorites()
   }, [])
 
-  const addFavorite = useCallback((id: string) => {
+  const addFavorite = useCallback(async (id: string) => {
     setFavorites((prev) => {
       const newFavorites = new Set(prev)
       newFavorites.add(id)
@@ -140,9 +172,17 @@ export function useFavorites() {
       }
       return newFavorites
     })
+    
+    // Save to database
+    try {
+      const { addFavorite: addFavoriteToDB } = await import('@/lib/user-preferences')
+      await addFavoriteToDB(id)
+    } catch (error) {
+      console.error('Failed to save favorite to database:', error)
+    }
   }, [])
 
-  const removeFavorite = useCallback((id: string) => {
+  const removeFavorite = useCallback(async (id: string) => {
     setFavorites((prev) => {
       const newFavorites = new Set(prev)
       newFavorites.delete(id)
@@ -151,6 +191,14 @@ export function useFavorites() {
       }
       return newFavorites
     })
+    
+    // Remove from database
+    try {
+      const { removeFavorite: removeFavoriteFromDB } = await import('@/lib/user-preferences')
+      await removeFavoriteFromDB(id)
+    } catch (error) {
+      console.error('Failed to remove favorite from database:', error)
+    }
   }, [])
 
   const toggleFavorite = useCallback((id: string) => {
@@ -163,7 +211,7 @@ export function useFavorites() {
 
   const isFavorite = useCallback((id: string) => favorites.has(id), [favorites])
 
-  return { favorites, addFavorite, removeFavorite, toggleFavorite, isFavorite }
+  return { favorites, addFavorite, removeFavorite, toggleFavorite, isFavorite, isLoading }
 }
 
 /**

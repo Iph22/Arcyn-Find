@@ -3,102 +3,95 @@
 import { useState, useEffect } from "react"
 import { useRouter } from "next/navigation"
 import { motion, AnimatePresence } from "framer-motion"
-import { Sparkles, Menu, X, UserPlus, Users } from "lucide-react"
+import { Sparkles, Menu, X, UserPlus, Users, UserMinus, Search } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Card } from "@/components/ui/card"
+import { Input } from "@/components/ui/input"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Sidebar } from "@/components/sidebar"
 import { ThemeToggle } from "@/components/theme-toggle"
-import { getCurrentUser } from "@/lib/auth"
+import { useUser } from "@clerk/nextjs"
+import { toast } from "sonner"
 
-const followers = [
-  {
-    id: 1,
-    name: "Sarah Chen",
-    username: "@sarahchen",
-    bio: "AI researcher and tech enthusiast",
-    avatar: "/placeholder.svg?key=f1",
-    following: false,
-  },
-  {
-    id: 2,
-    name: "Michael Ross",
-    username: "@mross",
-    bio: "Building the future with AI",
-    avatar: "/placeholder.svg?key=f2",
-    following: true,
-  },
-  {
-    id: 3,
-    name: "Emily Watson",
-    username: "@emilyw",
-    bio: "Product designer | AI tools explorer",
-    avatar: "/placeholder.svg?key=f3",
-    following: false,
-  },
-  {
-    id: 4,
-    name: "David Kim",
-    username: "@davidkim",
-    bio: "Developer advocate for AI",
-    avatar: "/placeholder.svg?key=f4",
-    following: true,
-  },
-]
-
-const following = [
-  {
-    id: 5,
-    name: "Alex Turner",
-    username: "@alexturner",
-    bio: "AI artist and creative technologist",
-    avatar: "/placeholder.svg?key=f5",
-    following: true,
-  },
-  {
-    id: 6,
-    name: "Lisa Martinez",
-    username: "@lisamartinez",
-    bio: "Machine learning engineer",
-    avatar: "/placeholder.svg?key=f6",
-    following: true,
-  },
-  {
-    id: 7,
-    name: "James Wilson",
-    username: "@jameswilson",
-    bio: "Building AI tools for creators",
-    avatar: "/placeholder.svg?key=f7",
-    following: true,
-  },
-]
+interface UserData {
+  id: string
+  user: {
+    id: string
+    username: string
+    display_name: string
+    avatar_url: string | null
+    bio: string
+  }
+  isFollowing: boolean
+  created_at: string
+}
 
 export default function FollowersPage() {
   const router = useRouter()
+  const { user, isLoaded } = useUser()
   const [sidebarOpen, setSidebarOpen] = useState(true)
-  const [isAuthLoading, setIsAuthLoading] = useState(true)
+  const [activeTab, setActiveTab] = useState<"followers" | "following">("followers")
+  const [followers, setFollowers] = useState<UserData[]>([])
+  const [following, setFollowing] = useState<UserData[]>([])
+  const [isLoading, setIsLoading] = useState(true)
+  const [actionLoading, setActionLoading] = useState<string | null>(null)
+  const [searchQuery, setSearchQuery] = useState("")
 
   useEffect(() => {
-    const checkAuth = async () => {
-      try {
-        const user = await getCurrentUser()
-        if (!user) {
-          router.push("/")
-          return
-        }
-      } catch (error) {
-        console.error("Auth check error:", error)
-        router.push("/")
-      } finally {
-        setIsAuthLoading(false)
-      }
+    if (isLoaded && !user) {
+      router.push("/")
+      return
     }
+    if (user) {
+      loadFollowers()
+    }
+  }, [user, isLoaded, router])
 
-    checkAuth()
-  }, [router])
+  const loadFollowers = async () => {
+    try {
+      setIsLoading(true)
+      const response = await fetch('/api/user/followers')
+      if (response.ok) {
+        const data = await response.json()
+        setFollowers(data.followers || [])
+        setFollowing(data.following || [])
+      }
+    } catch (error) {
+      console.error('Error loading followers:', error)
+      toast.error('Failed to load followers')
+    } finally {
+      setIsLoading(false)
+    }
+  }
 
-  if (isAuthLoading) {
+  const handleFollowToggle = async (targetUserId: string, currentlyFollowing: boolean) => {
+    try {
+      setActionLoading(targetUserId)
+      const response = await fetch('/api/user/followers', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          targetUserId,
+          action: currentlyFollowing ? 'unfollow' : 'follow'
+        })
+      })
+
+      if (response.ok) {
+        toast.success(currentlyFollowing ? 'Unfollowed successfully' : 'Followed successfully')
+        await loadFollowers()
+      } else {
+        throw new Error('Failed to update follow status')
+      }
+    } catch (error) {
+      console.error('Error toggling follow:', error)
+      toast.error('Failed to update follow status')
+    } finally {
+      setActionLoading(null)
+    }
+  }
+
+  if (!isLoaded) {
     return (
       <div className="flex h-screen items-center justify-center">
         <div className="text-center">
@@ -109,25 +102,40 @@ export default function FollowersPage() {
     )
   }
 
-  const UserCard = ({ user }: { user: (typeof followers)[0] }) => (
-    <Card className="overflow-hidden border-border/50 bg-card/50 backdrop-blur-sm transition-all hover:border-border hover:shadow-md">
+  const UserCard = ({ userData }: { userData: UserData }) => (
+    <Card className="group overflow-hidden border-border/50 bg-card/50 backdrop-blur-sm transition-all hover:border-border hover:shadow-md">
       <div className="flex items-center gap-4 p-4">
-        <Avatar className="h-14 w-14 ring-2 ring-border/20">
-          <AvatarImage src={user.avatar || "/placeholder.svg"} alt={user.name} />
-          <AvatarFallback className="bg-gradient-to-br from-primary to-chart-1 text-primary-foreground">
-            {user.name
-              .split(" ")
-              .map((n) => n[0])
-              .join("")}
+        <Avatar className="h-16 w-16 ring-2 ring-primary/20">
+          <AvatarImage src={userData.user.avatar_url || undefined} alt={userData.user.display_name} />
+          <AvatarFallback className="bg-gradient-to-br from-primary to-chart-1 text-lg font-bold text-primary-foreground">
+            {userData.user.display_name.charAt(0).toUpperCase()}
           </AvatarFallback>
         </Avatar>
         <div className="flex-1 min-w-0">
-          <h3 className="truncate font-semibold">{user.name}</h3>
-          <p className="truncate text-sm text-muted-foreground">{user.username}</p>
-          <p className="truncate text-sm text-muted-foreground">{user.bio}</p>
+          <h3 className="truncate font-semibold">{userData.user.display_name}</h3>
+          <p className="truncate text-sm text-muted-foreground">@{userData.user.username}</p>
+          {userData.user.bio && <p className="mt-1 line-clamp-2 text-sm text-muted-foreground">{userData.user.bio}</p>}
         </div>
-        <Button variant={user.following ? "outline" : "default"} size="sm" className="shrink-0">
-          {user.following ? "Following" : "Follow"}
+        <Button
+          variant={userData.isFollowing ? "outline" : "default"}
+          size="sm"
+          className="shrink-0 gap-2"
+          onClick={() => handleFollowToggle(userData.user.id, userData.isFollowing)}
+          disabled={actionLoading === userData.user.id}
+        >
+          {actionLoading === userData.user.id ? (
+            <div className="h-4 w-4 animate-spin rounded-full border-2 border-current border-t-transparent" />
+          ) : userData.isFollowing ? (
+            <>
+              <UserMinus className="h-4 w-4" />
+              Following
+            </>
+          ) : (
+            <>
+              <UserPlus className="h-4 w-4" />
+              Follow
+            </>
+          )}
         </Button>
       </div>
     </Card>
@@ -187,54 +195,117 @@ export default function FollowersPage() {
               <p className="text-lg text-muted-foreground">Connect with other AI enthusiasts</p>
             </motion.div>
 
+            {/* Search Bar */}
+            <motion.div
+              className="mb-6"
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.5, delay: 0.2 }}
+            >
+              <Card className="border-border/50 bg-card/50 p-2 backdrop-blur-sm">
+                <div className="relative">
+                  <Search className="absolute left-4 top-1/2 h-5 w-5 -translate-y-1/2 text-muted-foreground" />
+                  <Input
+                    type="text"
+                    placeholder="Search by name or username..."
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                    className="h-12 border-0 bg-transparent pl-12 text-base focus-visible:ring-0"
+                  />
+                </div>
+              </Card>
+            </motion.div>
+
             {/* Tabs */}
             <motion.div
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.5, delay: 0.2 }}
+              transition={{ duration: 0.5, delay: 0.3 }}
             >
               <Tabs defaultValue="followers" className="w-full">
                 <TabsList className="mb-6 w-full justify-start rounded-xl bg-card/50 p-1">
                   <TabsTrigger value="followers" className="gap-2 rounded-lg">
                     <Users className="h-4 w-4" />
-                    Followers ({followers.length})
+                    Followers ({followers.filter(f => {
+                      const u = f.user;
+                      return !searchQuery || u.username?.toLowerCase().includes(searchQuery.toLowerCase()) || u.display_name?.toLowerCase().includes(searchQuery.toLowerCase())
+                    }).length})
                   </TabsTrigger>
                   <TabsTrigger value="following" className="gap-2 rounded-lg">
                     <UserPlus className="h-4 w-4" />
-                    Following ({following.length})
+                    Following ({following.filter(f => {
+                      const u = f.user;
+                      return !searchQuery || u.username?.toLowerCase().includes(searchQuery.toLowerCase()) || u.display_name?.toLowerCase().includes(searchQuery.toLowerCase())
+                    }).length})
                   </TabsTrigger>
                 </TabsList>
 
                 {/* Followers Tab */}
                 <TabsContent value="followers">
-                  <div className="space-y-4">
-                    {followers.map((user, index) => (
-                      <motion.div
-                        key={user.id}
-                        initial={{ opacity: 0, y: 20 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        transition={{ duration: 0.3, delay: index * 0.05 }}
-                      >
-                        <UserCard user={user} />
-                      </motion.div>
-                    ))}
-                  </div>
+                  {isLoading ? (
+                    <div className="flex justify-center py-12">
+                      <div className="h-8 w-8 animate-spin rounded-full border-4 border-primary border-t-transparent" />
+                    </div>
+                  ) : followers.filter(f => {
+                      const u = f.user;
+                      return !searchQuery || u.username?.toLowerCase().includes(searchQuery.toLowerCase()) || u.display_name?.toLowerCase().includes(searchQuery.toLowerCase())
+                    }).length === 0 ? (
+                    <Card className="border-border/50 bg-card/50 p-12 text-center backdrop-blur-sm">
+                      <Users className="mx-auto mb-4 h-12 w-12 text-muted-foreground" />
+                      <h3 className="mb-2 text-lg font-semibold">{searchQuery ? 'No followers found' : 'No followers yet'}</h3>
+                      <p className="text-muted-foreground">{searchQuery ? 'Try a different search term' : 'Share your profile to gain followers'}</p>
+                    </Card>
+                  ) : (
+                    <div className="space-y-4">
+                      {followers.filter(f => {
+                        const u = f.user;
+                        return !searchQuery || u.username?.toLowerCase().includes(searchQuery.toLowerCase()) || u.display_name?.toLowerCase().includes(searchQuery.toLowerCase())
+                      }).map((userItem, index) => (
+                        <motion.div
+                          key={userItem.id}
+                          initial={{ opacity: 0, y: 20 }}
+                          animate={{ opacity: 1, y: 0 }}
+                          transition={{ duration: 0.3, delay: index * 0.05 }}
+                        >
+                          <UserCard userData={userItem} />
+                        </motion.div>
+                      ))}
+                    </div>
+                  )}
                 </TabsContent>
 
                 {/* Following Tab */}
                 <TabsContent value="following">
-                  <div className="space-y-4">
-                    {following.map((user, index) => (
-                      <motion.div
-                        key={user.id}
-                        initial={{ opacity: 0, y: 20 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        transition={{ duration: 0.3, delay: index * 0.05 }}
-                      >
-                        <UserCard user={user} />
-                      </motion.div>
-                    ))}
-                  </div>
+                  {isLoading ? (
+                    <div className="flex justify-center py-12">
+                      <div className="h-8 w-8 animate-spin rounded-full border-4 border-primary border-t-transparent" />
+                    </div>
+                  ) : following.filter(f => {
+                      const u = f.user;
+                      return !searchQuery || u.username?.toLowerCase().includes(searchQuery.toLowerCase()) || u.display_name?.toLowerCase().includes(searchQuery.toLowerCase())
+                    }).length === 0 ? (
+                    <Card className="border-border/50 bg-card/50 p-12 text-center backdrop-blur-sm">
+                      <UserPlus className="mx-auto mb-4 h-12 w-12 text-muted-foreground" />
+                      <h3 className="mb-2 text-lg font-semibold">{searchQuery ? 'No users found' : 'Not following anyone yet'}</h3>
+                      <p className="text-muted-foreground">{searchQuery ? 'Try a different search term' : 'Start following users to see them here'}</p>
+                    </Card>
+                  ) : (
+                    <div className="space-y-4">
+                      {following.filter(f => {
+                        const u = f.user;
+                        return !searchQuery || u.username?.toLowerCase().includes(searchQuery.toLowerCase()) || u.display_name?.toLowerCase().includes(searchQuery.toLowerCase())
+                      }).map((userItem, index) => (
+                        <motion.div
+                          key={userItem.id}
+                          initial={{ opacity: 0, y: 20 }}
+                          animate={{ opacity: 1, y: 0 }}
+                          transition={{ duration: 0.3, delay: index * 0.05 }}
+                        >
+                          <UserCard userData={userItem} />
+                        </motion.div>
+                      ))}
+                    </div>
+                  )}
                 </TabsContent>
               </Tabs>
             </motion.div>

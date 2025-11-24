@@ -3,9 +3,12 @@ import type { Metadata, Viewport } from "next"
 import { Geist, Geist_Mono } from "next/font/google"
 import "./globals.css"
 import { PreferencesProvider } from "@/contexts/preferences-context"
+import { AvatarProvider } from "@/contexts/avatar-context"
 import { ThemeProvider } from "next-themes"
 import ClientLayout from "./client-layout"
 import { Analytics } from "@vercel/analytics/next"
+import { Toaster } from "@/components/ui/sonner"
+import { ClerkProvider } from '@clerk/nextjs'
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -137,73 +140,73 @@ export default function RootLayout({
   children: React.ReactNode
 }>) {
   return (
-    <html lang="en" suppressHydrationWarning className={`${geistSans.variable} ${geistMono.variable}`}>
-      <head>
-        {/* Preconnect to external domains for performance */}
-        <link rel="preconnect" href="https://fonts.googleapis.com" />
-        <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
-        
-        {/* DNS prefetch for Supabase */}
-        {process.env.NEXT_PUBLIC_SUPABASE_URL && (
-          <link rel="dns-prefetch" href={process.env.NEXT_PUBLIC_SUPABASE_URL} />
-        )}
-        
-        {/* Preload critical resources */}
-        <link rel="preload" href="/icon.svg" as="image" type="image/svg+xml" />
-        
-        {/* Security headers via meta tags */}
-        <meta httpEquiv="X-Content-Type-Options" content="nosniff" />
-        <meta httpEquiv="X-Frame-Options" content="DENY" />
-        <meta httpEquiv="X-XSS-Protection" content="1; mode=block" />
-        <meta name="referrer" content="strict-origin-when-cross-origin" />
-        
-        {/* Mobile web app meta tags */}
-        <meta name="mobile-web-app-capable" content="yes" />
-        <meta name="apple-mobile-web-app-capable" content="yes" />
-        <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
-        <meta name="apple-mobile-web-app-title" content="Arcyn Find" />
-        
-        {/* Performance hints */}
-        <link rel="prefetch" href="/api/ai-models" as="fetch" crossOrigin="anonymous" />
-      </head>
-      <body 
-        className={`font-sans antialiased ${geistSans.variable} ${geistMono.variable}`}
-        suppressHydrationWarning
-      >
-        <ThemeProvider 
-          attribute="class" 
-          defaultTheme="dark" 
-          enableSystem
-          disableTransitionOnChange={false}
-          storageKey="arcyn-theme"
+    <ClerkProvider>
+      <html lang="en" suppressHydrationWarning className={`${geistSans.variable} ${geistMono.variable}`}>
+        <head>
+          {/* Preconnect to external domains for performance */}
+          <link rel="preconnect" href="https://fonts.googleapis.com" />
+          <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
+          
+          {/* Preload critical resources */}
+          <link rel="preload" href="/icon.svg" as="image" type="image/svg+xml" />
+          
+          {/* Security headers via meta tags */}
+          <meta httpEquiv="X-Content-Type-Options" content="nosniff" />
+          <meta httpEquiv="X-Frame-Options" content="DENY" />
+          <meta httpEquiv="X-XSS-Protection" content="1; mode=block" />
+          <meta name="referrer" content="strict-origin-when-cross-origin" />
+          
+          {/* Mobile web app meta tags */}
+          <meta name="mobile-web-app-capable" content="yes" />
+          <meta name="apple-mobile-web-app-capable" content="yes" />
+          <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+          <meta name="apple-mobile-web-app-title" content="Arcyn Find" />
+          
+          {/* Performance hints */}
+          <link rel="prefetch" href="/api/ai-models" as="fetch" crossOrigin="anonymous" />
+        </head>
+        <body 
+          className={`font-sans antialiased ${geistSans.variable} ${geistMono.variable}`}
+          suppressHydrationWarning
         >
-          <PreferencesProvider>
-            <ClientLayout>
-              {children}
-            </ClientLayout>
-          </PreferencesProvider>
-        </ThemeProvider>
-        <Analytics />
-        
-        {/* Service Worker Registration */}
-        <script
-          dangerouslySetInnerHTML={{
-            __html: `
-              if ('serviceWorker' in navigator) {
-                window.addEventListener('load', () => {
-                  navigator.serviceWorker.register('/sw.js')
-                    .then((registration) => {
-                      console.log('SW registered: ', registration);
-                    })
-                    .catch((registrationError) => {
-                      console.log('SW registration failed: ', registrationError);
-                    });
-                });
-              }
-            `,
-          }}
-        />
-      </body>
-    </html>
+          <ThemeProvider 
+            attribute="class" 
+            defaultTheme="dark" 
+            enableSystem
+            disableTransitionOnChange={false}
+            storageKey="arcyn-theme"
+          >
+            <PreferencesProvider>
+              <AvatarProvider>
+                <ClientLayout>
+                  {children}
+                </ClientLayout>
+              </AvatarProvider>
+            </PreferencesProvider>
+          </ThemeProvider>
+          <Analytics />
+          <Toaster />
+          
+          {/* Service Worker Registration */}
+          <script
+            dangerouslySetInnerHTML={{
+              __html: `
+                if ('serviceWorker' in navigator) {
+                  window.addEventListener('load', () => {
+                    navigator.serviceWorker.register('/sw.js')
+                      .then((registration) => {
+                        console.log('SW registered: ', registration);
+                      })
+                      .catch((registrationError) => {
+                        console.log('SW registration failed: ', registrationError);
+                      });
+                  });
+                }
+              `,
+            }}
+          />
+        </body>
+      </html>
+    </ClerkProvider>
   )
 }

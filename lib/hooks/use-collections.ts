@@ -10,7 +10,8 @@ import {
   removeToolFromCollection,
   type Collection,
 } from "@/lib/collections"
-import { getCurrentUser } from "@/lib/auth"
+
+// Auth handled by API routes
 
 export function useCollections() {
   const [collections, setCollections] = useState<Collection[]>([])
@@ -21,12 +22,12 @@ export function useCollections() {
     setIsLoading(true)
     setError(null)
     try {
-      const user = await getCurrentUser()
-      if (!user) {
-        setError("Not authenticated")
-        return
+      // Auth handled by API route
+      const response = await fetch('/api/collections')
+      if (!response.ok) {
+        throw new Error('Failed to fetch collections')
       }
-      const data = await getUserCollections(user.id)
+      const data = await response.json()
       setCollections(data)
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to fetch collections")
@@ -40,11 +41,17 @@ export function useCollections() {
       setIsLoading(true)
       setError(null)
       try {
-        const user = await getCurrentUser()
-        if (!user) {
-          throw new Error("Not authenticated")
+        const response = await fetch('/api/collections', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ name, description, is_public: isPublic }),
+        })
+        
+        if (!response.ok) {
+          throw new Error('Failed to create collection')
         }
-        const result = await createCollection(name, description, isPublic)
+        
+        const result = await response.json()
         if (!result.success || !result.collection) {
           throw new Error(result.error || "Failed to create collection")
         }

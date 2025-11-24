@@ -51,6 +51,7 @@ export function transformToAIEntry(row: {
   popularity?: number | null
   last_updated?: string | null
   is_trending?: boolean | null
+  image?: string | null
 }): AIEntry {
   // Validate and cast accessType to the expected union type
   const validAccessTypes = ['Free', 'Freemium', 'Paid'] as const
@@ -71,6 +72,7 @@ export function transformToAIEntry(row: {
     popularity: row.popularity || 50,
     lastUpdated: row.last_updated || new Date().toISOString().split('T')[0],
     isTrending: row.is_trending || false,
+    image: row.image || null,
   }
 }
 
@@ -89,6 +91,6 @@ export function transformToDBRow(entry: AIEntry) {
     popularity: entry.popularity || 50,
     last_updated: entry.lastUpdated,
     is_trending: entry.isTrending || false,
+    image: entry.image || null,
   }
 }
-

@@ -1,23 +1,23 @@
 "use client"
 
-import { useState } from "react"
+import { useState, memo } from "react"
 import { motion } from "framer-motion"
 import { ExternalLink, Star, Bookmark, BookmarkCheck } from "lucide-react"
 import { Card } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { cn } from "@/lib/utils"
-import type { AIEntry } from "@/lib/ai-data"
+import type { ToolWithRating } from "@/lib/types"
 
 interface ToolCardProps {
-  tool: AIEntry
-  onSelect?: (tool: AIEntry) => void
-  onBookmark?: (tool: AIEntry) => void
+  tool: ToolWithRating
+  onSelect?: (tool: ToolWithRating) => void
+  onBookmark?: (tool: ToolWithRating) => void
   isBookmarked?: boolean
   className?: string
 }
 
-export function ToolCard({
+function ToolCardComponent({
   tool,
   onSelect,
   onBookmark,
@@ -38,9 +38,9 @@ export function ToolCard({
       <Card className="group relative h-full overflow-hidden border-border/50 bg-card/50 backdrop-blur-sm transition-all hover:border-border hover:shadow-lg">
         {/* Tool Image */}
         <div className="relative h-48 overflow-hidden bg-muted">
-          {!imageError && (tool as any).image ? (
+          {!imageError && tool.image ? (
             <img
-              src={(tool as any).image}
+              src={tool.image}
               alt={tool.name}
               className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-105"
               onError={() => setImageError(true)}
@@ -54,10 +54,10 @@ export function ToolCard({
           )}
           <div className="absolute inset-0 bg-gradient-to-t from-background/80 via-transparent to-transparent" />
           <div className="absolute top-3 right-3 flex gap-2">
-            {(tool as any).rating && (
+            {tool.rating && (
               <Badge variant="secondary" className="gap-1">
                 <Star className="h-3 w-3 fill-yellow-400 text-yellow-400" />
-                {(tool as any).rating.toFixed(1)}
+                {tool.rating.toFixed(1)}
               </Badge>
             )}
             <Button
@@ -82,14 +82,14 @@ export function ToolCard({
         <div className="p-4">
           <div className="mb-2 flex items-start justify-between gap-2">
             <h3 className="line-clamp-1 font-semibold text-lg">{tool.name}</h3>
-            {(tool as any).url && (
+            {tool.url && (
               <Button
                 variant="ghost"
                 size="icon"
                 className="h-6 w-6 flex-shrink-0"
                 onClick={(e) => {
                   e.stopPropagation()
-                  window.open((tool as any).url, "_blank", "noopener,noreferrer")
+                  window.open(tool.url!, "_blank", "noopener,noreferrer")
                 }}
               >
                 <ExternalLink className="h-4 w-4" />
@@ -140,4 +140,6 @@ export function ToolCard({
     </motion.div>
   )
 }
+
+export const ToolCard = memo(ToolCardComponent)
 

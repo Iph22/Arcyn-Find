@@ -1,5 +1,6 @@
 "use client"
 
+import { memo } from "react"
 import { motion } from "framer-motion"
 import { Bookmark, Lock, Globe, MoreVertical } from "lucide-react"
 import { Card } from "@/components/ui/card"
@@ -22,7 +23,7 @@ interface CollectionCardProps {
   className?: string
 }
 
-export function CollectionCard({
+function CollectionCardComponent({
   collection,
   onSelect,
   onEdit,
@@ -113,4 +114,6 @@ export function CollectionCard({
     </motion.div>
   )
 }
+
+export const CollectionCard = memo(CollectionCardComponent)
 

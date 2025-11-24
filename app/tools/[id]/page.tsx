@@ -8,7 +8,7 @@ import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Card } from "@/components/ui/card"
 import { Separator } from "@/components/ui/separator"
-import { ToolDetailModal } from "@/components/tool-detail-modal"
+import { ToolDetailModal } from "@/components/enhanced-tool-detail-modal"
 import { ReviewCard } from "@/components/review-card"
 import { useAITool } from "@/lib/hooks/use-ai-tools"
 import { useFavorites } from "@/lib/hooks/use-favorites"
@@ -17,7 +17,7 @@ import { Sidebar } from "@/components/sidebar"
 import { ThemeToggle } from "@/components/theme-toggle"
 import { EmptyState } from "@/components/empty-state"
 import { ToolCardSkeleton } from "@/components/loading-skeleton"
-import type { AIEntry } from "@/lib/ai-data"
+import type { ToolWithRating } from "@/lib/types"
 
 export default function ToolDetailPage() {
   const params = useParams()
@@ -65,14 +65,20 @@ export default function ToolDetailPage() {
     )
   }
 
-  const toolForModal: any = {
+  // Cast tool to ToolWithRating for modal (rating/users may come from reviews API)
+  const toolWithRating: ToolWithRating = {
+    ...tool,
+    url: tool.platform,
+  }
+  
+  const toolForModal = {
     id: tool.id,
     name: tool.name,
     category: tool.category,
     description: tool.description,
-    image: (tool as any).image || null,
-    rating: (tool as any).rating || null,
-    users: (tool as any).users || null,
+    image: tool.image || null,
+    rating: (toolWithRating as ToolWithRating).rating || null,
+    users: (toolWithRating as ToolWithRating).users || null,
     tags: tool.tags,
   }
 
@@ -96,10 +102,10 @@ export default function ToolDetailPage() {
             transition={{ duration: 0.5 }}
           >
             <Card className="mb-6 overflow-hidden">
-              {(tool as any).image && (
+              {tool.image && (
                 <div className="relative h-64 w-full overflow-hidden bg-muted">
                   <img
-                    src={(tool as any).image}
+                    src={tool.image}
                     alt={tool.name}
                     className="h-full w-full object-cover"
                   />
@@ -117,10 +123,10 @@ export default function ToolDetailPage() {
                       {tool.accessType && (
                         <Badge variant="outline">{tool.accessType}</Badge>
                       )}
-                      {(tool as any).rating && (
+                      {toolWithRating.rating && (
                         <Badge variant="secondary" className="gap-1">
                           <Star className="h-3 w-3 fill-yellow-400 text-yellow-400" />
-                          {(tool as any).rating.toFixed(1)}
+                          {toolWithRating.rating.toFixed(1)}
                         </Badge>
                       )}
                     </div>
@@ -137,11 +143,11 @@ export default function ToolDetailPage() {
                         }`}
                       />
                     </Button>
-                    {(tool as any).url && (
+                    {tool.platform && (
                       <Button
                         variant="outline"
                         size="icon"
-                        onClick={() => window.open((tool as any).url, "_blank")}
+                        onClick={() => window.open(tool.platform, "_blank")}
                       >
                         <ExternalLink className="h-4 w-4" />
                       </Button>
@@ -169,10 +175,10 @@ export default function ToolDetailPage() {
                   </div>
                 )}
 
-                {(tool as any).url && (
+                {tool.platform && (
                   <Button
                     className="w-full"
-                    onClick={() => window.open((tool as any).url, "_blank")}
+                    onClick={() => window.open(tool.platform, "_blank")}
                   >
                     Visit Website
                     <ExternalLink className="ml-2 h-4 w-4" />

@@ -3,6 +3,7 @@ import { getSupabaseAdmin, transformToAIEntry } from '@/lib/supabase'
 import { fetchAIModelsFromSources } from '@/lib/data-sources'
 import type { AIEntry } from '@/lib/ai-data'
 import { checkRateLimit, getRateLimitHeaders } from '@/lib/rate-limit'
+import { logger } from '@/lib/logger'
 
 // Increase timeout for Vercel Pro (30s), or remove for Hobby plan (10s max)
 export const maxDuration = 30
@@ -14,10 +15,10 @@ export const runtime = 'nodejs'
  * Falls back to external sources if Supabase fails
  */
 export async function GET(request: Request) {
-  // Rate limiting
+  // Rate limiting - more balanced limits
   const rateLimit = checkRateLimit(request, {
     windowMs: 60 * 1000, // 1 minute
-    maxRequests: 100, // 100 requests per minute (more lenient for API)
+    maxRequests: 60, // 60 requests per minute (1 per second on average)
   })
   
   if (!rateLimit.allowed) {
@@ -51,9 +52,9 @@ export async function GET(request: Request) {
   
   // Log filters for debugging (only in development)
   if (process.env.NODE_ENV === 'development' && (category || region || accessType)) {
-    console.log('API filters (raw):', { category, region, accessType, limit, offset })
+    logger.debug('API filters (raw):', { category, region, accessType, limit, offset })
     if (category) {
-      console.log('API filters (decoded category):', decodeURIComponent(category).trim())
+      logger.debug('API filters (decoded category):', decodeURIComponent(category).trim())
     }
   }
   
@@ -66,7 +67,7 @@ export async function GET(request: Request) {
       const { count } = await supabase
         .from('ai_tools')
         .select('*', { count: 'exact', head: true })
-      console.log(`[API] Total tools in database: ${count}`)
+      logger.debug(`[API] Total tools in database: ${count}`)
     }
     
     // If fetching by specific ID, return early with just that tool
@@ -115,7 +116,7 @@ export async function GET(request: Request) {
         
         // Debug logging in development
         if (process.env.NODE_ENV === 'development') {
-          console.log(`[API] Filtering by category: "${decodedCategory}" (raw: "${category}")`)
+          logger.debug(`[API] Filtering by category: "${decodedCategory}" (raw: "${category}")`)
         }
       }
       if (region) {
@@ -191,6 +192,7 @@ export async function GET(request: Request) {
       popularity?: number | null
       last_updated?: string | null
       is_trending?: boolean | null
+      image?: string | null
     }> = []
     
     // Check if filters are applied
@@ -211,7 +213,7 @@ export async function GET(request: Request) {
       const { data, error } = await query
       
       if (error) {
-        console.error('Supabase query error:', error)
+        logger.error('Supabase query error:', error)
         throw error
       }
       
@@ -220,9 +222,9 @@ export async function GET(request: Request) {
         
         // Debug: Log results count in development
         if (process.env.NODE_ENV === 'development' && category) {
-          console.log(`[API] Fast path: Query returned ${data.length} results for category: "${category}"`)
+          logger.debug(`[API] Fast path: Query returned ${data.length} results for category: "${category}"`)
           if (data.length > 0) {
-            console.log(`[API] Sample category from results: "${data[0].category}"`)
+            logger.debug(`[API] Sample category from results: "${data[0].category}"`)
           } else {
             // Check what categories actually exist in the database
             const { data: sampleCategories } = await supabase
@@ -230,7 +232,7 @@ export async function GET(request: Request) {
               .select('category')
               .limit(100)
             const uniqueCategories = [...new Set(sampleCategories?.map(t => t.category) || [])]
-            console.log(`[API] Sample categories in DB:`, uniqueCategories.slice(0, 10))
+            logger.debug(`[API] Sample categories in DB:`, uniqueCategories.slice(0, 10))
             
             // Check specifically for AI Detection Tool variations - try exact match
             const { data: exactMatch } = await supabase
@@ -238,7 +240,7 @@ export async function GET(request: Request) {
               .select('category, name')
               .eq('category', category.trim())
               .limit(5)
-            console.log(`[API] Exact match (eq) for "${category.trim()}":`, exactMatch?.length || 0, 'results')
+            logger.debug(`[API] Exact match (eq) for "${category.trim()}":`, exactMatch?.length || 0, 'results')
             
             // Try case-insensitive with ilike pattern
             const { data: ilikeMatch } = await supabase
@@ -246,9 +248,9 @@ export async function GET(request: Request) {
               .select('category, name')
               .ilike('category', `%${category.trim()}%`)
               .limit(5)
-            console.log(`[API] Case-insensitive match (ilike) for "${category.trim()}":`, ilikeMatch?.length || 0, 'results')
+            logger.debug(`[API] Case-insensitive match (ilike) for "${category.trim()}":`, ilikeMatch?.length || 0, 'results')
             if (ilikeMatch && ilikeMatch.length > 0) {
-              console.log(`[API] Found categories:`, ilikeMatch.map(t => t.category))
+              logger.debug(`[API] Found categories:`, ilikeMatch.map(t => t.category))
             }
             
             // Check for any AI Detection related tools
@@ -257,7 +259,7 @@ export async function GET(request: Request) {
               .select('category, name')
               .ilike('category', '%Detection%')
               .limit(10)
-            console.log(`[API] Any Detection-related tools:`, detectionTools?.map(t => ({ name: t.name, category: t.category })))
+            logger.debug(`[API] Any Detection-related tools:`, detectionTools?.map(t => ({ name: t.name, category: t.category })))
           }
         }
       }
@@ -284,7 +286,7 @@ export async function GET(request: Request) {
         const { data: batchData, error: batchError } = await query
         
         if (batchError) {
-          console.error('Supabase batch error:', batchError)
+          logger.error('Supabase batch error:', batchError)
           break
         }
         
@@ -294,9 +296,9 @@ export async function GET(request: Request) {
           
           // Debug logging for filtered queries
           if (process.env.NODE_ENV === 'development' && category && currentOffset === SUPABASE_MAX_LIMIT) {
-            console.log(`[API] Filtered batch: Got ${batchData.length} results for category: "${category}"`)
+            logger.debug(`[API] Filtered batch: Got ${batchData.length} results for category: "${category}"`)
             if (batchData.length > 0) {
-              console.log(`[API] Sample category from batch: "${batchData[0].category}"`)
+              logger.debug(`[API] Sample category from batch: "${batchData[0].category}"`)
             }
           }
           
@@ -314,7 +316,7 @@ export async function GET(request: Request) {
               .select('category')
               .limit(100)
             const uniqueCategories = [...new Set(sampleCategories?.map(t => t.category) || [])]
-            console.log(`[API] No results for category "${category}". Sample categories in DB:`, uniqueCategories.slice(0, 10))
+            logger.debug(`[API] No results for category "${category}". Sample categories in DB:`, uniqueCategories.slice(0, 10))
           }
         }
       }
@@ -329,7 +331,7 @@ export async function GET(request: Request) {
       
       // Log batch info for debugging
       if (process.env.NODE_ENV === 'development') {
-        console.log(`[API] Fetching ${batches} batches in parallel for limit=${limit}, offset=${offset}, hasFilters=${hasFilters}`)
+        logger.debug(`[API] Fetching ${batches} batches in parallel for limit=${limit}, offset=${offset}, hasFilters=${hasFilters}`)
       }
       
       // Helper function to fetch a batch with retry logic
@@ -354,10 +356,11 @@ export async function GET(request: Request) {
             }
             
             return data || []
-          } catch (error: any) {
+          } catch (error) {
             if (attempt === retries) {
               if (process.env.NODE_ENV === 'development') {
-                console.error(`[API] Batch ${batchIndex} failed after ${retries + 1} attempts:`, error?.message || error)
+                const errorMessage = error instanceof Error ? error.message : String(error)
+                logger.error(`[API] Batch ${batchIndex} failed after ${retries + 1} attempts:`, errorMessage)
               }
               return [] // Return empty array on final failure
             }
@@ -392,17 +395,17 @@ export async function GET(request: Request) {
             successfulBatches++
             
             if (process.env.NODE_ENV === 'development') {
-              console.log(`[API] Batch ${i}: Got ${data.length} items (range: ${offset + (i * SUPABASE_MAX_LIMIT)}-${offset + (i * SUPABASE_MAX_LIMIT) + data.length - 1})`)
+              logger.debug(`[API] Batch ${i}: Got ${data.length} items (range: ${offset + (i * SUPABASE_MAX_LIMIT)}-${offset + (i * SUPABASE_MAX_LIMIT) + data.length - 1})`)
             }
           } else {
             if (process.env.NODE_ENV === 'development') {
-              console.log(`[API] Batch ${i}: No data returned`)
+              logger.debug(`[API] Batch ${i}: No data returned`)
             }
             failedBatches++
           }
         } else {
           if (process.env.NODE_ENV === 'development') {
-            console.error(`[API] Batch ${i} promise rejected:`, result.reason)
+            logger.error(`[API] Batch ${i} promise rejected:`, result.reason)
           }
           failedBatches++
         }
@@ -410,12 +413,12 @@ export async function GET(request: Request) {
       
       // Log summary
       if (process.env.NODE_ENV === 'development') {
-        console.log(`[API] Batch fetch complete: ${successfulBatches}/${batches} successful, ${failedBatches} failed, total items: ${totalItems}, requested: ${limit}`)
+        logger.debug(`[API] Batch fetch complete: ${successfulBatches}/${batches} successful, ${failedBatches} failed, total items: ${totalItems}, requested: ${limit}`)
       }
       
       // If we got significantly fewer results than expected, log a warning
       if (totalItems < limit * 0.5 && successfulBatches < batches) {
-        console.warn(`[API] ⚠️ Only fetched ${totalItems} items out of ${limit} requested. ${failedBatches} batches failed.`)
+        logger.warn(`[API] ⚠️ Only fetched ${totalItems} items out of ${limit} requested. ${failedBatches} batches failed.`)
       }
       
       // Sort by popularity after parallel fetch (maintain order)
@@ -424,7 +427,7 @@ export async function GET(request: Request) {
     
     if (allData.length === 0) {
       // Fallback to external sources only if Supabase is completely empty
-      console.log('Supabase returned no data, trying external sources...')
+      logger.debug('Supabase returned no data, trying external sources...')
       try {
         const externalModels = await fetchAIModelsFromSources()
         return NextResponse.json(externalModels.slice(0, limit), {
@@ -534,21 +537,27 @@ export async function GET(request: Request) {
         return { ...entry, _relevanceScore: relevanceScore }
       }).sort((a, b) => {
         // Sort by relevance score (descending), then by popularity
-        const scoreDiff = (b as any)._relevanceScore - (a as any)._relevanceScore
+        const aScore = (a as AIEntry & { _relevanceScore: number })._relevanceScore
+        const bScore = (b as AIEntry & { _relevanceScore: number })._relevanceScore
+        const scoreDiff = bScore - aScore
         if (scoreDiff !== 0) return scoreDiff
         return b.popularity - a.popularity
-      }).map(({ _relevanceScore, ...entry }) => entry) // Remove temporary score field
+      }).map((entry) => {
+        // Remove temporary score field
+        const { _relevanceScore, ...rest } = entry as AIEntry & { _relevanceScore: number }
+        return rest
+      })
     }
     
     // Log response size for debugging
     if (process.env.NODE_ENV === 'development') {
       const responseSize = JSON.stringify(aiEntries).length
       const responseSizeMB = (responseSize / 1024 / 1024).toFixed(2)
-      console.log(`[API] Returning ${aiEntries.length} tools, response size: ${responseSizeMB} MB (requested: ${limit})`)
+      logger.debug(`[API] Returning ${aiEntries.length} tools, response size: ${responseSizeMB} MB (requested: ${limit})`)
       
       // Check if response might be too large (Vercel has ~4.5MB limit)
       if (responseSize > 4 * 1024 * 1024) {
-        console.warn(`[API] ⚠️ Response size (${responseSizeMB} MB) is approaching Vercel's 4.5MB limit!`)
+        logger.warn(`[API] ⚠️ Response size (${responseSizeMB} MB) is approaching Vercel's 4.5MB limit!`)
       }
     }
     
@@ -562,7 +571,7 @@ export async function GET(request: Request) {
       },
     })
   } catch (error) {
-    console.error('Error in /api/ai-models:', error)
+    logger.error('Error in /api/ai-models:', error)
     
     // User-friendly error message
     const errorMessage = error instanceof Error 

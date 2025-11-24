@@ -1,6 +1,8 @@
-import { NextRequest, NextResponse } from "next/server"
-import { getSupabaseAdmin } from "@/lib/supabase"
-import { getCurrentUser } from "@/lib/auth"
+import { NextRequest } from "next/server"
+import { getCurrentUser } from "@/lib/auth-server"
+import { createErrorResponse, createSuccessResponse, ErrorCodes } from "@/lib/api-errors"
+import { logger } from "@/lib/logger"
+import { ReviewsService } from "@/lib/services/reviews.service"
 
 export async function POST(
   request: NextRequest,
@@ -10,40 +12,17 @@ export async function POST(
     const { id } = await params
     const user = await getCurrentUser()
     if (!user) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+      return createErrorResponse("Unauthorized", 401, ErrorCodes.UNAUTHORIZED)
     }
 
-    const supabase = getSupabaseAdmin()
-
-    // Increment helpful_count
-    const { data, error } = await supabase.rpc("increment_helpful_count", {
-      review_id: id,
-    })
-
-    if (error) {
-      // If RPC doesn't exist, do it manually
-      const { data: review } = await supabase
-        .from("tool_reviews")
-        .select("helpful_count")
-        .eq("id", id)
-        .single()
-
-      if (review) {
-        const { error: updateError } = await supabase
-          .from("tool_reviews")
-          .update({ helpful_count: (review.helpful_count || 0) + 1 })
-          .eq("id", id)
-
-        if (updateError) throw updateError
-      }
-    }
-
-    return NextResponse.json({ success: true })
-  } catch (error: any) {
-    console.error("Error marking review as helpful:", error)
-    return NextResponse.json(
-      { error: error.message || "Failed to mark helpful" },
-      { status: 500 }
+    await ReviewsService.markAsHelpful(id)
+    return createSuccessResponse({ success: true })
+  } catch (error) {
+    logger.error("Error marking review as helpful:", error)
+    return createErrorResponse(
+      error instanceof Error ? error.message : "Failed to mark helpful",
+      500,
+      ErrorCodes.INTERNAL_ERROR
     )
   }
 }

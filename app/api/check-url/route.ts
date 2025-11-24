@@ -24,8 +24,8 @@ export async function GET(request: NextRequest) {
     )
   }
 
+  const startTime = Date.now()
   try {
-    const startTime = Date.now()
     const controller = new AbortController()
     const timeoutId = setTimeout(() => controller.abort(), 10000) // 10 second timeout
 
@@ -46,22 +46,20 @@ export async function GET(request: NextRequest) {
       statusCode: response.status,
     })
   } catch (error) {
-    // BUG FIX: Calculate response time correctly (was Date.now() - Date.now() which is always 0)
-    const startTime = Date.now()
-    const responseTime = Date.now() - startTime // Will be 0 or very small, which is correct for errors
+    const responseTime = Date.now() - startTime
     
     if (error instanceof Error && error.name === 'AbortError') {
       return NextResponse.json({
         status: 'down',
         error: 'Request timeout',
-        responseTime: 10000, // Timeout duration
+        responseTime,
       })
     }
 
     return NextResponse.json({
       status: 'down',
       error: error instanceof Error ? error.message : 'Unknown error',
-      responseTime: 0,
+      responseTime,
     })
   }
 }

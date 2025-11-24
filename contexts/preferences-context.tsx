@@ -1,6 +1,8 @@
 "use client"
 
 import { createContext, useContext, useEffect, useState, type ReactNode } from "react"
+import { useUser } from "@clerk/nextjs"
+import { loadUserPreferences, saveUserPreferences } from "@/lib/user-preferences"
 
 interface OnboardingData {
   userName?: string | null
@@ -13,61 +15,105 @@ interface OnboardingData {
   features: string[]
   completed: boolean
   timestamp: string
+  instructionsSeen?: boolean
 }
 
 interface PreferencesContextType {
   preferences: OnboardingData | null
   isLoading: boolean
-  updatePreferences: (data: Partial<OnboardingData>) => void
+  updatePreferences: (data: Partial<OnboardingData>) => Promise<void>
   clearPreferences: () => void
   hasCompletedOnboarding: boolean
   login: (name: string, email: string) => void
   logout: () => void
+  refresh: () => Promise<void>
 }
 
 const PreferencesContext = createContext<PreferencesContextType | undefined>(undefined)
 
 export function PreferencesProvider({ children }: { children: ReactNode }) {
+  const { user, isLoaded } = useUser()
   const [preferences, setPreferences] = useState<OnboardingData | null>(null)
   const [isLoading, setIsLoading] = useState(true)
 
-  useEffect(() => {
-    // Load preferences from localStorage
-    const stored = localStorage.getItem("arcyn_onboarding")
-    if (stored) {
-      try {
-        const data = JSON.parse(stored)
-        setPreferences(data)
-      } catch (error) {
-        console.error("Failed to parse preferences:", error)
+  const loadPreferences = async () => {
+    try {
+      if (!isLoaded) return
+      
+      // Load from database (single source of truth)
+      if (user) {
+        const dbPreferences = await loadUserPreferences()
+        if (dbPreferences) {
+          setPreferences({
+            ...dbPreferences,
+            userName: user.username || user.emailAddresses[0]?.emailAddress?.split("@")[0] || null,
+            userEmail: user.emailAddresses[0]?.emailAddress || null,
+            isAuthenticated: true,
+          } as OnboardingData)
+        } else {
+          // No preferences yet - user is new
+          setPreferences({
+            isAuthenticated: true,
+            userName: user.username || user.emailAddresses[0]?.emailAddress?.split("@")[0] || null,
+            userEmail: user.emailAddresses[0]?.emailAddress || null,
+            purpose: "",
+            level: "",
+            categories: [],
+            features: [],
+            completed: false,
+            timestamp: "",
+            instructionsSeen: false,
+          })
+        }
+      } else {
+        // Not authenticated
+        setPreferences(null)
       }
+    } catch (error) {
+      console.error("Error loading preferences:", error)
+    } finally {
+      setIsLoading(false)
     }
-    setIsLoading(false)
-  }, [])
+  }
 
-  const updatePreferences = (data: Partial<OnboardingData>) => {
+  useEffect(() => {
+    loadPreferences()
+  }, [user, isLoaded])
+
+  const updatePreferences = async (data: Partial<OnboardingData>) => {
     const updated = { ...preferences, ...data } as OnboardingData
     setPreferences(updated)
-    localStorage.setItem("arcyn_onboarding", JSON.stringify(updated))
+    
+    // Save to database (single source of truth)
+    try {
+      if (user) {
+        await saveUserPreferences(data)
+      }
+    } catch (error) {
+      console.error("Error saving preferences to database:", error)
+    }
   }
 
   const login = (name: string, email: string) => {
-    updatePreferences({ userName: name, userEmail: email, isAuthenticated: true })
+    setPreferences(prev => ({
+      ...prev,
+      userName: name,
+      userEmail: email,
+      isAuthenticated: true,
+    } as OnboardingData))
   }
 
-  const logout = () => {
-    updatePreferences({
+  const logout = async () => {
+    setPreferences(prev => ({
+      ...prev,
       userName: null,
       userEmail: null,
       isAuthenticated: false,
-      userRole: null,
-      completed: false, // Reset onboarding on logout if desired, or keep it
-    })
+    } as OnboardingData))
   }
 
   const clearPreferences = () => {
     setPreferences(null)
-    localStorage.removeItem("arcyn_onboarding")
   }
 
   const hasCompletedOnboarding = preferences?.completed ?? false
@@ -82,6 +128,7 @@ export function PreferencesProvider({ children }: { children: ReactNode }) {
         hasCompletedOnboarding,
         login,
         logout,
+        refresh: loadPreferences,
       }}
     >
       {children}

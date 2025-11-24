@@ -1,6 +1,9 @@
-import { NextRequest, NextResponse } from "next/server"
-import { getSupabaseAdmin } from "@/lib/supabase"
-import { getCurrentUser } from "@/lib/auth"
+import { NextRequest } from "next/server"
+import { getCurrentUser } from "@/lib/auth-server"
+import { createErrorResponse, createSuccessResponse, ErrorCodes } from "@/lib/api-errors"
+import { validateBody, updateReviewSchema } from "@/lib/validation"
+import { logger } from "@/lib/logger"
+import { ReviewsService } from "@/lib/services/reviews.service"
 
 export async function PUT(
   request: NextRequest,
@@ -10,54 +13,41 @@ export async function PUT(
     const { id } = await params
     const user = await getCurrentUser()
     if (!user) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+      return createErrorResponse("Unauthorized", 401, ErrorCodes.UNAUTHORIZED)
     }
 
     const body = await request.json()
-    const { rating, comment } = body
-
-    const supabase = getSupabaseAdmin()
+    
+    // Handle comment alias for review_text
+    if (body.comment && !body.review_text) {
+      body.review_text = body.comment
+    }
+    
+    // Validate request body
+    const validation = validateBody(updateReviewSchema, body)
+    if (!validation.success) {
+      return createErrorResponse(validation.error, 400, ErrorCodes.VALIDATION_ERROR)
+    }
 
     // Verify ownership
-    const { data: existing } = await supabase
-      .from("tool_reviews")
-      .select("user_id")
-      .eq("id", id)
-      .single()
-
-    if (!existing || existing.user_id !== user.id) {
-      return NextResponse.json({ error: "Forbidden" }, { status: 403 })
+    const isOwner = await ReviewsService.verifyOwnership(id, user.id)
+    if (!isOwner) {
+      return createErrorResponse("Forbidden", 403, ErrorCodes.FORBIDDEN)
     }
 
-    const updates: any = {}
-    if (rating !== undefined) {
-      if (rating < 1 || rating > 5) {
-        return NextResponse.json(
-          { error: "Rating must be between 1 and 5" },
-          { status: 400 }
-        )
-      }
-      updates.rating = rating
-    }
-    if (comment !== undefined) {
-      updates.comment = comment
-    }
+    const review = await ReviewsService.updateReview(id, {
+      rating: validation.data.rating,
+      title: validation.data.title,
+      review_text: validation.data.review_text,
+    })
 
-    const { data, error } = await supabase
-      .from("tool_reviews")
-      .update(updates)
-      .eq("id", id)
-      .select()
-      .single()
-
-    if (error) throw error
-
-    return NextResponse.json({ review: data })
-  } catch (error: any) {
-    console.error("Error updating review:", error)
-    return NextResponse.json(
-      { error: error.message || "Failed to update review" },
-      { status: 500 }
+    return createSuccessResponse({ review })
+  } catch (error) {
+    logger.error("Error updating review:", error)
+    return createErrorResponse(
+      error instanceof Error ? error.message : "Failed to update review",
+      500,
+      ErrorCodes.INTERNAL_ERROR
     )
   }
 }
@@ -70,35 +60,23 @@ export async function DELETE(
     const { id } = await params
     const user = await getCurrentUser()
     if (!user) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+      return createErrorResponse("Unauthorized", 401, ErrorCodes.UNAUTHORIZED)
     }
-
-    const supabase = getSupabaseAdmin()
 
     // Verify ownership
-    const { data: existing } = await supabase
-      .from("tool_reviews")
-      .select("user_id")
-      .eq("id", id)
-      .single()
-
-    if (!existing || existing.user_id !== user.id) {
-      return NextResponse.json({ error: "Forbidden" }, { status: 403 })
+    const isOwner = await ReviewsService.verifyOwnership(id, user.id)
+    if (!isOwner) {
+      return createErrorResponse("Forbidden", 403, ErrorCodes.FORBIDDEN)
     }
 
-    const { error } = await supabase
-      .from("tool_reviews")
-      .delete()
-      .eq("id", id)
-
-    if (error) throw error
-
-    return NextResponse.json({ success: true })
-  } catch (error: any) {
-    console.error("Error deleting review:", error)
-    return NextResponse.json(
-      { error: error.message || "Failed to delete review" },
-      { status: 500 }
+    await ReviewsService.deleteReview(id)
+    return createSuccessResponse({ success: true })
+  } catch (error) {
+    logger.error("Error deleting review:", error)
+    return createErrorResponse(
+      error instanceof Error ? error.message : "Failed to delete review",
+      500,
+      ErrorCodes.INTERNAL_ERROR
     )
   }
 }

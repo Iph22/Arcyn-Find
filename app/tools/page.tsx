@@ -1,45 +1,101 @@
 "use client"
 
-import { useState, useMemo } from "react"
+import { useState, useEffect, useMemo, useCallback } from "react"
+import { useRouter, useSearchParams } from "next/navigation"
 import { motion, AnimatePresence } from "framer-motion"
-import { Search, Sparkles, Filter, Star, Bookmark, ExternalLink, Menu, X } from "lucide-react"
+import { Search, Sparkles, Star, Bookmark, ExternalLink, Menu, X, Filter } from "lucide-react"
 import { Input } from "@/components/ui/input"
 import { Button } from "@/components/ui/button"
 import { Card } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Sidebar } from "@/components/sidebar"
 import { ThemeToggle } from "@/components/theme-toggle"
+import { ToolDetailModal } from "@/components/enhanced-tool-detail-modal"
 import { usePreferences } from "@/contexts/preferences-context"
 import { useAITools } from "@/lib/hooks/use-ai-tools"
 import type { AIEntry } from "@/lib/ai-data"
 
 // Category mapping from API categories to display categories
 const categoryMapping: Record<string, string> = {
-  "Generative AI": "AI Writing",
-  "Computer Vision": "Image Generation",
+  "Text Generation": "AI Writing",
+  "Image Generation": "Image Generation",
   "Code Generation": "Code Assistants",
   "Data Analytics": "Data Analysis",
   "Audio/NLP": "Audio",
   "Video Generation": "Video",
+  "AI Detection": "AI Detection",
+  "ChatBots": "Chatbots",
+  "Productivity": "Productivity",
+  "Marketing": "Marketing",
+  "Design": "Design",
+  "Research": "Research",
 }
 
-const displayCategories = ["All", "AI Writing", "Image Generation", "Code Assistants", "Data Analysis", "Audio", "Video"]
+const displayCategories = [
+  "All", 
+  "AI Writing", 
+  "Image Generation", 
+  "Code Assistants", 
+  "Data Analysis", 
+  "Audio", 
+  "Video",
+  "AI Detection",
+  "Chatbots",
+  "Productivity",
+  "Marketing",
+  "Design",
+  "Research"
+]
 
 export default function ToolsPage() {
   const [searchQuery, setSearchQuery] = useState("")
+  const [debouncedSearch, setDebouncedSearch] = useState("")
   const [selectedCategory, setSelectedCategory] = useState("All")
   const [sidebarOpen, setSidebarOpen] = useState(true)
+  const [selectedTool, setSelectedTool] = useState<any>(null)
+  const [page, setPage] = useState(1)
+  const [allTools, setAllTools] = useState<AIEntry[]>([])
   const { preferences } = usePreferences()
 
-  // Fetch AI tools from API
+  const ITEMS_PER_PAGE = 24 // Load 24 tools at a time (divisible by 2 and 3 for grid)
+
+  // Debounce search input to avoid excessive API calls
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setDebouncedSearch(searchQuery)
+    }, 500) // Wait 500ms after user stops typing
+
+    return () => clearTimeout(timer)
+  }, [searchQuery])
+
+  // Fetch AI tools from API with pagination
   const { tools: apiTools, isLoading, error } = useAITools({
-    searchQuery: searchQuery || undefined,
-    limit: 100,
+    searchQuery: debouncedSearch || undefined,
+    limit: ITEMS_PER_PAGE,
+    offset: (page - 1) * ITEMS_PER_PAGE,
   })
+
+  // Append new tools to existing ones
+  useEffect(() => {
+    if (apiTools.length > 0) {
+      setAllTools(prev => {
+        // Avoid duplicates
+        const existingIds = new Set(prev.map(t => t.id))
+        const newTools = apiTools.filter(t => !existingIds.has(t.id))
+        return [...prev, ...newTools]
+      })
+    }
+  }, [apiTools])
+
+  // Reset tools when debounced search or category changes
+  useEffect(() => {
+    setAllTools([])
+    setPage(1)
+  }, [debouncedSearch, selectedCategory])
 
   // Map API tools to display format
   const tools = useMemo(() => {
-    return apiTools.map((tool: AIEntry) => ({
+    return allTools.map((tool: AIEntry) => ({
       id: tool.id,
       name: tool.name,
       description: tool.description,
@@ -52,7 +108,7 @@ export default function ToolsPage() {
       accessType: tool.accessType,
       tags: tool.tags,
     }))
-  }, [apiTools])
+  }, [allTools])
 
   const getSortedTools = () => {
     if (!preferences?.categories || preferences.categories.length === 0) {
@@ -85,10 +141,10 @@ export default function ToolsPage() {
   const sortedTools = getSortedTools()
 
   const filteredTools = sortedTools.filter((tool) => {
-    const matchesSearch =
-      tool.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      tool.description.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      tool.tags?.some((tag) => tag.toLowerCase().includes(searchQuery.toLowerCase()))
+    const matchesSearch = !debouncedSearch || 
+      tool.name.toLowerCase().includes(debouncedSearch.toLowerCase()) ||
+      tool.description.toLowerCase().includes(debouncedSearch.toLowerCase()) ||
+      tool.tags?.some((tag) => tag.toLowerCase().includes(debouncedSearch.toLowerCase()))
     const matchesCategory = selectedCategory === "All" || tool.category === selectedCategory
     return matchesSearch && matchesCategory
   })
@@ -240,12 +296,16 @@ export default function ToolsPage() {
                     exit={{ opacity: 0, scale: 0.9 }}
                     transition={{ duration: 0.3, delay: index * 0.05 }}
                   >
-                    <Card className="group relative h-full overflow-hidden border-border/50 bg-card/50 backdrop-blur-sm transition-all hover:border-border hover:shadow-lg">
+                    <Card 
+                      className="group relative h-full overflow-hidden border-border/50 bg-card/50 backdrop-blur-sm transition-all hover:border-border hover:shadow-lg cursor-pointer"
+                      onClick={() => setSelectedTool(tool)}
+                    >
                       {/* Tool Image */}
                       <div className="relative h-48 overflow-hidden bg-muted">
                         <img
                           src={tool.image || "/placeholder.svg"}
                           alt={tool.name}
+                          loading="lazy"
                           className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-105"
                         />
                         {tool.featured && (
@@ -260,7 +320,15 @@ export default function ToolsPage() {
                       <div className="p-5">
                         <div className="mb-2 flex items-start justify-between gap-2">
                           <h3 className="text-lg font-semibold leading-tight">{tool.name}</h3>
-                          <Button variant="ghost" size="icon" className="h-8 w-8 shrink-0 rounded-lg">
+                          <Button 
+                            variant="ghost" 
+                            size="icon" 
+                            className="h-8 w-8 shrink-0 rounded-lg"
+                            onClick={(e) => {
+                              e.stopPropagation()
+                              setSelectedTool(tool)
+                            }}
+                          >
                             <Bookmark className="h-4 w-4" />
                           </Button>
                         </div>
@@ -290,9 +358,12 @@ export default function ToolsPage() {
                             size="sm" 
                             variant="ghost" 
                             className="gap-1"
-                            onClick={() => tool.platform && window.open(tool.platform, '_blank', 'noopener,noreferrer')}
+                            onClick={(e) => {
+                              e.stopPropagation()
+                              setSelectedTool(tool)
+                            }}
                           >
-                            View
+                            Details
                             <ExternalLink className="h-3 w-3" />
                           </Button>
                         </div>
@@ -303,6 +374,30 @@ export default function ToolsPage() {
                   )}
                 </AnimatePresence>
               </motion.div>
+            )}
+
+            {/* Load More Button */}
+            {!isLoading && !error && filteredTools.length > 0 && filteredTools.length % ITEMS_PER_PAGE === 0 && (
+              <div className="mt-8 text-center">
+                <Button
+                  size="lg"
+                  onClick={() => setPage(prev => prev + 1)}
+                  className="gap-2"
+                >
+                  Load More Tools
+                  <ExternalLink className="h-4 w-4" />
+                </Button>
+                <p className="mt-2 text-sm text-muted-foreground">
+                  Showing {filteredTools.length} tools. Click to load more.
+                </p>
+              </div>
+            )}
+
+            {/* Loading More Indicator */}
+            {isLoading && allTools.length > 0 && (
+              <div className="mt-8 flex justify-center">
+                <div className="h-8 w-8 animate-spin rounded-full border-4 border-primary border-t-transparent" />
+              </div>
             )}
 
             {/* Empty State */}
@@ -318,6 +413,13 @@ export default function ToolsPage() {
           </div>
         </main>
       </div>
+      
+      {/* Tool Detail Modal */}
+      <ToolDetailModal
+        tool={selectedTool}
+        isOpen={!!selectedTool}
+        onClose={() => setSelectedTool(null)}
+      />
     </div>
   )
 }

@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react"
 import { motion, AnimatePresence } from "framer-motion"
-import { Sparkles, Menu, X, Settings, MapPin, LinkIcon, Calendar, Star, Bookmark, Users, LogOut } from "lucide-react"
+import { Sparkles, Menu, X, Settings, MapPin, LinkIcon, Calendar, Star, Bookmark, Users, LogOut, Trash2, Share2 } from "lucide-react"
 import { useRouter } from "next/navigation"
 import { Button } from "@/components/ui/button"
 import { Card } from "@/components/ui/card"
@@ -12,35 +12,143 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Sidebar } from "@/components/sidebar"
 import { ThemeToggle } from "@/components/theme-toggle"
 import { usePreferences } from "@/contexts/preferences-context"
-import { getCurrentUser, getUserProfile, signOut } from "@/lib/auth"
-import type { UserProfile } from "@/lib/auth"
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog"
+import { toast } from "sonner"
+import { useUser, useClerk } from "@clerk/nextjs"
+
+interface UserProfile {
+  id: string
+  username?: string
+  display_name?: string
+  avatar_url?: string
+  banner_url?: string
+  bio?: string
+  created_at: string
+  updated_at: string
+}
+
+interface UserStats {
+  followers: number
+  following: number
+  reviews: number
+  savedTools: number
+  collections: number
+}
+
+interface SavedTool {
+  id: string
+  created_at: string
+  tool: {
+    id: string
+    name: string
+    description?: string
+    image?: string
+    category?: string
+    access_type?: string
+    tags?: string[]
+  }
+}
+
+interface Activity {
+  id: string
+  action: string
+  target: string
+  time: string
+  type: string
+}
 
 export default function ProfilePage() {
   const router = useRouter()
   const { preferences, clearPreferences } = usePreferences()
+  const { user, isLoaded } = useUser()
+  const { signOut } = useClerk()
   const [sidebarOpen, setSidebarOpen] = useState(true)
-  const [user, setUser] = useState<any>(null)
   const [userProfile, setUserProfile] = useState<UserProfile | null>(null)
+  const [userStats, setUserStats] = useState<UserStats | null>(null)
+  const [savedTools, setSavedTools] = useState<SavedTool[]>([])
+  const [activities, setActivities] = useState<Activity[]>([])
   const [isLoading, setIsLoading] = useState(true)
+  const [showDeleteDialog, setShowDeleteDialog] = useState(false)
+  const [isDeleting, setIsDeleting] = useState(false)
+
+  const handleShareProfile = async () => {
+    const profileUrl = `${window.location.origin}/profile/${user?.id || userProfile?.id}`
+    try {
+      if (navigator.share) {
+        await navigator.share({
+          title: `${displayName}'s Profile`,
+          text: `Check out ${displayName}'s profile on Arcyn Find`,
+          url: profileUrl
+        })
+      } else {
+        await navigator.clipboard.writeText(profileUrl)
+        toast.success("Profile link copied to clipboard!")
+      }
+    } catch (error) {
+      console.error("Error sharing:", error)
+      // Fallback: just copy to clipboard
+      try {
+        await navigator.clipboard.writeText(profileUrl)
+        toast.success("Profile link copied to clipboard!")
+      } catch (e) {
+        toast.error("Failed to copy link")
+      }
+    }
+  }
 
   useEffect(() => {
     // Check authentication and load user data
     const loadUserData = async () => {
-    try {
-      const currentUser = await getCurrentUser()
-      if (!currentUser) {
+      try {
+        if (!isLoaded) return
+        
+        if (!user) {
           // Not authenticated, redirect to landing
           router.push("/")
-        return
-      }
+          return
+        }
 
-      setUser(currentUser)
-
-        // Load user profile
-        const profile = await getUserProfile(currentUser.id)
-        setUserProfile(profile)
+        // Load user profile via API
+        const [profileRes, statsRes, toolsRes, activityRes] = await Promise.all([
+          fetch('/api/user/profile'),
+          fetch('/api/user/stats'),
+          fetch('/api/user/saved-tools'),
+          fetch('/api/user/activity')
+        ])
+        
+        if (profileRes.ok) {
+          const data = await profileRes.json()
+          setUserProfile(data.profile)
+        }
+        
+        if (statsRes.ok) {
+          const data = await statsRes.json()
+          setUserStats(data.stats)
+        }
+        
+        if (toolsRes.ok) {
+          const data = await toolsRes.json()
+          setSavedTools(data.savedTools)
+        }
+        
+        if (activityRes.ok) {
+          const data = await activityRes.json()
+          setActivities(data.activities)
+        }
       } catch (error) {
-        console.error("Error loading user data:", error)
+        if (process.env.NODE_ENV === 'development') {
+          // eslint-disable-next-line no-console
+          console.error("Error loading user data:", error)
+        }
         router.push("/")
       } finally {
         setIsLoading(false)
@@ -48,29 +156,68 @@ export default function ProfilePage() {
     }
 
     loadUserData()
-  }, [router])
+  }, [user, isLoaded, router])
 
   const handleSignOut = async () => {
     try {
-      await signOut()
+      // Clear all local storage first
       clearPreferences()
-      // Clear all localStorage items
-      localStorage.removeItem("arcyn-authenticated")
-      localStorage.removeItem("arcyn-onboarding-complete")
-      localStorage.removeItem("arcyn-instructions-seen")
-      localStorage.removeItem("arcyn-preferences")
-      localStorage.removeItem("arcyn_onboarding")
-      router.push("/")
-      window.location.reload()
+      localStorage.clear()
+      sessionStorage.clear()
+      
+      // Sign out from Clerk with redirect
+      await signOut({ redirectUrl: '/' })
     } catch (error) {
-      console.error("Error signing out:", error)
+      if (process.env.NODE_ENV === 'development') {
+        console.error("Error signing out:", error)
+      }
+      // Force redirect on error
+      window.location.href = '/'
+    }
+  }
+
+  const handleDeleteAccount = async () => {
+    setIsDeleting(true)
+    try {
+      const response = await fetch('/api/user/delete-account', {
+        method: 'DELETE',
+      })
+      
+      const data = await response.json()
+      
+      if (response.ok) {
+        toast.success("Account deleted successfully")
+        
+        clearPreferences()
+        // Clear all localStorage items
+        localStorage.removeItem("arcyn-authenticated")
+        localStorage.removeItem("arcyn-onboarding-complete")
+        localStorage.removeItem("arcyn-instructions-seen")
+        localStorage.removeItem("arcyn-preferences")
+        localStorage.removeItem("arcyn_onboarding")
+        
+        // Sign out and redirect
+        await signOut()
+        router.push("/?deleted=true")
+      } else {
+        toast.error(data.error || "Failed to delete account")
+        setIsDeleting(false)
+        setShowDeleteDialog(false)
+      }
+    } catch (error) {
+      if (process.env.NODE_ENV === 'development') {
+        console.error("Error deleting account:", error)
+      }
+      toast.error("An error occurred while deleting your account")
+      setIsDeleting(false)
+      setShowDeleteDialog(false)
     }
   }
 
   // Get display name and avatar
-  const displayName = userProfile?.display_name || user?.user_metadata?.full_name || user?.user_metadata?.name || preferences?.userName || "User"
-  const username = userProfile?.username || user?.user_metadata?.preferred_username || user?.email?.split("@")[0] || "user"
-  const avatarUrl = userProfile?.avatar_url || user?.user_metadata?.avatar_url || user?.user_metadata?.picture || null
+  const displayName = userProfile?.display_name || user?.fullName || preferences?.userName || "User"
+  const username = userProfile?.username || user?.username || user?.emailAddresses[0]?.emailAddress?.split("@")[0] || "user"
+  const avatarUrl = userProfile?.avatar_url || user?.imageUrl || null
   const initials = displayName
     .split(" ")
     .map((n: string) => n[0])
@@ -79,8 +226,8 @@ export default function ProfilePage() {
     .slice(0, 2) || "U"
 
   // Get join date
-  const joinDate = user?.created_at 
-    ? new Date(user.created_at).toLocaleDateString("en-US", { month: "long", year: "numeric" })
+  const joinDate = user?.createdAt 
+    ? new Date(user.createdAt).toLocaleDateString("en-US", { month: "long", year: "numeric" })
     : "Recently"
 
   if (isLoading) {
@@ -94,19 +241,20 @@ export default function ProfilePage() {
     )
   }
 
-  const savedTools = [
-    { name: "GPT-4 Turbo", category: "AI Writing", image: "/placeholder.svg?key=ai1" },
-    { name: "Midjourney", category: "Image Generation", image: "/placeholder.svg?key=ai2" },
-    { name: "GitHub Copilot", category: "Code Assistants", image: "/placeholder.svg?key=ai3" },
-    { name: "Claude AI", category: "AI Writing", image: "/placeholder.svg?key=ai4" },
-  ]
+  // Helper to format relative time
+  const formatRelativeTime = (dateString: string) => {
+    const date = new Date(dateString)
+    const now = new Date()
+    const diffMs = now.getTime() - date.getTime()
+    const diffMins = Math.floor(diffMs / 60000)
+    const diffHours = Math.floor(diffMins / 60)
+    const diffDays = Math.floor(diffHours / 24)
 
-  const recentActivity = [
-    { action: "Saved", tool: "GPT-4 Turbo", time: "2 hours ago" },
-    { action: "Reviewed", tool: "Midjourney", time: "5 hours ago" },
-    { action: "Followed", user: "Sarah Chen", time: "1 day ago" },
-    { action: "Saved", tool: "Claude AI", time: "2 days ago" },
-  ]
+    if (diffMins < 60) return `${diffMins} minute${diffMins !== 1 ? 's' : ''} ago`
+    if (diffHours < 24) return `${diffHours} hour${diffHours !== 1 ? 's' : ''} ago`
+    if (diffDays < 7) return `${diffDays} day${diffDays !== 1 ? 's' : ''} ago`
+    return date.toLocaleDateString()
+  }
 
   return (
     <div className="flex h-screen overflow-hidden bg-background">
@@ -163,8 +311,18 @@ export default function ProfilePage() {
               transition={{ duration: 0.5, delay: 0.1 }}
             >
               <Card className="relative overflow-hidden border-border/50 bg-card/50 backdrop-blur-sm">
-                {/* Cover Image */}
-                <div className="h-32 bg-gradient-to-br from-primary/20 via-chart-1/20 to-chart-3/20" />
+                {/* Cover Image / Banner */}
+                {userProfile?.banner_url ? (
+                  <div className="h-32 sm:h-48 relative">
+                    <img 
+                      src={userProfile.banner_url} 
+                      alt="Profile banner" 
+                      className="w-full h-full object-cover"
+                    />
+                  </div>
+                ) : (
+                  <div className="h-32 sm:h-48 bg-gradient-to-br from-primary/20 via-chart-1/20 to-chart-3/20" />
+                )}
 
                 <div className="px-8 pb-8">
                   {/* Avatar & Basic Info */}
@@ -179,17 +337,23 @@ export default function ProfilePage() {
                       <div className="mb-2">
                         <h1 className="text-2xl font-bold">{displayName}</h1>
                         <p className="text-muted-foreground">@{username}</p>
-                        {user?.email && (
-                          <p className="text-sm text-muted-foreground">{user.email}</p>
+                        {user?.emailAddresses[0]?.emailAddress && (
+                          <p className="text-sm text-muted-foreground">{user.emailAddresses[0].emailAddress}</p>
                         )}
               </div>
               </div>
                     <div className="flex gap-2">
-                      <Button variant="outline" size="sm" className="gap-2 bg-transparent">
+                      <Button 
+                        variant="outline" 
+                        size="sm" 
+                        className="gap-2 bg-transparent"
+                        onClick={() => router.push("/settings")}
+                      >
                         <Settings className="h-4 w-4" />
                         Edit Profile
                       </Button>
-                      <Button size="sm" className="gap-2">
+                      <Button size="sm" className="gap-2" onClick={handleShareProfile}>
+                        <Share2 className="h-4 w-4" />
                         Share
                       </Button>
               </div>
@@ -228,19 +392,19 @@ export default function ProfilePage() {
                   {/* Stats */}
                   <div className="flex gap-6">
                     <div>
-                      <span className="font-bold">128</span>
+                      <span className="font-bold">{userStats?.savedTools || 0}</span>
                       <span className="ml-1 text-sm text-muted-foreground">Saved Tools</span>
                     </div>
                     <div>
-                      <span className="font-bold">45</span>
+                      <span className="font-bold">{userStats?.reviews || 0}</span>
                       <span className="ml-1 text-sm text-muted-foreground">Reviews</span>
                     </div>
                     <div>
-                      <span className="font-bold">842</span>
+                      <span className="font-bold">{userStats?.followers || 0}</span>
                       <span className="ml-1 text-sm text-muted-foreground">Followers</span>
                     </div>
                     <div>
-                      <span className="font-bold">1.2K</span>
+                      <span className="font-bold">{userStats?.following || 0}</span>
                       <span className="ml-1 text-sm text-muted-foreground">Following</span>
                     </div>
                   </div>
@@ -274,6 +438,23 @@ export default function ProfilePage() {
                       )}
                     </div>
                   )}
+
+                  {/* Danger Zone */}
+                  <div className="mt-8 rounded-xl border border-destructive/20 bg-destructive/5 p-6">
+                    <h3 className="mb-2 text-sm font-semibold text-destructive">Danger Zone</h3>
+                    <p className="mb-4 text-sm text-muted-foreground">
+                      Once you delete your account, there is no going back. Please be certain.
+                    </p>
+                    <Button
+                      variant="destructive"
+                      size="sm"
+                      onClick={() => setShowDeleteDialog(true)}
+                      className="gap-2"
+                    >
+                      <Trash2 className="h-4 w-4" />
+                      Delete Account
+                    </Button>
+                  </div>
                 </div>
               </Card>
             </motion.div>
@@ -303,37 +484,55 @@ export default function ProfilePage() {
 
                 {/* Saved Tools Tab */}
                 <TabsContent value="saved">
-                  <div className="grid gap-4 sm:grid-cols-2">
-                    {savedTools.map((tool, index) => (
-                      <motion.div
-                        key={index}
-                        initial={{ opacity: 0, y: 20 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        transition={{ duration: 0.3, delay: index * 0.05 }}
-                      >
-                        <Card className="group overflow-hidden border-border/50 bg-card/50 backdrop-blur-sm transition-all hover:border-border hover:shadow-md">
-                          <div className="flex gap-4 p-4">
-                            <div className="h-16 w-16 shrink-0 overflow-hidden rounded-lg bg-muted">
-                              <img
-                                src={tool.image || "/placeholder.svg"}
-                                alt={tool.name}
-                                className="h-full w-full object-cover transition-transform group-hover:scale-105"
-                              />
+                  {savedTools.length > 0 ? (
+                    <div className="grid gap-4 sm:grid-cols-2">
+                      {savedTools.map((savedTool, index) => (
+                        <motion.div
+                          key={savedTool.id}
+                          initial={{ opacity: 0, y: 20 }}
+                          animate={{ opacity: 1, y: 0 }}
+                          transition={{ duration: 0.3, delay: index * 0.05 }}
+                        >
+                          <Card className="group overflow-hidden border-border/50 bg-card/50 backdrop-blur-sm transition-all hover:border-border hover:shadow-md">
+                            <div className="flex gap-4 p-4">
+                              <div className="h-16 w-16 shrink-0 overflow-hidden rounded-lg bg-muted">
+                                {savedTool.tool?.image ? (
+                                  <img
+                                    src={savedTool.tool.image}
+                                    alt={savedTool.tool.name}
+                                    className="h-full w-full object-cover transition-transform group-hover:scale-105"
+                                  />
+                                ) : (
+                                  <div className="flex h-full w-full items-center justify-center bg-gradient-to-br from-primary/20 to-chart-1/20">
+                                    <Sparkles className="h-6 w-6 text-muted-foreground" />
+                                  </div>
+                                )}
+                              </div>
+                              <div className="flex-1 min-w-0">
+                                <h3 className="mb-1 truncate font-semibold">{savedTool.tool?.name || 'Unknown Tool'}</h3>
+                                {savedTool.tool?.category && (
+                                  <Badge variant="secondary" className="text-xs">
+                                    {savedTool.tool.category}
+                                  </Badge>
+                                )}
+                              </div>
+                              <Button variant="ghost" size="icon" className="h-8 w-8 shrink-0">
+                                <Bookmark className="h-4 w-4 fill-current" />
+                              </Button>
                             </div>
-                            <div className="flex-1 min-w-0">
-                              <h3 className="mb-1 truncate font-semibold">{tool.name}</h3>
-                              <Badge variant="secondary" className="text-xs">
-                                {tool.category}
-                              </Badge>
-                            </div>
-                            <Button variant="ghost" size="icon" className="h-8 w-8 shrink-0">
-                              <Bookmark className="h-4 w-4 fill-current" />
-                            </Button>
-                          </div>
-                        </Card>
-                      </motion.div>
-                    ))}
-                  </div>
+                          </Card>
+                        </motion.div>
+                      ))}
+                    </div>
+                  ) : (
+                    <Card className="border-border/50 bg-card/50 p-8 text-center backdrop-blur-sm">
+                      <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-2xl bg-muted">
+                        <Bookmark className="h-8 w-8 text-muted-foreground" />
+                      </div>
+                      <h3 className="mb-2 text-lg font-semibold">No saved tools yet</h3>
+                      <p className="text-muted-foreground">Start exploring and save tools you find interesting</p>
+                    </Card>
+                  )}
                 </TabsContent>
 
                 {/* Reviews Tab */}
@@ -349,33 +548,82 @@ export default function ProfilePage() {
 
                 {/* Activity Tab */}
                 <TabsContent value="activity">
-                  <div className="space-y-4">
-                    {recentActivity.map((activity, index) => (
-                      <motion.div
-                        key={index}
-                        initial={{ opacity: 0, x: -20 }}
-                        animate={{ opacity: 1, x: 0 }}
-                        transition={{ duration: 0.3, delay: index * 0.05 }}
-                      >
-                        <Card className="border-border/50 bg-card/50 p-4 backdrop-blur-sm">
-                          <div className="flex items-center justify-between">
-                            <div>
-                              <p className="font-medium">
-                                {activity.action} <span className="text-primary">{activity.tool || activity.user}</span>
-                              </p>
-                              <p className="text-sm text-muted-foreground">{activity.time}</p>
+                  {activities.length > 0 ? (
+                    <div className="space-y-4">
+                      {activities.map((activity, index) => (
+                        <motion.div
+                          key={activity.id}
+                          initial={{ opacity: 0, x: -20 }}
+                          animate={{ opacity: 1, x: 0 }}
+                          transition={{ duration: 0.3, delay: index * 0.05 }}
+                        >
+                          <Card className="border-border/50 bg-card/50 p-4 backdrop-blur-sm">
+                            <div className="flex items-center justify-between">
+                              <div>
+                                <p className="font-medium">
+                                  {activity.action} {activity.target && <span className="text-primary">{activity.target}</span>}
+                                </p>
+                                <p className="text-sm text-muted-foreground">{formatRelativeTime(activity.time)}</p>
+                              </div>
                             </div>
-                          </div>
-                        </Card>
-                      </motion.div>
-              ))}
-            </div>
+                          </Card>
+                        </motion.div>
+                      ))}
+                    </div>
+                  ) : (
+                    <Card className="border-border/50 bg-card/50 p-8 text-center backdrop-blur-sm">
+                      <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-2xl bg-muted">
+                        <Users className="h-8 w-8 text-muted-foreground" />
+                      </div>
+                      <h3 className="mb-2 text-lg font-semibold">No activity yet</h3>
+                      <p className="text-muted-foreground">Your activity will appear here as you interact with tools</p>
+                    </Card>
+                  )}
                 </TabsContent>
               </Tabs>
           </motion.div>
           </div>
         </main>
       </div>
+
+      {/* Delete Account Confirmation Dialog */}
+      <AlertDialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete Account</AlertDialogTitle>
+            <AlertDialogDescription>
+              Are you absolutely sure? This action cannot be undone. This will permanently delete your account
+              and remove all of your data from our servers.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <div className="text-sm text-muted-foreground">
+            <p className="mb-2">This includes:</p>
+            <ul className="ml-4 list-disc space-y-1">
+              <li>Your profile and preferences</li>
+              <li>All your reviews and ratings</li>
+              <li>Your collections and saved tools</li>
+              <li>Your favorites and activity history</li>
+            </ul>
+          </div>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={isDeleting}>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleDeleteAccount}
+              disabled={isDeleting}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              {isDeleting ? (
+                <>
+                  <div className="mr-2 h-4 w-4 animate-spin rounded-full border-2 border-current border-t-transparent" />
+                  Deleting...
+                </>
+              ) : (
+                "Yes, delete my account"
+              )}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   )
 }

@@ -35,7 +35,11 @@ export async function GET(
             },
         })
     } catch (error) {
-        console.error("Error generating sitemap:", error)
+        // Log error but return fallback sitemap
+        if (process.env.NODE_ENV === 'development') {
+          // eslint-disable-next-line no-console
+          console.error("Error generating sitemap:", error)
+        }
         const fallbackSitemap = `<?xml version="1.0" encoding="UTF-8"?>
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
 </urlset>`

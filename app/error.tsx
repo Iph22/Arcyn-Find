@@ -10,7 +10,11 @@ export default function Error({
   reset: () => void
 }) {
   useEffect(() => {
-    console.error("[Error Boundary]", error)
+    // Error boundary - log to monitoring service in production
+    if (process.env.NODE_ENV === 'development') {
+      // eslint-disable-next-line no-console
+      console.error("[Error Boundary]", error)
+    }
   }, [error])
 
   return (

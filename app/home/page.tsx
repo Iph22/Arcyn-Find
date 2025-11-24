@@ -9,75 +9,63 @@ import { Button } from "@/components/ui/button"
 import { Card } from "@/components/ui/card"
 import { Sidebar } from "@/components/sidebar"
 import { ThemeToggle } from "@/components/theme-toggle"
-import { ToolDetailModal } from "@/components/tool-detail-modal"
+import { ToolDetailModal } from "@/components/enhanced-tool-detail-modal"
 import { usePreferences } from "@/contexts/preferences-context"
-import { getCurrentUser } from "@/lib/auth"
+import { useUser } from "@clerk/nextjs"
+import type { ToolWithRating } from "@/lib/types"
 
-// Mock Data with more details
-const trendingTools = [
-  {
-    id: 1,
-    name: "Midjourney",
-    category: "Image Generation",
-    rating: 4.9,
-    users: "2M+",
-    image: "/digital-art-creation.png",
-    description:
-      "Create stunning visuals with the most advanced AI art generator. Perfect for designers and artists looking to explore new creative horizons.",
-    tags: ["Art", "Design", "Creative"],
-  },
-  {
-    id: 2,
-    name: "ChatGPT Plus",
-    category: "Assistant",
-    rating: 4.8,
-    users: "100M+",
-    image: "/ai-assistant-interface.png",
-    description: "The industry standard for AI conversation. Use it for coding, writing, analysis, and much more.",
-    tags: ["Chat", "Productivity", "Writing"],
-  },
-  {
-    id: 3,
-    name: "GitHub Copilot",
-    category: "Coding",
-    rating: 4.9,
-    users: "1M+",
-    image: "/code-editor-interface.png",
-    description:
-      "Your AI pair programmer. Speeds up development by suggesting whole lines or entire functions right inside your editor.",
-    tags: ["Dev", "Code", "Productivity"],
-  },
-]
+interface TrendingTool {
+  id: string
+  name: string
+  category: string
+  rating: number
+  users: string
+  image: string | null
+  description: string
+  tags: string[]
+  access_type: string
+  pricing: string | null
+  review_count: number
+  favorites_count: number
+}
 
 export default function HomePage() {
   const router = useRouter()
   const [searchQuery, setSearchQuery] = useState("")
   const [sidebarOpen, setSidebarOpen] = useState(true)
   const { preferences, isLoading } = usePreferences()
-  const [selectedTool, setSelectedTool] = useState<any>(null)
-  const [isAuthLoading, setIsAuthLoading] = useState(true)
+  const { user, isLoaded } = useUser()
+  const [selectedTool, setSelectedTool] = useState<ToolWithRating | TrendingTool | null>(null)
+  const [trendingTools, setTrendingTools] = useState<TrendingTool[]>([])
+  const [loadingTrending, setLoadingTrending] = useState(true)
 
   useEffect(() => {
-    // Check authentication
-    const checkAuth = async () => {
-      try {
-        const user = await getCurrentUser()
-        if (!user) {
-          router.push("/")
-          return
-        }
-      } catch (error) {
-        console.error("Auth check error:", error)
-        router.push("/")
-      } finally {
-        setIsAuthLoading(false)
-      }
+    if (isLoaded && !user) {
+      router.push("/")
+      return
     }
+    if (user) {
+      loadTrendingTools()
+    }
+  }, [user, isLoaded, router])
 
-    checkAuth()
-  }, [router])
+  const loadTrendingTools = async () => {
+    try {
+      setLoadingTrending(true)
+      const category = preferences?.categories?.[0] || 'all'
+      const response = await fetch(`/api/tools/trending?limit=6&category=${category}`)
+      if (response.ok) {
+        const data = await response.json()
+        setTrendingTools(data.tools || [])
+      }
+    } catch (error) {
+      console.error('Error loading trending tools:', error)
+    } finally {
+      setLoadingTrending(false)
+    }
+  }
 
-  if (isAuthLoading) {
+  if (!isLoaded) {
     return (
       <div className="flex h-screen items-center justify-center">
         <div className="text-center">
@@ -181,15 +169,15 @@ export default function HomePage() {
               className="fixed inset-0 bg-background/80 backdrop-blur-sm z-30 md:hidden"
             />
             {/* Made sidebar fixed on mobile and relative on desktop for better responsiveness */}
-            <motion.div
-              initial={{ x: -300, opacity: 0 }}
-              animate={{ x: 0, opacity: 1 }}
-              exit={{ x: -300, opacity: 0 }}
-              transition={{ type: "spring", damping: 25, stiffness: 200 }}
+          <motion.div
+            initial={{ x: -300, opacity: 0 }}
+            animate={{ x: 0, opacity: 1 }}
+            exit={{ x: -300, opacity: 0 }}
+            transition={{ type: "spring", damping: 25, stiffness: 200 }}
               className="fixed inset-y-0 left-0 z-40 h-full w-3/4 max-w-xs md:relative md:z-20 md:w-auto"
-            >
-              <Sidebar onClose={() => setSidebarOpen(false)} />
-            </motion.div>
+          >
+            <Sidebar onClose={() => setSidebarOpen(false)} />
+          </motion.div>
           </>
         )}
       </AnimatePresence>
@@ -216,8 +204,8 @@ export default function HomePage() {
               <div className="hidden md:flex items-center gap-2 px-3 py-1 rounded-full bg-accent/50 border border-border">
                 <Sparkles className="w-4 h-4 text-yellow-400" />
                 <span className="text-sm text-muted-foreground">{preferences?.level || "Explorer"} level</span>
-              </div>
-              <ThemeToggle />
+            </div>
+            <ThemeToggle />
             </div>
           </div>
         </motion.header>
@@ -254,18 +242,23 @@ export default function HomePage() {
                 {/* Search Bar */}
                 <motion.div whileHover={{ scale: 1.01 }} transition={{ type: "spring", stiffness: 400 }}>
                   <Card className="mx-auto max-w-3xl overflow-hidden border-border/50 bg-card/50 p-2 shadow-lg backdrop-blur-sm">
-                    <form onSubmit={(e) => e.preventDefault()} className="flex gap-2">
+                    <form onSubmit={(e) => {
+                      e.preventDefault()
+                      if (searchQuery.trim()) {
+                        router.push(`/tools?search=${encodeURIComponent(searchQuery.trim())}`)
+                      }
+                    }} className="flex gap-2">
                       <div className="relative flex-1">
                         <Search className="absolute left-4 top-1/2 h-5 w-5 -translate-y-1/2 text-muted-foreground" />
                         <Input
                           type="text"
-                          placeholder="Search..."
+                          placeholder="Search AI tools..."
                           value={searchQuery}
                           onChange={(e) => setSearchQuery(e.target.value)}
                           className="h-12 sm:h-14 border-0 bg-transparent pl-10 sm:pl-12 text-base focus-visible:ring-0"
                         />
                       </div>
-                      <Button size="lg" className="h-12 sm:h-14 px-4 sm:px-8 font-semibold shadow-sm">
+                      <Button type="submit" size="lg" className="h-12 sm:h-14 px-4 sm:px-8 font-semibold shadow-sm">
                         <span className="hidden sm:inline">Search</span>
                         <Search className="sm:hidden w-5 h-5" />
                       </Button>
@@ -285,36 +278,50 @@ export default function HomePage() {
                   <Card className="h-full overflow-hidden border-border/50 bg-card/50 p-6 backdrop-blur-sm transition-all hover:border-border hover:shadow-md">
                     <div className="mb-4 flex items-center justify-between">
                       <div className="flex items-center gap-3">
-                        <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-primary/10">
-                          <TrendingUp className="h-5 w-5 text-primary" />
+                      <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-primary/10">
+                        <TrendingUp className="h-5 w-5 text-primary" />
                         </div>
                         <h2 className="text-lg font-semibold">{getRecommendedCategory()}</h2>
                       </div>
                     </div>
 
                     <div className="space-y-4">
-                      {trendingTools.map((tool) => (
-                        <motion.div
-                          key={tool.id}
-                          onClick={() => setSelectedTool(tool)}
-                          className="flex items-center gap-4 p-2 rounded-xl hover:bg-accent/50 cursor-pointer transition-colors"
-                          whileHover={{ x: 4 }}
-                        >
-                          <img
-                            src={tool.image || "/placeholder.svg"}
-                            alt={tool.name}
-                            className="w-12 h-12 rounded-lg object-cover"
-                          />
-                          <div className="flex-1">
-                            <h3 className="font-medium">{tool.name}</h3>
-                            <p className="text-xs text-muted-foreground">{tool.category}</p>
-                          </div>
-                          <div className="flex items-center gap-1 text-yellow-400 text-xs">
-                            <Star className="w-3 h-3 fill-current" />
-                            {tool.rating}
-                          </div>
-                        </motion.div>
-                      ))}
+                      {loadingTrending ? (
+                        <div className="flex justify-center py-8">
+                          <div className="h-6 w-6 animate-spin rounded-full border-3 border-primary border-t-transparent" />
+                        </div>
+                      ) : trendingTools.length === 0 ? (
+                        <p className="text-center py-8 text-sm text-muted-foreground">No trending tools found</p>
+                      ) : (
+                        trendingTools.slice(0, 3).map((tool) => (
+                          <motion.div
+                            key={tool.id}
+                            onClick={() => setSelectedTool(tool)}
+                            className="flex items-center gap-4 p-2 rounded-xl hover:bg-accent/50 cursor-pointer transition-colors"
+                            whileHover={{ x: 4 }}
+                          >
+                            {tool.image ? (
+                              <img
+                                src={tool.image}
+                                alt={tool.name}
+                                className="w-12 h-12 rounded-lg object-cover"
+                              />
+                            ) : (
+                              <div className="w-12 h-12 rounded-lg bg-gradient-to-br from-primary/20 to-chart-1/20 flex items-center justify-center">
+                                <Sparkles className="w-6 h-6 text-primary" />
+                              </div>
+                            )}
+                            <div className="flex-1">
+                              <h3 className="font-medium">{tool.name}</h3>
+                              <p className="text-xs text-muted-foreground">{tool.category}</p>
+                            </div>
+                            <div className="flex items-center gap-1 text-yellow-400 text-xs">
+                              <Star className="w-3 h-3 fill-current" />
+                              {tool.rating > 0 ? tool.rating.toFixed(1) : 'New'}
+                            </div>
+                          </motion.div>
+                        ))
+                      )}
                     </div>
                   </Card>
                 </motion.div>
@@ -401,7 +408,34 @@ export default function HomePage() {
         </main>
       </div>
 
-      <ToolDetailModal tool={selectedTool} isOpen={!!selectedTool} onClose={() => setSelectedTool(null)} />
+      {selectedTool && (
+        <ToolDetailModal 
+          tool={'platform' in selectedTool 
+            ? {
+                id: selectedTool.id,
+                name: selectedTool.name,
+                category: selectedTool.category,
+                description: selectedTool.description,
+                image: selectedTool.image || null,
+                rating: selectedTool.rating || null,
+                users: selectedTool.users?.toString() || null,
+                tags: selectedTool.tags,
+              }
+            : {
+                id: String(selectedTool.id),
+                name: selectedTool.name,
+                category: selectedTool.category,
+                description: selectedTool.description,
+                image: selectedTool.image,
+                rating: selectedTool.rating,
+                users: selectedTool.users,
+                tags: selectedTool.tags,
+              }
+          } 
+          isOpen={!!selectedTool} 
+          onClose={() => setSelectedTool(null)} 
+        />
+      )}
     </div>
   )
 }

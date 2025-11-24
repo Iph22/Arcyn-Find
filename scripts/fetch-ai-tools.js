@@ -158,6 +158,20 @@ function convertToAIEntry(tool, index) {
     popularity = Math.min(100, popularity + (tool.average_rating - 3) * 10);
   }
   
+  // Extract image URL - try multiple possible fields
+  let imageUrl = null;
+  if (tool.image) {
+    imageUrl = tool.image;
+  } else if (tool.logo) {
+    imageUrl = tool.logo;
+  } else if (tool.thumbnail) {
+    imageUrl = tool.thumbnail;
+  } else if (tool.screenshot) {
+    imageUrl = tool.screenshot;
+  } else if (tool.og_image) {
+    imageUrl = tool.og_image;
+  }
+  
   return {
     id: `ot-${tool.id}`,
     name: tool.tool_name?.trim() || 'Unknown Tool',
@@ -171,6 +185,7 @@ function convertToAIEntry(tool, index) {
     popularity: Math.round(popularity),
     lastUpdated: new Date().toISOString().split('T')[0],
     isTrending: tool.featured_default || false,
+    image: imageUrl || null,
   };
 }
 
