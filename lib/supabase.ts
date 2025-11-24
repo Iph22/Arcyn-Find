@@ -4,22 +4,8 @@ import type { AIEntry } from './ai-data'
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
 const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
 
-// Validate required environment variables
-if (!supabaseUrl || !supabaseAnonKey) {
-  if (typeof window === 'undefined') {
-    // Server-side: throw error
-    throw new Error(
-      'Missing required Supabase environment variables. Please set NEXT_PUBLIC_SUPABASE_URL and NEXT_PUBLIC_SUPABASE_ANON_KEY'
-    )
-  } else {
-    // Client-side: log warning but don't break the app
-    console.error(
-      'Missing required Supabase environment variables. Some features may not work.'
-    )
-  }
-}
-
 // Client-side Supabase client (uses anon key)
+// Use placeholder during build if env vars are missing (they'll be set at runtime)
 export const supabase = supabaseUrl && supabaseAnonKey
   ? createClient(supabaseUrl, supabaseAnonKey)
   : createClient('https://placeholder.supabase.co', 'placeholder-key')
@@ -29,6 +15,21 @@ export function getSupabaseAdmin() {
   const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY
   
   if (!supabaseUrl || !serviceRoleKey) {
+    // During Next.js build phase, return placeholder to allow build to complete
+    // The build process evaluates modules but doesn't actually call APIs
+    // At runtime, APIs will handle missing env vars gracefully
+    const isBuildPhase = 
+      process.env.NEXT_PHASE === 'phase-production-build' ||
+      process.env.NEXT_PHASE === 'phase-export' ||
+      (process.env.npm_lifecycle_event === 'build')
+    
+    if (isBuildPhase) {
+      // Return placeholder during build - build will complete successfully
+      return createClient('https://placeholder.supabase.co', 'placeholder-key')
+    }
+    
+    // At runtime, throw error so developers know env vars are missing
+    // APIs should catch and handle this gracefully
     throw new Error(
       'Missing required Supabase environment variables for admin operations. Please set NEXT_PUBLIC_SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY'
     )
