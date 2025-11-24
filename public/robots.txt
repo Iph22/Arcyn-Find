@@ -11,6 +11,17 @@ Disallow: /api/
 Disallow: /admin
 Disallow: /_next/
 Disallow: /private
+# Block authentication pages
+Disallow: /sign-in
+Disallow: /sign-up
+Disallow: /sign-in/*
+Disallow: /sign-up/*
+# Block user-specific pages that shouldn't be indexed
+Disallow: /profile
+Disallow: /settings
+Disallow: /onboarding
+Disallow: /instructions
+Disallow: /home
 
 # Google
 User-agent: Googlebot
@@ -19,6 +30,15 @@ Allow: /sitemap.xml
 Allow: /sitemap-index.xml
 Allow: /sitemap-*.xml
 Disallow: /api/
+Disallow: /sign-in
+Disallow: /sign-up
+Disallow: /sign-in/*
+Disallow: /sign-up/*
+Disallow: /profile
+Disallow: /settings
+Disallow: /onboarding
+Disallow: /instructions
+Disallow: /home
 
 # Bing
 User-agent: Bingbot
@@ -27,6 +47,15 @@ Allow: /sitemap.xml
 Allow: /sitemap-index.xml
 Allow: /sitemap-*.xml
 Disallow: /api/
+Disallow: /sign-in
+Disallow: /sign-up
+Disallow: /sign-in/*
+Disallow: /sign-up/*
+Disallow: /profile
+Disallow: /settings
+Disallow: /onboarding
+Disallow: /instructions
+Disallow: /home
 
 # Block AI training bots
 User-agent: GPTBot
