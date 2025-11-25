@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation"
 import { ArrowRight, Check, ChevronDown, ArrowLeft, Code, GraduationCap, Briefcase, Palette, Heart } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { usePreferences } from "@/contexts/preferences-context"
+import { useUser } from "@clerk/nextjs"
 
 // Define types locally since we can't import types easily in this environment
 type UserRole = "developer" | "student" | "designer" | "business" | "enthusiast" | null
@@ -13,6 +14,7 @@ type UserRole = "developer" | "student" | "designer" | "business" | "enthusiast"
 export default function OnboardingPage() {
   const router = useRouter()
   const { updatePreferences, logout } = usePreferences()
+  const { user, isLoaded } = useUser()
   const containerRef = useRef<HTMLDivElement>(null)
   const [isReady, setIsReady] = useState(false)
 
@@ -22,6 +24,30 @@ export default function OnboardingPage() {
   const [interests, setInterests] = useState<string[]>([])
   const [experience, setExperience] = useState("")
   const [isSaving, setIsSaving] = useState(false)
+
+  // Ensure user profile exists in database with username/display_name
+  useEffect(() => {
+    if (isLoaded && user) {
+      const ensureUserProfile = async () => {
+        try {
+          const response = await fetch('/api/auth/ensure-profile', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+          })
+          
+          if (!response.ok) {
+            console.error('Failed to ensure profile:', await response.text())
+          }
+        } catch (error) {
+          console.error('Error ensuring profile:', error)
+        }
+      }
+      
+      ensureUserProfile()
+    }
+  }, [user, isLoaded])
 
   // Clean up URL params if present
   useEffect(() => {

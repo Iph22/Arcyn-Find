@@ -8,6 +8,7 @@ const isPublicRoute = createRouteMatcher([
   '/api/ai-models(.*)',
   '/api/check-url(.*)',
   '/api/reviews(.*)', // Allow public access to read reviews
+  '/api/webhooks(.*)', // Allow webhook endpoints (authenticated via webhook secret)
   '/tools(.*)', // Allow browsing tools without auth
   '/about(.*)',
   '/privacy(.*)',

@@ -34,6 +34,12 @@ export async function GET(request: NextRequest) {
 
     if (error) throw error
 
+    // Filter out users with null username AND null display_name (they're not searchable)
+    // These users need to have their profiles updated via ensure-profile
+    const searchableUsers = users?.filter(user => 
+      user.username || user.display_name
+    ) || []
+
     // Check follow status for each user
     const { data: followData } = await supabase
       .from('user_follows')
@@ -42,7 +48,7 @@ export async function GET(request: NextRequest) {
 
     const followingIds = new Set(followData?.map(f => f.following_id) || [])
 
-    const usersWithFollowStatus = users?.map(user => ({
+    const usersWithFollowStatus = searchableUsers?.map(user => ({
       ...user,
       isFollowing: followingIds.has(user.id)
     })) || []

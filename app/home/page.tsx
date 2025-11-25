@@ -47,6 +47,16 @@ export default function HomePage() {
     }
     if (user) {
       loadTrendingTools()
+      
+      // Ensure profile exists and is up-to-date with username/display_name
+      fetch('/api/auth/ensure-profile', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+      }).catch(err => {
+        console.error('Error ensuring profile:', err)
+      })
     }
   }, [user, isLoaded, router])
 
