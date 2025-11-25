@@ -57,6 +57,9 @@ export function Navbar({ className }: NavbarProps) {
     return null
   }
 
+  // Determine logo link based on authentication
+  const logoLink = isAuthenticated ? "/home" : "/"
+
   return (
     <nav
       className={cn(
@@ -66,22 +69,48 @@ export function Navbar({ className }: NavbarProps) {
     >
       <div className="container mx-auto flex h-16 items-center justify-between px-4">
         <div className="flex items-center gap-4">
-          <Link href="/home" className="flex items-center gap-2">
+          <Link href={logoLink} className="flex items-center gap-2">
             <span className="text-xl font-bold">Arcyn Find</span>
           </Link>
-          {isAuthenticated && (
-            <div className="hidden md:flex items-center gap-1">
-              <Link
-                href="/home"
-                className={cn(
-                  "px-3 py-2 rounded-md text-sm font-medium transition-colors",
-                  pathname === "/home"
-                    ? "bg-accent text-accent-foreground"
-                    : "text-muted-foreground hover:text-foreground hover:bg-accent/50"
-                )}
-              >
-                Home
-              </Link>
+          {/* Show navigation links for both authenticated and guest users */}
+          <div className="hidden md:flex items-center gap-1">
+            {isAuthenticated ? (
+              <>
+                <Link
+                  href="/home"
+                  className={cn(
+                    "px-3 py-2 rounded-md text-sm font-medium transition-colors",
+                    pathname === "/home"
+                      ? "bg-accent text-accent-foreground"
+                      : "text-muted-foreground hover:text-foreground hover:bg-accent/50"
+                  )}
+                >
+                  Home
+                </Link>
+                <Link
+                  href="/tools"
+                  className={cn(
+                    "px-3 py-2 rounded-md text-sm font-medium transition-colors",
+                    pathname === "/tools"
+                      ? "bg-accent text-accent-foreground"
+                      : "text-muted-foreground hover:text-foreground hover:bg-accent/50"
+                  )}
+                >
+                  Tools
+                </Link>
+                <Link
+                  href="/collections"
+                  className={cn(
+                    "px-3 py-2 rounded-md text-sm font-medium transition-colors",
+                    pathname === "/collections"
+                      ? "bg-accent text-accent-foreground"
+                      : "text-muted-foreground hover:text-foreground hover:bg-accent/50"
+                  )}
+                >
+                  Collections
+                </Link>
+              </>
+            ) : (
               <Link
                 href="/tools"
                 className={cn(
@@ -93,19 +122,8 @@ export function Navbar({ className }: NavbarProps) {
               >
                 Tools
               </Link>
-              <Link
-                href="/collections"
-                className={cn(
-                  "px-3 py-2 rounded-md text-sm font-medium transition-colors",
-                  pathname === "/collections"
-                    ? "bg-accent text-accent-foreground"
-                    : "text-muted-foreground hover:text-foreground hover:bg-accent/50"
-                )}
-              >
-                Collections
-              </Link>
-            </div>
-          )}
+            )}
+          </div>
         </div>
 
         <div className="flex items-center gap-2">
@@ -166,7 +184,14 @@ export function Navbar({ className }: NavbarProps) {
               </DropdownMenuContent>
             </DropdownMenu>
           ) : (
-            <Button onClick={() => router.push("/")}>Sign In</Button>
+            <div className="flex items-center gap-2">
+              <Button variant="ghost" onClick={() => router.push("/sign-in")}>
+                Sign In
+              </Button>
+              <Button onClick={() => router.push("/sign-up")}>
+                Get Started
+              </Button>
+            </div>
           )}
         </div>
       </div>

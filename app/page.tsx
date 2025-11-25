@@ -364,7 +364,7 @@ export default function LandingPage() {
               </Button>
               <Button size="lg" variant="outline" className="h-12 sm:h-14 px-6 sm:px-8 text-sm sm:text-base md:text-lg rounded-full bg-background/50 w-full sm:w-auto active:scale-[0.98]" onClick={() => {
                 // Navigate to tools page (public, no auth required for guests)
-                router.replace("/tools")
+                router.push("/tools")
               }}>
                 Explore Tools
               </Button>
