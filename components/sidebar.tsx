@@ -91,24 +91,13 @@ export function Sidebar({ onClose }: SidebarProps) {
               </div>
             )}
           </div>
-          {!isAuthenticated && (
-            <button
-              onClick={handleBackToLanding}
-              className="p-1.5 hover:bg-sidebar-accent rounded-lg transition-colors shrink-0"
-              title="Back to landing page"
-            >
-              <ArrowLeft className="h-4 w-4" />
-            </button>
-          )}
-          {isAuthenticated && (
-            <button
-              onClick={toggleCollapse}
-              className="p-1.5 hover:bg-sidebar-accent rounded-lg transition-colors shrink-0"
-              title={isCollapsed ? "Expand sidebar" : "Collapse sidebar"}
-            >
-              {isCollapsed ? <ChevronRight className="h-4 w-4" /> : <ChevronLeft className="h-4 w-4" />}
-            </button>
-          )}
+          <button
+            onClick={toggleCollapse}
+            className="p-1.5 hover:bg-sidebar-accent rounded-lg transition-colors shrink-0"
+            title={isCollapsed ? "Expand sidebar" : "Collapse sidebar"}
+          >
+            {isCollapsed ? <ChevronRight className="h-4 w-4" /> : <ChevronLeft className="h-4 w-4" />}
+          </button>
         </div>
       </div>
 
