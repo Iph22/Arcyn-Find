@@ -268,7 +268,7 @@ export default function HomePage() {
                           onChange={(e) => setSearchQuery(e.target.value)}
                           onFocus={(e) => {
                             // Prevent iOS zoom and handle mobile positioning
-                            if (window.innerWidth < 768) {
+                            if (typeof window !== 'undefined' && window.innerWidth < 768) {
                               const input = e.target as HTMLInputElement
                               const card = input.closest('.relative')?.parentElement
                               if (card) {
@@ -285,7 +285,7 @@ export default function HomePage() {
                           className="h-12 sm:h-14 border-0 bg-transparent pl-10 sm:pl-12 pr-3 sm:pr-4 text-base focus-visible:ring-0 w-full"
                           style={{
                             // Prevent iOS zoom on focus (16px minimum)
-                            fontSize: window.innerWidth < 768 ? '16px' : undefined,
+                            fontSize: typeof window !== 'undefined' && window.innerWidth < 768 ? '16px' : undefined,
                           }}
                         />
                       </div>

@@ -38,6 +38,7 @@ export default function SettingsPage() {
   const { preferences, updatePreferences } = usePreferences()
   const { avatarUrl: contextAvatarUrl, refreshAvatar } = useAvatar()
   const { user, isLoaded } = useUser()
+  const { setTheme: setNextTheme } = useTheme()
   const [userProfile, setUserProfile] = useState<UserProfile | null>(null)
   const [isLoading, setIsLoading] = useState(true)
   const [isSaving, setIsSaving] = useState(false)

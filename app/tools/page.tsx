@@ -419,7 +419,7 @@ export default function ToolsPage() {
                       onChange={(e) => setSearchQuery(e.target.value)}
                       onFocus={(e) => {
                         // Prevent iOS zoom and handle mobile positioning
-                        if (window.innerWidth < 768) {
+                        if (typeof window !== 'undefined' && window.innerWidth < 768) {
                           // Ensure input stays in view without weird scrolling
                           const input = e.target as HTMLInputElement
                           const card = input.closest('.relative')?.parentElement
@@ -438,7 +438,7 @@ export default function ToolsPage() {
                       className="h-11 md:h-12 border-0 bg-transparent pl-10 md:pl-12 pr-3 md:pr-4 text-sm md:text-base focus-visible:ring-0 w-full"
                       style={{
                         // Prevent iOS zoom on focus (16px minimum)
-                        fontSize: window.innerWidth < 768 ? '16px' : undefined,
+                        fontSize: typeof window !== 'undefined' && window.innerWidth < 768 ? '16px' : undefined,
                       }}
                     />
                   </div>
