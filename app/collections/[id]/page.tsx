@@ -81,8 +81,10 @@ export default function CollectionDetailPage() {
   if (isLoading) {
     return (
       <div className="flex h-screen overflow-hidden bg-background">
-        <Sidebar />
-        <div className="flex-1 overflow-y-auto p-6">
+        <div className="hidden md:block">
+          <Sidebar />
+        </div>
+        <div className="flex-1 overflow-y-auto p-6 pb-20 md:pb-6">
           <ToolCardSkeleton />
         </div>
       </div>
@@ -92,8 +94,10 @@ export default function CollectionDetailPage() {
   if (!collection) {
     return (
       <div className="flex h-screen overflow-hidden bg-background">
-        <Sidebar />
-        <div className="flex-1 overflow-y-auto p-6">
+        <div className="hidden md:block">
+          <Sidebar />
+        </div>
+        <div className="flex-1 overflow-y-auto p-6 pb-20 md:pb-6">
           <EmptyState
             icon={Bookmark}
             title="Collection not found"
@@ -110,8 +114,10 @@ export default function CollectionDetailPage() {
 
   return (
     <div className="flex h-screen overflow-hidden bg-background">
-      <Sidebar />
-      <div className="flex-1 overflow-y-auto p-6">
+      <div className="hidden md:block">
+        <Sidebar />
+      </div>
+      <div className="flex-1 overflow-y-auto p-6 pb-20 md:pb-6">
         <div className="container mx-auto max-w-6xl">
           <div className="mb-6 flex items-start justify-between">
             <div className="flex-1">

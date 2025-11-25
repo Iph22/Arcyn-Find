@@ -91,7 +91,7 @@ export default function ToolDetailPage() {
       <div className="hidden md:block">
         <Sidebar onClose={() => setSidebarOpen(false)} />
       </div>
-      <div className="flex-1 overflow-y-auto pb-24 md:pb-0">
+      <div className="flex-1 overflow-y-auto pb-20 md:pb-0">
         <div className="container mx-auto max-w-4xl p-6">
           <Button
             variant="ghost"

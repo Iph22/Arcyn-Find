@@ -86,8 +86,10 @@ export default function EditCollectionPage() {
   if (isLoading) {
     return (
       <div className="flex h-screen overflow-hidden bg-background">
-        <Sidebar />
-        <div className="flex-1 flex items-center justify-center">
+        <div className="hidden md:block">
+          <Sidebar />
+        </div>
+        <div className="flex-1 flex items-center justify-center pb-20 md:pb-0">
           <Loader2 className="h-8 w-8 animate-spin" />
         </div>
       </div>
@@ -96,9 +98,11 @@ export default function EditCollectionPage() {
 
   return (
     <div className="flex h-screen overflow-hidden bg-background">
-      <Sidebar />
+      <div className="hidden md:block">
+        <Sidebar />
+      </div>
       
-      <div className="flex flex-1 flex-col overflow-hidden">
+      <div className="flex flex-1 flex-col overflow-hidden pb-20 md:pb-0">
         {/* Header */}
         <motion.header
           className="border-b border-border/40 bg-card/50 backdrop-blur-xl"

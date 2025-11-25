@@ -58,9 +58,11 @@ export default function NewCollectionPage() {
 
   return (
     <div className="flex h-screen overflow-hidden bg-background">
-      <Sidebar />
+      <div className="hidden md:block">
+        <Sidebar />
+      </div>
       
-      <div className="flex flex-1 flex-col overflow-hidden">
+      <div className="flex flex-1 flex-col overflow-hidden pb-20 md:pb-0">
         {/* Header */}
         <motion.header
           className="border-b border-border/40 bg-card/50 backdrop-blur-xl"

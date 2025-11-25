@@ -27,6 +27,29 @@ export function MobileNav() {
     return () => window.removeEventListener('resize', checkMobile)
   }, [])
 
+  // Handle browser back button for search modal
+  useEffect(() => {
+    if (!isSearchOpen) return
+
+    const handlePopState = (e: PopStateEvent) => {
+      // If modal is open and user presses back, close modal instead
+      if (isSearchOpen) {
+        e.preventDefault()
+        setIsSearchOpen(false)
+        // Push current state to prevent navigation
+        window.history.pushState({ modal: false }, '', window.location.pathname)
+      }
+    }
+
+    // Push state when modal opens
+    window.history.pushState({ modal: true }, '', window.location.pathname)
+    window.addEventListener('popstate', handlePopState)
+
+    return () => {
+      window.removeEventListener('popstate', handlePopState)
+    }
+  }, [isSearchOpen])
+
   // Don't show on landing page, auth pages, or desktop
   if (!isMobile || pathname === '/' || pathname?.startsWith('/sign-in') || pathname?.startsWith('/sign-up') || pathname?.startsWith('/contact') || pathname?.startsWith('/about') || pathname?.startsWith('/privacy') || pathname?.startsWith('/terms')) {
     return null
@@ -153,13 +176,24 @@ export function MobileNav() {
 
       {/* Search Modal for Mobile */}
       {isSearchOpen && (
-        <div className="fixed inset-0 z-[100] md:hidden">
+        <motion.div 
+          className="fixed inset-0 z-[100] md:hidden"
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          exit={{ opacity: 0 }}
+        >
           <div className="absolute inset-0 bg-background/95 backdrop-blur-xl">
             <div className="h-full flex flex-col">
               <div className="flex items-center justify-between p-4 border-b border-border">
                 <h2 className="text-lg font-semibold">Search Users</h2>
                 <button
-                  onClick={() => setIsSearchOpen(false)}
+                  onClick={() => {
+                    setIsSearchOpen(false)
+                    // Go back in history if we pushed a state, otherwise just close
+                    if (window.history.state?.modal) {
+                      window.history.back()
+                    }
+                  }}
                   className="p-2 rounded-lg hover:bg-muted transition-colors"
                 >
                   <span className="text-lg">✕</span>
@@ -170,7 +204,7 @@ export function MobileNav() {
               </div>
             </div>
           </div>
-        </div>
+        </motion.div>
       )}
     </>
   )

@@ -115,14 +115,14 @@ export default function ReviewsPage() {
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
               onClick={() => setSidebarOpen(false)}
-              className="fixed inset-0 bg-background/80 backdrop-blur-sm z-30 md:hidden"
+              className="fixed inset-0 bg-background/80 backdrop-blur-sm z-30"
             />
             <motion.div
               initial={{ x: -300, opacity: 0 }}
               animate={{ x: 0, opacity: 1 }}
               exit={{ x: -300, opacity: 0 }}
               transition={{ type: "spring", damping: 25, stiffness: 200 }}
-              className="hidden md:block fixed inset-y-0 left-0 z-40 h-full w-72"
+              className="fixed inset-y-0 left-0 z-40 h-full w-72"
             >
               <Sidebar onClose={() => setSidebarOpen(false)} />
             </motion.div>
@@ -131,7 +131,7 @@ export default function ReviewsPage() {
       </AnimatePresence>
 
       {/* Main Content */}
-      <div className="flex flex-1 flex-col overflow-hidden pb-16 md:pb-0">
+      <div className="flex flex-1 flex-col overflow-hidden pb-20 md:pb-0">
         {/* Header */}
         <motion.header
           className="border-b border-border/40 bg-card/50 backdrop-blur-xl"

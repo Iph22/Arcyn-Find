@@ -385,8 +385,10 @@ export default function SettingsPage() {
 
   return (
     <div className="flex h-screen overflow-hidden bg-background">
-      <Sidebar />
-      <div className="flex-1 overflow-y-auto p-6">
+      <div className="hidden md:block">
+        <Sidebar />
+      </div>
+      <div className="flex-1 overflow-y-auto p-6 pb-20 md:pb-6">
         <div className="container mx-auto max-w-4xl">
           <h1 className="mb-6 text-3xl font-bold">Settings</h1>
 
