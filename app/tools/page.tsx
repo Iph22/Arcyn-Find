@@ -364,19 +364,18 @@ export default function ToolsPage() {
       <div className="flex flex-1 flex-col overflow-hidden pb-16 md:pb-0">
         {/* Header */}
         <motion.header
-          className="border-b border-border/40 bg-card/50 backdrop-blur-xl"
+          className="border-b border-border/40 bg-card/50 backdrop-blur-xl sticky top-0 z-20"
           initial={{ y: -50, opacity: 0 }}
           animate={{ y: 0, opacity: 1 }}
           transition={{ duration: 0.5 }}
         >
-          <div className="flex items-center justify-between px-6 py-4">
-            <div className="flex items-center gap-4">
-              <Button variant="ghost" size="icon" onClick={() => setSidebarOpen(!sidebarOpen)} className="h-10 w-10">
-                {sidebarOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
+          <div className="flex items-center justify-between px-4 py-3 md:px-6 md:py-4">
+            <div className="flex items-center gap-2 md:gap-4">
+              <Button variant="ghost" size="icon" onClick={() => setSidebarOpen(!sidebarOpen)} className="h-9 w-9 md:h-10 md:w-10">
+                {sidebarOpen ? <X className="h-4 w-4 md:h-5 md:w-5" /> : <Menu className="h-4 w-4 md:h-5 md:w-5" />}
               </Button>
               <div className="flex items-center gap-2">
-                
-                <span className="text-lg font-bold">AI Tools</span>
+                <span className="text-base md:text-lg font-bold">AI Tools</span>
               </div>
             </div>
             <ThemeToggle />
@@ -385,15 +384,15 @@ export default function ToolsPage() {
 
         {/* Tools Content */}
         <main className="flex-1 overflow-y-auto">
-          <div className="mx-auto max-w-7xl px-6 py-8">
+          <div className="mx-auto max-w-7xl px-4 py-4 md:px-6 md:py-8">
             {/* Personalized Welcome Message */}
             {preferences?.categories && preferences.categories.length > 0 && (
               <motion.div
-                className="mb-6 rounded-xl border border-primary/20 bg-primary/5 p-4"
+                className="mb-4 md:mb-6 rounded-xl border border-primary/20 bg-primary/5 p-3 md:p-4"
                 initial={{ opacity: 0, y: -10 }}
                 animate={{ opacity: 1, y: 0 }}
               >
-                <p className="text-sm text-foreground">
+                <p className="text-xs md:text-sm text-foreground">
                   <span className="font-semibold text-primary">Personalized results:</span> Showing tools matched to
                   your interests in {preferences.categories.slice(0, 2).join(", ")}
                   {preferences.categories.length > 2 && ` and ${preferences.categories.length - 2} more`}.
@@ -403,37 +402,37 @@ export default function ToolsPage() {
 
             {/* Search & Filter Bar */}
             <motion.div
-              className="mb-8"
+              className="mb-6 md:mb-8"
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.5, delay: 0.1 }}
             >
-              <div className="mb-6 flex flex-col gap-4 sm:flex-row">
-                <Card className="flex-1 overflow-hidden border-border/50 bg-card/50 p-2 backdrop-blur-sm">
+              <div className="mb-4 md:mb-6 flex flex-col gap-3 md:gap-4 sm:flex-row">
+                <Card className="flex-1 overflow-hidden border-border/50 bg-card/50 p-1.5 md:p-2 backdrop-blur-sm">
                   <div className="relative">
-                    <Search className="absolute left-4 top-1/2 h-5 w-5 -translate-y-1/2 text-muted-foreground" />
+                    <Search className="absolute left-3 md:left-4 top-1/2 h-4 w-4 md:h-5 md:w-5 -translate-y-1/2 text-muted-foreground" />
                     <Input
                       type="text"
                       placeholder="Search AI tools..."
                       value={searchQuery}
                       onChange={(e) => setSearchQuery(e.target.value)}
-                      className="h-12 border-0 bg-transparent pl-12 text-base focus-visible:ring-0"
+                      className="h-11 md:h-12 border-0 bg-transparent pl-10 md:pl-12 text-sm md:text-base focus-visible:ring-0"
                     />
                   </div>
                 </Card>
-                <Button variant="outline" size="lg" className="h-14 gap-2 px-6 bg-transparent">
+                <Button variant="outline" size="lg" className="h-11 md:h-14 gap-2 px-4 md:px-6 bg-transparent">
                   <Filter className="h-4 w-4" />
-                  Filters
+                  <span className="hidden sm:inline">Filters</span>
                 </Button>
               </div>
 
               {/* Category Tabs */}
-              <div className="flex gap-2 overflow-x-auto pb-2">
+              <div className="flex gap-2 overflow-x-auto pb-2 -mx-4 px-4 md:mx-0 md:px-0">
                  {displayCategories.map((category) => (
                   <motion.button
                     key={category}
                     onClick={() => setSelectedCategory(category)}
-                    className={`whitespace-nowrap rounded-xl px-6 py-2.5 text-sm font-medium transition-all ${
+                    className={`whitespace-nowrap rounded-xl px-4 md:px-6 py-2 md:py-2.5 text-xs md:text-sm font-medium transition-all ${
                       selectedCategory === category
                         ? "bg-primary text-primary-foreground shadow-sm"
                         : "bg-card/50 text-foreground hover:bg-accent"
@@ -470,7 +469,7 @@ export default function ToolsPage() {
             {/* Tools Grid */}
             {!isLoading && !error && (
               <motion.div
-                className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3"
+                className="grid gap-4 md:gap-6 sm:grid-cols-2 lg:grid-cols-3"
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}
                 transition={{ duration: 0.5, delay: 0.2 }}
@@ -495,7 +494,7 @@ export default function ToolsPage() {
                       onClick={() => setSelectedTool(tool)}
                     >
                       {/* Tool Image */}
-                      <div className="relative h-48 overflow-hidden bg-muted">
+                      <div className="relative h-40 md:h-48 overflow-hidden bg-muted">
                         <img
                           src={tool.image || "/placeholder.svg"}
                           alt={tool.name}
@@ -511,9 +510,9 @@ export default function ToolsPage() {
                       </div>
 
                       {/* Tool Info */}
-                      <div className="p-5">
+                      <div className="p-4 md:p-5">
                         <div className="mb-2 flex items-start justify-between gap-2">
-                          <h3 className="text-lg font-semibold leading-tight">{tool.name}</h3>
+                          <h3 className="text-base md:text-lg font-semibold leading-tight">{tool.name}</h3>
                           <Button 
                             variant="ghost" 
                             size="icon" 
@@ -526,11 +525,11 @@ export default function ToolsPage() {
                           </Button>
                         </div>
 
-                        <p className="mb-4 line-clamp-2 text-sm text-muted-foreground leading-relaxed">
+                        <p className="mb-3 md:mb-4 line-clamp-2 text-xs md:text-sm text-muted-foreground leading-relaxed">
                           {tool.description}
                         </p>
 
-                        <div className="mb-4 flex items-center gap-2 flex-wrap">
+                        <div className="mb-3 md:mb-4 flex items-center gap-2 flex-wrap">
                           <Badge variant="secondary" className="text-xs">
                             {tool.category}
                           </Badge>
@@ -542,7 +541,7 @@ export default function ToolsPage() {
                         </div>
 
                         <div className="flex items-center justify-between">
-                          <div className="flex items-center gap-4 text-sm text-muted-foreground">
+                          <div className="flex items-center gap-3 md:gap-4 text-xs md:text-sm text-muted-foreground">
                             <div className="flex items-center gap-1">
                               <Star className="h-4 w-4 fill-primary text-primary" />
                               <span className="font-medium">{tool.rating}</span>

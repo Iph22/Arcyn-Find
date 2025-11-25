@@ -2,17 +2,21 @@
 
 import { usePathname, useRouter } from "next/navigation"
 import Link from "next/link"
-import { Home, Sparkles, Bookmark, User, Search } from "lucide-react"
+import { Home, Sparkles, Bookmark, User, Search, Lock } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { motion } from "framer-motion"
 import { useState, useEffect } from "react"
 import { UserSearch } from "@/components/user-search"
+import { usePreferences } from "@/contexts/preferences-context"
+import { Button } from "@/components/ui/button"
 
 export function MobileNav() {
   const pathname = usePathname()
   const router = useRouter()
   const [isSearchOpen, setIsSearchOpen] = useState(false)
   const [isMobile, setIsMobile] = useState(false)
+  const { preferences } = usePreferences()
+  const isAuthenticated = preferences?.isAuthenticated
 
   useEffect(() => {
     const checkMobile = () => {
@@ -29,10 +33,10 @@ export function MobileNav() {
   }
 
   const navItems = [
-    { href: "/home", label: "Home", icon: Home },
-    { href: "/tools", label: "Tools", icon: Sparkles },
-    { href: "/collections", label: "Saved", icon: Bookmark },
-    { href: "/profile", label: "Profile", icon: User },
+    { href: "/home", label: "Home", icon: Home, requiresAuth: true },
+    { href: "/tools", label: "Tools", icon: Sparkles, requiresAuth: false },
+    { href: "/collections", label: "Saved", icon: Bookmark, requiresAuth: true },
+    { href: "/profile", label: "Profile", icon: User, requiresAuth: true },
   ]
 
   const isActive = (href: string) => {
@@ -40,6 +44,60 @@ export function MobileNav() {
     return pathname?.startsWith(href)
   }
 
+  // For guests, show simplified navigation with sign-in prompt
+  if (!isAuthenticated) {
+    return (
+      <>
+        {/* Mobile Bottom Navigation for Guests */}
+        <motion.nav
+          initial={{ y: 100 }}
+          animate={{ y: 0 }}
+          className="fixed bottom-0 left-0 right-0 z-50 md:hidden bg-background/95 backdrop-blur-xl border-t border-border/50 safe-area-inset-bottom"
+          style={{
+            paddingBottom: 'env(safe-area-inset-bottom, 0px)',
+          }}
+        >
+          <div className="flex items-center justify-around h-16 px-2 gap-2">
+            {/* Tools Link */}
+            <Link
+              href="/tools"
+              className={cn(
+                "flex flex-col items-center justify-center gap-1 relative transition-colors flex-1 min-w-0",
+                pathname === "/tools"
+                  ? "text-primary"
+                  : "text-muted-foreground active:text-primary"
+              )}
+            >
+              {pathname === "/tools" && (
+                <motion.div
+                  layoutId="mobile-nav-indicator"
+                  className="absolute top-0 left-0 right-0 h-1 bg-primary rounded-b-full"
+                  initial={false}
+                  transition={{ type: "spring", stiffness: 500, damping: 30 }}
+                />
+              )}
+              <Sparkles className={cn("w-5 h-5 shrink-0", pathname === "/tools" && "scale-110")} />
+              <span className="text-[10px] font-medium leading-tight">Tools</span>
+            </Link>
+
+            {/* Sign In Button */}
+            <Button
+              onClick={() => router.push("/sign-in")}
+              className="flex-[2] h-12 mx-1 flex flex-col items-center justify-center gap-1 bg-primary hover:bg-primary/90 text-primary-foreground"
+              variant="default"
+            >
+              <Lock className="w-4 h-4 shrink-0" />
+              <span className="text-[10px] font-medium leading-tight text-center px-1 line-clamp-2">
+                Sign in to use more tools
+              </span>
+            </Button>
+          </div>
+        </motion.nav>
+      </>
+    )
+  }
+
+  // For authenticated users, show full navigation
   return (
     <>
       {/* Mobile Bottom Navigation */}

@@ -67,10 +67,10 @@ export function Navbar({ className }: NavbarProps) {
         className
       )}
     >
-      <div className="container mx-auto flex h-16 items-center justify-between px-4">
-        <div className="flex items-center gap-4">
-          <Link href={logoLink} className="flex items-center gap-2">
-            <span className="text-xl font-bold">Arcyn Find</span>
+      <div className="container mx-auto flex h-14 md:h-16 items-center justify-between px-3 md:px-4">
+        <div className="flex items-center gap-2 md:gap-4">
+          <Link href={logoLink} className="flex items-center gap-1 md:gap-2">
+            <span className="text-base md:text-xl font-bold">Arcyn Find</span>
           </Link>
           {/* Show navigation links for both authenticated and guest users */}
           <div className="hidden md:flex items-center gap-1">
@@ -126,13 +126,13 @@ export function Navbar({ className }: NavbarProps) {
           </div>
         </div>
 
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-1 md:gap-2">
           <ThemeToggle />
           {isAuthenticated ? (
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
-                <Button variant="ghost" size="icon" className="h-9 w-9 rounded-full">
-                  <Avatar className="h-9 w-9">
+                <Button variant="ghost" size="icon" className="h-8 w-8 md:h-9 md:w-9 rounded-full">
+                  <Avatar className="h-8 w-8 md:h-9 md:w-9">
                     <AvatarImage src={avatarUrl || undefined} />
                     <AvatarFallback>
                       {preferences?.userName
@@ -184,12 +184,22 @@ export function Navbar({ className }: NavbarProps) {
               </DropdownMenuContent>
             </DropdownMenu>
           ) : (
-            <div className="flex items-center gap-2">
-              <Button variant="ghost" onClick={() => router.push("/sign-in")}>
+            <div className="flex items-center gap-1 md:gap-2">
+              <Button 
+                variant="ghost" 
+                size="sm"
+                onClick={() => router.push("/sign-in")}
+                className="h-8 px-2 md:px-3 text-xs md:text-sm"
+              >
                 Sign In
               </Button>
-              <Button onClick={() => router.push("/sign-up")}>
-                Get Started
+              <Button 
+                size="sm"
+                onClick={() => router.push("/sign-up")}
+                className="h-8 px-2 md:px-3 text-xs md:text-sm"
+              >
+                <span className="hidden sm:inline">Get Started</span>
+                <span className="sm:hidden">Start</span>
               </Button>
             </div>
           )}
