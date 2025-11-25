@@ -409,19 +409,41 @@ export default function ToolsPage() {
               transition={{ duration: 0.5, delay: 0.1 }}
             >
               <div className="mb-4 md:mb-6 flex flex-col gap-3 md:gap-4 sm:flex-row">
-                <Card className="flex-1 overflow-hidden border-border/50 bg-card/50 p-1.5 md:p-2 backdrop-blur-sm">
-                  <div className="relative">
-                    <Search className="absolute left-3 md:left-4 top-1/2 h-4 w-4 md:h-5 md:w-5 -translate-y-1/2 text-muted-foreground" />
+                <Card className="flex-1 overflow-hidden border-border/50 bg-card/50 p-1.5 md:p-2 backdrop-blur-sm relative">
+                  <div className="relative flex items-center">
+                    <Search className="absolute left-3 md:left-4 top-1/2 h-4 w-4 md:h-5 md:w-5 -translate-y-1/2 text-muted-foreground z-10 pointer-events-none" />
                     <Input
                       type="text"
                       placeholder="Search AI tools..."
                       value={searchQuery}
                       onChange={(e) => setSearchQuery(e.target.value)}
-                      className="h-11 md:h-12 border-0 bg-transparent pl-10 md:pl-12 text-sm md:text-base focus-visible:ring-0"
+                      onFocus={(e) => {
+                        // Prevent iOS zoom and handle mobile positioning
+                        if (window.innerWidth < 768) {
+                          // Ensure input stays in view without weird scrolling
+                          const input = e.target as HTMLInputElement
+                          const card = input.closest('.relative')?.parentElement
+                          if (card) {
+                            // Use scrollIntoView with better options
+                            setTimeout(() => {
+                              card.scrollIntoView({ 
+                                behavior: 'smooth', 
+                                block: 'center',
+                                inline: 'nearest'
+                              })
+                            }, 50)
+                          }
+                        }
+                      }}
+                      className="h-11 md:h-12 border-0 bg-transparent pl-10 md:pl-12 pr-3 md:pr-4 text-sm md:text-base focus-visible:ring-0 w-full"
+                      style={{
+                        // Prevent iOS zoom on focus (16px minimum)
+                        fontSize: window.innerWidth < 768 ? '16px' : undefined,
+                      }}
                     />
                   </div>
                 </Card>
-                <Button variant="outline" size="lg" className="h-11 md:h-14 gap-2 px-4 md:px-6 bg-transparent">
+                <Button variant="outline" size="lg" className="h-11 md:h-14 gap-2 px-4 md:px-6 bg-transparent shrink-0">
                   <Filter className="h-4 w-4" />
                   <span className="hidden sm:inline">Filters</span>
                 </Button>

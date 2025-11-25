@@ -2,26 +2,29 @@
 
 import { Moon, Sun } from "lucide-react"
 import { useEffect, useState } from "react"
+import { useTheme } from "next-themes"
 import { Button } from "@/components/ui/button"
 import { motion } from "framer-motion"
 
 export function ThemeToggle() {
-  const [theme, setTheme] = useState<"light" | "dark">("dark")
+  const { theme, setTheme, systemTheme } = useTheme()
   const [mounted, setMounted] = useState(false)
 
   useEffect(() => {
     setMounted(true)
-    const isDark = document.documentElement.classList.contains("dark")
-    setTheme(isDark ? "dark" : "light")
   }, [])
 
-  const toggleTheme = () => {
-    const newTheme = theme === "dark" ? "light" : "dark"
-    setTheme(newTheme)
-    document.documentElement.classList.toggle("dark")
+  // Determine current effective theme
+  const currentTheme = theme === "system" ? systemTheme : theme
+  const isDark = currentTheme === "dark"
 
-    // Store preference
-    localStorage.setItem("theme", newTheme)
+  const toggleTheme = () => {
+    // Simple toggle: dark <-> light (no system option)
+    if (theme === "dark") {
+      setTheme("light")
+    } else {
+      setTheme("dark")
+    }
   }
 
   if (!mounted) {
@@ -37,8 +40,8 @@ export function ThemeToggle() {
       <motion.div
         initial={false}
         animate={{
-          scale: theme === "dark" ? 1 : 0,
-          rotate: theme === "dark" ? 0 : 180,
+          scale: isDark ? 1 : 0,
+          rotate: isDark ? 0 : 180,
         }}
         transition={{ duration: 0.3, ease: "easeInOut" }}
         className="absolute inset-0 flex items-center justify-center"
@@ -48,8 +51,8 @@ export function ThemeToggle() {
       <motion.div
         initial={false}
         animate={{
-          scale: theme === "light" ? 1 : 0,
-          rotate: theme === "light" ? 0 : -180,
+          scale: !isDark ? 1 : 0,
+          rotate: !isDark ? 0 : -180,
         }}
         transition={{ duration: 0.3, ease: "easeInOut" }}
         className="absolute inset-0 flex items-center justify-center"

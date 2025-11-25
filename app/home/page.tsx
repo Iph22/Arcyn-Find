@@ -260,13 +260,33 @@ export default function HomePage() {
                       }
                     }} className="flex gap-2">
                       <div className="relative flex-1">
-                        <Search className="absolute left-4 top-1/2 h-5 w-5 -translate-y-1/2 text-muted-foreground" />
+                        <Search className="absolute left-4 top-1/2 h-5 w-5 -translate-y-1/2 text-muted-foreground z-10 pointer-events-none" />
                         <Input
                           type="text"
                           placeholder="Search AI tools..."
                           value={searchQuery}
                           onChange={(e) => setSearchQuery(e.target.value)}
-                          className="h-12 sm:h-14 border-0 bg-transparent pl-10 sm:pl-12 text-base focus-visible:ring-0"
+                          onFocus={(e) => {
+                            // Prevent iOS zoom and handle mobile positioning
+                            if (window.innerWidth < 768) {
+                              const input = e.target as HTMLInputElement
+                              const card = input.closest('.relative')?.parentElement
+                              if (card) {
+                                setTimeout(() => {
+                                  card.scrollIntoView({ 
+                                    behavior: 'smooth', 
+                                    block: 'center',
+                                    inline: 'nearest'
+                                  })
+                                }, 50)
+                              }
+                            }
+                          }}
+                          className="h-12 sm:h-14 border-0 bg-transparent pl-10 sm:pl-12 pr-3 sm:pr-4 text-base focus-visible:ring-0 w-full"
+                          style={{
+                            // Prevent iOS zoom on focus (16px minimum)
+                            fontSize: window.innerWidth < 768 ? '16px' : undefined,
+                          }}
                         />
                       </div>
                       <Button type="submit" size="lg" className="h-12 sm:h-14 px-4 sm:px-8 font-semibold shadow-sm">

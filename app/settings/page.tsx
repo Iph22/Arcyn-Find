@@ -20,6 +20,7 @@ import { usePreferences } from "@/contexts/preferences-context"
 import { useAvatar } from "@/contexts/avatar-context"
 import { Label } from "@/components/ui/label"
 import { toast } from "sonner"
+import { useTheme } from "next-themes"
 
 interface UserProfile {
   id: string
@@ -355,20 +356,8 @@ export default function SettingsPage() {
 
   const handleThemeChange = (newTheme: string) => {
     setTheme(newTheme)
-    // Apply theme immediately
-    if (newTheme === 'light') {
-      document.documentElement.classList.remove('dark')
-    } else if (newTheme === 'dark') {
-      document.documentElement.classList.add('dark')
-    } else {
-      // System default
-      if (window.matchMedia('(prefers-color-scheme: dark)').matches) {
-        document.documentElement.classList.add('dark')
-      } else {
-        document.documentElement.classList.remove('dark')
-      }
-    }
-    localStorage.setItem('theme', newTheme)
+    // Use next-themes to set theme properly
+    setNextTheme(newTheme)
     toast.success("Theme updated")
   }
 

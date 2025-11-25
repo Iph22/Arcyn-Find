@@ -78,6 +78,24 @@ body {
   display: none;
 }
 
+/* Prevent mobile input auto-scroll and zoom issues */
+@media (max-width: 768px) {
+  /* Prevent iOS zoom on input focus - minimum 16px font size */
+  input[type="text"],
+  input[type="search"],
+  textarea {
+    font-size: 16px !important;
+  }
+  
+  /* Better scroll behavior for focused inputs */
+  input[type="text"]:focus,
+  input[type="search"]:focus,
+  textarea:focus {
+    scroll-margin-top: 1rem;
+    scroll-margin-bottom: 1rem;
+  }
+}
+
 @custom-variant dark (&:is(.dark *));
 
 :root {
