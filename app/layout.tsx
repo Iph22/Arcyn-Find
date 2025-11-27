@@ -140,13 +140,56 @@ export default function RootLayout({
 }: Readonly<{
   children: React.ReactNode
 }>) {
+  const clerkPublishableKey = process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY
+
+  // Warn if Clerk key is missing in development
+  if (process.env.NODE_ENV === 'development' && !clerkPublishableKey) {
+    console.warn(
+      '⚠️ NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY is not set. Clerk authentication will not work.'
+    )
+  }
+
+  // Don't render ClerkProvider if key is missing to prevent timeout errors
+  if (!clerkPublishableKey) {
+    return (
+      <html lang="en" suppressHydrationWarning className={`${geistSans.variable} ${geistMono.variable}`}>
+        <body className={`font-sans antialiased ${geistSans.variable} ${geistMono.variable}`} suppressHydrationWarning>
+          <div className="flex h-screen items-center justify-center">
+            <div className="text-center">
+              <h1 className="text-2xl font-bold mb-2">Configuration Error</h1>
+              <p className="text-muted-foreground">
+                NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY is not set. Please configure your environment variables.
+              </p>
+            </div>
+          </div>
+        </body>
+      </html>
+    )
+  }
+
   return (
-    <ClerkProvider>
+    <ClerkProvider
+      publishableKey={clerkPublishableKey}
+      afterSignInUrl="/onboarding"
+      afterSignUpUrl="/onboarding"
+      signInUrl="/sign-in"
+      signUpUrl="/sign-up"
+      appearance={{
+        elements: {
+          rootBox: 'w-full',
+        },
+      }}
+    >
       <html lang="en" suppressHydrationWarning className={`${geistSans.variable} ${geistMono.variable}`}>
         <head>
           {/* Preconnect to external domains for performance */}
           <link rel="preconnect" href="https://fonts.googleapis.com" />
           <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
+          {/* Preconnect to Clerk domains for faster loading */}
+          <link rel="preconnect" href="https://clerk.com" />
+          <link rel="preconnect" href="https://clerk.accounts.dev" />
+          <link rel="dns-prefetch" href="https://clerk.com" />
+          <link rel="dns-prefetch" href="https://clerk.accounts.dev" />
 
           {/* Preload critical resources */}
           <link rel="preload" href="/icon.svg" as="image" type="image/svg+xml" />

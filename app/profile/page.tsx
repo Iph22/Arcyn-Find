@@ -1,6 +1,7 @@
 "use client"
 
 import { useState, useEffect } from "react"
+import Image from "next/image"
 import { motion, AnimatePresence } from "framer-motion"
 import { Sparkles, Menu, X, Settings, MapPin, LinkIcon, Calendar, Star, Bookmark, Users, LogOut, Trash2, Share2 } from "lucide-react"
 import { useRouter } from "next/navigation"
@@ -362,10 +363,12 @@ export default function ProfilePage() {
                 {/* Cover Image / Banner */}
                 {userProfile?.banner_url ? (
                   <div className="h-32 sm:h-48 relative">
-                    <img 
+                    <Image 
                       src={userProfile.banner_url} 
                       alt="Profile banner" 
-                      className="w-full h-full object-cover"
+                      fill
+                      className="object-cover"
+                      sizes="100vw"
                     />
                   </div>
                 ) : (
@@ -543,12 +546,14 @@ export default function ProfilePage() {
                         >
                           <Card className="group overflow-hidden border-border/50 bg-card/50 backdrop-blur-sm transition-all hover:border-border hover:shadow-md">
                             <div className="flex gap-4 p-4">
-                              <div className="h-16 w-16 shrink-0 overflow-hidden rounded-lg bg-muted">
+                              <div className="relative h-16 w-16 shrink-0 overflow-hidden rounded-lg bg-muted">
                                 {savedTool.tool?.image ? (
-                                  <img
+                                  <Image
                                     src={savedTool.tool.image}
                                     alt={savedTool.tool.name}
-                                    className="h-full w-full object-cover transition-transform group-hover:scale-105"
+                                    fill
+                                    className="object-cover transition-transform group-hover:scale-105"
+                                    sizes="64px"
                                   />
                                 ) : (
                                   <div className="flex h-full w-full items-center justify-center bg-gradient-to-br from-primary/20 to-chart-1/20">

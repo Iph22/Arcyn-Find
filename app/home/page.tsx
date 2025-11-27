@@ -1,6 +1,7 @@
 "use client"
 
 import { useState, useEffect } from "react"
+import Image from "next/image"
 import { useRouter } from "next/navigation"
 import { motion, AnimatePresence } from "framer-motion"
 import { Search, Sparkles, TrendingUp, Menu, X, Star } from "lucide-react"
@@ -332,11 +333,15 @@ export default function HomePage() {
                             whileHover={{ x: 4 }}
                           >
                             {tool.image ? (
-                              <img
-                                src={tool.image}
-                                alt={tool.name}
-                                className="w-12 h-12 rounded-lg object-cover"
-                              />
+                              <div className="relative w-12 h-12 rounded-lg overflow-hidden">
+                                <Image
+                                  src={tool.image}
+                                  alt={tool.name}
+                                  fill
+                                  className="object-cover"
+                                  sizes="48px"
+                                />
+                              </div>
                             ) : (
                               <div className="w-12 h-12 rounded-lg bg-gradient-to-br from-primary/20 to-chart-1/20 flex items-center justify-center">
                                 <Sparkles className="w-6 h-6 text-primary" />

@@ -1,6 +1,7 @@
 "use client"
 
 import { useState, useEffect } from "react"
+import Image from "next/image"
 import { useRouter } from "next/navigation"
 import { motion, AnimatePresence } from "framer-motion"
 import { X, ExternalLink, Heart, Share2, Star, Zap, Plus, DollarSign, Sparkles, Copy, Check } from "lucide-react"
@@ -335,7 +336,21 @@ export function ToolDetailModal({ tool, isOpen, onClose }: ToolDetailModalProps)
 
                 {/* Header with Image */}
                 <div className="relative h-64">
-                  <img src={tool.image || "/placeholder.svg"} alt={tool.name} className="w-full h-full object-cover" />
+                  {tool.image ? (
+                    <Image
+                      src={tool.image}
+                      alt={tool.name}
+                      fill
+                      className="object-cover"
+                      sizes="100vw"
+                    />
+                  ) : (
+                    <div className="w-full h-full bg-gradient-to-br from-primary/20 to-chart-1/20 flex items-center justify-center">
+                      <span className="text-6xl font-bold text-primary/50">
+                        {tool.name.charAt(0).toUpperCase()}
+                      </span>
+                    </div>
+                  )}
                   <div className="absolute inset-0 bg-gradient-to-t from-card via-card/50 to-transparent" />
                   <div className="absolute bottom-6 left-6 right-6">
                     <Badge className="bg-primary/20 text-primary border-primary/30 mb-3">{tool.category}</Badge>
@@ -486,7 +501,7 @@ export function ToolDetailModal({ tool, isOpen, onClose }: ToolDetailModalProps)
                         <h3 className="text-2xl font-bold mb-4">Similar AI Tools</h3>
                         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                           {similarTools.map((similarTool) => (
-                            <Card 
+                            <Card
                               key={similarTool.id} 
                               className="p-4 hover:border-primary cursor-pointer transition-colors"
                               onClick={() => {
@@ -494,11 +509,23 @@ export function ToolDetailModal({ tool, isOpen, onClose }: ToolDetailModalProps)
                                 router.push(`/tools/${similarTool.id}`)
                               }}
                             >
-                              <img 
-                                src={similarTool.image || "/placeholder.svg"} 
-                                alt={similarTool.name}
-                                className="w-full h-32 object-cover rounded-lg mb-3"
-                              />
+                              <div className="relative w-full h-32 rounded-lg mb-3 overflow-hidden bg-muted">
+                                {similarTool.image ? (
+                                  <Image 
+                                    src={similarTool.image} 
+                                    alt={similarTool.name}
+                                    fill
+                                    className="object-cover"
+                                    sizes="(max-width: 768px) 100vw, 33vw"
+                                  />
+                                ) : (
+                                  <div className="w-full h-full bg-gradient-to-br from-primary/20 to-chart-1/20 flex items-center justify-center">
+                                    <span className="text-2xl font-bold text-primary/50">
+                                      {similarTool.name.charAt(0).toUpperCase()}
+                                    </span>
+                                  </div>
+                                )}
+                              </div>
                               <h4 className="font-semibold mb-1">{similarTool.name}</h4>
                               <p className="text-sm text-muted-foreground line-clamp-2">{similarTool.description}</p>
                             </Card>

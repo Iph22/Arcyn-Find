@@ -1,6 +1,7 @@
 "use client"
 
 import { useState, useEffect } from "react"
+import Image from "next/image"
 import { useParams, useRouter } from "next/navigation"
 import { Bookmark, Plus, Trash2, Star, ExternalLink, X } from "lucide-react"
 import { Card } from "@/components/ui/card"
@@ -180,11 +181,21 @@ export default function CollectionDetailPage() {
 
                   {/* Tool Image */}
                   <div className="relative h-48 overflow-hidden bg-muted">
-                    <img
-                      src={tool.image || "/placeholder.svg"}
-                      alt={tool.name}
-                      className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-105"
-                    />
+                    {tool.image ? (
+                      <Image
+                        src={tool.image}
+                        alt={tool.name}
+                        fill
+                        className="object-cover transition-transform duration-300 group-hover:scale-105"
+                        sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
+                      />
+                    ) : (
+                      <div className="h-full w-full bg-gradient-to-br from-primary/20 to-chart-1/20 flex items-center justify-center">
+                        <span className="text-4xl font-bold text-primary/50">
+                          {tool.name.charAt(0).toUpperCase()}
+                        </span>
+                      </div>
+                    )}
                   </div>
 
                   {/* Tool Info */}

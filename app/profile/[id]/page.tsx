@@ -1,6 +1,7 @@
 "use client"
 
 import { useState, useEffect } from "react"
+import Image from "next/image"
 import { useParams, useRouter } from "next/navigation"
 import { motion, AnimatePresence } from "framer-motion"
 import { Menu, X, Calendar, Star, Bookmark, Users, Share2, UserPlus, UserCheck, ArrowLeft, Sparkles } from "lucide-react"
@@ -377,10 +378,12 @@ export default function UserProfilePage() {
                 {/* Cover Image / Banner */}
                 {userProfile.banner_url ? (
                   <div className="h-32 sm:h-48 relative">
-                    <img
+                    <Image
                       src={userProfile.banner_url}
                       alt="Profile banner"
-                      className="w-full h-full object-cover"
+                      fill
+                      className="object-cover"
+                      sizes="100vw"
                     />
                   </div>
                 ) : (
@@ -512,12 +515,14 @@ export default function UserProfilePage() {
                             onClick={() => router.push(`/tools/${savedTool.tool.id}`)}
                           >
                             <div className="flex gap-4 p-4">
-                              <div className="h-16 w-16 shrink-0 overflow-hidden rounded-lg bg-muted">
+                              <div className="relative h-16 w-16 shrink-0 overflow-hidden rounded-lg bg-muted">
                                 {savedTool.tool?.image ? (
-                                  <img
+                                  <Image
                                     src={savedTool.tool.image}
                                     alt={savedTool.tool.name}
-                                    className="h-full w-full object-cover transition-transform group-hover:scale-105"
+                                    fill
+                                    className="object-cover transition-transform group-hover:scale-105"
+                                    sizes="64px"
                                   />
                                 ) : (
                                   <div className="flex h-full w-full items-center justify-center bg-gradient-to-br from-primary/20 to-chart-1/20">
@@ -566,11 +571,13 @@ export default function UserProfilePage() {
                           >
                             <div className="flex gap-4">
                               {review.tool?.image && (
-                                <div className="h-16 w-16 shrink-0 overflow-hidden rounded-lg bg-muted">
-                                  <img
+                                <div className="relative h-16 w-16 shrink-0 overflow-hidden rounded-lg bg-muted">
+                                  <Image
                                     src={review.tool.image}
                                     alt={review.tool.name}
-                                    className="h-full w-full object-cover"
+                                    fill
+                                    className="object-cover"
+                                    sizes="64px"
                                   />
                                 </div>
                               )}

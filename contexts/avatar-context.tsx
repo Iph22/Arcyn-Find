@@ -14,7 +14,7 @@ interface AvatarContextType {
 const AvatarContext = createContext<AvatarContextType | undefined>(undefined)
 
 export function AvatarProvider({ children }: { children: React.ReactNode }) {
-  const { user } = useUser()
+  const { user, isLoaded } = useUser()
   const [avatarUrl, setAvatarUrl] = useState<string | null>(null)
   const [displayName, setDisplayName] = useState<string | null>(null)
   const [username, setUsername] = useState<string | null>(null)
@@ -53,10 +53,16 @@ export function AvatarProvider({ children }: { children: React.ReactNode }) {
   }, [])
 
   useEffect(() => {
-    if (user) {
+    // Only fetch avatar if Clerk is loaded and user exists
+    if (isLoaded && user) {
       refreshAvatar()
+    } else if (isLoaded && !user) {
+      // Clear avatar data if user is not authenticated
+      setAvatarUrl(null)
+      setDisplayName(null)
+      setUsername(null)
     }
-  }, [user, refreshAvatar])
+  }, [user, isLoaded, refreshAvatar])
 
   return (
     <AvatarContext.Provider value={{ avatarUrl, displayName, username, refreshAvatar, updateAvatar }}>

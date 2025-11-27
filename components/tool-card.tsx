@@ -1,6 +1,7 @@
 "use client"
 
-import { useState, memo } from "react"
+import { memo } from "react"
+import Image from "next/image"
 import { motion } from "framer-motion"
 import { ExternalLink, Star, Bookmark, BookmarkCheck } from "lucide-react"
 import { Card } from "@/components/ui/card"
@@ -24,8 +25,6 @@ function ToolCardComponent({
   isBookmarked = false,
   className,
 }: ToolCardProps) {
-  const [imageError, setImageError] = useState(false)
-
   return (
     <motion.div
       initial={{ opacity: 0, scale: 0.9 }}
@@ -38,12 +37,13 @@ function ToolCardComponent({
       <Card className="group relative h-full overflow-hidden border-border/50 bg-card/50 backdrop-blur-sm transition-all hover:border-border hover:shadow-lg">
         {/* Tool Image */}
         <div className="relative h-48 overflow-hidden bg-muted">
-          {!imageError && tool.image ? (
-            <img
+          {tool.image ? (
+            <Image
               src={tool.image}
               alt={tool.name}
-              className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-105"
-              onError={() => setImageError(true)}
+              fill
+              className="object-cover transition-transform duration-300 group-hover:scale-105"
+              sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
             />
           ) : (
             <div className="flex h-full w-full items-center justify-center bg-gradient-to-br from-primary/20 to-chart-1/20">

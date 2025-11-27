@@ -1,6 +1,7 @@
 "use client"
 
 import { useState, useEffect, useMemo, useCallback } from "react"
+import Image from "next/image"
 import { useRouter, useSearchParams } from "next/navigation"
 import { motion, AnimatePresence } from "framer-motion"
 import { Search, Sparkles, Star, Bookmark, ExternalLink, Menu, X, Filter } from "lucide-react"
@@ -278,7 +279,7 @@ export default function ToolsPage() {
       category: categoryMapping[tool.category] || tool.category,
       rating: (tool.popularity / 20).toFixed(1), // Convert popularity (0-100) to rating (0-5)
       saves: Math.floor(tool.popularity * 100), // Estimate saves from popularity
-      image: `/ai-tools/${tool.id}.png`, // Generated image path
+      image: tool.image || null, // Use database image URL
       featured: tool.isTrending || false,
       platform: tool.platform,
       accessType: tool.accessType,
@@ -518,12 +519,21 @@ export default function ToolsPage() {
                     >
                       {/* Tool Image */}
                       <div className="relative h-40 md:h-48 overflow-hidden bg-muted">
-                        <img
-                          src={tool.image || "/placeholder.svg"}
-                          alt={tool.name}
-                          loading="lazy"
-                          className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-105"
-                        />
+                        {tool.image ? (
+                          <Image
+                            src={tool.image}
+                            alt={tool.name}
+                            fill
+                            className="object-cover transition-transform duration-300 group-hover:scale-105"
+                            sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
+                          />
+                        ) : (
+                          <div className="h-full w-full bg-gradient-to-br from-primary/20 to-chart-1/20 flex items-center justify-center">
+                            <span className="text-4xl font-bold text-primary/50">
+                              {tool.name.charAt(0).toUpperCase()}
+                            </span>
+                          </div>
+                        )}
                         {tool.featured && (
                           <Badge className="absolute right-3 top-3 bg-primary/90 text-primary-foreground backdrop-blur-sm">
                             <Sparkles className="mr-1 h-3 w-3" />

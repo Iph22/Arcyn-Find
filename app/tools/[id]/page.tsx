@@ -1,6 +1,7 @@
 "use client"
 
 import { useState, useEffect } from "react"
+import Image from "next/image"
 import { useParams, useRouter } from "next/navigation"
 import { motion } from "framer-motion"
 import { ExternalLink, Star, Bookmark, Share2, ArrowLeft } from "lucide-react"
@@ -110,10 +111,12 @@ export default function ToolDetailPage() {
             <Card className="mb-6 overflow-hidden">
               {tool.image && (
                 <div className="relative h-64 w-full overflow-hidden bg-muted">
-                  <img
+                  <Image
                     src={tool.image}
                     alt={tool.name}
-                    className="h-full w-full object-cover"
+                    fill
+                    className="object-cover"
+                    sizes="100vw"
                   />
                 </div>
               )}
