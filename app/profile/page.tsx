@@ -25,6 +25,7 @@ import {
 } from "@/components/ui/alert-dialog"
 import { toast } from "sonner"
 import { useUser, useClerk } from "@clerk/nextjs"
+import { logger } from "@/lib/logger"
 
 interface UserProfile {
   id: string
@@ -67,6 +68,19 @@ interface Activity {
   type: string
 }
 
+interface Review {
+  id: string
+  rating: number
+  title?: string
+  review_text?: string
+  created_at: string
+  tool: {
+    id: string
+    name: string
+    image?: string
+  }
+}
+
 export default function ProfilePage() {
   const router = useRouter()
   const { preferences, clearPreferences } = usePreferences()
@@ -76,6 +90,7 @@ export default function ProfilePage() {
   const [userProfile, setUserProfile] = useState<UserProfile | null>(null)
   const [userStats, setUserStats] = useState<UserStats | null>(null)
   const [savedTools, setSavedTools] = useState<SavedTool[]>([])
+  const [reviews, setReviews] = useState<Review[]>([])
   const [activities, setActivities] = useState<Activity[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [showDeleteDialog, setShowDeleteDialog] = useState(false)
@@ -95,7 +110,7 @@ export default function ProfilePage() {
         toast.success("Profile link copied to clipboard!")
       }
     } catch (error) {
-      console.error("Error sharing:", error)
+      logger.error("Error sharing:", error)
       // Fallback: just copy to clipboard
       try {
         await navigator.clipboard.writeText(profileUrl)
@@ -123,63 +138,85 @@ export default function ProfilePage() {
         }
 
         // Load user profile via API
-        const [profileRes, statsRes, toolsRes, activityRes] = await Promise.all([
+        const results = await Promise.allSettled([
           fetch('/api/user/profile'),
           fetch('/api/user/stats'),
           fetch('/api/user/saved-tools'),
+          fetch(`/api/users/${user.id}/reviews`),
           fetch('/api/user/activity')
         ])
         
         if (!isMounted) return
         
-        if (profileRes.ok) {
+        // Handle each result individually - one failure doesn't block others
+        const [profileResult, statsResult, toolsResult, reviewsResult, activityResult] = results
+        
+        if (profileResult.status === 'fulfilled' && profileResult.value.ok) {
           try {
-            const data = await profileRes.json()
+            const data = await profileResult.value.json()
             if (isMounted) {
               setUserProfile(data.profile)
             }
           } catch (err) {
-            console.error("Error parsing profile JSON:", err)
+            logger.error("Error parsing profile JSON:", err)
           }
+        } else if (profileResult.status === 'rejected') {
+          logger.error("Error fetching profile:", profileResult.reason)
         }
         
-        if (statsRes.ok) {
+        if (statsResult.status === 'fulfilled' && statsResult.value.ok) {
           try {
-            const data = await statsRes.json()
+            const data = await statsResult.value.json()
             if (isMounted) {
               setUserStats(data.stats)
             }
           } catch (err) {
-            console.error("Error parsing stats JSON:", err)
+            logger.error("Error parsing stats JSON:", err)
           }
+        } else if (statsResult.status === 'rejected') {
+          logger.error("Error fetching stats:", statsResult.reason)
         }
         
-        if (toolsRes.ok) {
+        if (toolsResult.status === 'fulfilled' && toolsResult.value.ok) {
           try {
-            const data = await toolsRes.json()
+            const data = await toolsResult.value.json()
             if (isMounted) {
               setSavedTools(data.savedTools)
             }
           } catch (err) {
-            console.error("Error parsing tools JSON:", err)
+            logger.error("Error parsing tools JSON:", err)
           }
+        } else if (toolsResult.status === 'rejected') {
+          logger.error("Error fetching saved tools:", toolsResult.reason)
         }
         
-        if (activityRes.ok) {
+        if (reviewsResult.status === 'fulfilled' && reviewsResult.value.ok) {
           try {
-            const data = await activityRes.json()
+            const data = await reviewsResult.value.json()
+            if (isMounted) {
+              setReviews(data.reviews || [])
+            }
+          } catch (err) {
+            logger.error("Error parsing reviews JSON:", err)
+          }
+        } else if (reviewsResult.status === 'rejected') {
+          logger.error("Error fetching reviews:", reviewsResult.reason)
+        }
+        
+        if (activityResult.status === 'fulfilled' && activityResult.value.ok) {
+          try {
+            const data = await activityResult.value.json()
             if (isMounted) {
               setActivities(data.activities)
             }
           } catch (err) {
-            console.error("Error parsing activity JSON:", err)
+            logger.error("Error parsing activity JSON:", err)
           }
+        } else if (activityResult.status === 'rejected') {
+          logger.error("Error fetching activity:", activityResult.reason)
         }
       } catch (error) {
-        if (process.env.NODE_ENV === 'development') {
-          // eslint-disable-next-line no-console
-          console.error("Error loading user data:", error)
-        }
+        logger.error("Error loading user data:", error)
         if (isMounted) {
           router.push("/")
         }
@@ -208,7 +245,7 @@ export default function ProfilePage() {
       await signOut({ redirectUrl: '/' })
     } catch (error) {
       if (process.env.NODE_ENV === 'development') {
-        console.error("Error signing out:", error)
+        logger.error("Error signing out:", error)
       }
       // Force redirect on error
       window.location.href = '/'
@@ -245,7 +282,7 @@ export default function ProfilePage() {
       }
     } catch (error) {
       if (process.env.NODE_ENV === 'development') {
-        console.error("Error deleting account:", error)
+        logger.error("Error deleting account:", error)
       }
       toast.error("An error occurred while deleting your account")
       setIsDeleting(false)
@@ -590,13 +627,73 @@ export default function ProfilePage() {
 
                 {/* Reviews Tab */}
                 <TabsContent value="reviews">
-                  <Card className="border-border/50 bg-card/50 p-8 text-center backdrop-blur-sm">
-                    <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-2xl bg-muted">
-                      <Star className="h-8 w-8 text-muted-foreground" />
+                  {reviews.length > 0 ? (
+                    <div className="space-y-4">
+                      {reviews.map((review, index) => (
+                        <motion.div
+                          key={review.id}
+                          initial={{ opacity: 0, y: 20 }}
+                          animate={{ opacity: 1, y: 0 }}
+                          transition={{ duration: 0.3, delay: index * 0.05 }}
+                        >
+                          <Card
+                            className="border-border/50 bg-card/50 p-4 backdrop-blur-sm cursor-pointer hover:border-border transition-colors"
+                            onClick={() => {
+                              if (review.tool?.id) {
+                                router.push(`/tools/${review.tool.id}`)
+                              }
+                            }}
+                          >
+                            <div className="flex gap-4">
+                              {review.tool?.image && (
+                                <div className="relative h-16 w-16 shrink-0 overflow-hidden rounded-lg bg-muted">
+                                  <Image
+                                    src={review.tool.image}
+                                    alt={review.tool.name}
+                                    fill
+                                    className="object-cover"
+                                    sizes="64px"
+                                    unoptimized={true}
+                                  />
+                                </div>
+                              )}
+                              <div className="flex-1">
+                                <div className="mb-2 flex items-center gap-2">
+                                  <h3 className="font-semibold">{review.tool?.name}</h3>
+                                  <div className="flex items-center gap-1">
+                                    {[...Array(5)].map((_, i) => (
+                                      <Star
+                                        key={i}
+                                        className={`h-4 w-4 ${i < review.rating
+                                          ? "fill-primary text-primary"
+                                          : "text-muted-foreground"
+                                          }`}
+                                      />
+                                    ))}
+                                  </div>
+                                </div>
+                                {review.title && <p className="mb-1 font-medium">{review.title}</p>}
+                                {review.review_text && (
+                                  <p className="text-sm text-muted-foreground">{review.review_text}</p>
+                                )}
+                                <p className="mt-2 text-xs text-muted-foreground">
+                                  {formatRelativeTime(review.created_at)}
+                                </p>
+                              </div>
+                            </div>
+                          </Card>
+                        </motion.div>
+                      ))}
                     </div>
-                    <h3 className="mb-2 text-lg font-semibold">No reviews yet</h3>
-                    <p className="text-muted-foreground">Start reviewing AI tools to help the community</p>
-                  </Card>
+                  ) : (
+                    <Card className="border-border/50 bg-card/50 p-8 text-center backdrop-blur-sm">
+                      <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-2xl bg-muted">
+                        <Star className="h-8 w-8 text-muted-foreground" />
+                      </div>
+                      <h3 className="mb-2 text-lg font-semibold">No reviews yet</h3>
+                      <p className="text-muted-foreground">Start reviewing AI tools to help the community</p>
+                    </Card>
+                  )}
                 </TabsContent>
 
                 {/* Activity Tab */}

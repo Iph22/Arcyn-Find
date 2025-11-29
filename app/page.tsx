@@ -7,9 +7,11 @@ import { motion, useScroll } from "framer-motion"
 import { CodesandboxIcon, ArrowRight, Zap, Shield, Globe, Instagram, Twitter, Heart, Linkedin, ExternalLink } from "lucide-react"
 import { useRouter } from "next/navigation"
 import { Button } from "@/components/ui/button"
-import { ThemeToggle } from "@/components/theme-toggle"
+import dynamic from "next/dynamic"
+
+const ThemeToggle = dynamic(() => import("@/components/theme-toggle").then(mod => mod.ThemeToggle), { ssr: false })
+const BrowserSearchAnimation = dynamic(() => import("@/components/browser-search-animation").then(mod => mod.BrowserSearchAnimation), { ssr: false })
 import { usePreferences } from "@/contexts/preferences-context"
-import { BrowserSearchAnimation } from "@/components/browser-search-animation"
 import { useAuth } from "@clerk/nextjs"
 
 export default function LandingPage() {

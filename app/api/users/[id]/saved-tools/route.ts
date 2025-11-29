@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server"
 import { getSupabaseAdmin } from "@/lib/supabase"
 import { createErrorResponse, createSuccessResponse, ErrorCodes } from "@/lib/api-errors"
+import { logger } from "@/lib/logger"
 
 export async function GET(
   request: NextRequest,
@@ -41,7 +42,7 @@ export async function GET(
       savedTools: favorites || [],
     })
   } catch (error) {
-    console.error("Error fetching saved tools:", error)
+    logger.error("Error fetching saved tools:", error)
     return createErrorResponse(
       error instanceof Error ? error.message : "Failed to fetch saved tools",
       500,

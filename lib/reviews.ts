@@ -1,4 +1,5 @@
 import { supabase } from './supabase'
+import { auth } from '@clerk/nextjs/server'
 
 export interface Review {
   id: string
@@ -346,8 +347,8 @@ export async function submitReview(
   reviewText?: string
 ): Promise<{ success: boolean; review?: Review; error?: string }> {
   try {
-    const { data: { user }, error: authError } = await supabase.auth.getUser()
-    if (authError || !user) {
+    const { userId } = await auth()
+    if (!userId) {
       return { success: false, error: 'You must be logged in to submit a review' }
     }
 
@@ -355,7 +356,7 @@ export async function submitReview(
       .from('tool_reviews')
       .insert({
         tool_id: toolId,
-        user_id: user.id,
+        user_id: userId,
         rating,
         title: title || null,
         review_text: reviewText || null,
@@ -387,8 +388,8 @@ export async function updateReview(
   reviewText?: string
 ): Promise<{ success: boolean; error?: string }> {
   try {
-    const { data: { user }, error: authError } = await supabase.auth.getUser()
-    if (authError || !user) {
+    const { userId } = await auth()
+    if (!userId) {
       return { success: false, error: 'You must be logged in' }
     }
 
@@ -401,7 +402,7 @@ export async function updateReview(
         updated_at: new Date().toISOString(),
       })
       .eq('id', reviewId)
-      .eq('user_id', user.id)
+      .eq('user_id', userId)
 
     if (error) throw error
 
@@ -417,8 +418,8 @@ export async function updateReview(
  */
 export async function deleteReview(reviewId: string): Promise<{ success: boolean; error?: string }> {
   try {
-    const { data: { user }, error: authError } = await supabase.auth.getUser()
-    if (authError || !user) {
+    const { userId } = await auth()
+    if (!userId) {
       return { success: false, error: 'You must be logged in' }
     }
 
@@ -426,7 +427,7 @@ export async function deleteReview(reviewId: string): Promise<{ success: boolean
       .from('tool_reviews')
       .delete()
       .eq('id', reviewId)
-      .eq('user_id', user.id)
+      .eq('user_id', userId)
 
     if (error) throw error
 
@@ -445,8 +446,8 @@ export async function voteReviewHelpful(
   isHelpful: boolean
 ): Promise<{ success: boolean; error?: string }> {
   try {
-    const { data: { user }, error: authError } = await supabase.auth.getUser()
-    if (authError || !user) {
+    const { userId } = await auth()
+    if (!userId) {
       return { success: false, error: 'You must be logged in to vote' }
     }
 
@@ -454,7 +455,7 @@ export async function voteReviewHelpful(
       .from('review_helpful_votes')
       .upsert({
         review_id: reviewId,
-        user_id: user.id,
+        user_id: userId,
         is_helpful: isHelpful,
       }, {
         onConflict: 'review_id,user_id',

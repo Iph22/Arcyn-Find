@@ -1,6 +1,7 @@
 "use client"
 
 import { useEffect } from "react"
+import { logger } from "@/lib/logger"
 
 export default function Error({
   error,
@@ -13,7 +14,7 @@ export default function Error({
     // Error boundary - log to monitoring service in production
     if (process.env.NODE_ENV === 'development') {
       // eslint-disable-next-line no-console
-      console.error("[Error Boundary]", error)
+      logger.error("[Error Boundary]", error)
     }
   }, [error])
 
@@ -33,10 +34,11 @@ export default function Error({
           <button
             onClick={() => reset()}
             className="px-4 py-2 bg-accent text-accent-foreground rounded-lg hover:bg-accent/90"
+            aria-label="Try again to reload the page"
           >
             Try again
           </button>
-          <a href="/" className="px-4 py-2 border border-border rounded-lg hover:bg-muted">
+          <a href="/" className="px-4 py-2 border border-border rounded-lg hover:bg-muted" aria-label="Go to home page">
             Go Home
           </a>
         </div>

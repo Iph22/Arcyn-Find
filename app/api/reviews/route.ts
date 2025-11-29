@@ -4,6 +4,8 @@ import { createErrorResponse, createSuccessResponse, ErrorCodes } from '@/lib/ap
 import { validateBody, createReviewSchema } from '@/lib/validation'
 import { logger } from '@/lib/logger'
 import { ReviewsService } from '@/lib/services/reviews.service'
+import { checkRateLimit, getRateLimitHeaders } from '@/lib/rate-limit'
+import { RATE_LIMITS } from '@/lib/constants'
 
 export async function GET(request: NextRequest) {
   try {
@@ -50,6 +52,20 @@ export async function GET(request: NextRequest) {
 
 export async function POST(request: NextRequest) {
   try {
+    // Rate limiting for review submissions
+    const rateLimit = checkRateLimit(request as Request, {
+      windowMs: RATE_LIMITS.REVIEWS.window * 1000,
+      maxRequests: RATE_LIMITS.REVIEWS.requests,
+    })
+    
+    if (!rateLimit.allowed) {
+      return createErrorResponse(
+        'Too many review submissions. Please try again later.',
+        429,
+        ErrorCodes.RATE_LIMIT_EXCEEDED
+      )
+    }
+
     const user = await getCurrentUser()
     if (!user) {
       return createErrorResponse('Unauthorized', 401, ErrorCodes.UNAUTHORIZED)
@@ -77,7 +93,12 @@ export async function POST(request: NextRequest) {
       review_text: review_text || comment || '',
     })
 
-    return createSuccessResponse({ review })
+    const response = createSuccessResponse({ review })
+    // Add rate limit headers
+    response.headers.set('X-RateLimit-Limit', RATE_LIMITS.REVIEWS.requests.toString())
+    response.headers.set('X-RateLimit-Remaining', rateLimit.remaining.toString())
+    response.headers.set('X-RateLimit-Reset', new Date(rateLimit.resetTime).toISOString())
+    return response
   } catch (error) {
     if (error instanceof Error && error.message === 'You have already reviewed this tool') {
       return createErrorResponse(

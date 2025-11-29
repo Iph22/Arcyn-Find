@@ -2,7 +2,7 @@
 
 ## 🚨 CRITICAL: Did you run the SQL setup?
 
-**If you haven't run `/supabase/COMPLETE_SETUP.sql` in Supabase SQL Editor, NOTHING will work!**
+**If you haven't run `/supabase/schema.sql` in Supabase SQL Editor, NOTHING will work!**
 
 ### Why Features Fail Without SQL Setup:
 - ❌ "Failed to update favorites" → No `user_favorites` table or RLS blocking
@@ -13,7 +13,7 @@
 ### Solution:
 1. Open Supabase Dashboard
 2. Go to SQL Editor
-3. Copy ALL content from `/supabase/COMPLETE_SETUP.sql`
+3. Copy ALL content from `/supabase/schema.sql`
 4. Paste and click "Run"
 5. Wait for "Success" message
 6. Refresh your app
@@ -169,9 +169,9 @@
 3. Not logged in → No Clerk user ID
 
 **Fix:**
-1. Run `/supabase/COMPLETE_SETUP.sql`
+1. Run `/supabase/schema.sql`
 2. Verify tables exist in Supabase
-3. Check RLS is DISABLED on `user_favorites` table
+3. Check RLS policies are set correctly on `user_favorites` table
 4. Ensure you're signed in
 
 ### Issue: "Add to collection button doesn't open dialog"
@@ -231,7 +231,7 @@
 
 Before saying "X feature doesn't work", please verify:
 
-- [ ] Ran `/supabase/COMPLETE_SETUP.sql` in Supabase SQL Editor
+- [ ] Ran `/supabase/schema.sql` in Supabase SQL Editor
 - [ ] Tables exist in Supabase (check Table Editor)
 - [ ] RLS is DISABLED on all tables (check Table Editor → policies)
 - [ ] Signed in with Clerk (check if user avatar shows)

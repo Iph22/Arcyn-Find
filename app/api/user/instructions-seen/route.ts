@@ -2,6 +2,7 @@ import { NextRequest } from 'next/server'
 import { auth } from '@clerk/nextjs/server'
 import { createErrorResponse, createSuccessResponse, ErrorCodes } from '@/lib/api-errors'
 import { getSupabaseAdmin } from '@/lib/supabase'
+import { logger } from '@/lib/logger'
 
 /**
  * POST /api/user/instructions-seen
@@ -31,7 +32,7 @@ export async function POST(request: NextRequest) {
 
     return createSuccessResponse({ message: 'Instructions marked as seen' })
   } catch (error) {
-    console.error('Error marking instructions as seen:', error)
+    logger.error('Error marking instructions as seen:', error)
     return createErrorResponse(
       error instanceof Error ? error.message : 'Failed to mark instructions as seen',
       500,

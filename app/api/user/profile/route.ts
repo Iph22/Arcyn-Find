@@ -2,6 +2,7 @@ import { NextRequest } from 'next/server'
 import { auth } from '@clerk/nextjs/server'
 import { createErrorResponse, createSuccessResponse, ErrorCodes } from '@/lib/api-errors'
 import { getSupabaseAdmin } from '@/lib/supabase'
+import { logger } from '@/lib/logger'
 
 /**
  * GET /api/user/profile
@@ -34,7 +35,7 @@ export async function GET(request: NextRequest) {
 
     return createSuccessResponse({ profile: data })
   } catch (error) {
-    console.error('Error fetching user profile:', error)
+    logger.error('Error fetching user profile:', error)
     return createErrorResponse(
       error instanceof Error ? error.message : 'Failed to fetch profile',
       500,
@@ -84,7 +85,7 @@ export async function PUT(request: NextRequest) {
 
     return createSuccessResponse({ profile: data })
   } catch (error) {
-    console.error('Error updating user profile:', error)
+    logger.error('Error updating user profile:', error)
     return createErrorResponse(
       error instanceof Error ? error.message : 'Failed to update profile',
       500,

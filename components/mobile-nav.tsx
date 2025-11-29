@@ -9,6 +9,7 @@ import { useState, useEffect } from "react"
 import { UserSearch } from "@/components/user-search"
 import { usePreferences } from "@/contexts/preferences-context"
 import { Button } from "@/components/ui/button"
+import { useHaptic } from "@/hooks/use-haptic"
 
 export function MobileNav() {
   const pathname = usePathname()
@@ -17,6 +18,7 @@ export function MobileNav() {
   const [isMobile, setIsMobile] = useState(false)
   const { preferences } = usePreferences()
   const isAuthenticated = preferences?.isAuthenticated
+  const { trigger: haptic } = useHaptic()
 
   useEffect(() => {
     const checkMobile = () => {
@@ -84,6 +86,7 @@ export function MobileNav() {
             {/* Tools Link */}
             <Link
               href="/tools"
+              onClick={() => haptic("light")}
               className={cn(
                 "flex flex-col items-center justify-center gap-1 relative transition-colors flex-1 min-w-0",
                 pathname === "/tools"
@@ -99,7 +102,9 @@ export function MobileNav() {
                   transition={{ type: "spring", stiffness: 500, damping: 30 }}
                 />
               )}
-              <Sparkles className={cn("w-5 h-5 shrink-0", pathname === "/tools" && "scale-110")} />
+              <motion.div whileTap={{ scale: 0.9 }}>
+                <Sparkles className={cn("w-5 h-5 shrink-0", pathname === "/tools" && "scale-110")} />
+              </motion.div>
               <span className="text-[10px] font-medium leading-tight">Tools</span>
             </Link>
 
@@ -140,6 +145,7 @@ export function MobileNav() {
               <Link
                 key={item.href}
                 href={item.href}
+                onClick={() => haptic("light")}
                 className={cn(
                   "flex flex-col items-center justify-center gap-1 relative transition-colors",
                   active
@@ -155,20 +161,27 @@ export function MobileNav() {
                     transition={{ type: "spring", stiffness: 500, damping: 30 }}
                   />
                 )}
-                <Icon className={cn("w-5 h-5", active && "scale-110")} />
+                <motion.div whileTap={{ scale: 0.9 }}>
+                  <Icon className={cn("w-5 h-5", active && "scale-110")} />
+                </motion.div>
                 <span className="text-[10px] font-medium leading-tight">{item.label}</span>
               </Link>
             )
           })}
           {/* Search Button */}
           <button
-            onClick={() => setIsSearchOpen(true)}
+            onClick={() => {
+              setIsSearchOpen(true)
+              haptic("medium")
+            }}
             className={cn(
               "flex flex-col items-center justify-center gap-1 relative transition-colors",
               "text-muted-foreground active:text-primary"
             )}
           >
-            <Search className="w-5 h-5" />
+            <motion.div whileTap={{ scale: 0.9 }}>
+              <Search className="w-5 h-5" />
+            </motion.div>
             <span className="text-[10px] font-medium leading-tight">Search</span>
           </button>
         </div>
@@ -176,7 +189,7 @@ export function MobileNav() {
 
       {/* Search Modal for Mobile */}
       {isSearchOpen && (
-        <motion.div 
+        <motion.div
           className="fixed inset-0 z-[100] md:hidden"
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}

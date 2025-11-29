@@ -1,6 +1,7 @@
-import { NextRequest, NextResponse } from "next/server"
+import { NextRequest } from "next/server"
 import { getSupabaseAdmin } from "@/lib/supabase"
 import { createErrorResponse, createSuccessResponse, ErrorCodes } from "@/lib/api-errors"
+import { logger } from "@/lib/logger"
 
 export async function GET(
   request: NextRequest,
@@ -50,7 +51,7 @@ export async function GET(
       },
     })
   } catch (error) {
-    console.error("Error fetching user stats:", error)
+    logger.error("Error fetching user stats:", error)
     return createErrorResponse(
       error instanceof Error ? error.message : "Failed to fetch user stats",
       500,

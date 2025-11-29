@@ -7,6 +7,7 @@
 
 const fs = require('fs');
 const path = require('path');
+const { getToolImage } = require('./fetch-tool-images');
 
 const OPENTOOLS_API = 'https://opentools.ai/api/tools';
 const AI_DATA_PATH = path.join(__dirname, '../lib/ai-data.ts');
@@ -134,7 +135,7 @@ async function fetchAllTools(maxTools = null) {
 }
 
 // Convert OpenTools tool to our AIEntry format
-function convertToAIEntry(tool, index) {
+async function convertToAIEntry(tool, index) {
   const category = categoryMapping[tool.category] || 'Generative AI';
   const accessType = determineAccessType(tool.pricing_plans);
   const pricing = formatPricing(tool.pricing_plans);
@@ -158,7 +159,7 @@ function convertToAIEntry(tool, index) {
     popularity = Math.min(100, popularity + (tool.average_rating - 3) * 10);
   }
   
-  // Extract image URL - try multiple possible fields
+  // Extract image URL - try multiple possible fields from OpenTools first
   let imageUrl = null;
   if (tool.image) {
     imageUrl = tool.image;
@@ -170,6 +171,19 @@ function convertToAIEntry(tool, index) {
     imageUrl = tool.screenshot;
   } else if (tool.og_image) {
     imageUrl = tool.og_image;
+  }
+  
+  // If no image from OpenTools, try fetching from platform URL
+  if (!imageUrl && tool.tool_url) {
+    try {
+      const platformImage = await getToolImage(tool.tool_url, tool.tool_name || 'Unknown Tool');
+      if (platformImage) {
+        imageUrl = platformImage;
+      }
+    } catch (err) {
+      // Silently fail - we'll just use null
+      console.error(`  ⚠️  Error fetching image for ${tool.tool_name}: ${err.message}`);
+    }
   }
   
   return {
@@ -299,6 +313,7 @@ async function main() {
   console.log('\nConverting and filtering tools...');
   const newEntries = [];
   let skipped = 0;
+  let processed = 0;
   
   for (const tool of openTools) {
     if (!tool.tool_name || tool.archived || !tool.published) {
@@ -319,9 +334,19 @@ async function main() {
     }
     
     try {
-      const entry = convertToAIEntry(tool, newEntries.length);
+      processed++;
+      if (processed % 10 === 0) {
+        console.log(`  Processing tool ${processed}/${openTools.length}...`);
+      }
+      
+      const entry = await convertToAIEntry(tool, newEntries.length);
       newEntries.push(entry);
       existingNames.add(entry.name.toLowerCase().trim());
+      
+      // Small delay to avoid overwhelming servers when fetching images
+      if (!tool.image && !tool.logo && tool.tool_url) {
+        await new Promise(resolve => setTimeout(resolve, 200));
+      }
     } catch (error) {
       console.error(`Error converting tool ${tool.tool_name}: ${error.message}`);
       skipped++;

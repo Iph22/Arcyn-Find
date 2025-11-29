@@ -2,6 +2,7 @@ import { NextRequest } from 'next/server'
 import { auth } from '@clerk/nextjs/server'
 import { createErrorResponse, createSuccessResponse, ErrorCodes } from '@/lib/api-errors'
 import { getSupabaseAdmin } from '@/lib/supabase'
+import { logger } from '@/lib/logger'
 
 /**
  * GET /api/users/search
@@ -55,7 +56,7 @@ export async function GET(request: NextRequest) {
 
     return createSuccessResponse({ users: usersWithFollowStatus })
   } catch (error) {
-    console.error('Error searching users:', error)
+    logger.error('Error searching users:', error)
     return createErrorResponse(
       error instanceof Error ? error.message : 'Failed to search users',
       500,

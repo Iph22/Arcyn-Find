@@ -18,6 +18,8 @@ import { usePreferences } from "@/contexts/preferences-context"
 import { useAvatar } from "@/contexts/avatar-context"
 import { useUser, useClerk } from "@clerk/nextjs"
 import { cn } from "@/lib/utils"
+import { useHaptic } from "@/hooks/use-haptic"
+import { logger } from "@/lib/logger"
 
 interface NavbarProps {
   className?: string
@@ -31,6 +33,7 @@ export function Navbar({ className }: NavbarProps) {
   const { user } = useUser()
   const { signOut } = useClerk()
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
+  const { trigger: haptic } = useHaptic()
 
   const handleSignOut = async () => {
     try {
@@ -38,11 +41,11 @@ export function Navbar({ className }: NavbarProps) {
       logout()
       localStorage.clear()
       sessionStorage.clear()
-      
+
       // Sign out from Clerk with redirect
       await signOut({ redirectUrl: '/' })
     } catch (error) {
-      console.error("Error signing out:", error)
+      logger.error("Error signing out:", error)
       // Force clear and redirect on error
       localStorage.clear()
       sessionStorage.clear()
@@ -69,7 +72,7 @@ export function Navbar({ className }: NavbarProps) {
     >
       <div className="container mx-auto flex h-14 md:h-16 items-center justify-between px-3 md:px-4">
         <div className="flex items-center gap-2 md:gap-4">
-          <Link href={logoLink} className="flex items-center gap-1 md:gap-2">
+          <Link href={logoLink} className="flex items-center gap-1 md:gap-2" aria-label="Arcyn Find Home">
             <span className="text-base md:text-xl font-bold">Arcyn Find</span>
           </Link>
           {/* Show navigation links for both authenticated and guest users */}
@@ -78,6 +81,7 @@ export function Navbar({ className }: NavbarProps) {
               <>
                 <Link
                   href="/home"
+                  aria-label="Navigate to Home"
                   className={cn(
                     "px-3 py-2 rounded-md text-sm font-medium transition-colors",
                     pathname === "/home"
@@ -89,6 +93,7 @@ export function Navbar({ className }: NavbarProps) {
                 </Link>
                 <Link
                   href="/tools"
+                  aria-label="Navigate to Tools"
                   className={cn(
                     "px-3 py-2 rounded-md text-sm font-medium transition-colors",
                     pathname === "/tools"
@@ -100,6 +105,7 @@ export function Navbar({ className }: NavbarProps) {
                 </Link>
                 <Link
                   href="/collections"
+                  aria-label="Navigate to Collections"
                   className={cn(
                     "px-3 py-2 rounded-md text-sm font-medium transition-colors",
                     pathname === "/collections"
@@ -131,9 +137,9 @@ export function Navbar({ className }: NavbarProps) {
           {isAuthenticated ? (
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
-                <Button variant="ghost" size="icon" className="h-8 w-8 md:h-9 md:w-9 rounded-full">
+                <Button variant="ghost" size="icon" className="h-8 w-8 md:h-9 md:w-9 rounded-full" aria-label="User menu">
                   <Avatar className="h-8 w-8 md:h-9 md:w-9">
-                    <AvatarImage src={avatarUrl || undefined} />
+                    <AvatarImage src={avatarUrl || undefined} alt={displayName || "User avatar"} />
                     <AvatarFallback>
                       {preferences?.userName
                         ? preferences.userName.charAt(0).toUpperCase()
@@ -177,7 +183,7 @@ export function Navbar({ className }: NavbarProps) {
                   </Link>
                 </DropdownMenuItem>
                 <DropdownMenuSeparator />
-                <DropdownMenuItem onClick={handleSignOut} className="text-destructive">
+                <DropdownMenuItem onClick={handleSignOut} className="text-destructive" aria-label="Sign out of your account">
                   <LogOut className="mr-2 h-4 w-4" />
                   Sign Out
                 </DropdownMenuItem>
@@ -185,18 +191,26 @@ export function Navbar({ className }: NavbarProps) {
             </DropdownMenu>
           ) : (
             <div className="flex items-center gap-1 md:gap-2">
-              <Button 
-                variant="ghost" 
+              <Button
+                variant="ghost"
                 size="sm"
-                onClick={() => router.push("/sign-in")}
+                onClick={() => {
+                  router.push("/sign-in")
+                  haptic("light")
+                }}
                 className="h-8 px-2 md:px-3 text-xs md:text-sm"
+                aria-label="Sign in to your account"
               >
                 Sign In
               </Button>
-              <Button 
+              <Button
                 size="sm"
-                onClick={() => router.push("/sign-up")}
+                onClick={() => {
+                  router.push("/sign-up")
+                  haptic("light")
+                }}
                 className="h-8 px-2 md:px-3 text-xs md:text-sm"
+                aria-label="Get started with Arcyn Find"
               >
                 <span className="hidden sm:inline">Get Started</span>
                 <span className="sm:hidden">Start</span>

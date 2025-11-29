@@ -1,5 +1,6 @@
 import { supabase } from './supabase'
 import type { AIEntry } from './ai-data'
+import { auth } from '@clerk/nextjs/server'
 
 export interface Collection {
   id: string
@@ -200,15 +201,15 @@ export async function createCollection(
   isPublic: boolean = false
 ): Promise<{ success: boolean; collection?: Collection; error?: string }> {
   try {
-    const { data: { user }, error: authError } = await supabase.auth.getUser()
-    if (authError || !user) {
+    const { userId } = await auth()
+    if (!userId) {
       return { success: false, error: 'You must be logged in to create a collection' }
     }
 
     const { data, error } = await supabase
       .from('collections')
       .insert({
-        user_id: user.id,
+        user_id: userId,
         name,
         description: description || null,
         is_public: isPublic,
@@ -237,8 +238,8 @@ export async function updateCollection(
   }
 ): Promise<{ success: boolean; error?: string }> {
   try {
-    const { data: { user }, error: authError } = await supabase.auth.getUser()
-    if (authError || !user) {
+    const { userId } = await auth()
+    if (!userId) {
       return { success: false, error: 'You must be logged in' }
     }
 
@@ -246,7 +247,7 @@ export async function updateCollection(
       .from('collections')
       .update(updates)
       .eq('id', collectionId)
-      .eq('user_id', user.id)
+      .eq('user_id', userId)
 
     if (error) throw error
 
@@ -262,8 +263,8 @@ export async function updateCollection(
  */
 export async function deleteCollection(collectionId: string): Promise<{ success: boolean; error?: string }> {
   try {
-    const { data: { user }, error: authError } = await supabase.auth.getUser()
-    if (authError || !user) {
+    const { userId } = await auth()
+    if (!userId) {
       return { success: false, error: 'You must be logged in' }
     }
 
@@ -271,7 +272,7 @@ export async function deleteCollection(collectionId: string): Promise<{ success:
       .from('collections')
       .delete()
       .eq('id', collectionId)
-      .eq('user_id', user.id)
+      .eq('user_id', userId)
 
     if (error) throw error
 
@@ -291,8 +292,8 @@ export async function addToolToCollection(
   notes?: string
 ): Promise<{ success: boolean; error?: string }> {
   try {
-    const { data: { user }, error: authError } = await supabase.auth.getUser()
-    if (authError || !user) {
+    const { userId } = await auth()
+    if (!userId) {
       return { success: false, error: 'You must be logged in' }
     }
 
@@ -301,7 +302,7 @@ export async function addToolToCollection(
       .from('collections')
       .select('id')
       .eq('id', collectionId)
-      .eq('user_id', user.id)
+      .eq('user_id', userId)
       .single()
 
     if (!collection) {
@@ -338,8 +339,8 @@ export async function removeToolFromCollection(
   toolId: string
 ): Promise<{ success: boolean; error?: string }> {
   try {
-    const { data: { user }, error: authError } = await supabase.auth.getUser()
-    if (authError || !user) {
+    const { userId } = await auth()
+    if (!userId) {
       return { success: false, error: 'You must be logged in' }
     }
 
@@ -348,7 +349,7 @@ export async function removeToolFromCollection(
       .from('collections')
       .select('id')
       .eq('id', collectionId)
-      .eq('user_id', user.id)
+      .eq('user_id', userId)
       .single()
 
     if (!collection) {

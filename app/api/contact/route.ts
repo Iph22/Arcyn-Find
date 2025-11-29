@@ -1,12 +1,29 @@
 import { NextRequest } from "next/server"
 import { Resend } from "resend"
 import { createErrorResponse, createSuccessResponse, ErrorCodes } from "@/lib/api-errors"
+import { logger } from "@/lib/logger"
+import { checkRateLimit, getRateLimitHeaders } from "@/lib/rate-limit"
+import { RATE_LIMITS } from "@/lib/constants"
 
 // Ensure this runs on Node.js runtime (required for Resend)
 export const runtime = 'nodejs'
 
 export async function POST(request: NextRequest) {
   try {
+    // Rate limiting for contact form (prevent spam)
+    const rateLimit = checkRateLimit(request as Request, {
+      windowMs: 60 * 1000, // 1 minute
+      maxRequests: 5, // 5 submissions per minute
+    })
+    
+    if (!rateLimit.allowed) {
+      return createErrorResponse(
+        new Error("Too many contact form submissions. Please try again later."),
+        429,
+        ErrorCodes.RATE_LIMIT_EXCEEDED
+      )
+    }
+
     const body = await request.json()
     const { name, email, subject, message } = body
 
@@ -25,14 +42,16 @@ export async function POST(request: NextRequest) {
     const resendApiKey = process.env.RESEND_API_KEY
 
     if (!resendApiKey) {
-      console.error("RESEND_API_KEY is not configured")
+      logger.error("RESEND_API_KEY is not configured")
       // For development, log the email instead of failing
-      console.log("=== Contact Form Submission (Resend not configured) ===")
-      console.log("Name:", name)
-      console.log("Email:", email)
-      console.log("Subject:", subject)
-      console.log("Message:", message)
-      console.log("=====================================================")
+      if (process.env.NODE_ENV === "development") {
+        logger.log("=== Contact Form Submission (Resend not configured) ===")
+        logger.log("Name:", name)
+        logger.log("Email:", email)
+        logger.log("Subject:", subject)
+        logger.log("Message:", message)
+        logger.log("=====================================================")
+      }
 
       // Return success in development, error in production
       if (process.env.NODE_ENV === "development") {
@@ -114,7 +133,7 @@ ${message}
     })
 
     if (error) {
-      console.error("Resend error:", error)
+      logger.error("Resend error:", error)
       const errorMessage = error instanceof Error
         ? error.message
         : typeof error === 'string'
@@ -127,12 +146,17 @@ ${message}
       )
     }
 
-    return createSuccessResponse({
+    const response = createSuccessResponse({
       success: true,
       messageId: data?.id,
     })
+    // Add rate limit headers
+    response.headers.set('X-RateLimit-Limit', '5')
+    response.headers.set('X-RateLimit-Remaining', rateLimit.remaining.toString())
+    response.headers.set('X-RateLimit-Reset', new Date(rateLimit.resetTime).toISOString())
+    return response
   } catch (error) {
-    console.error("Error processing contact form:", error)
+    logger.error("Error processing contact form:", error)
     return createErrorResponse(
       error instanceof Error ? error.message : "Failed to process request",
       500,

@@ -2,6 +2,7 @@ import { NextRequest } from 'next/server'
 import { auth } from '@clerk/nextjs/server'
 import { createErrorResponse, createSuccessResponse, ErrorCodes } from '@/lib/api-errors'
 import { getSupabaseAdmin } from '@/lib/supabase'
+import { logger } from '@/lib/logger'
 
 /**
  * GET /api/user/followers
@@ -96,7 +97,7 @@ export async function GET(request: NextRequest) {
 
     return createSuccessResponse({ followers, following })
   } catch (error) {
-    console.error('Error fetching followers:', error)
+    logger.error('Error fetching followers:', error)
     return createErrorResponse(
       error instanceof Error ? error.message : 'Failed to fetch followers',
       500,
@@ -156,7 +157,7 @@ export async function POST(request: NextRequest) {
       return createErrorResponse('Invalid action', 400, ErrorCodes.VALIDATION_ERROR)
     }
   } catch (error) {
-    console.error('Error managing follow:', error)
+    logger.error('Error managing follow:', error)
     return createErrorResponse(
       error instanceof Error ? error.message : 'Failed to manage follow',
       500,

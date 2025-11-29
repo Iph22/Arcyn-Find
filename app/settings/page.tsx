@@ -1,18 +1,19 @@
 "use client"
 
 import { useState, useEffect, useRef } from "react"
-import { Settings as SettingsIcon, User, Bell, Shield, Palette, Upload, X, Camera, Plus } from "lucide-react"
-import { Card } from "@/components/ui/card"
+import { useRouter } from "next/navigation"
+import Image from "next/image"
+import { Menu, X, Camera, Upload, Bell, Shield, Palette, User, Plus } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
+import { Card } from "@/components/ui/card"
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Switch } from "@/components/ui/switch"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Sidebar } from "@/components/sidebar"
 import { ThemeToggle } from "@/components/theme-toggle"
 import { EmptyState } from "@/components/empty-state"
-import { useRouter } from "next/navigation"
 import { useUser } from "@clerk/nextjs"
 import { uploadAvatar, uploadBanner } from "@/lib/storage"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
@@ -21,6 +22,7 @@ import { useAvatar } from "@/contexts/avatar-context"
 import { Label } from "@/components/ui/label"
 import { toast } from "sonner"
 import { useTheme } from "next-themes"
+import { logger } from "@/lib/logger"
 
 interface UserProfile {
   id: string
@@ -42,20 +44,20 @@ export default function SettingsPage() {
   const [userProfile, setUserProfile] = useState<UserProfile | null>(null)
   const [isLoading, setIsLoading] = useState(true)
   const [isSaving, setIsSaving] = useState(false)
-  
+
   // Profile form state
   const [displayName, setDisplayName] = useState("")
   const [username, setUsername] = useState("")
   const [bio, setBio] = useState("")
   const [avatarUrl, setAvatarUrl] = useState("")
   const [bannerUrl, setBannerUrl] = useState("")
-  
+
   // Image upload refs
   const avatarInputRef = useRef<HTMLInputElement>(null)
   const bannerInputRef = useRef<HTMLInputElement>(null)
   const [avatarPreview, setAvatarPreview] = useState<string | null>(null)
   const [bannerPreview, setBannerPreview] = useState<string | null>(null)
-  
+
   // Notification settings
   const [pushEnabled, setPushEnabled] = useState(false)
   const [emailNotifications, setEmailNotifications] = useState(true)
@@ -63,23 +65,23 @@ export default function SettingsPage() {
   const [notifyNewFollowers, setNotifyNewFollowers] = useState(true)
   const [notifyReviews, setNotifyReviews] = useState(true)
   const [notifyMarketing, setNotifyMarketing] = useState(false)
-  
+
   // Privacy settings
   const [profileVisibility, setProfileVisibility] = useState("public")
   const [showActivityStatus, setShowActivityStatus] = useState(true)
   const [allowSearchIndexing, setAllowSearchIndexing] = useState(true)
   const [showInSuggestions, setShowInSuggestions] = useState(true)
-  
+
   // Theme settings
   const [theme, setTheme] = useState("system")
 
   useEffect(() => {
     let isMounted = true
-    
+
     const loadUserData = async () => {
       try {
         if (!isLoaded) return
-        
+
         if (!user) {
           if (isMounted) {
             router.push("/")
@@ -90,12 +92,12 @@ export default function SettingsPage() {
         // Load user profile via API
         const response = await fetch('/api/user/profile')
         if (!isMounted) return
-        
+
         if (response.ok) {
           try {
             const data = await response.json()
             const profile = data.profile
-            
+
             if (isMounted) {
               if (profile) {
                 setUserProfile(profile)
@@ -113,13 +115,13 @@ export default function SettingsPage() {
               }
             }
           } catch (err) {
-            console.error("Error parsing profile JSON:", err)
+            logger.error("Error parsing profile JSON:", err)
           }
         }
       } catch (error) {
         if (process.env.NODE_ENV === 'development') {
           // eslint-disable-next-line no-console
-          console.error("Error loading user data:", error)
+          logger.error("Error loading user data:", error)
         }
         if (isMounted) {
           router.push("/")
@@ -132,7 +134,7 @@ export default function SettingsPage() {
     }
 
     loadUserData()
-    
+
     return () => {
       isMounted = false
     }
@@ -194,7 +196,7 @@ export default function SettingsPage() {
     } catch (error) {
       if (process.env.NODE_ENV === 'development') {
         // eslint-disable-next-line no-console
-        console.error("Error uploading avatar:", error)
+        logger.error("Error uploading avatar:", error)
       }
       toast.error("Failed to upload avatar")
     } finally {
@@ -237,7 +239,7 @@ export default function SettingsPage() {
     } catch (error) {
       if (process.env.NODE_ENV === 'development') {
         // eslint-disable-next-line no-console
-        console.error("Error uploading banner:", error)
+        logger.error("Error uploading banner:", error)
       }
       toast.error("Failed to upload banner")
     } finally {
@@ -283,7 +285,7 @@ export default function SettingsPage() {
     } catch (error) {
       if (process.env.NODE_ENV === 'development') {
         // eslint-disable-next-line no-console
-        console.error("Error saving profile:", error)
+        logger.error("Error saving profile:", error)
       }
       toast.error("Failed to update profile")
     } finally {
@@ -316,7 +318,7 @@ export default function SettingsPage() {
         toast.error(data.error || "Failed to save preferences")
       }
     } catch (error) {
-      console.error("Error saving notifications:", error)
+      logger.error("Error saving notifications:", error)
       toast.error("Failed to save notification preferences")
     } finally {
       setIsSaving(false)
@@ -348,7 +350,7 @@ export default function SettingsPage() {
         toast.error(data.error || "Failed to save settings")
       }
     } catch (error) {
-      console.error("Error saving privacy:", error)
+      logger.error("Error saving privacy:", error)
       toast.error("Failed to save privacy settings")
     } finally {
       setIsSaving(false)
@@ -405,17 +407,19 @@ export default function SettingsPage() {
             <TabsContent value="profile" className="mt-6">
               <Card className="p-6">
                 <h2 className="mb-6 text-xl font-semibold">Profile Settings</h2>
-                
+
                 {/* Banner Upload */}
                 <div className="mb-6">
                   <Label className="mb-2 block">Banner Image</Label>
                   <div className="relative h-48 w-full overflow-hidden rounded-lg border border-border bg-muted">
                     {(bannerPreview || bannerUrl) ? (
                       <>
-                        <img
+                        <Image
                           src={bannerPreview || bannerUrl}
                           alt="Banner"
-                          className="h-full w-full object-cover"
+                          fill
+                          className="object-cover"
+                          sizes="(max-width: 768px) 100vw, 800px"
                         />
                         <Button
                           variant="destructive"
@@ -528,13 +532,15 @@ export default function SettingsPage() {
                       {/* Banner */}
                       <div className="relative h-24 bg-gradient-to-br from-primary/20 via-chart-1/20 to-chart-3/20">
                         {(bannerPreview || bannerUrl) && (
-                          <img
+                          <Image
                             src={bannerPreview || bannerUrl}
                             alt="Banner preview"
-                            className="w-full h-full object-cover"
+                            fill
+                            className="object-cover"
+                            sizes="(max-width: 768px) 100vw, 400px"
                           />
                         )}
-                        
+
                         {/* Profile Picture - Overlapping banner */}
                         <div className="absolute bottom-0 left-4 translate-y-1/2">
                           <div className="relative">
@@ -561,7 +567,7 @@ export default function SettingsPage() {
                             <Plus className="h-3 w-3" />
                           </div>
                         </div>
-                        
+
                         {/* Bio Preview */}
                         {bio && (
                           <p className="text-sm text-muted-foreground line-clamp-2 mb-3">
@@ -651,7 +657,7 @@ export default function SettingsPage() {
             <TabsContent value="notifications" className="mt-6">
               <Card className="p-6">
                 <h2 className="mb-6 text-xl font-semibold">Notification Settings</h2>
-                
+
                 {/* Push Notifications */}
                 <div className="mb-6">
                   <Label className="mb-4 block text-base font-semibold">Push Notifications</Label>
@@ -696,7 +702,7 @@ export default function SettingsPage() {
                         <p className="font-medium">New Followers</p>
                         <p className="text-sm text-muted-foreground">When someone follows you</p>
                       </div>
-                      <Switch 
+                      <Switch
                         checked={notifyNewFollowers}
                         onCheckedChange={setNotifyNewFollowers}
                       />
@@ -706,7 +712,7 @@ export default function SettingsPage() {
                         <p className="font-medium">Reviews & Comments</p>
                         <p className="text-sm text-muted-foreground">Activity on your content</p>
                       </div>
-                      <Switch 
+                      <Switch
                         checked={notifyReviews}
                         onCheckedChange={setNotifyReviews}
                       />
@@ -716,14 +722,14 @@ export default function SettingsPage() {
                         <p className="font-medium">Marketing Emails</p>
                         <p className="text-sm text-muted-foreground">Updates and promotions</p>
                       </div>
-                      <Switch 
+                      <Switch
                         checked={notifyMarketing}
                         onCheckedChange={setNotifyMarketing}
                       />
                     </div>
                   </div>
                 </div>
-                
+
                 {/* Save Button */}
                 <Button
                   onClick={handleSaveNotifications}
@@ -745,7 +751,7 @@ export default function SettingsPage() {
             <TabsContent value="privacy" className="mt-6">
               <Card className="p-6">
                 <h2 className="mb-6 text-xl font-semibold">Privacy Settings</h2>
-                
+
                 {/* Profile Visibility */}
                 <div className="mb-6">
                   <Label htmlFor="visibility" className="mb-2 block text-base font-semibold">
@@ -807,7 +813,7 @@ export default function SettingsPage() {
                         <p className="font-medium">Show in Suggestions</p>
                         <p className="text-sm text-muted-foreground">Appear in follow suggestions</p>
                       </div>
-                      <Switch 
+                      <Switch
                         checked={showInSuggestions}
                         onCheckedChange={setShowInSuggestions}
                       />
@@ -822,7 +828,7 @@ export default function SettingsPage() {
                     <p className="text-sm text-muted-foreground">You haven't blocked anyone yet</p>
                   </div>
                 </div>
-                
+
                 {/* Save Button */}
                 <Button
                   onClick={handleSavePrivacy}

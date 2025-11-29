@@ -2,6 +2,7 @@ import { NextRequest } from 'next/server'
 import { auth } from '@clerk/nextjs/server'
 import { createErrorResponse, createSuccessResponse, ErrorCodes } from '@/lib/api-errors'
 import { getSupabaseAdmin } from '@/lib/supabase'
+import { logger } from '@/lib/logger'
 
 /**
  * GET /api/user/collections
@@ -47,7 +48,7 @@ export async function GET(request: NextRequest) {
 
     return createSuccessResponse({ collections: collectionsWithCounts })
   } catch (error) {
-    console.error('Error fetching collections:', error)
+    logger.error('Error fetching collections:', error)
     return createErrorResponse(
       error instanceof Error ? error.message : 'Failed to fetch collections',
       500,
@@ -104,7 +105,7 @@ export async function POST(request: NextRequest) {
 
     return createSuccessResponse({ collection: data })
   } catch (error) {
-    console.error('Error creating collection:', error)
+    logger.error('Error creating collection:', error)
     return createErrorResponse(
       error instanceof Error ? error.message : 'Failed to create collection',
       500,

@@ -1,4 +1,5 @@
 import { supabase } from './supabase'
+import { auth } from '@clerk/nextjs/server'
 
 export interface PricingHistory {
   id: string
@@ -102,13 +103,13 @@ export async function recordPricingChange(
  */
 export async function getUserPriceAlerts(): Promise<PriceAlert[]> {
   try {
-    const { data: { user }, error: authError } = await supabase.auth.getUser()
-    if (authError || !user) return []
+    const { userId } = await auth()
+    if (!userId) return []
 
     const { data, error } = await supabase
       .from('price_alerts')
       .select('*')
-      .eq('user_id', user.id)
+      .eq('user_id', userId)
       .eq('is_active', true)
       .order('created_at', { ascending: false })
 
@@ -130,8 +131,8 @@ export async function createPriceAlert(
   thresholdPrice?: number
 ): Promise<{ success: boolean; alert?: PriceAlert; error?: string }> {
   try {
-    const { data: { user }, error: authError } = await supabase.auth.getUser()
-    if (authError || !user) {
+    const { userId } = await auth()
+    if (!userId) {
       return { success: false, error: 'You must be logged in to create a price alert' }
     }
 
@@ -139,7 +140,7 @@ export async function createPriceAlert(
       .from('price_alerts')
       .insert({
         tool_id: toolId,
-        user_id: user.id,
+        user_id: userId,
         alert_type: alertType,
         threshold_price: thresholdPrice || null,
         is_active: true,
@@ -173,8 +174,8 @@ export async function updatePriceAlert(
   }
 ): Promise<{ success: boolean; error?: string }> {
   try {
-    const { data: { user }, error: authError } = await supabase.auth.getUser()
-    if (authError || !user) {
+    const { userId } = await auth()
+    if (!userId) {
       return { success: false, error: 'You must be logged in' }
     }
 
@@ -182,7 +183,7 @@ export async function updatePriceAlert(
       .from('price_alerts')
       .update(updates)
       .eq('id', alertId)
-      .eq('user_id', user.id)
+      .eq('user_id', userId)
 
     if (error) throw error
 
@@ -198,8 +199,8 @@ export async function updatePriceAlert(
  */
 export async function deletePriceAlert(alertId: string): Promise<{ success: boolean; error?: string }> {
   try {
-    const { data: { user }, error: authError } = await supabase.auth.getUser()
-    if (authError || !user) {
+    const { userId } = await auth()
+    if (!userId) {
       return { success: false, error: 'You must be logged in' }
     }
 
@@ -207,7 +208,7 @@ export async function deletePriceAlert(alertId: string): Promise<{ success: bool
       .from('price_alerts')
       .delete()
       .eq('id', alertId)
-      .eq('user_id', user.id)
+      .eq('user_id', userId)
 
     if (error) throw error
 

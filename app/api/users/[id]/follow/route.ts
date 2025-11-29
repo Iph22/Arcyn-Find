@@ -1,7 +1,8 @@
-import { NextRequest, NextResponse } from "next/server"
+import { NextRequest } from "next/server"
 import { auth } from "@clerk/nextjs/server"
 import { getSupabaseAdmin } from "@/lib/supabase"
 import { createErrorResponse, createSuccessResponse, ErrorCodes } from "@/lib/api-errors"
+import { logger } from "@/lib/logger"
 
 export async function POST(
   request: NextRequest,
@@ -45,7 +46,7 @@ export async function POST(
 
     return createSuccessResponse({ message: "Followed successfully" })
   } catch (error) {
-    console.error("Error following user:", error)
+    logger.error("Error following user:", error)
     return createErrorResponse(
       error instanceof Error ? error.message : "Failed to follow user",
       500,
@@ -80,7 +81,7 @@ export async function DELETE(
 
     return createSuccessResponse({ message: "Unfollowed successfully" })
   } catch (error) {
-    console.error("Error unfollowing user:", error)
+    logger.error("Error unfollowing user:", error)
     return createErrorResponse(
       error instanceof Error ? error.message : "Failed to unfollow user",
       500,

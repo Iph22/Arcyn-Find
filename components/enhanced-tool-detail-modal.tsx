@@ -15,6 +15,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { PricingBadge } from "@/components/pricing-badge"
 import { toast } from "sonner"
 import type { ToolWithRating } from "@/lib/types"
+import { logger } from "@/lib/logger"
 
 interface Tool {
   id: string
@@ -72,6 +73,7 @@ export function ToolDetailModal({ tool, isOpen, onClose }: ToolDetailModalProps)
   const [reviewText, setReviewText] = useState("")
   const [copied, setCopied] = useState(false)
   const [similarTools, setSimilarTools] = useState<Tool[]>([])
+  const [imageErrors, setImageErrors] = useState<Set<string>>(new Set())
 
   useEffect(() => {
     if (isOpen && tool) {
@@ -94,7 +96,7 @@ export function ToolDetailModal({ tool, isOpen, onClose }: ToolDetailModalProps)
         setReviews(data.reviews || [])
       }
     } catch (error) {
-      console.error('Error loading reviews:', error)
+      logger.error('Error loading reviews:', error)
     } finally {
       setIsLoadingReviews(false)
     }
@@ -108,7 +110,7 @@ export function ToolDetailModal({ tool, isOpen, onClose }: ToolDetailModalProps)
         setCollections(data.collections || [])
       }
     } catch (error) {
-      console.error('Error loading collections:', error)
+      logger.error('Error loading collections:', error)
     }
   }
 
@@ -124,7 +126,7 @@ export function ToolDetailModal({ tool, isOpen, onClose }: ToolDetailModalProps)
         setSimilarTools(toolsArray.filter((t: Tool) => t.id !== tool.id).slice(0, 3))
       }
     } catch (error) {
-      console.error('Error loading similar tools:', error)
+      logger.error('Error loading similar tools:', error)
       setSimilarTools([]) // Set empty array on error
     }
   }
@@ -138,7 +140,7 @@ export function ToolDetailModal({ tool, isOpen, onClose }: ToolDetailModalProps)
         setIsFavorited(data.isFavorite)
       }
     } catch (error) {
-      console.error('Error checking favorite status:', error)
+      logger.error('Error checking favorite status:', error)
     }
   }
 
@@ -181,7 +183,7 @@ export function ToolDetailModal({ tool, isOpen, onClose }: ToolDetailModalProps)
         }
       }
     } catch (error) {
-      console.error('Error toggling favorite:', error)
+      logger.error('Error toggling favorite:', error)
       toast.error('Failed to update favorites')
     } finally {
       setIsTogglingFavorite(false)
@@ -213,7 +215,7 @@ export function ToolDetailModal({ tool, isOpen, onClose }: ToolDetailModalProps)
         toast.error(message)
       }
     } catch (error) {
-      console.error('Error adding to collection:', error)
+      logger.error('Error adding to collection:', error)
       toast.error(error instanceof Error ? error.message : 'Failed to add to collection')
     }
   }
@@ -228,7 +230,7 @@ export function ToolDetailModal({ tool, isOpen, onClose }: ToolDetailModalProps)
     }
     
     try {
-      console.log('Submitting review:', { tool_id: tool.id, rating: reviewRating, title: reviewTitle })
+      logger.debug('Submitting review:', { tool_id: tool.id, rating: reviewRating, title: reviewTitle })
       
       const response = await fetch('/api/reviews', {
         method: 'POST',
@@ -250,7 +252,7 @@ export function ToolDetailModal({ tool, isOpen, onClose }: ToolDetailModalProps)
         loadReviews()
       } else {
         const errorData = await response.json().catch(() => ({}))
-        console.error('Review submission failed:', response.status, errorData)
+        logger.error('Review submission failed:', response.status, errorData)
         
         const message = response.status === 409
           ? 'You have already reviewed this tool'
@@ -262,7 +264,7 @@ export function ToolDetailModal({ tool, isOpen, onClose }: ToolDetailModalProps)
         toast.error(message)
       }
     } catch (error) {
-      console.error('Error submitting review:', error)
+      logger.error('Error submitting review:', error)
       toast.error('Network error: Failed to submit review. Please check your connection.')
     }
   }
@@ -297,7 +299,7 @@ export function ToolDetailModal({ tool, isOpen, onClose }: ToolDetailModalProps)
       }
     } catch (error) {
       if ((error as Error).name !== 'AbortError') {
-        console.error('Error sharing:', error)
+        logger.error('Error sharing:', error)
       }
     }
   }
@@ -336,13 +338,19 @@ export function ToolDetailModal({ tool, isOpen, onClose }: ToolDetailModalProps)
 
                 {/* Header with Image */}
                 <div className="relative h-64">
-                  {tool.image ? (
+                  {tool.image && !imageErrors.has(tool.image) ? (
                     <Image
                       src={tool.image}
                       alt={tool.name}
                       fill
                       className="object-cover"
                       sizes="100vw"
+                      unoptimized={true}
+                      onError={() => {
+                        if (tool.image) {
+                          setImageErrors(prev => new Set(prev).add(tool.image!))
+                        }
+                      }}
                     />
                   ) : (
                     <div className="w-full h-full bg-gradient-to-br from-primary/20 to-chart-1/20 flex items-center justify-center">
@@ -510,13 +518,19 @@ export function ToolDetailModal({ tool, isOpen, onClose }: ToolDetailModalProps)
                               }}
                             >
                               <div className="relative w-full h-32 rounded-lg mb-3 overflow-hidden bg-muted">
-                                {similarTool.image ? (
+                                {similarTool.image && !imageErrors.has(similarTool.image) ? (
                                   <Image 
                                     src={similarTool.image} 
                                     alt={similarTool.name}
                                     fill
                                     className="object-cover"
                                     sizes="(max-width: 768px) 100vw, 33vw"
+                                    unoptimized={true}
+                                    onError={() => {
+                                      if (similarTool.image) {
+                                        setImageErrors(prev => new Set(prev).add(similarTool.image!))
+                                      }
+                                    }}
                                   />
                                 ) : (
                                   <div className="w-full h-full bg-gradient-to-br from-primary/20 to-chart-1/20 flex items-center justify-center">

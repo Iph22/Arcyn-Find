@@ -1,6 +1,7 @@
 import { NextRequest } from 'next/server'
 import { createErrorResponse, createSuccessResponse, ErrorCodes } from '@/lib/api-errors'
 import { getSupabaseAdmin } from '@/lib/supabase'
+import { logger } from '@/lib/logger'
 
 /**
  * GET /api/tools/trending
@@ -89,7 +90,7 @@ export async function GET(request: NextRequest) {
 
     return createSuccessResponse({ tools: sortedTools })
   } catch (error) {
-    console.error('Error fetching trending tools:', error)
+    logger.error('Error fetching trending tools:', error)
     return createErrorResponse(
       error instanceof Error ? error.message : 'Failed to fetch trending tools',
       500,

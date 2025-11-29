@@ -1,7 +1,8 @@
-import { NextRequest, NextResponse } from "next/server"
+import { NextRequest } from "next/server"
 import { auth } from "@clerk/nextjs/server"
 import { getSupabaseAdmin } from "@/lib/supabase"
 import { createErrorResponse, createSuccessResponse, ErrorCodes } from "@/lib/api-errors"
+import { logger } from "@/lib/logger"
 
 export async function GET(
   request: NextRequest,
@@ -32,7 +33,7 @@ export async function GET(
       isFollowing: !!data,
     })
   } catch (error) {
-    console.error("Error checking follow status:", error)
+    logger.error("Error checking follow status:", error)
     return createErrorResponse(
       error instanceof Error ? error.message : "Failed to check follow status",
       500,

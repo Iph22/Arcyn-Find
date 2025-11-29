@@ -66,7 +66,7 @@ export default function UserProfilePage() {
   const router = useRouter()
   const { user: currentUser } = useUser()
   const userId = params?.id as string
-  
+
   const [sidebarOpen, setSidebarOpen] = useState(false) // Hidden by default on mobile
   const [userProfile, setUserProfile] = useState<UserProfile | null>(null)
   const [userStats, setUserStats] = useState<UserStats | null>(null)
@@ -89,7 +89,7 @@ export default function UserProfilePage() {
 
   useEffect(() => {
     let isMounted = true
-    
+
     const loadUserData = async () => {
       if (!userId) {
         if (isMounted) {
@@ -111,7 +111,7 @@ export default function UserProfilePage() {
         // Fetch user profile
         const profileRes = await fetch(`/api/users/${userId}`)
         if (!isMounted) return
-        
+
         if (!profileRes.ok) {
           if (profileRes.status === 404) {
             if (isMounted) {
@@ -199,7 +199,7 @@ export default function UserProfilePage() {
     }
 
     loadUserData()
-    
+
     return () => {
       isMounted = false
     }
@@ -300,6 +300,8 @@ export default function UserProfilePage() {
 
   const formatRelativeTime = (dateString: string) => {
     const date = new Date(dateString)
+    if (isNaN(date.getTime())) return "Unknown date"
+
     const now = new Date()
     const diffMs = now.getTime() - date.getTime()
     const diffMins = Math.floor(diffMs / 60000)
@@ -567,7 +569,11 @@ export default function UserProfilePage() {
                         >
                           <Card
                             className="border-border/50 bg-card/50 p-4 backdrop-blur-sm cursor-pointer hover:border-border transition-colors"
-                            onClick={() => router.push(`/tools/${review.tool.id}`)}
+                            onClick={() => {
+                              if (review.tool?.id) {
+                                router.push(`/tools/${review.tool.id}`)
+                              }
+                            }}
                           >
                             <div className="flex gap-4">
                               {review.tool?.image && (
@@ -588,11 +594,10 @@ export default function UserProfilePage() {
                                     {[...Array(5)].map((_, i) => (
                                       <Star
                                         key={i}
-                                        className={`h-4 w-4 ${
-                                          i < review.rating
-                                            ? "fill-primary text-primary"
-                                            : "text-muted-foreground"
-                                        }`}
+                                        className={`h-4 w-4 ${i < review.rating
+                                          ? "fill-primary text-primary"
+                                          : "text-muted-foreground"
+                                          }`}
                                       />
                                     ))}
                                   </div>

@@ -24,7 +24,8 @@ export function useFavorites() {
       }
 
       const data = await response.json()
-      setFavorites((data.favorites || []).map((item: any) => item.tool_id))
+      // FavoritesService returns string[] (tool IDs), not objects
+      setFavorites(Array.isArray(data.favorites) ? data.favorites : [])
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to fetch favorites")
     } finally {

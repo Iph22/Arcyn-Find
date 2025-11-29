@@ -11,6 +11,7 @@ import { usePreferences } from "@/contexts/preferences-context"
 import { useAvatar } from "@/contexts/avatar-context"
 import { useClerk } from "@clerk/nextjs"
 import { UserSearch } from "@/components/user-search"
+import { logger } from "@/lib/logger"
 
 interface SidebarProps {
   onClose?: () => void
@@ -46,7 +47,7 @@ export function Sidebar({ onClose }: SidebarProps) {
       sessionStorage.clear()
       await signOut({ redirectUrl: '/' })
     } catch (error) {
-      console.error("Error signing out:", error)
+      logger.error("Error signing out:", error)
       localStorage.clear()
       sessionStorage.clear()
       window.location.href = '/'

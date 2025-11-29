@@ -15,6 +15,8 @@ import { PricingBadge } from "@/components/pricing-badge"
 import { usePreferences } from "@/contexts/preferences-context"
 import { useUser } from "@clerk/nextjs"
 import type { ToolWithRating } from "@/lib/types"
+import { logger } from "@/lib/logger"
+import { toast } from "sonner"
 
 interface TrendingTool {
   id: string
@@ -56,7 +58,8 @@ export default function HomePage() {
           'Content-Type': 'application/json',
         },
       }).catch(err => {
-        console.error('Error ensuring profile:', err)
+        logger.error('Error ensuring profile:', err)
+        // Silent failure - not critical for page functionality
       })
     }
   }, [user, isLoaded, router])
@@ -66,12 +69,17 @@ export default function HomePage() {
       setLoadingTrending(true)
       const category = preferences?.categories?.[0] || 'all'
       const response = await fetch(`/api/tools/trending?limit=6&category=${category}`)
-      if (response.ok) {
-        const data = await response.json()
-        setTrendingTools(data.tools || [])
+      
+      if (!response.ok) {
+        throw new Error(`Failed to load trending tools: ${response.statusText}`)
       }
+      
+      const data = await response.json()
+      setTrendingTools(data.tools || [])
     } catch (error) {
-      console.error('Error loading trending tools:', error)
+      logger.error('Error loading trending tools:', error)
+      toast.error('Failed to load trending tools. Please try again later.')
+      setTrendingTools([]) // Reset to empty array on error
     } finally {
       setLoadingTrending(false)
     }
