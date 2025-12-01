@@ -16,6 +16,7 @@ const isPublicRoute = createRouteMatcher([
   '/terms(.*)',
   '/contact(.*)',
   '/community(.*)',
+  '/sitemap(.*)', // Allow sitemap routes (sitemap.xml, sitemap-index.xml, sitemap-*.xml)
 ])
 
 export default clerkMiddleware(async (auth, request) => {
@@ -26,7 +27,8 @@ export default clerkMiddleware(async (auth, request) => {
     // Allow access to maintenance page itself and static assets
     if (request.nextUrl.pathname === '/maintenance' || 
         request.nextUrl.pathname.startsWith('/_next') ||
-        request.nextUrl.pathname.startsWith('/api/webhooks')) {
+        request.nextUrl.pathname.startsWith('/api/webhooks') ||
+        request.nextUrl.pathname.startsWith('/sitemap')) {
       return NextResponse.next()
     }
     
