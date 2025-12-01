@@ -42,7 +42,7 @@ export function BrowserSearchAnimation() {
           <div className="flex-1 flex justify-center">
             <div className="bg-background/50 rounded-md px-4 py-1.5 text-xs text-muted-foreground flex items-center gap-2 max-w-xs w-full justify-center border border-border/50">
               <Search className="w-3.5 h-3.5" />
-              <span className="truncate">arcyn-find.com</span>
+              <span className="truncate">arcynfind.com</span>
             </div>
           </div>
         </div>

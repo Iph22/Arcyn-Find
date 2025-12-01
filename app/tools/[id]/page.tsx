@@ -1,7 +1,7 @@
 "use client"
 
 import { useState, useEffect } from "react"
-import Image from "next/image"
+import { ToolImage } from "@/components/tool-image"
 import { useParams, useRouter } from "next/navigation"
 import { motion } from "framer-motion"
 import { ExternalLink, Star, Bookmark, Share2, ArrowLeft } from "lucide-react"
@@ -109,17 +109,15 @@ export default function ToolDetailPage() {
             transition={{ duration: 0.5 }}
           >
             <Card className="mb-6 overflow-hidden">
-              {tool.image && (
-                <div className="relative h-64 w-full overflow-hidden bg-muted">
-                  <Image
-                    src={tool.image}
-                    alt={tool.name}
-                    fill
-                    className="object-cover"
-                    sizes="100vw"
-                  />
-                </div>
-              )}
+              <div className="relative h-64 w-full overflow-hidden bg-muted">
+                <ToolImage
+                  src={tool.image}
+                  alt={tool.name}
+                  className="object-cover"
+                  sizes="100vw"
+                  fallbackText={tool.name}
+                />
+              </div>
 
               <div className="p-6">
                 <div className="mb-4 flex items-start justify-between">

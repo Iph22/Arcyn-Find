@@ -62,6 +62,9 @@ function fuzzyMatch(text: string, query: string, threshold: number = 0.7): boole
  */
 export function normalizeCategory(category: string): string {
   const categoryMap: Record<string, string> = {
+    "AI Coding Agents": "AI Coding Agents",
+    "Coding Agents": "AI Coding Agents",
+    "coding agents": "AI Coding Agents",
     "NLP/Audio": "Audio/NLP",
     "nlp/audio": "Audio/NLP",
     "NLP / Audio": "Audio/NLP",
@@ -116,6 +119,18 @@ function extractKeywordsFromNaturalLanguage(query: string): {
       "code completion", "autocomplete code", "ai code", "code assistant",
       "copilot", "pair programming", "code review", "debug", "debugging",
       "refactor", "refactoring", "syntax", "function", "api", "sdk"
+    ],
+    "IDE": [
+      "ide", "ides", "development environment", "integrated development environment",
+      "code editor", "text editor", "programming environment", "developer tool",
+      "vs code", "visual studio", "intellij", "webstorm", "pycharm", "xcode",
+      "android studio", "eclipse", "sublime", "atom", "vim", "emacs",
+      "code editor", "ide with ai", "ai-powered editor", "smart editor"
+    ],
+    "AI Coding Agents": [
+      "coding agent", "code agent", "ai coding agent", "mcp", "model context protocol",
+      "mcp server", "figma integration", "cursor figma", "agentic coding", "autonomous coding",
+      "task orchestrator", "coding assistant", "code automation", "ai development agent"
     ],
     "Computer Vision": [
       "image", "vision", "photo", "picture", "visual", "image generation", 

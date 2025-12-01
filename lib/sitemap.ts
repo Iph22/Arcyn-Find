@@ -40,7 +40,7 @@ const MAX_URLS_PER_SITEMAP = 5000
 
 export async function generateSitemapXML(page: number = 0): Promise<string> {
   // Use consistent base URL (match your actual domain)
-  const baseUrl = process.env.NEXT_PUBLIC_SITE_URL || "https://arcyn-find.vercel.app"
+  const baseUrl = process.env.NEXT_PUBLIC_SITE_URL || "https://arcynfind.com"
   const aiEntries = await loadAiEntries()
 
   // Static pages (only include public, indexable pages - exclude user-specific pages)
@@ -105,7 +105,7 @@ ${allPages
 }
 
 export async function generateSitemapIndex(): Promise<string> {
-  const baseUrl = process.env.NEXT_PUBLIC_SITE_URL || "https://arcyn-find.vercel.app"
+  const baseUrl = process.env.NEXT_PUBLIC_SITE_URL || "https://arcynfind.com"
 
   // Get count only to avoid loading all entries (faster, less memory)
   try {

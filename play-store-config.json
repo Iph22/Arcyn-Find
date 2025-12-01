@@ -8,9 +8,9 @@
   "fullDescription": "Your intelligent companion for discovering AI tools, insights, and everything in between. Search, filter, and explore thousands of AI tools, models, platforms, and research worldwide.\n\nFeatures:\n• Search thousands of AI tools\n• Filter by category, region, and pricing\n• Save favorite tools\n• Compare AI tools\n• Personalized recommendations\n• Offline access to saved tools",
   "category": "PRODUCTIVITY",
   "contentRating": "EVERYONE",
-  "privacyPolicyUrl": "https://arcyn-find.vercel.app/privacy",
-  "supportUrl": "https://arcyn-find.vercel.app/support",
-  "websiteUrl": "https://arcyn-find.vercel.app",
+  "privacyPolicyUrl": "https://arcynfind.com/privacy",
+  "supportUrl": "https://arcynfind.com/support",
+  "websiteUrl": "https://arcynfind.com",
   "screenshots": {
     "phone": [
       "screenshots/phone-1.png",

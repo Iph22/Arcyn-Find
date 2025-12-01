@@ -29,7 +29,7 @@ const geistMono = Geist_Mono({
 
 // Advanced metadata for SEO and PWA
 export const metadata: Metadata = {
-  metadataBase: new URL(process.env.NEXT_PUBLIC_SITE_URL || "https://arcyn-find.vercel.app"),
+  metadataBase: new URL(process.env.NEXT_PUBLIC_SITE_URL || "https://arcynfind.com"),
   title: {
     default: "Arcyn Find - Discover AI Tools Worldwide",
     template: "%s | Arcyn Find",
@@ -235,7 +235,7 @@ export default function RootLayout({
           <Script
             defer
             data-website-id="dfid_v5dvlwt0DbAG35I4MUzlO"
-            data-domain="arcyn-find.vercel.app"
+            data-domain="arcynfind.com"
             data-allow-localhost="true"
             src="https://datafa.st/js/script.js"
             strategy="afterInteractive"

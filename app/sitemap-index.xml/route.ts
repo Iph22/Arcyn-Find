@@ -20,7 +20,7 @@ export async function GET() {
     const fallbackIndex = `<?xml version="1.0" encoding="UTF-8"?>
 <sitemapindex xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
   <sitemap>
-    <loc>${process.env.NEXT_PUBLIC_SITE_URL || "https://arcyn-find.vercel.app"}/sitemap.xml</loc>
+    <loc>${process.env.NEXT_PUBLIC_SITE_URL || "https://arcynfind.com"}/sitemap.xml</loc>
     <lastmod>${new Date().toISOString().split('T')[0]}</lastmod>
   </sitemap>
 </sitemapindex>`

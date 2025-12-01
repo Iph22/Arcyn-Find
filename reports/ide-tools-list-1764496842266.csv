@@ -1,0 +1,2 @@
+ID,Name,Current Category,Platform,Confidence,Reason,Description
+github-mcp-defender-42,"MCP-Defender","Generative AI","https://github.com/MCP-Defender/MCP-Defender",medium,"GitHub IDE repository","Desktop app that automatically scans and blocks malicious MCP traffic in AI apps like Cursor, Claude, VS Code and"

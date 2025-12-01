@@ -1,7 +1,7 @@
 "use client"
 
 import { useState, useEffect, useMemo, useCallback } from "react"
-import Image from "next/image"
+import { ToolImage } from "@/components/tool-image"
 import { useRouter, useSearchParams } from "next/navigation"
 import { motion, AnimatePresence } from "framer-motion"
 import { Search, Sparkles, Star, Bookmark, ExternalLink, Menu, X, Filter } from "lucide-react"
@@ -34,6 +34,11 @@ const categoryMapping: Record<string, string> = {
   // Code & Development
   "Code Generation": "Code Assistants",
   "Code Assistants": "Code Assistants",
+  "IDE": "IDEs",
+  "IDEs": "IDEs",
+  "Development Environment": "IDEs",
+  "AI Coding Agents": "AI Coding Agents",
+  "Coding Agents": "AI Coding Agents",
   
   // Audio & Speech
   "Audio/NLP": "Voice & Speech",
@@ -90,6 +95,8 @@ const reverseCategoryMapping: Record<string, string[]> = {
   "Content Generation": ["Text Generation", "AI Writing", "Generative AI"],
   "Image Generation": ["Image Generation", "Computer Vision"],
   "Code Assistants": ["Code Generation", "Code Assistants"],
+  "IDEs": ["IDE", "IDEs", "Development Environment"],
+  "AI Coding Agents": ["AI Coding Agents", "Coding Agents"],
   "Voice & Speech": ["Audio/NLP", "NLP Platform", "Audio", "Audio/Video Processing"],
   "Video & Audio": ["Video Generation", "Video"],
   // Chatbots: Include Generative AI since most LLMs (ChatGPT, Claude, etc.) are chatbots
@@ -111,6 +118,8 @@ const displayCategories = [
   "Content Generation",      // Writing, text generation, LLMs
   "Image Generation",          // DALL-E, Midjourney, etc.
   "Code Assistants",          // GitHub Copilot, etc.
+  "IDEs",                     // Integrated Development Environments
+  "AI Coding Agents",         // MCP servers, Figma integrations, coding agents
   "Chatbots",                 // ChatGPT, Claude, etc.
   "Video & Audio",            // Video generation and editing
   "Voice & Speech",           // TTS, STT, voice AI
@@ -519,21 +528,13 @@ export default function ToolsPage() {
                     >
                       {/* Tool Image */}
                       <div className="relative h-40 md:h-48 overflow-hidden bg-muted">
-                        {tool.image ? (
-                          <Image
-                            src={tool.image}
-                            alt={tool.name}
-                            fill
-                            className="object-cover transition-transform duration-300 group-hover:scale-105"
-                            sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
-                          />
-                        ) : (
-                          <div className="h-full w-full bg-gradient-to-br from-primary/20 to-chart-1/20 flex items-center justify-center">
-                            <span className="text-4xl font-bold text-primary/50">
-                              {tool.name.charAt(0).toUpperCase()}
-                            </span>
-                          </div>
-                        )}
+                        <ToolImage
+                          src={tool.image}
+                          alt={tool.name}
+                          className="object-cover transition-transform duration-300 group-hover:scale-105"
+                          sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
+                          fallbackText={tool.name}
+                        />
                         {tool.featured && (
                           <Badge className="absolute right-3 top-3 bg-primary/90 text-primary-foreground backdrop-blur-sm">
                             <Sparkles className="mr-1 h-3 w-3" />

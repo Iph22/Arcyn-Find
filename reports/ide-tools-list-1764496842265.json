@@ -1,0 +1,29 @@
+{
+  "generatedAt": "2025-11-30T10:00:42.264Z",
+  "summary": {
+    "totalIDECandidates": 1,
+    "needsReCategorization": 1,
+    "alreadyInIDECategory": 0
+  },
+  "highConfidence": [],
+  "mediumConfidence": [
+    {
+      "id": "github-mcp-defender-42",
+      "name": "MCP-Defender",
+      "currentCategory": "Generative AI",
+      "platform": "https://github.com/MCP-Defender/MCP-Defender",
+      "reason": "GitHub IDE repository"
+    }
+  ],
+  "allCandidates": [
+    {
+      "id": "github-mcp-defender-42",
+      "name": "MCP-Defender",
+      "currentCategory": "Generative AI",
+      "platform": "https://github.com/MCP-Defender/MCP-Defender",
+      "description": "Desktop app that automatically scans and blocks malicious MCP traffic in AI apps like Cursor, Claude, VS Code and",
+      "confidence": "medium",
+      "reason": "GitHub IDE repository"
+    }
+  ]
+}

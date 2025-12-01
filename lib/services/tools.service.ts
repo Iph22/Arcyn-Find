@@ -30,21 +30,29 @@ export class ToolsService {
         decodedCategory = filters.category.trim()
       }
       
-      // Special handling for Marketing and Design - also search by tags
+      // Special handling for Marketing, Design, IDEs, and AI Coding Agents - also search by tags
       const isMarketing = decodedCategory.includes('Marketing') || decodedCategory.toLowerCase().includes('marketing')
       const isDesign = decodedCategory.includes('Design') || decodedCategory.toLowerCase().includes('design')
+      const isIDEs = decodedCategory.includes('IDEs') || decodedCategory.toLowerCase().includes('ide')
+      const isCodingAgents = decodedCategory.includes('AI Coding Agents') || decodedCategory.toLowerCase().includes('coding agent') || decodedCategory.toLowerCase().includes('mcp')
       
       if (decodedCategory.includes(',')) {
         const categories = decodedCategory.split(',').map(c => c.trim()).filter(Boolean)
         // Build combined OR query with categories and tags
         let orConditions = categories.map(cat => `category.ilike.${cat}`).join(',')
         
-        // For Marketing and Design, add tag conditions to the OR query
+        // For Marketing, Design, IDEs, and AI Coding Agents, add tag conditions to the OR query
         if (isMarketing) {
           orConditions += ',tags.cs.{marketing},tags.cs.{marketing-automation},tags.cs.{advertising},tags.cs.{seo}'
         }
         if (isDesign) {
           orConditions += ',tags.cs.{design},tags.cs.{ui},tags.cs.{ux},tags.cs.{graphic-design},tags.cs.{design-tools}'
+        }
+        if (isIDEs) {
+          orConditions += ',tags.cs.{ide},tags.cs.{development-environment},tags.cs.{code-editor},tags.cs.{programming-environment},tags.cs.{vs-code},tags.cs.{visual-studio}'
+        }
+        if (isCodingAgents) {
+          orConditions += ',tags.cs.{mcp},tags.cs.{model-context-protocol},tags.cs.{coding-agent},tags.cs.{code-agent},tags.cs.{figma-integration},tags.cs.{agentic-coding}'
         }
         
         queryBuilder = queryBuilder.or(orConditions)
@@ -54,6 +62,10 @@ export class ToolsService {
           queryBuilder = queryBuilder.or(`category.ilike.${decodedCategory},tags.cs.{marketing},tags.cs.{marketing-automation},tags.cs.{advertising},tags.cs.{seo}`)
         } else if (isDesign) {
           queryBuilder = queryBuilder.or(`category.ilike.${decodedCategory},tags.cs.{design},tags.cs.{ui},tags.cs.{ux},tags.cs.{graphic-design},tags.cs.{design-tools}`)
+        } else if (isIDEs) {
+          queryBuilder = queryBuilder.or(`category.ilike.${decodedCategory},tags.cs.{ide},tags.cs.{development-environment},tags.cs.{code-editor},tags.cs.{programming-environment},tags.cs.{vs-code},tags.cs.{visual-studio}`)
+        } else if (isCodingAgents) {
+          queryBuilder = queryBuilder.or(`category.ilike.${decodedCategory},tags.cs.{mcp},tags.cs.{model-context-protocol},tags.cs.{coding-agent},tags.cs.{code-agent},tags.cs.{figma-integration},tags.cs.{agentic-coding}`)
         } else {
           queryBuilder = queryBuilder.ilike('category', decodedCategory)
         }

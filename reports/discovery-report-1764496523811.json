@@ -1,0 +1,1084 @@
+{
+  "generatedAt": "2025-11-30T09:55:23.810Z",
+  "statistics": {
+    "totalTools": 1000,
+    "totalWithImages": 589,
+    "totalWithoutImages": 411,
+    "imagePercentage": 58.9,
+    "totalCategories": 16,
+    "githubTools": 411,
+    "recentTools": 411
+  },
+  "categories": {
+    "Generative AI": {
+      "total": 752,
+      "withImages": 385,
+      "withoutImages": 367,
+      "percentage": "51.2"
+    },
+    "AI Detection": {
+      "total": 87,
+      "withImages": 87,
+      "withoutImages": 0,
+      "percentage": "100.0"
+    },
+    "AI Detection Tool": {
+      "total": 66,
+      "withImages": 66,
+      "withoutImages": 0,
+      "percentage": "100.0"
+    },
+    "Autonomous AI": {
+      "total": 2,
+      "withImages": 2,
+      "withoutImages": 0,
+      "percentage": "100.0"
+    },
+    "ML Infrastructure": {
+      "total": 9,
+      "withImages": 9,
+      "withoutImages": 0,
+      "percentage": "100.0"
+    },
+    "Research Paper": {
+      "total": 1,
+      "withImages": 1,
+      "withoutImages": 0,
+      "percentage": "100.0"
+    },
+    "Learning & Education": {
+      "total": 8,
+      "withImages": 8,
+      "withoutImages": 0,
+      "percentage": "100.0"
+    },
+    "Video Generation": {
+      "total": 4,
+      "withImages": 4,
+      "withoutImages": 0,
+      "percentage": "100.0"
+    },
+    "Computer Vision": {
+      "total": 20,
+      "withImages": 20,
+      "withoutImages": 0,
+      "percentage": "100.0"
+    },
+    "Audio/NLP": {
+      "total": 2,
+      "withImages": 2,
+      "withoutImages": 0,
+      "percentage": "100.0"
+    },
+    "Multimodal Platform": {
+      "total": 1,
+      "withImages": 1,
+      "withoutImages": 0,
+      "percentage": "100.0"
+    },
+    "ChatBots": {
+      "total": 44,
+      "withImages": 0,
+      "withoutImages": 44,
+      "percentage": "0.0"
+    },
+    "Code Generation": {
+      "total": 1,
+      "withImages": 1,
+      "withoutImages": 0,
+      "percentage": "100.0"
+    },
+    "Search/QA": {
+      "total": 1,
+      "withImages": 1,
+      "withoutImages": 0,
+      "percentage": "100.0"
+    },
+    "Audio/Video Processing": {
+      "total": 1,
+      "withImages": 1,
+      "withoutImages": 0,
+      "percentage": "100.0"
+    },
+    "NLP Platform": {
+      "total": 1,
+      "withImages": 1,
+      "withoutImages": 0,
+      "percentage": "100.0"
+    }
+  },
+  "ideTools": [
+    {
+      "name": "HeyGen",
+      "category": "Video Generation",
+      "platform": "https://www.heygen.com",
+      "hasImage": true
+    },
+    {
+      "name": "DeepBrain AI",
+      "category": "Video Generation",
+      "platform": "https://www.deepbrain.io",
+      "hasImage": true
+    },
+    {
+      "name": "Video Editor AI",
+      "category": "Generative AI",
+      "platform": "https://videoeditorai.com/?utm_source=opentools.ai&utm_medium=web&utm_campaign=listing",
+      "hasImage": true
+    },
+    {
+      "name": "Runway",
+      "category": "Video Generation",
+      "platform": "https://runwayml.com",
+      "hasImage": true
+    },
+    {
+      "name": "Synthesia",
+      "category": "Video Generation",
+      "platform": "https://www.synthesia.io",
+      "hasImage": true
+    },
+    {
+      "name": "Prompt-Engineering-Guide",
+      "category": "Generative AI",
+      "platform": "https://github.com/dair-ai/Prompt-Engineering-Guide",
+      "hasImage": false
+    },
+    {
+      "name": "awesome-generative-ai-guide",
+      "category": "Generative AI",
+      "platform": "https://github.com/aishwaryanr/awesome-generative-ai-guide",
+      "hasImage": false
+    },
+    {
+      "name": "evidently",
+      "category": "Generative AI",
+      "platform": "https://github.com/evidentlyai/evidently",
+      "hasImage": false
+    },
+    {
+      "name": "Descript",
+      "category": "Audio/Video Processing",
+      "platform": "https://www.descript.com",
+      "hasImage": true
+    },
+    {
+      "name": "odin-slides",
+      "category": "Generative AI",
+      "platform": "https://github.com/leonid20000/odin-slides",
+      "hasImage": false
+    },
+    {
+      "name": "aidea",
+      "category": "ChatBots",
+      "platform": "https://github.com/mylxsw/aidea",
+      "hasImage": false
+    }
+  ],
+  "newlyDiscovered": {
+    "githubTools": [
+      {
+        "name": "deep-chat",
+        "category": "ChatBots",
+        "platform": "https://github.com/OvidijusParsiunas/deep-chat",
+        "hasImage": false
+      },
+      {
+        "name": "chatgpt-android",
+        "category": "ChatBots",
+        "platform": "https://github.com/skydoves/chatgpt-android",
+        "hasImage": false
+      },
+      {
+        "name": "whatsapp-chatgpt",
+        "category": "ChatBots",
+        "platform": "https://github.com/askrella/whatsapp-chatgpt",
+        "hasImage": false
+      },
+      {
+        "name": "AChat",
+        "category": "ChatBots",
+        "platform": "https://github.com/AprilNEA/AChat",
+        "hasImage": false
+      },
+      {
+        "name": "TensorFlow.NET",
+        "category": "ChatBots",
+        "platform": "https://github.com/SciSharp/TensorFlow.NET",
+        "hasImage": false
+      },
+      {
+        "name": "casibase",
+        "category": "ChatBots",
+        "platform": "https://github.com/casibase/casibase",
+        "hasImage": false
+      },
+      {
+        "name": "XianyuAutoAgent",
+        "category": "ChatBots",
+        "platform": "https://github.com/shaxiu/XianyuAutoAgent",
+        "hasImage": false
+      },
+      {
+        "name": "bRAG-langchain",
+        "category": "ChatBots",
+        "platform": "https://github.com/bragai/bRAG-langchain",
+        "hasImage": false
+      },
+      {
+        "name": "errbot",
+        "category": "ChatBots",
+        "platform": "https://github.com/errbotio/errbot",
+        "hasImage": false
+      },
+      {
+        "name": "ChatGPTAPIFree",
+        "category": "ChatBots",
+        "platform": "https://github.com/ayaka14732/ChatGPTAPIFree",
+        "hasImage": false
+      },
+      {
+        "name": "chaskiq",
+        "category": "ChatBots",
+        "platform": "https://github.com/chaskiq/chaskiq",
+        "hasImage": false
+      },
+      {
+        "name": "Langchain-Chatchat",
+        "category": "ChatBots",
+        "platform": "https://github.com/chatchat-space/Langchain-Chatchat",
+        "hasImage": false
+      },
+      {
+        "name": "bolt.new",
+        "category": "ChatBots",
+        "platform": "https://github.com/stackblitz/bolt.new",
+        "hasImage": false
+      },
+      {
+        "name": "ai-developer-with-sandbox",
+        "category": "Generative AI",
+        "platform": "https://github.com/e2b-dev/ai-developer-with-sandbox",
+        "hasImage": false
+      },
+      {
+        "name": "botkit",
+        "category": "ChatBots",
+        "platform": "https://github.com/howdyai/botkit",
+        "hasImage": false
+      },
+      {
+        "name": "DeyWeaver",
+        "category": "Generative AI",
+        "platform": "https://github.com/Deyweaver/DeyWeaver",
+        "hasImage": false
+      },
+      {
+        "name": "CosyVoice",
+        "category": "ChatBots",
+        "platform": "https://github.com/FunAudioLLM/CosyVoice",
+        "hasImage": false
+      },
+      {
+        "name": "agents-claude-code",
+        "category": "Generative AI",
+        "platform": "https://github.com/lodetomasi/agents-claude-code",
+        "hasImage": false
+      },
+      {
+        "name": "kimi-free-api",
+        "category": "ChatBots",
+        "platform": "https://github.com/LLM-Red-Team/kimi-free-api",
+        "hasImage": false
+      },
+      {
+        "name": "awesome-coding-assistants",
+        "category": "Generative AI",
+        "platform": "https://github.com/dremeika/awesome-coding-assistants",
+        "hasImage": false
+      },
+      {
+        "name": "yao",
+        "category": "ChatBots",
+        "platform": "https://github.com/YaoApp/yao",
+        "hasImage": false
+      },
+      {
+        "name": "AstrBot",
+        "category": "ChatBots",
+        "platform": "https://github.com/AstrBotDevs/AstrBot",
+        "hasImage": false
+      },
+      {
+        "name": "Ai-Website-Builder",
+        "category": "Generative AI",
+        "platform": "https://github.com/Ratna-Babu/Ai-Website-Builder",
+        "hasImage": false
+      },
+      {
+        "name": "learnhouse",
+        "category": "Generative AI",
+        "platform": "https://github.com/learnhouse/learnhouse",
+        "hasImage": false
+      },
+      {
+        "name": "koishi",
+        "category": "ChatBots",
+        "platform": "https://github.com/koishijs/koishi",
+        "hasImage": false
+      },
+      {
+        "name": "GPTCache",
+        "category": "ChatBots",
+        "platform": "https://github.com/zilliztech/GPTCache",
+        "hasImage": false
+      },
+      {
+        "name": "quivr",
+        "category": "ChatBots",
+        "platform": "https://github.com/QuivrHQ/quivr",
+        "hasImage": false
+      },
+      {
+        "name": "superduper",
+        "category": "ChatBots",
+        "platform": "https://github.com/superduper-io/superduper",
+        "hasImage": false
+      },
+      {
+        "name": "BetterChatGPT",
+        "category": "ChatBots",
+        "platform": "https://github.com/ztjhz/BetterChatGPT",
+        "hasImage": false
+      },
+      {
+        "name": "kotaemon",
+        "category": "ChatBots",
+        "platform": "https://github.com/Cinnamon/kotaemon",
+        "hasImage": false
+      },
+      {
+        "name": "ChatGPT",
+        "category": "ChatBots",
+        "platform": "https://github.com/PawanOsman/ChatGPT",
+        "hasImage": false
+      },
+      {
+        "name": "agentscope",
+        "category": "ChatBots",
+        "platform": "https://github.com/agentscope-ai/agentscope",
+        "hasImage": false
+      },
+      {
+        "name": "gpt4free-ts",
+        "category": "ChatBots",
+        "platform": "https://github.com/xiangsx/gpt4free-ts",
+        "hasImage": false
+      },
+      {
+        "name": "AIAnswerer-Android",
+        "category": "Generative AI",
+        "platform": "https://github.com/wb-hwang/AIAnswerer-Android",
+        "hasImage": false
+      },
+      {
+        "name": "MaxKB",
+        "category": "ChatBots",
+        "platform": "https://github.com/1Panel-dev/MaxKB",
+        "hasImage": false
+      },
+      {
+        "name": "chatbox",
+        "category": "ChatBots",
+        "platform": "https://github.com/chatboxai/chatbox",
+        "hasImage": false
+      },
+      {
+        "name": "mcp-headless-gmail",
+        "category": "Generative AI",
+        "platform": "https://github.com/baryhuang/mcp-headless-gmail",
+        "hasImage": false
+      },
+      {
+        "name": "Auto-Reply-Android",
+        "category": "Generative AI",
+        "platform": "https://github.com/it5prasoon/Auto-Reply-Android",
+        "hasImage": false
+      },
+      {
+        "name": "slax-reader",
+        "category": "Generative AI",
+        "platform": "https://github.com/slax-lab/slax-reader",
+        "hasImage": false
+      },
+      {
+        "name": "agenite",
+        "category": "Generative AI",
+        "platform": "https://github.com/subeshb1/agenite",
+        "hasImage": false
+      },
+      {
+        "name": "hm_editor",
+        "category": "Generative AI",
+        "platform": "https://github.com/huimeicloud/hm_editor",
+        "hasImage": false
+      },
+      {
+        "name": "chatgpt_telegram_bot",
+        "category": "ChatBots",
+        "platform": "https://github.com/father-bot/chatgpt_telegram_bot",
+        "hasImage": false
+      },
+      {
+        "name": "ios-lumo",
+        "category": "Generative AI",
+        "platform": "https://github.com/ProtonLumo/ios-lumo",
+        "hasImage": false
+      },
+      {
+        "name": "note-gen",
+        "category": "ChatBots",
+        "platform": "https://github.com/codexu/note-gen",
+        "hasImage": false
+      },
+      {
+        "name": "assistant-ui",
+        "category": "ChatBots",
+        "platform": "https://github.com/assistant-ui/assistant-ui",
+        "hasImage": false
+      },
+      {
+        "name": "mcp-memory-keeper",
+        "category": "Generative AI",
+        "platform": "https://github.com/mkreyman/mcp-memory-keeper",
+        "hasImage": false
+      },
+      {
+        "name": "bisheng",
+        "category": "ChatBots",
+        "platform": "https://github.com/dataelement/bisheng",
+        "hasImage": false
+      },
+      {
+        "name": "aichat",
+        "category": "ChatBots",
+        "platform": "https://github.com/sigoden/aichat",
+        "hasImage": false
+      },
+      {
+        "name": "venom",
+        "category": "ChatBots",
+        "platform": "https://github.com/vynect/venom",
+        "hasImage": false
+      },
+      {
+        "name": "dolly",
+        "category": "ChatBots",
+        "platform": "https://github.com/databrickslabs/dolly",
+        "hasImage": false
+      },
+      {
+        "name": "awesome-chatgpt-prompts",
+        "category": "ChatBots",
+        "platform": "https://github.com/f/awesome-chatgpt-prompts",
+        "hasImage": false
+      },
+      {
+        "name": "buildship-chat-widget",
+        "category": "Generative AI",
+        "platform": "https://github.com/rowyio/buildship-chat-widget",
+        "hasImage": false
+      },
+      {
+        "name": "tiledesk-chatbot",
+        "category": "Generative AI",
+        "platform": "https://github.com/Tiledesk/tiledesk-chatbot",
+        "hasImage": false
+      },
+      {
+        "name": "nonebot2",
+        "category": "ChatBots",
+        "platform": "https://github.com/nonebot/nonebot2",
+        "hasImage": false
+      },
+      {
+        "name": "evolution-api",
+        "category": "ChatBots",
+        "platform": "https://github.com/EvolutionAPI/evolution-api",
+        "hasImage": false
+      },
+      {
+        "name": "aidea",
+        "category": "ChatBots",
+        "platform": "https://github.com/mylxsw/aidea",
+        "hasImage": false
+      },
+      {
+        "name": "python-telegram-bot",
+        "category": "ChatBots",
+        "platform": "https://github.com/python-telegram-bot/python-telegram-bot",
+        "hasImage": false
+      },
+      {
+        "name": "anything-copilot",
+        "category": "Generative AI",
+        "platform": "https://github.com/baotlake/anything-copilot",
+        "hasImage": false
+      },
+      {
+        "name": "HuLa",
+        "category": "ChatBots",
+        "platform": "https://github.com/HuLaSpark/HuLa",
+        "hasImage": false
+      },
+      {
+        "name": "ai-pdf-chatbot-langchain",
+        "category": "ChatBots",
+        "platform": "https://github.com/mayooear/ai-pdf-chatbot-langchain",
+        "hasImage": false
+      },
+      {
+        "name": "gaianet-node",
+        "category": "ChatBots",
+        "platform": "https://github.com/GaiaNet-AI/gaianet-node",
+        "hasImage": false
+      },
+      {
+        "name": "coco-server",
+        "category": "Generative AI",
+        "platform": "https://github.com/infinilabs/coco-server",
+        "hasImage": false
+      },
+      {
+        "name": "genai_prompt_myshelf",
+        "category": "Generative AI",
+        "platform": "https://github.com/bsc7080gbc/genai_prompt_myshelf",
+        "hasImage": false
+      },
+      {
+        "name": "ai-code-context-helper",
+        "category": "Generative AI",
+        "platform": "https://github.com/sansan0/ai-code-context-helper",
+        "hasImage": false
+      },
+      {
+        "name": "swmate",
+        "category": "Generative AI",
+        "platform": "https://github.com/Sanotsu/swmate",
+        "hasImage": false
+      },
+      {
+        "name": "anythingllm-extension",
+        "category": "Generative AI",
+        "platform": "https://github.com/Mintplex-Labs/anythingllm-extension",
+        "hasImage": false
+      },
+      {
+        "name": "Alice",
+        "category": "Generative AI",
+        "platform": "https://github.com/pmbstyle/Alice",
+        "hasImage": false
+      },
+      {
+        "name": "context-keeper",
+        "category": "Generative AI",
+        "platform": "https://github.com/redleaves/context-keeper",
+        "hasImage": false
+      },
+      {
+        "name": "codai",
+        "category": "Generative AI",
+        "platform": "https://github.com/meysamhadeli/codai",
+        "hasImage": false
+      },
+      {
+        "name": "Taskosaur",
+        "category": "Generative AI",
+        "platform": "https://github.com/Taskosaur/Taskosaur",
+        "hasImage": false
+      },
+      {
+        "name": "openai-autogen-dev-studio",
+        "category": "Generative AI",
+        "platform": "https://github.com/ivangabriele/openai-autogen-dev-studio",
+        "hasImage": false
+      },
+      {
+        "name": "JARVIS-AI-ASSISTANT",
+        "category": "Generative AI",
+        "platform": "https://github.com/JoelShine/JARVIS-AI-ASSISTANT",
+        "hasImage": false
+      },
+      {
+        "name": "odin-slides",
+        "category": "Generative AI",
+        "platform": "https://github.com/leonid20000/odin-slides",
+        "hasImage": false
+      },
+      {
+        "name": "PromethAI-Backend",
+        "category": "Generative AI",
+        "platform": "https://github.com/topoteretes/PromethAI-Backend",
+        "hasImage": false
+      },
+      {
+        "name": "AI-OPS",
+        "category": "Generative AI",
+        "platform": "https://github.com/antoninoLorenzo/AI-OPS",
+        "hasImage": false
+      },
+      {
+        "name": "knowledge-graph-of-thoughts",
+        "category": "Generative AI",
+        "platform": "https://github.com/spcl/knowledge-graph-of-thoughts",
+        "hasImage": false
+      },
+      {
+        "name": "android-lumo",
+        "category": "Generative AI",
+        "platform": "https://github.com/ProtonLumo/android-lumo",
+        "hasImage": false
+      },
+      {
+        "name": "catai",
+        "category": "Generative AI",
+        "platform": "https://github.com/withcatai/catai",
+        "hasImage": false
+      },
+      {
+        "name": "django-ai-assistant",
+        "category": "Generative AI",
+        "platform": "https://github.com/vintasoftware/django-ai-assistant",
+        "hasImage": false
+      },
+      {
+        "name": "autodev-vscode",
+        "category": "Generative AI",
+        "platform": "https://github.com/unit-mesh/autodev-vscode",
+        "hasImage": false
+      },
+      {
+        "name": "tiledesk-server",
+        "category": "Generative AI",
+        "platform": "https://github.com/Tiledesk/tiledesk-server",
+        "hasImage": false
+      },
+      {
+        "name": "cursor-agent-tracking",
+        "category": "Generative AI",
+        "platform": "https://github.com/techcow2/cursor-agent-tracking",
+        "hasImage": false
+      },
+      {
+        "name": "M.I.L.E.S",
+        "category": "Generative AI",
+        "platform": "https://github.com/small-cactus/M.I.L.E.S",
+        "hasImage": false
+      },
+      {
+        "name": "n8n-workflow-builder",
+        "category": "Generative AI",
+        "platform": "https://github.com/makafeli/n8n-workflow-builder",
+        "hasImage": false
+      },
+      {
+        "name": "glowby",
+        "category": "Generative AI",
+        "platform": "https://github.com/glowbom/glowby",
+        "hasImage": false
+      },
+      {
+        "name": "kobold_assistant",
+        "category": "Generative AI",
+        "platform": "https://github.com/lee-b/kobold_assistant",
+        "hasImage": false
+      },
+      {
+        "name": "k8s-mcp-server",
+        "category": "Generative AI",
+        "platform": "https://github.com/alexei-led/k8s-mcp-server",
+        "hasImage": false
+      },
+      {
+        "name": "payload-wizard",
+        "category": "Generative AI",
+        "platform": "https://github.com/ANG13T/payload-wizard",
+        "hasImage": false
+      },
+      {
+        "name": "persistent-ai-memory",
+        "category": "Generative AI",
+        "platform": "https://github.com/savantskie/persistent-ai-memory",
+        "hasImage": false
+      },
+      {
+        "name": "apple-docs-mcp",
+        "category": "Generative AI",
+        "platform": "https://github.com/kimsungwhee/apple-docs-mcp",
+        "hasImage": false
+      },
+      {
+        "name": "OpenAI-Assistants-Template",
+        "category": "Generative AI",
+        "platform": "https://github.com/pranavgupta2603/OpenAI-Assistants-Template",
+        "hasImage": false
+      },
+      {
+        "name": "laravel",
+        "category": "Generative AI",
+        "platform": "https://github.com/grok-php/laravel",
+        "hasImage": false
+      },
+      {
+        "name": "ToolNeuron",
+        "category": "Generative AI",
+        "platform": "https://github.com/Siddhesh2377/ToolNeuron",
+        "hasImage": false
+      },
+      {
+        "name": "Frappe_Assistant_Core",
+        "category": "Generative AI",
+        "platform": "https://github.com/buildswithpaul/Frappe_Assistant_Core",
+        "hasImage": false
+      },
+      {
+        "name": "ai-assistant-teaching-website",
+        "category": "Generative AI",
+        "platform": "https://github.com/TochusC/ai-assistant-teaching-website",
+        "hasImage": false
+      },
+      {
+        "name": "Graphite",
+        "category": "Generative AI",
+        "platform": "https://github.com/dovvnloading/Graphite",
+        "hasImage": false
+      },
+      {
+        "name": "Obsidian-MantouAI",
+        "category": "Generative AI",
+        "platform": "https://github.com/ravenSanstete/Obsidian-MantouAI",
+        "hasImage": false
+      },
+      {
+        "name": "AI-Voice-Agent",
+        "category": "Generative AI",
+        "platform": "https://github.com/Anil-matcha/AI-Voice-Agent",
+        "hasImage": false
+      },
+      {
+        "name": "AgentCrew",
+        "category": "Generative AI",
+        "platform": "https://github.com/saigontechnology/AgentCrew",
+        "hasImage": false
+      },
+      {
+        "name": "coder",
+        "category": "Generative AI",
+        "platform": "https://github.com/tempurai/coder",
+        "hasImage": false
+      }
+    ],
+    "recentTools": [
+      {
+        "name": "deep-chat",
+        "category": "ChatBots",
+        "platform": "https://github.com/OvidijusParsiunas/deep-chat",
+        "hasImage": false
+      },
+      {
+        "name": "chatgpt-android",
+        "category": "ChatBots",
+        "platform": "https://github.com/skydoves/chatgpt-android",
+        "hasImage": false
+      },
+      {
+        "name": "whatsapp-chatgpt",
+        "category": "ChatBots",
+        "platform": "https://github.com/askrella/whatsapp-chatgpt",
+        "hasImage": false
+      },
+      {
+        "name": "AChat",
+        "category": "ChatBots",
+        "platform": "https://github.com/AprilNEA/AChat",
+        "hasImage": false
+      },
+      {
+        "name": "TensorFlow.NET",
+        "category": "ChatBots",
+        "platform": "https://github.com/SciSharp/TensorFlow.NET",
+        "hasImage": false
+      },
+      {
+        "name": "casibase",
+        "category": "ChatBots",
+        "platform": "https://github.com/casibase/casibase",
+        "hasImage": false
+      },
+      {
+        "name": "XianyuAutoAgent",
+        "category": "ChatBots",
+        "platform": "https://github.com/shaxiu/XianyuAutoAgent",
+        "hasImage": false
+      },
+      {
+        "name": "bRAG-langchain",
+        "category": "ChatBots",
+        "platform": "https://github.com/bragai/bRAG-langchain",
+        "hasImage": false
+      },
+      {
+        "name": "errbot",
+        "category": "ChatBots",
+        "platform": "https://github.com/errbotio/errbot",
+        "hasImage": false
+      },
+      {
+        "name": "ChatGPTAPIFree",
+        "category": "ChatBots",
+        "platform": "https://github.com/ayaka14732/ChatGPTAPIFree",
+        "hasImage": false
+      },
+      {
+        "name": "chaskiq",
+        "category": "ChatBots",
+        "platform": "https://github.com/chaskiq/chaskiq",
+        "hasImage": false
+      },
+      {
+        "name": "Langchain-Chatchat",
+        "category": "ChatBots",
+        "platform": "https://github.com/chatchat-space/Langchain-Chatchat",
+        "hasImage": false
+      },
+      {
+        "name": "bolt.new",
+        "category": "ChatBots",
+        "platform": "https://github.com/stackblitz/bolt.new",
+        "hasImage": false
+      },
+      {
+        "name": "ai-developer-with-sandbox",
+        "category": "Generative AI",
+        "platform": "https://github.com/e2b-dev/ai-developer-with-sandbox",
+        "hasImage": false
+      },
+      {
+        "name": "botkit",
+        "category": "ChatBots",
+        "platform": "https://github.com/howdyai/botkit",
+        "hasImage": false
+      },
+      {
+        "name": "DeyWeaver",
+        "category": "Generative AI",
+        "platform": "https://github.com/Deyweaver/DeyWeaver",
+        "hasImage": false
+      },
+      {
+        "name": "CosyVoice",
+        "category": "ChatBots",
+        "platform": "https://github.com/FunAudioLLM/CosyVoice",
+        "hasImage": false
+      },
+      {
+        "name": "agents-claude-code",
+        "category": "Generative AI",
+        "platform": "https://github.com/lodetomasi/agents-claude-code",
+        "hasImage": false
+      },
+      {
+        "name": "kimi-free-api",
+        "category": "ChatBots",
+        "platform": "https://github.com/LLM-Red-Team/kimi-free-api",
+        "hasImage": false
+      },
+      {
+        "name": "awesome-coding-assistants",
+        "category": "Generative AI",
+        "platform": "https://github.com/dremeika/awesome-coding-assistants",
+        "hasImage": false
+      },
+      {
+        "name": "yao",
+        "category": "ChatBots",
+        "platform": "https://github.com/YaoApp/yao",
+        "hasImage": false
+      },
+      {
+        "name": "AstrBot",
+        "category": "ChatBots",
+        "platform": "https://github.com/AstrBotDevs/AstrBot",
+        "hasImage": false
+      },
+      {
+        "name": "Ai-Website-Builder",
+        "category": "Generative AI",
+        "platform": "https://github.com/Ratna-Babu/Ai-Website-Builder",
+        "hasImage": false
+      },
+      {
+        "name": "learnhouse",
+        "category": "Generative AI",
+        "platform": "https://github.com/learnhouse/learnhouse",
+        "hasImage": false
+      },
+      {
+        "name": "koishi",
+        "category": "ChatBots",
+        "platform": "https://github.com/koishijs/koishi",
+        "hasImage": false
+      },
+      {
+        "name": "GPTCache",
+        "category": "ChatBots",
+        "platform": "https://github.com/zilliztech/GPTCache",
+        "hasImage": false
+      },
+      {
+        "name": "quivr",
+        "category": "ChatBots",
+        "platform": "https://github.com/QuivrHQ/quivr",
+        "hasImage": false
+      },
+      {
+        "name": "superduper",
+        "category": "ChatBots",
+        "platform": "https://github.com/superduper-io/superduper",
+        "hasImage": false
+      },
+      {
+        "name": "BetterChatGPT",
+        "category": "ChatBots",
+        "platform": "https://github.com/ztjhz/BetterChatGPT",
+        "hasImage": false
+      },
+      {
+        "name": "kotaemon",
+        "category": "ChatBots",
+        "platform": "https://github.com/Cinnamon/kotaemon",
+        "hasImage": false
+      },
+      {
+        "name": "ChatGPT",
+        "category": "ChatBots",
+        "platform": "https://github.com/PawanOsman/ChatGPT",
+        "hasImage": false
+      },
+      {
+        "name": "agentscope",
+        "category": "ChatBots",
+        "platform": "https://github.com/agentscope-ai/agentscope",
+        "hasImage": false
+      },
+      {
+        "name": "gpt4free-ts",
+        "category": "ChatBots",
+        "platform": "https://github.com/xiangsx/gpt4free-ts",
+        "hasImage": false
+      },
+      {
+        "name": "AIAnswerer-Android",
+        "category": "Generative AI",
+        "platform": "https://github.com/wb-hwang/AIAnswerer-Android",
+        "hasImage": false
+      },
+      {
+        "name": "MaxKB",
+        "category": "ChatBots",
+        "platform": "https://github.com/1Panel-dev/MaxKB",
+        "hasImage": false
+      },
+      {
+        "name": "chatbox",
+        "category": "ChatBots",
+        "platform": "https://github.com/chatboxai/chatbox",
+        "hasImage": false
+      },
+      {
+        "name": "mcp-headless-gmail",
+        "category": "Generative AI",
+        "platform": "https://github.com/baryhuang/mcp-headless-gmail",
+        "hasImage": false
+      },
+      {
+        "name": "Auto-Reply-Android",
+        "category": "Generative AI",
+        "platform": "https://github.com/it5prasoon/Auto-Reply-Android",
+        "hasImage": false
+      },
+      {
+        "name": "slax-reader",
+        "category": "Generative AI",
+        "platform": "https://github.com/slax-lab/slax-reader",
+        "hasImage": false
+      },
+      {
+        "name": "agenite",
+        "category": "Generative AI",
+        "platform": "https://github.com/subeshb1/agenite",
+        "hasImage": false
+      },
+      {
+        "name": "hm_editor",
+        "category": "Generative AI",
+        "platform": "https://github.com/huimeicloud/hm_editor",
+        "hasImage": false
+      },
+      {
+        "name": "chatgpt_telegram_bot",
+        "category": "ChatBots",
+        "platform": "https://github.com/father-bot/chatgpt_telegram_bot",
+        "hasImage": false
+      },
+      {
+        "name": "ios-lumo",
+        "category": "Generative AI",
+        "platform": "https://github.com/ProtonLumo/ios-lumo",
+        "hasImage": false
+      },
+      {
+        "name": "note-gen",
+        "category": "ChatBots",
+        "platform": "https://github.com/codexu/note-gen",
+        "hasImage": false
+      },
+      {
+        "name": "assistant-ui",
+        "category": "ChatBots",
+        "platform": "https://github.com/assistant-ui/assistant-ui",
+        "hasImage": false
+      },
+      {
+        "name": "mcp-memory-keeper",
+        "category": "Generative AI",
+        "platform": "https://github.com/mkreyman/mcp-memory-keeper",
+        "hasImage": false
+      },
+      {
+        "name": "bisheng",
+        "category": "ChatBots",
+        "platform": "https://github.com/dataelement/bisheng",
+        "hasImage": false
+      },
+      {
+        "name": "aichat",
+        "category": "ChatBots",
+        "platform": "https://github.com/sigoden/aichat",
+        "hasImage": false
+      },
+      {
+        "name": "venom",
+        "category": "ChatBots",
+        "platform": "https://github.com/vynect/venom",
+        "hasImage": false
+      },
+      {
+        "name": "dolly",
+        "category": "ChatBots",
+        "platform": "https://github.com/databrickslabs/dolly",
+        "hasImage": false
+      }
+    ]
+  }
+}
