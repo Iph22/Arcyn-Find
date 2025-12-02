@@ -44,9 +44,20 @@ export default clerkMiddleware(async (auth, request) => {
     return NextResponse.redirect(new URL('/sitemap-index.xml', request.url), 301)
   }
 
+  // Create response
+  const response = NextResponse.next()
+
+  // Explicitly allow indexing for public routes to override any default noindex headers
+  if (isPublicRoute(request)) {
+    // Set X-Robots-Tag header to allow indexing for public pages
+    response.headers.set('X-Robots-Tag', 'index, follow')
+  }
+
   if (!isPublicRoute(request)) {
     await auth.protect()
   }
+
+  return response
 })
 
 export const config = {
