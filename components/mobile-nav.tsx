@@ -14,7 +14,7 @@ import { useHaptic } from "@/hooks/use-haptic"
 export function MobileNav() {
   const pathname = usePathname()
   const router = useRouter()
-  const [isSearchOpen, setIsSearchOpen] = useState(false)
+
   const [isMobile, setIsMobile] = useState(false)
   const { preferences } = usePreferences()
   const isAuthenticated = preferences?.isAuthenticated
@@ -29,31 +29,10 @@ export function MobileNav() {
     return () => window.removeEventListener('resize', checkMobile)
   }, [])
 
-  // Handle browser back button for search modal
-  useEffect(() => {
-    if (!isSearchOpen) return
 
-    const handlePopState = (e: PopStateEvent) => {
-      // If modal is open and user presses back, close modal instead
-      if (isSearchOpen) {
-        e.preventDefault()
-        setIsSearchOpen(false)
-        // Push current state to prevent navigation
-        window.history.pushState({ modal: false }, '', window.location.pathname)
-      }
-    }
 
-    // Push state when modal opens
-    window.history.pushState({ modal: true }, '', window.location.pathname)
-    window.addEventListener('popstate', handlePopState)
-
-    return () => {
-      window.removeEventListener('popstate', handlePopState)
-    }
-  }, [isSearchOpen])
-
-  // Don't show on landing page, auth pages, or desktop
-  if (!isMobile || pathname === '/' || pathname?.startsWith('/sign-in') || pathname?.startsWith('/sign-up') || pathname?.startsWith('/contact') || pathname?.startsWith('/about') || pathname?.startsWith('/privacy') || pathname?.startsWith('/terms')) {
+  // Don't show on landing page, auth pages, onboarding, instructions, or desktop
+  if (!isMobile || pathname === '/' || pathname?.startsWith('/sign-in') || pathname?.startsWith('/sign-up') || pathname?.startsWith('/contact') || pathname?.startsWith('/about') || pathname?.startsWith('/privacy') || pathname?.startsWith('/terms') || pathname?.startsWith('/onboarding') || pathname?.startsWith('/instructions')) {
     return null
   }
 
@@ -169,57 +148,26 @@ export function MobileNav() {
             )
           })}
           {/* Search Button */}
-          <button
-            onClick={() => {
-              setIsSearchOpen(true)
-              haptic("medium")
-            }}
-            className={cn(
-              "flex flex-col items-center justify-center gap-1 relative transition-colors",
-              "text-muted-foreground active:text-primary"
-            )}
-          >
-            <motion.div whileTap={{ scale: 0.9 }}>
-              <Search className="w-5 h-5" />
-            </motion.div>
-            <span className="text-[10px] font-medium leading-tight">Search</span>
-          </button>
+          <UserSearch
+            trigger={
+              <div
+                className={cn(
+                  "flex flex-col items-center justify-center gap-1 relative transition-colors cursor-pointer",
+                  "text-muted-foreground active:text-primary"
+                )}
+                onClick={() => haptic("medium")}
+              >
+                <motion.div whileTap={{ scale: 0.9 }}>
+                  <Search className="w-5 h-5" />
+                </motion.div>
+                <span className="text-[10px] font-medium leading-tight">Search</span>
+              </div>
+            }
+          />
         </div>
       </motion.nav>
-
-      {/* Search Modal for Mobile */}
-      {isSearchOpen && (
-        <motion.div
-          className="fixed inset-0 z-[100] md:hidden"
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          exit={{ opacity: 0 }}
-        >
-          <div className="absolute inset-0 bg-background/95 backdrop-blur-xl">
-            <div className="h-full flex flex-col">
-              <div className="flex items-center justify-between p-4 border-b border-border">
-                <h2 className="text-lg font-semibold">Search Users</h2>
-                <button
-                  onClick={() => {
-                    setIsSearchOpen(false)
-                    // Go back in history if we pushed a state, otherwise just close
-                    if (window.history.state?.modal) {
-                      window.history.back()
-                    }
-                  }}
-                  className="p-2 rounded-lg hover:bg-muted transition-colors"
-                >
-                  <span className="text-lg">✕</span>
-                </button>
-              </div>
-              <div className="flex-1 overflow-y-auto p-4">
-                <UserSearch />
-              </div>
-            </div>
-          </div>
-        </motion.div>
-      )}
     </>
   )
 }
+
 

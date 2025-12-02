@@ -66,19 +66,19 @@ export default function InstructionsPage() {
               'Content-Type': 'application/json',
             },
           })
-          
+
           if (!response.ok) {
             return
           }
 
           const data = await response.json()
-          
+
           // If user hasn't completed onboarding, redirect to onboarding
           if (!data.onboarding_completed) {
             router.replace('/onboarding')
             return
           }
-          
+
           // If user has already seen instructions, redirect to home
           if (data.instructions_seen) {
             router.replace('/home')
@@ -88,7 +88,7 @@ export default function InstructionsPage() {
           console.error('Error checking user status:', error)
         }
       }
-      
+
       checkUserStatus()
     }
   }, [user, isLoaded, router])
@@ -99,17 +99,17 @@ export default function InstructionsPage() {
       // Mark instructions as seen in database first
       const { markInstructionsSeen } = await import("@/lib/user-preferences")
       const result = await markInstructionsSeen()
-      
+
       if (!result.success) {
         console.error('Failed to mark instructions as seen:', result.error)
         alert('Failed to save. Please try again.')
         setIsSaving(false)
         return
       }
-      
+
       // Only update localStorage after DB save succeeds
       localStorage.setItem("arcyn-instructions-seen", "true")
-      
+
       // Now safe to redirect (use replace to avoid preserving query params)
       router.replace("/home")
     } catch (error) {
@@ -125,15 +125,30 @@ export default function InstructionsPage() {
       <div className="absolute inset-0 bg-[linear-gradient(to_right,var(--color-border)_1px,transparent_1px),linear-gradient(to_bottom,var(--color-border)_1px,transparent_1px)] bg-[size:4rem_4rem] [mask-image:radial-gradient(ellipse_80%_50%_at_50%_50%,#000_70%,transparent_110%)] opacity-20" />
 
       <motion.div
-        className="absolute right-1/4 top-20 h-64 w-64 rounded-full bg-chart-1/20 blur-3xl"
+        className="absolute right-1/4 top-20 h-96 w-96 rounded-full bg-primary/20 blur-[100px] opacity-50"
         animate={{
-          y: [0, -30, 0],
+          y: [0, -50, 0],
           scale: [1, 1.2, 1],
+          opacity: [0.3, 0.6, 0.3],
         }}
         transition={{
-          duration: 8,
+          duration: 10,
           repeat: Number.POSITIVE_INFINITY,
           ease: "easeInOut",
+        }}
+      />
+      <motion.div
+        className="absolute left-1/4 bottom-20 h-80 w-80 rounded-full bg-chart-2/20 blur-[100px] opacity-30"
+        animate={{
+          y: [0, 50, 0],
+          scale: [1, 1.3, 1],
+          opacity: [0.2, 0.5, 0.2],
+        }}
+        transition={{
+          duration: 15,
+          repeat: Number.POSITIVE_INFINITY,
+          ease: "easeInOut",
+          delay: 2,
         }}
       />
 
@@ -173,18 +188,18 @@ export default function InstructionsPage() {
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.5, delay: index * 0.1 }}
             >
-              <Card className="group relative h-full overflow-hidden border-border/50 bg-card/50 p-5 sm:p-6 md:p-8 backdrop-blur-sm transition-all hover:border-border hover:shadow-xl active:scale-[0.98]">
+              <Card className="group relative h-full overflow-hidden border-white/10 bg-white/5 p-5 sm:p-6 md:p-8 backdrop-blur-xl transition-all duration-300 hover:border-primary/30 hover:shadow-2xl hover:shadow-primary/5 hover:-translate-y-1">
                 <div className="relative z-10">
                   <div
-                    className={`mb-3 sm:mb-4 inline-flex h-10 w-10 sm:h-12 sm:w-12 items-center justify-center rounded-lg sm:rounded-xl bg-${instruction.color}/10`}
+                    className={`mb-4 sm:mb-5 inline-flex h-12 w-12 sm:h-14 sm:w-14 items-center justify-center rounded-2xl bg-${instruction.color}/10 ring-1 ring-${instruction.color}/20 transition-transform duration-500 group-hover:scale-110 group-hover:rotate-3`}
                   >
-                    <instruction.icon className={`h-5 w-5 sm:h-6 sm:w-6 text-${instruction.color}`} />
+                    <instruction.icon className={`h-6 w-6 sm:h-7 sm:w-7 text-${instruction.color}`} />
                   </div>
-                  <h3 className="mb-2 sm:mb-3 text-lg sm:text-xl font-semibold">{instruction.title}</h3>
-                  <p className="text-sm sm:text-base text-muted-foreground leading-relaxed">{instruction.description}</p>
+                  <h3 className="mb-2 sm:mb-3 text-lg sm:text-xl font-bold tracking-tight">{instruction.title}</h3>
+                  <p className="text-sm sm:text-base text-muted-foreground leading-relaxed group-hover:text-muted-foreground/80">{instruction.description}</p>
                 </div>
                 <div
-                  className={`absolute inset-0 bg-gradient-to-br from-${instruction.color}/5 to-transparent opacity-0 transition-opacity group-hover:opacity-100`}
+                  className={`absolute inset-0 bg-gradient-to-br from-${instruction.color}/10 via-transparent to-transparent opacity-0 transition-opacity duration-500 group-hover:opacity-100`}
                 />
               </Card>
             </motion.div>
@@ -216,9 +231,9 @@ export default function InstructionsPage() {
               <p className="mb-6 sm:mb-8 text-base sm:text-lg text-muted-foreground">
                 Start discovering amazing AI tools tailored to your interests
               </p>
-              <Button 
-                size="lg" 
-                onClick={handleGetStarted} 
+              <Button
+                size="lg"
+                onClick={handleGetStarted}
                 disabled={isSaving}
                 className="group gap-2 shadow-lg w-full sm:w-auto h-12 sm:h-auto min-h-[48px] text-sm sm:text-base active:scale-[0.98]"
               >
