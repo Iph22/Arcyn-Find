@@ -30,7 +30,8 @@ export default function SignInPage() {
         routing="path"
         path="/sign-in"
         signUpUrl="/sign-up"
-        redirectUrl="/home"
+        // Remove redirectUrl to let ClerkProvider's afterSignInUrl handle it
+        // This will redirect to /onboarding, which will check user state and redirect accordingly
       />
     </div>
   )

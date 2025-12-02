@@ -1,11 +1,12 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { motion } from "framer-motion"
 import { ArrowRight, Search, Star, Heart, BookmarkPlus, TrendingUp, Users } from "lucide-react"
 import { useRouter } from "next/navigation"
 import { Button } from "@/components/ui/button"
 import { Card } from "@/components/ui/card"
+import { useUser } from "@clerk/nextjs"
 
 const instructions = [
   {
@@ -51,7 +52,46 @@ const instructions = [
 
 export default function InstructionsPage() {
   const router = useRouter()
+  const { user, isLoaded } = useUser()
   const [isSaving, setIsSaving] = useState(false)
+
+  // Check user status and redirect if needed
+  useEffect(() => {
+    if (isLoaded && user) {
+      const checkUserStatus = async () => {
+        try {
+          const response = await fetch('/api/auth/ensure-profile', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+          })
+          
+          if (!response.ok) {
+            return
+          }
+
+          const data = await response.json()
+          
+          // If user hasn't completed onboarding, redirect to onboarding
+          if (!data.onboarding_completed) {
+            router.replace('/onboarding')
+            return
+          }
+          
+          // If user has already seen instructions, redirect to home
+          if (data.instructions_seen) {
+            router.replace('/home')
+            return
+          }
+        } catch (error) {
+          console.error('Error checking user status:', error)
+        }
+      }
+      
+      checkUserStatus()
+    }
+  }, [user, isLoaded, router])
 
   const handleGetStarted = async () => {
     setIsSaving(true)

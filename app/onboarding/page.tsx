@@ -26,6 +26,7 @@ export default function OnboardingPage() {
   const [isSaving, setIsSaving] = useState(false)
 
   // Ensure user profile exists in database with username/display_name
+  // Also check if user has already completed onboarding/instructions and redirect accordingly
   useEffect(() => {
     if (isLoaded && user) {
       const ensureUserProfile = async () => {
@@ -39,7 +40,24 @@ export default function OnboardingPage() {
           
           if (!response.ok) {
             console.error('Failed to ensure profile:', await response.text())
+            return
           }
+
+          const data = await response.json()
+          
+          // If user has completed onboarding but not seen instructions, redirect to instructions
+          if (data.onboarding_completed && !data.instructions_seen) {
+            router.replace('/instructions')
+            return
+          }
+          
+          // If user has completed both onboarding and instructions, redirect to home
+          if (data.onboarding_completed && data.instructions_seen) {
+            router.replace('/home')
+            return
+          }
+          
+          // If user is new (hasn't completed onboarding), stay on onboarding page
         } catch (error) {
           console.error('Error ensuring profile:', error)
         }
@@ -47,7 +65,7 @@ export default function OnboardingPage() {
       
       ensureUserProfile()
     }
-  }, [user, isLoaded])
+  }, [user, isLoaded, router])
 
   // Clean up URL params if present
   useEffect(() => {
