@@ -5,7 +5,7 @@ import { ToolImage } from "@/components/tool-image"
 import { useRouter, useSearchParams } from "next/navigation"
 import { motion, AnimatePresence } from "framer-motion"
 import { Search, Sparkles, Star, Bookmark, ExternalLink, Menu, X, Filter } from "lucide-react"
-import { Input } from "@/components/ui/input"
+import { PremiumSearchInput } from "@/components/premium-search-input"
 import { Button } from "@/components/ui/button"
 import { Card } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
@@ -26,11 +26,11 @@ const categoryMapping: Record<string, string> = {
   "Text Generation": "Content Generation",
   "Generative AI": "Content Generation",
   "AI Writing": "Content Generation",
-  
+
   // Image & Visual
   "Image Generation": "Image Generation",
   "Computer Vision": "Image Generation",
-  
+
   // Code & Development
   "Code Generation": "Code Assistants",
   "Code Assistants": "Code Assistants",
@@ -39,50 +39,50 @@ const categoryMapping: Record<string, string> = {
   "Development Environment": "IDEs",
   "AI Coding Agents": "AI Coding Agents",
   "Coding Agents": "AI Coding Agents",
-  
+
   // Audio & Speech
   "Audio/NLP": "Voice & Speech",
   "NLP Platform": "Voice & Speech",
   "Audio": "Voice & Speech",
   "Audio/Video Processing": "Voice & Speech",
-  
+
   // Video
   "Video Generation": "Video & Audio",
   "Video": "Video & Audio",
-  
+
   // Chatbots & Conversational
   "ChatBots": "Chatbots",
   "Chatbots": "Chatbots",
   "Conversational AI": "Chatbots",
-  
+
   // Data & Analytics
   "Data Analytics": "Data & Analytics",
   "Data Analysis": "Data & Analytics",
   "ML Infrastructure": "Data & Analytics",
-  
+
   // AI Detection
   "AI Detection": "AI Detection",
   "AI Detection Tool": "AI Detection",
-  
+
   // Productivity & Business
   "Productivity": "Productivity",
   "Autonomous AI": "Productivity",
   "Business Automation": "Productivity",
-  
+
   // Marketing
   "Marketing": "Marketing",
   "Marketing Automation": "Marketing",
-  
+
   // Design
   "Design": "Design",
   "Design Assistance": "Design",
-  
+
   // Research & Education
   "Research": "Research & Education",
   "Learning & Education": "Research & Education",
   "Search/QA": "Research & Education",
   "Education": "Research & Education",
-  
+
   // Multimodal & Platforms
   "Multimodal Platform": "Multimodal AI",
   "Multimodal": "Multimodal AI",
@@ -161,14 +161,14 @@ export default function ToolsPage() {
   // The API will use OR logic to match any of them
   const getApiCategory = () => {
     if (selectedCategory === "All") return undefined
-    
+
     const mapping = reverseCategoryMapping[selectedCategory]
     if (Array.isArray(mapping)) {
       return mapping.join(',')
     }
     return mapping || selectedCategory
   }
-  
+
   const apiCategory = getApiCategory()
 
   // Fetch AI tools from API with pagination
@@ -226,7 +226,7 @@ export default function ToolsPage() {
 
   const handleToggleFavorite = async (toolId: string, e: React.MouseEvent) => {
     e.stopPropagation()
-    
+
     if (!user) {
       toast.error("Please sign in to save tools")
       return
@@ -237,7 +237,7 @@ export default function ToolsPage() {
 
     try {
       let response: Response
-      
+
       if (isFavorited) {
         // Remove favorite
         response = await fetch(`/api/favorites/${toolId}`, { method: 'DELETE' })
@@ -249,7 +249,7 @@ export default function ToolsPage() {
           body: JSON.stringify({ tool_id: toolId })
         })
       }
-      
+
       if (response.ok) {
         if (isFavorited) {
           setFavoritedTools(prev => {
@@ -327,21 +327,9 @@ export default function ToolsPage() {
 
   const sortedTools = getSortedTools()
 
-  // Client-side search filtering (category filtering is done server-side via API)
-  // Only filter by search if search is being done client-side (for already loaded tools)
-  // Note: If search is passed to API, it's handled server-side, so this is mainly for
-  // filtering already-loaded tools when user types quickly
-  const filteredTools = sortedTools.filter((tool) => {
-    // If we have a search query, the API handles it, but we can still do client-side
-    // filtering for better UX on already-loaded tools
-    if (debouncedSearch) {
-      return tool.name.toLowerCase().includes(debouncedSearch.toLowerCase()) ||
-        tool.description.toLowerCase().includes(debouncedSearch.toLowerCase()) ||
-        tool.tags?.some((tag) => tag.toLowerCase().includes(debouncedSearch.toLowerCase()))
-    }
-    // No search query - show all tools (category already filtered by API)
-    return true
-  })
+  // Client-side search filtering is redundant since the API handles it.
+  // We just use the sorted tools returned from the API.
+  const filteredTools = sortedTools
 
   return (
     <div className="flex h-screen overflow-hidden bg-background">
@@ -419,40 +407,26 @@ export default function ToolsPage() {
               transition={{ duration: 0.5, delay: 0.1 }}
             >
               <div className="mb-4 md:mb-6 flex flex-col gap-3 md:gap-4 sm:flex-row">
-                <Card className="flex-1 overflow-hidden border-border/50 bg-card/50 p-1.5 md:p-2 backdrop-blur-sm relative">
-                  <div className="relative flex items-center">
-                    <Search className="absolute left-3 md:left-4 top-1/2 h-4 w-4 md:h-5 md:w-5 -translate-y-1/2 text-muted-foreground z-10 pointer-events-none" />
-                    <Input
-                      type="text"
-                      placeholder="Search AI tools..."
-                      value={searchQuery}
-                      onChange={(e) => setSearchQuery(e.target.value)}
-                      onFocus={(e) => {
-                        // Prevent iOS zoom and handle mobile positioning
-                        if (typeof window !== 'undefined' && window.innerWidth < 768) {
-                          // Ensure input stays in view without weird scrolling
-                          const input = e.target as HTMLInputElement
-                          const card = input.closest('.relative')?.parentElement
-                          if (card) {
-                            // Use scrollIntoView with better options
-                            setTimeout(() => {
-                              card.scrollIntoView({ 
-                                behavior: 'smooth', 
-                                block: 'center',
-                                inline: 'nearest'
-                              })
-                            }, 50)
-                          }
-                        }
-                      }}
-                      className="h-11 md:h-12 border-0 bg-transparent pl-10 md:pl-12 pr-3 md:pr-4 text-sm md:text-base focus-visible:ring-0 w-full"
-                      style={{
-                        // Prevent iOS zoom on focus (16px minimum)
-                        fontSize: typeof window !== 'undefined' && window.innerWidth < 768 ? '16px' : undefined,
-                      }}
-                    />
-                  </div>
-                </Card>
+                <PremiumSearchInput
+                  value={searchQuery}
+                  onChange={setSearchQuery}
+                  placeholder="Search AI tools..."
+                  className="flex-1"
+                  showButton={false}
+                  onFocus={() => {
+                    // Handle mobile scroll
+                    if (typeof window !== 'undefined' && window.innerWidth < 768) {
+                      setTimeout(() => {
+                        const element = document.activeElement
+                        element?.scrollIntoView({
+                          behavior: 'smooth',
+                          block: 'center',
+                          inline: 'nearest'
+                        })
+                      }, 100)
+                    }
+                  }}
+                />
                 <Button variant="outline" size="lg" className="h-11 md:h-14 gap-2 px-4 md:px-6 bg-transparent shrink-0">
                   <Filter className="h-4 w-4" />
                   <span className="hidden sm:inline">Filters</span>
@@ -461,15 +435,14 @@ export default function ToolsPage() {
 
               {/* Category Tabs */}
               <div className="flex gap-2 overflow-x-auto pb-2 scrollbar-hide -mx-4 px-4 md:mx-0 md:px-0">
-                 {displayCategories.map((category) => (
+                {displayCategories.map((category) => (
                   <motion.button
                     key={category}
                     onClick={() => setSelectedCategory(category)}
-                    className={`whitespace-nowrap rounded-xl px-4 md:px-6 py-2 md:py-2.5 text-xs md:text-sm font-medium transition-all shrink-0 ${
-                      selectedCategory === category
-                        ? "bg-primary text-primary-foreground shadow-sm"
-                        : "bg-card/50 text-foreground hover:bg-accent"
-                    }`}
+                    className={`whitespace-nowrap rounded-xl px-4 md:px-6 py-2 md:py-2.5 text-xs md:text-sm font-medium transition-all shrink-0 ${selectedCategory === category
+                      ? "bg-primary text-primary-foreground shadow-sm"
+                      : "bg-card/50 text-foreground hover:bg-accent"
+                      }`}
                     whileHover={{ scale: 1.05 }}
                     whileTap={{ scale: 0.95 }}
                   >
@@ -514,93 +487,93 @@ export default function ToolsPage() {
                     </div>
                   ) : (
                     filteredTools.map((tool, index) => (
-                  <motion.div
-                    key={tool.id}
-                    layout
-                    initial={{ opacity: 0, scale: 0.9 }}
-                    animate={{ opacity: 1, scale: 1 }}
-                    exit={{ opacity: 0, scale: 0.9 }}
-                    transition={{ duration: 0.3, delay: index * 0.05 }}
-                  >
-                    <Card 
-                      className="group relative h-full overflow-hidden border-border/50 bg-card/50 backdrop-blur-sm transition-all hover:border-border hover:shadow-lg cursor-pointer"
-                      onClick={() => setSelectedTool(tool)}
-                    >
-                      {/* Tool Image */}
-                      <div className="relative h-40 md:h-48 overflow-hidden bg-muted">
-                        <ToolImage
-                          src={tool.image}
-                          alt={tool.name}
-                          className="object-cover transition-transform duration-300 group-hover:scale-105"
-                          sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
-                          fallbackText={tool.name}
-                        />
-                        {tool.featured && (
-                          <Badge className="absolute right-3 top-3 bg-primary/90 text-primary-foreground backdrop-blur-sm">
-                            <Sparkles className="mr-1 h-3 w-3" />
-                            Featured
-                          </Badge>
-                        )}
-                      </div>
+                      <motion.div
+                        key={tool.id}
+                        layout
+                        initial={{ opacity: 0, scale: 0.9 }}
+                        animate={{ opacity: 1, scale: 1 }}
+                        exit={{ opacity: 0, scale: 0.9 }}
+                        transition={{ duration: 0.3, delay: index * 0.05 }}
+                      >
+                        <Card
+                          className="group relative h-full overflow-hidden border-border/50 bg-card/50 backdrop-blur-sm transition-all hover:border-border hover:shadow-lg cursor-pointer"
+                          onClick={() => setSelectedTool(tool)}
+                        >
+                          {/* Tool Image */}
+                          <div className="relative h-40 md:h-48 overflow-hidden bg-muted">
+                            <ToolImage
+                              src={tool.image}
+                              alt={tool.name}
+                              className="object-cover transition-transform duration-300 group-hover:scale-105"
+                              sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
+                              fallbackText={tool.name}
+                            />
+                            {tool.featured && (
+                              <Badge className="absolute right-3 top-3 bg-primary/90 text-primary-foreground backdrop-blur-sm">
+                                <Sparkles className="mr-1 h-3 w-3" />
+                                Featured
+                              </Badge>
+                            )}
+                          </div>
 
-                      {/* Tool Info */}
-                      <div className="p-4 md:p-5">
-                        <div className="mb-2 flex items-start justify-between gap-2">
-                          <h3 className="text-base md:text-lg font-semibold leading-tight">{tool.name}</h3>
-                          <Button 
-                            variant="ghost" 
-                            size="icon" 
-                            className="h-8 w-8 shrink-0 rounded-lg"
-                            onClick={(e) => handleToggleFavorite(tool.id, e)}
-                            disabled={togglingFavorite === tool.id || !user}
-                            title={favoritedTools.has(tool.id) ? "Remove from favorites" : "Add to favorites"}
-                          >
-                            <Bookmark className={`h-4 w-4 ${favoritedTools.has(tool.id) ? 'fill-primary text-primary' : ''}`} />
-                          </Button>
-                        </div>
-
-                        <p className="mb-3 md:mb-4 line-clamp-2 text-xs md:text-sm text-muted-foreground leading-relaxed">
-                          {tool.description}
-                        </p>
-
-                        <div className="mb-3 md:mb-4 flex items-center gap-2 flex-wrap">
-                          <Badge variant="secondary" className="text-xs">
-                            {tool.category}
-                          </Badge>
-                          <PricingBadge 
-                            pricing={tool.pricing} 
-                            accessType={tool.accessType} 
-                            size="sm"
-                          />
-                        </div>
-
-                        <div className="flex items-center justify-between">
-                          <div className="flex items-center gap-3 md:gap-4 text-xs md:text-sm text-muted-foreground">
-                            <div className="flex items-center gap-1">
-                              <Star className="h-4 w-4 fill-primary text-primary" />
-                              <span className="font-medium">{tool.rating}</span>
+                          {/* Tool Info */}
+                          <div className="p-4 md:p-5">
+                            <div className="mb-2 flex items-start justify-between gap-2">
+                              <h3 className="text-base md:text-lg font-semibold leading-tight">{tool.name}</h3>
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                className="h-8 w-8 shrink-0 rounded-lg"
+                                onClick={(e) => handleToggleFavorite(tool.id, e)}
+                                disabled={togglingFavorite === tool.id || !user}
+                                title={favoritedTools.has(tool.id) ? "Remove from favorites" : "Add to favorites"}
+                              >
+                                <Bookmark className={`h-4 w-4 ${favoritedTools.has(tool.id) ? 'fill-primary text-primary' : ''}`} />
+                              </Button>
                             </div>
-                            <div className="flex items-center gap-1">
-                              <Bookmark className="h-4 w-4" />
-                              <span>{(tool.saves / 1000).toFixed(1)}K</span>
+
+                            <p className="mb-3 md:mb-4 line-clamp-2 text-xs md:text-sm text-muted-foreground leading-relaxed">
+                              {tool.description}
+                            </p>
+
+                            <div className="mb-3 md:mb-4 flex items-center gap-2 flex-wrap">
+                              <Badge variant="secondary" className="text-xs">
+                                {tool.category}
+                              </Badge>
+                              <PricingBadge
+                                pricing={tool.pricing}
+                                accessType={tool.accessType}
+                                size="sm"
+                              />
+                            </div>
+
+                            <div className="flex items-center justify-between">
+                              <div className="flex items-center gap-3 md:gap-4 text-xs md:text-sm text-muted-foreground">
+                                <div className="flex items-center gap-1">
+                                  <Star className="h-4 w-4 fill-primary text-primary" />
+                                  <span className="font-medium">{tool.rating}</span>
+                                </div>
+                                <div className="flex items-center gap-1">
+                                  <Bookmark className="h-4 w-4" />
+                                  <span>{(tool.saves / 1000).toFixed(1)}K</span>
+                                </div>
+                              </div>
+                              <Button
+                                size="sm"
+                                variant="ghost"
+                                className="gap-1"
+                                onClick={(e) => {
+                                  e.stopPropagation()
+                                  setSelectedTool(tool)
+                                }}
+                              >
+                                Details
+                                <ExternalLink className="h-3 w-3" />
+                              </Button>
                             </div>
                           </div>
-                          <Button 
-                            size="sm" 
-                            variant="ghost" 
-                            className="gap-1"
-                            onClick={(e) => {
-                              e.stopPropagation()
-                              setSelectedTool(tool)
-                            }}
-                          >
-                            Details
-                            <ExternalLink className="h-3 w-3" />
-                          </Button>
-                        </div>
-                      </div>
-                    </Card>
-                  </motion.div>
+                        </Card>
+                      </motion.div>
                     ))
                   )}
                 </AnimatePresence>
@@ -644,7 +617,7 @@ export default function ToolsPage() {
           </div>
         </main>
       </div>
-      
+
       {/* Tool Detail Modal */}
       <ToolDetailModal
         tool={selectedTool}

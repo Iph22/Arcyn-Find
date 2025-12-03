@@ -5,7 +5,7 @@ import Image from "next/image"
 import { useRouter } from "next/navigation"
 import { motion, AnimatePresence } from "framer-motion"
 import { Search, Sparkles, TrendingUp, Menu, X, Star } from "lucide-react"
-import { Input } from "@/components/ui/input"
+import { PremiumSearchInput } from "@/components/premium-search-input"
 import { Button } from "@/components/ui/button"
 import { Card } from "@/components/ui/card"
 import { Sidebar } from "@/components/sidebar"
@@ -50,7 +50,7 @@ export default function HomePage() {
     }
     if (user) {
       loadTrendingTools()
-      
+
       // Ensure profile exists and is up-to-date with username/display_name
       fetch('/api/auth/ensure-profile', {
         method: 'POST',
@@ -69,11 +69,11 @@ export default function HomePage() {
       setLoadingTrending(true)
       const category = preferences?.categories?.[0] || 'all'
       const response = await fetch(`/api/tools/trending?limit=6&category=${category}`)
-      
+
       if (!response.ok) {
         throw new Error(`Failed to load trending tools: ${response.statusText}`)
       }
-      
+
       const data = await response.json()
       setTrendingTools(data.tools || [])
     } catch (error) {
@@ -189,15 +189,15 @@ export default function HomePage() {
               className="fixed inset-0 bg-background/80 backdrop-blur-sm z-30"
             />
             {/* Sidebar - Show as drawer on mobile, fixed on desktop */}
-          <motion.div
-            initial={{ x: -300, opacity: 0 }}
-            animate={{ x: 0, opacity: 1 }}
-            exit={{ x: -300, opacity: 0 }}
-            transition={{ type: "spring", damping: 25, stiffness: 200 }}
+            <motion.div
+              initial={{ x: -300, opacity: 0 }}
+              animate={{ x: 0, opacity: 1 }}
+              exit={{ x: -300, opacity: 0 }}
+              transition={{ type: "spring", damping: 25, stiffness: 200 }}
               className="fixed inset-y-0 left-0 z-40 h-full w-72"
-          >
-            <Sidebar onClose={() => setSidebarOpen(false)} />
-          </motion.div>
+            >
+              <Sidebar onClose={() => setSidebarOpen(false)} />
+            </motion.div>
           </>
         )}
       </AnimatePresence>
@@ -224,8 +224,8 @@ export default function HomePage() {
               <div className="hidden md:flex items-center gap-2 px-3 py-1 rounded-full bg-accent/50 border border-border">
                 <Sparkles className="w-4 h-4 text-yellow-400" />
                 <span className="text-sm text-muted-foreground">{preferences?.level || "Explorer"} level</span>
-            </div>
-            <ThemeToggle />
+              </div>
+              <ThemeToggle />
             </div>
           </div>
         </motion.header>
@@ -260,50 +260,35 @@ export default function HomePage() {
                 </p>
 
                 {/* Search Bar */}
-                <motion.div whileHover={{ scale: 1.01 }} transition={{ type: "spring", stiffness: 400 }}>
-                  <Card className="mx-auto max-w-3xl overflow-hidden border-border/50 bg-card/50 p-2 shadow-lg backdrop-blur-sm">
-                    <form onSubmit={(e) => {
-                      e.preventDefault()
+                <motion.div
+                  whileHover={{ scale: 1.01 }}
+                  transition={{ type: "spring", stiffness: 400 }}
+                  className="mx-auto max-w-3xl"
+                >
+                  <PremiumSearchInput
+                    value={searchQuery}
+                    onChange={setSearchQuery}
+                    onSubmit={() => {
                       if (searchQuery.trim()) {
                         router.push(`/tools?search=${encodeURIComponent(searchQuery.trim())}`)
                       }
-                    }} className="flex gap-2">
-                      <div className="relative flex-1">
-                        <Search className="absolute left-4 top-1/2 h-5 w-5 -translate-y-1/2 text-muted-foreground z-10 pointer-events-none" />
-                        <Input
-                          type="text"
-                          placeholder="Search AI tools..."
-                          value={searchQuery}
-                          onChange={(e) => setSearchQuery(e.target.value)}
-                          onFocus={(e) => {
-                            // Prevent iOS zoom and handle mobile positioning
-                            if (typeof window !== 'undefined' && window.innerWidth < 768) {
-                              const input = e.target as HTMLInputElement
-                              const card = input.closest('.relative')?.parentElement
-                              if (card) {
-                                setTimeout(() => {
-                                  card.scrollIntoView({ 
-                                    behavior: 'smooth', 
-                                    block: 'center',
-                                    inline: 'nearest'
-                                  })
-                                }, 50)
-                              }
-                            }
-                          }}
-                          className="h-12 sm:h-14 border-0 bg-transparent pl-10 sm:pl-12 pr-3 sm:pr-4 text-base focus-visible:ring-0 w-full"
-                          style={{
-                            // Prevent iOS zoom on focus (16px minimum)
-                            fontSize: typeof window !== 'undefined' && window.innerWidth < 768 ? '16px' : undefined,
-                          }}
-                        />
-                      </div>
-                      <Button type="submit" size="lg" className="h-12 sm:h-14 px-4 sm:px-8 font-semibold shadow-sm">
-                        <span className="hidden sm:inline">Search</span>
-                        <Search className="sm:hidden w-5 h-5" />
-                      </Button>
-                    </form>
-                  </Card>
+                    }}
+                    placeholder="Search AI tools..."
+                    showButton={true}
+                    onFocus={() => {
+                      // Handle mobile scroll
+                      if (typeof window !== 'undefined' && window.innerWidth < 768) {
+                        setTimeout(() => {
+                          const element = document.activeElement
+                          element?.scrollIntoView({
+                            behavior: 'smooth',
+                            block: 'center',
+                            inline: 'nearest'
+                          })
+                        }, 100)
+                      }
+                    }}
+                  />
                 </motion.div>
               </motion.div>
 
@@ -318,8 +303,8 @@ export default function HomePage() {
                   <Card className="h-full overflow-hidden border-border/50 bg-card/50 p-6 backdrop-blur-sm transition-all hover:border-border hover:shadow-md">
                     <div className="mb-4 flex items-center justify-between">
                       <div className="flex items-center gap-3">
-                      <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-primary/10">
-                        <TrendingUp className="h-5 w-5 text-primary" />
+                        <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-primary/10">
+                          <TrendingUp className="h-5 w-5 text-primary" />
                         </div>
                         <h2 className="text-lg font-semibold">{getRecommendedCategory()}</h2>
                       </div>
@@ -359,9 +344,9 @@ export default function HomePage() {
                               <h3 className="font-medium truncate">{tool.name}</h3>
                               <div className="flex items-center gap-2 mt-1">
                                 <p className="text-xs text-muted-foreground truncate">{tool.category}</p>
-                                <PricingBadge 
-                                  pricing={tool.pricing} 
-                                  accessType={tool.access_type} 
+                                <PricingBadge
+                                  pricing={tool.pricing}
+                                  accessType={tool.access_type}
                                   size="sm"
                                 />
                               </div>
@@ -425,17 +410,17 @@ export default function HomePage() {
                 <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
                   {(preferences?.categories?.length
                     ? preferences.categories.map((cat) => ({
-                        name: cat.charAt(0).toUpperCase() + cat.slice(1),
-                        count: Math.floor(Math.random() * 100) + 50,
-                        color: "primary",
-                        id: cat,
-                      }))
+                      name: cat.charAt(0).toUpperCase() + cat.slice(1),
+                      count: Math.floor(Math.random() * 100) + 50,
+                      color: "primary",
+                      id: cat,
+                    }))
                     : [
-                        { name: "AI Writing", count: 124, color: "primary", id: "text" },
-                        { name: "Image Generation", count: 89, color: "chart-1", id: "vision" },
-                        { name: "Code Assistants", count: 67, color: "chart-2", id: "coding" },
-                        { name: "Data Analysis", count: 53, color: "chart-3", id: "research" },
-                      ]
+                      { name: "AI Writing", count: 124, color: "primary", id: "text" },
+                      { name: "Image Generation", count: 89, color: "chart-1", id: "vision" },
+                      { name: "Code Assistants", count: 67, color: "chart-2", id: "coding" },
+                      { name: "Data Analysis", count: 53, color: "chart-3", id: "research" },
+                    ]
                   ).map((category, index) => (
                     <motion.button
                       key={category.id}
@@ -460,38 +445,38 @@ export default function HomePage() {
       </div>
 
       {selectedTool && (
-        <ToolDetailModal 
+        <ToolDetailModal
           tool={
-            'platform' in selectedTool 
+            'platform' in selectedTool
               ? {
-                  id: selectedTool.id,
-                  name: selectedTool.name,
-                  category: selectedTool.category,
-                  description: selectedTool.description,
-                  image: selectedTool.image || null,
-                  rating: selectedTool.rating || null,
-                  users: selectedTool.users?.toString() || null,
-                  tags: selectedTool.tags,
-                  pricing: selectedTool.pricing || undefined,
-                  accessType: selectedTool.accessType || undefined,
-                  platform: typeof selectedTool.platform === 'string' ? selectedTool.platform : undefined,
-                }
+                id: selectedTool.id,
+                name: selectedTool.name,
+                category: selectedTool.category,
+                description: selectedTool.description,
+                image: selectedTool.image || null,
+                rating: selectedTool.rating || null,
+                users: selectedTool.users?.toString() || null,
+                tags: selectedTool.tags,
+                pricing: selectedTool.pricing || undefined,
+                accessType: selectedTool.accessType || undefined,
+                platform: typeof selectedTool.platform === 'string' ? selectedTool.platform : undefined,
+              }
               : {
-                  id: String(selectedTool.id),
-                  name: selectedTool.name,
-                  category: selectedTool.category,
-                  description: selectedTool.description,
-                  image: selectedTool.image,
-                  rating: selectedTool.rating,
-                  users: selectedTool.users,
-                  tags: selectedTool.tags,
-                  pricing: selectedTool.pricing || undefined,
-                  accessType: selectedTool.access_type || undefined,
-                  platform: undefined,
-                }
-          } 
-          isOpen={!!selectedTool} 
-          onClose={() => setSelectedTool(null)} 
+                id: String(selectedTool.id),
+                name: selectedTool.name,
+                category: selectedTool.category,
+                description: selectedTool.description,
+                image: selectedTool.image,
+                rating: selectedTool.rating,
+                users: selectedTool.users,
+                tags: selectedTool.tags,
+                pricing: selectedTool.pricing || undefined,
+                accessType: selectedTool.access_type || undefined,
+                platform: undefined,
+              }
+          }
+          isOpen={!!selectedTool}
+          onClose={() => setSelectedTool(null)}
         />
       )}
     </div>
