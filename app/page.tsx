@@ -34,11 +34,17 @@ export default function LandingPage() {
     offset: ["start start", "end end"],
   })
 
-  // Redirect authenticated users
+  // Redirect authenticated users (but not for bots/crawlers)
   useEffect(() => {
     if (isLoaded && isSignedIn) {
-      // Use replace to avoid preserving query params from Google search
-      router.replace('/home')
+      // Check if this is a bot/crawler - don't redirect them
+      const userAgent = typeof navigator !== 'undefined' ? navigator.userAgent : ''
+      const isBot = /bot|crawler|spider|crawling/i.test(userAgent)
+      
+      if (!isBot) {
+        // Use replace to avoid preserving query params from Google search
+        router.replace('/home')
+      }
     }
   }, [isLoaded, isSignedIn, router])
 

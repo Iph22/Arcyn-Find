@@ -37,32 +37,32 @@ export default function OnboardingPage() {
               'Content-Type': 'application/json',
             },
           })
-
+          
           if (!response.ok) {
             console.error('Failed to ensure profile:', await response.text())
             return
           }
 
           const data = await response.json()
-
+          
           // If user has completed onboarding but not seen instructions, redirect to instructions
           if (data.onboarding_completed && !data.instructions_seen) {
             router.replace('/instructions')
             return
           }
-
+          
           // If user has completed both onboarding and instructions, redirect to home
           if (data.onboarding_completed && data.instructions_seen) {
             router.replace('/home')
             return
           }
-
+          
           // If user is new (hasn't completed onboarding), stay on onboarding page
         } catch (error) {
           console.error('Error ensuring profile:', error)
         }
       }
-
+      
       ensureUserProfile()
     }
   }, [user, isLoaded, router])
@@ -102,14 +102,14 @@ export default function OnboardingPage() {
         completed: true,
         timestamp: new Date().toISOString(),
       })
-
+      
       if (!result.success) {
         console.error('Failed to save onboarding:', result.error)
         alert('Failed to save onboarding data. Please try again.')
         setIsSaving(false)
         return
       }
-
+      
       // Only update local state and redirect after DB save succeeds
       await updatePreferences({
         userRole: role,
@@ -120,7 +120,7 @@ export default function OnboardingPage() {
         timestamp: new Date().toISOString(),
       })
       localStorage.setItem("arcyn-onboarding-complete", "true")
-
+      
       // Now safe to redirect
       router.push("/instructions")
     } catch (error) {
@@ -141,22 +141,9 @@ export default function OnboardingPage() {
     <div className="h-[100dvh] w-full bg-background text-foreground overflow-hidden relative">
       {/* Animated Background */}
       {isReady && (
-        <>
-          <motion.div style={{ y: backgroundY }} className="absolute inset-0 z-0 opacity-30 pointer-events-none">
-            <div className="absolute inset-0 bg-[linear-gradient(to_right,var(--color-border)_1px,transparent_1px),linear-gradient(to_bottom,var(--color-border)_1px,transparent_1px)] bg-[size:4rem_4rem] [mask-image:radial-gradient(ellipse_80%_50%_at_50%_50%,#000_70%,transparent_110%)]" />
-          </motion.div>
-          {/* Floating Orbs */}
-          <motion.div
-            className="absolute top-1/4 -left-20 w-96 h-96 bg-primary/20 rounded-full blur-3xl opacity-40 pointer-events-none"
-            animate={{ x: [0, 50, 0], y: [0, 30, 0], scale: [1, 1.1, 1] }}
-            transition={{ duration: 10, repeat: Infinity, ease: "easeInOut" }}
-          />
-          <motion.div
-            className="absolute bottom-1/4 -right-20 w-80 h-80 bg-chart-1/20 rounded-full blur-3xl opacity-40 pointer-events-none"
-            animate={{ x: [0, -30, 0], y: [0, 50, 0], scale: [1, 1.2, 1] }}
-            transition={{ duration: 12, repeat: Infinity, ease: "easeInOut", delay: 2 }}
-          />
-        </>
+        <motion.div style={{ y: backgroundY }} className="absolute inset-0 z-0 opacity-30 pointer-events-none">
+          <div className="absolute inset-0 bg-[linear-gradient(to_right,var(--color-border)_1px,transparent_1px),linear-gradient(to_bottom,var(--color-border)_1px,transparent_1px)] bg-[size:4rem_4rem] [mask-image:radial-gradient(ellipse_80%_50%_at_50%_50%,#000_70%,transparent_110%)]" />
+        </motion.div>
       )}
 
       {/* Navigation */}
@@ -177,13 +164,14 @@ export default function OnboardingPage() {
           {[1, 2, 3, 4].map((step) => (
             <div
               key={step}
-              className={`h-1 rounded-full transition-all duration-500 ${(step === 1 && role) ||
-                  (step === 2 && purpose) ||
-                  (step === 3 && interests.length > 0) ||
-                  (step === 4 && experience)
+              className={`h-1 rounded-full transition-all duration-500 ${
+                (step === 1 && role) ||
+                (step === 2 && purpose) ||
+                (step === 3 && interests.length > 0) ||
+                (step === 4 && experience)
                   ? "w-4 sm:w-8 bg-primary"
                   : "w-2 bg-muted"
-                }`}
+              }`}
             />
           ))}
         </div>
@@ -227,25 +215,16 @@ export default function OnboardingPage() {
                     setRole(item.id as UserRole)
                     setTimeout(() => scrollToSection("section-2"), 500)
                   }}
-                  className={`p-4 sm:p-5 md:p-6 rounded-xl sm:rounded-2xl border transition-all duration-300 flex flex-col items-center gap-2 sm:gap-3 md:gap-4 min-h-[100px] sm:min-h-[120px] relative overflow-hidden group ${role === item.id
-                      ? "bg-primary/10 border-primary shadow-[0_0_30px_-5px_rgba(var(--primary),0.3)] ring-1 ring-primary"
-                      : "bg-card/40 border-border/50 hover:bg-card/80 hover:border-primary/50 hover:shadow-lg backdrop-blur-sm"
-                    }`}
+                  className={`p-4 sm:p-5 md:p-6 rounded-xl sm:rounded-2xl border transition-all duration-300 flex flex-col items-center gap-2 sm:gap-3 md:gap-4 min-h-[100px] sm:min-h-[120px] ${
+                    role === item.id
+                      ? "bg-primary/10 border-primary shadow-lg ring-1 ring-primary"
+                      : "bg-card/50 border-border hover:bg-accent hover:border-accent-foreground/20 active:scale-[0.98]"
+                  }`}
                 >
-                  {role === item.id && (
-                    <motion.div
-                      layoutId="role-glow"
-                      className="absolute inset-0 bg-primary/5 z-0"
-                      initial={false}
-                      transition={{ type: "spring", stiffness: 500, damping: 30 }}
-                    />
-                  )}
-                  <div className="relative z-10 flex flex-col items-center gap-2 sm:gap-3 md:gap-4">
-                    <item.icon
-                      className={`w-6 h-6 sm:w-8 sm:h-8 md:w-10 md:h-10 transition-colors duration-300 ${role === item.id ? "text-primary scale-110" : "text-muted-foreground group-hover:text-foreground"}`}
-                    />
-                    <span className={`font-medium text-sm sm:text-base md:text-lg transition-colors duration-300 ${role === item.id ? "text-foreground" : "text-muted-foreground group-hover:text-foreground"}`}>{item.label}</span>
-                  </div>
+                  <item.icon
+                    className={`w-5 h-5 sm:w-6 sm:h-6 md:w-8 md:h-8 ${role === item.id ? "text-primary" : "text-muted-foreground"}`}
+                  />
+                  <span className="font-medium text-sm sm:text-base md:text-lg">{item.label}</span>
                 </motion.button>
               ))}
             </div>
@@ -289,23 +268,14 @@ export default function OnboardingPage() {
                     setPurpose(item.id)
                     setTimeout(() => scrollToSection("section-3"), 500)
                   }}
-                  className={`p-4 sm:p-5 md:p-6 rounded-xl sm:rounded-2xl border cursor-pointer transition-all duration-300 min-h-[100px] relative overflow-hidden group ${purpose === item.id
-                      ? "bg-chart-1/10 border-chart-1 shadow-[0_0_30px_-5px_rgba(var(--chart-1),0.3)] ring-1 ring-chart-1"
-                      : "bg-card/40 border-border/50 hover:bg-card/80 hover:border-chart-1/50 hover:shadow-lg backdrop-blur-sm"
-                    }`}
+                  className={`p-4 sm:p-5 md:p-6 rounded-xl sm:rounded-2xl border cursor-pointer transition-all duration-300 min-h-[100px] ${
+                    purpose === item.id
+                      ? "bg-chart-1/10 border-chart-1 shadow-lg ring-1 ring-chart-1"
+                      : "bg-card/50 border-border hover:bg-accent active:scale-[0.98]"
+                  }`}
                 >
-                  {purpose === item.id && (
-                    <motion.div
-                      layoutId="purpose-glow"
-                      className="absolute inset-0 bg-chart-1/5 z-0"
-                      initial={false}
-                      transition={{ type: "spring", stiffness: 500, damping: 30 }}
-                    />
-                  )}
-                  <div className="relative z-10">
-                    <h3 className={`text-base sm:text-lg md:text-xl font-bold mb-1 sm:mb-2 transition-colors ${purpose === item.id ? "text-foreground" : "text-foreground/80 group-hover:text-foreground"}`}>{item.title}</h3>
-                    <p className={`text-xs sm:text-sm md:text-base transition-colors ${purpose === item.id ? "text-muted-foreground" : "text-muted-foreground/70 group-hover:text-muted-foreground"}`}>{item.desc}</p>
-                  </div>
+                  <h3 className="text-base sm:text-lg md:text-xl font-bold mb-1 sm:mb-2">{item.title}</h3>
+                  <p className="text-xs sm:text-sm md:text-base text-muted-foreground">{item.desc}</p>
                 </motion.div>
               ))}
             </div>
@@ -340,10 +310,11 @@ export default function OnboardingPage() {
                     onClick={() => {
                       setInterests((prev) => (prev.includes(tag) ? prev.filter((i) => i !== tag) : [...prev, tag]))
                     }}
-                    className={`px-4 sm:px-5 md:px-6 py-2.5 sm:py-3 rounded-full border transition-all duration-300 capitalize text-xs sm:text-sm md:text-base min-h-[44px] relative overflow-hidden ${interests.includes(tag)
-                        ? "bg-chart-2/10 border-chart-2 text-chart-2 shadow-[0_0_15px_-3px_rgba(var(--chart-2),0.4)]"
-                        : "bg-card/40 border-border/50 text-muted-foreground hover:bg-card/80 hover:border-chart-2/50 hover:text-foreground backdrop-blur-sm"
-                      }`}
+                    className={`px-4 sm:px-5 md:px-6 py-2.5 sm:py-3 rounded-full border transition-all duration-300 capitalize text-xs sm:text-sm md:text-base min-h-[44px] ${
+                      interests.includes(tag)
+                        ? "bg-chart-2/20 border-chart-2 text-chart-2 shadow-lg"
+                        : "bg-card/50 border-border text-muted-foreground hover:bg-accent"
+                    }`}
                   >
                     {tag}
                   </motion.button>
@@ -393,22 +364,15 @@ export default function OnboardingPage() {
                   whileHover={{ x: 10 }}
                   whileTap={{ scale: 0.98 }}
                   onClick={() => setExperience(item.id)}
-                  className={`p-3 sm:p-4 rounded-xl border cursor-pointer flex items-center justify-between transition-all duration-300 min-h-[60px] sm:min-h-[70px] relative overflow-hidden group ${experience === item.id
-                      ? "bg-chart-3/10 border-chart-3 ring-1 ring-chart-3 shadow-[0_0_20px_-5px_rgba(var(--chart-3),0.3)]"
-                      : "bg-card/40 border-border/50 hover:bg-card/80 hover:border-chart-3/50 hover:shadow-lg backdrop-blur-sm"
-                    }`}
+                  className={`p-3 sm:p-4 rounded-xl border cursor-pointer flex items-center justify-between transition-all duration-300 min-h-[60px] sm:min-h-[70px] ${
+                    experience === item.id
+                      ? "bg-chart-3/10 border-chart-3 ring-1 ring-chart-3"
+                      : "bg-card/50 border-border hover:bg-accent active:scale-[0.98]"
+                  }`}
                 >
-                  {experience === item.id && (
-                    <motion.div
-                      layoutId="exp-glow"
-                      className="absolute inset-0 bg-chart-3/5 z-0"
-                      initial={false}
-                      transition={{ type: "spring", stiffness: 500, damping: 30 }}
-                    />
-                  )}
-                  <div className="relative z-10">
-                    <h4 className={`font-bold text-sm sm:text-base md:text-lg transition-colors ${experience === item.id ? "text-foreground" : "text-foreground/80 group-hover:text-foreground"}`}>{item.label}</h4>
-                    <p className={`text-xs sm:text-sm transition-colors ${experience === item.id ? "text-muted-foreground" : "text-muted-foreground/70 group-hover:text-muted-foreground"}`}>{item.desc}</p>
+                  <div>
+                    <h4 className="font-bold text-sm sm:text-base md:text-lg">{item.label}</h4>
+                    <p className="text-xs sm:text-sm text-muted-foreground">{item.desc}</p>
                   </div>
                   {experience === item.id && <Check className="text-chart-3 w-5 h-5 sm:w-6 sm:h-6 shrink-0" />}
                 </motion.div>
