@@ -39,8 +39,8 @@ export default function LandingPage() {
     if (isLoaded && isSignedIn) {
       // Check if this is a bot/crawler - don't redirect them
       const userAgent = typeof navigator !== 'undefined' ? navigator.userAgent : ''
-      const isBot = /bot|crawler|spider|crawling/i.test(userAgent)
-      
+      const isBot = /bot|googlebot|crawler|spider|robot|crawling|bingbot|slurp|duckduckbot/i.test(userAgent)
+
       if (!isBot) {
         // Use replace to avoid preserving query params from Google search
         router.replace('/home')

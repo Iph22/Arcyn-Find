@@ -23,7 +23,11 @@ interface UserResult {
   isFollowing?: boolean
 }
 
-export function UserSearch() {
+interface UserSearchProps {
+  trigger?: React.ReactNode
+}
+
+export function UserSearch({ trigger }: UserSearchProps) {
   const router = useRouter()
   const [isOpen, setIsOpen] = useState(false)
   const [searchQuery, setSearchQuery] = useState("")
@@ -282,14 +286,20 @@ export function UserSearch() {
   return (
     <>
       {/* Search Trigger Button */}
-      <button
-        onClick={() => setIsOpen(true)}
-        className="w-full flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium text-sidebar-foreground/70 hover:bg-sidebar-accent/50 hover:text-sidebar-foreground transition-all"
-        title="Search users"
-      >
-        <Search className="h-4 w-4 shrink-0" />
-        <span className="truncate">Search users...</span>
-      </button>
+      {trigger ? (
+        <div onClick={() => setIsOpen(true)} className="contents cursor-pointer">
+          {trigger}
+        </div>
+      ) : (
+        <button
+          onClick={() => setIsOpen(true)}
+          className="w-full flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium text-sidebar-foreground/70 hover:bg-sidebar-accent/50 hover:text-sidebar-foreground transition-all"
+          title="Search users"
+        >
+          <Search className="h-4 w-4 shrink-0" />
+          <span className="truncate">Search users...</span>
+        </button>
+      )}
 
       {/* Render modal outside sidebar using portal */}
       {mounted && typeof window !== 'undefined' && createPortal(searchModal, document.body)}

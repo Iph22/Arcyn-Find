@@ -22,27 +22,21 @@ const isPublicRoute = createRouteMatcher([
 export default clerkMiddleware(async (auth, request) => {
   // Check for maintenance mode
   const maintenanceMode = process.env.MAINTENANCE_MODE === 'true'
-  
+
   if (maintenanceMode) {
     // Allow access to maintenance page itself and static assets
-    if (request.nextUrl.pathname === '/maintenance' || 
-        request.nextUrl.pathname.startsWith('/_next') ||
-        request.nextUrl.pathname.startsWith('/api/webhooks') ||
-        request.nextUrl.pathname.startsWith('/sitemap')) {
+    if (request.nextUrl.pathname === '/maintenance' ||
+      request.nextUrl.pathname.startsWith('/_next') ||
+      request.nextUrl.pathname.startsWith('/api/webhooks') ||
+      request.nextUrl.pathname.startsWith('/sitemap')) {
       return NextResponse.next()
     }
-    
+
     // Redirect all other requests to maintenance page
     return NextResponse.redirect(new URL('/maintenance', request.url))
   }
 
-  // Handle sitemap query parameter - redirect to proper sitemap URL
-  // This ensures Google Search Console gets XML instead of HTML
-  const url = new URL(request.url)
-  if (url.pathname === '/' && url.searchParams.has('sitemap')) {
-    // Redirect to sitemap-index.xml which returns proper XML
-    return NextResponse.redirect(new URL('/sitemap-index.xml', request.url), 301)
-  }
+
 
   // Create response
   const response = NextResponse.next()
