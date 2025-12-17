@@ -39,7 +39,7 @@ export default function LandingPage() {
     if (isLoaded && isSignedIn) {
       // Check if this is a bot/crawler - don't redirect them
       const userAgent = typeof navigator !== 'undefined' ? navigator.userAgent : ''
-      const isBot = /bot|googlebot|crawler|spider|robot|crawling|bingbot|slurp|duckduckbot/i.test(userAgent)
+      const isBot = /bot|googlebot|crawler|spider|robot|crawling|bingbot|slurp|duckduckbot|baidu|yandex|sogou|exabot|facebot|facebook|ia_archiver|inspection|google/i.test(userAgent)
 
       if (!isBot) {
         // Use replace to avoid preserving query params from Google search
