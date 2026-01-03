@@ -22,7 +22,7 @@ export function Sidebar({ onClose }: SidebarProps) {
   const router = useRouter()
   const { logout, preferences } = usePreferences()
   const { avatarUrl, displayName, username } = useAvatar()
-  const { signOut } = useAuth()
+  const { signOut, isAuthenticated } = useAuth()
   const [isCollapsed, setIsCollapsed] = useState(() => {
     if (typeof window !== 'undefined') {
       return localStorage.getItem('sidebar-collapsed') === 'true'
@@ -30,7 +30,7 @@ export function Sidebar({ onClose }: SidebarProps) {
     return false
   })
 
-  const isAuthenticated = preferences?.isAuthenticated
+  // Use isAuthenticated from useAuth as the source of truth for UI state
 
   const toggleCollapse = () => {
     const newState = !isCollapsed

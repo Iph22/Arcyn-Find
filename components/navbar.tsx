@@ -30,7 +30,7 @@ export function Navbar({ className }: NavbarProps) {
   const router = useRouter()
   const { logout, preferences } = usePreferences()
   const { avatarUrl, displayName } = useAvatar()
-  const { user, signOut } = useAuth()
+  const { user, signOut, isAuthenticated } = useAuth()
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
   const { trigger: haptic } = useHaptic()
 
