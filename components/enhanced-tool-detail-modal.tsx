@@ -204,13 +204,13 @@ export function ToolDetailModal({ tool, isOpen, onClose }: ToolDetailModalProps)
         setSelectedCollection("")
       } else {
         const errorData = await response.json().catch(() => ({}))
-        const message = response.status === 409 
+        const message = response.status === 409
           ? 'Tool is already in this collection'
           : response.status === 404
-          ? 'Collection not found'
-          : response.status === 403
-          ? 'You do not have permission to edit this collection'
-          : errorData.message || 'Failed to add to collection'
+            ? 'Collection not found'
+            : response.status === 403
+              ? 'You do not have permission to edit this collection'
+              : errorData.message || 'Failed to add to collection'
         toast.error(message)
       }
     } catch (error) {
@@ -221,16 +221,16 @@ export function ToolDetailModal({ tool, isOpen, onClose }: ToolDetailModalProps)
 
   const handleSubmitReview = async () => {
     if (!tool) return
-    
+
     // Validate rating
     if (reviewRating < 1 || reviewRating > 5) {
       toast.error('Please select a rating between 1 and 5 stars')
       return
     }
-    
+
     try {
       logger.debug('Submitting review:', { tool_id: tool.id, rating: reviewRating, title: reviewTitle })
-      
+
       const response = await fetch('/api/reviews', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -252,14 +252,14 @@ export function ToolDetailModal({ tool, isOpen, onClose }: ToolDetailModalProps)
       } else {
         const errorData = await response.json().catch(() => ({}))
         logger.error('Review submission failed:', response.status, errorData)
-        
+
         const message = response.status === 409
           ? 'You have already reviewed this tool'
           : response.status === 401
-          ? 'Please sign in to submit a review'
-          : response.status === 400
-          ? 'Please provide a valid rating (1-5 stars)'
-          : errorData.error || errorData.message || 'Failed to submit review'
+            ? 'Please sign in to submit a review'
+            : response.status === 400
+              ? 'Please provide a valid rating (1-5 stars)'
+              : errorData.error || errorData.message || 'Failed to submit review'
         toast.error(message)
       }
     } catch (error) {
@@ -326,7 +326,7 @@ export function ToolDetailModal({ tool, isOpen, onClose }: ToolDetailModalProps)
               exit={{ opacity: 0, scale: 0.9, y: 20 }}
               className="fixed inset-0 z-40 flex items-center justify-center p-4 pointer-events-none"
             >
-              <div className="bg-card border border-border w-full max-w-5xl max-h-[90vh] overflow-y-auto rounded-3xl shadow-2xl pointer-events-auto">
+              <div className="bg-card border border-border w-full max-w-5xl max-h-[90dvh] overflow-y-auto rounded-3xl shadow-2xl pointer-events-auto">
                 {/* Close Button */}
                 <button
                   onClick={onClose}
@@ -377,9 +377,9 @@ export function ToolDetailModal({ tool, isOpen, onClose }: ToolDetailModalProps)
                           <span className="font-semibold text-sm text-muted-foreground">Pricing:</span>
                         </div>
                         <div className="flex items-center gap-2 flex-wrap">
-                          <PricingBadge 
-                            pricing={tool.pricing} 
-                            accessType={tool.accessType} 
+                          <PricingBadge
+                            pricing={tool.pricing}
+                            accessType={tool.accessType}
                             size="lg"
                           />
                           {tool.accessType && (
@@ -411,13 +411,13 @@ export function ToolDetailModal({ tool, isOpen, onClose }: ToolDetailModalProps)
 
                   {/* Action Buttons */}
                   <div className="flex flex-wrap gap-3">
-                    <Button 
+                    <Button
                       className="flex-1 min-w-[200px]"
                       onClick={handleVisitWebsite}
                     >
                       Visit Website <ExternalLink className="w-4 h-4 ml-2" />
                     </Button>
-                    <Button 
+                    <Button
                       variant="outline"
                       onClick={handleToggleFavorite}
                       disabled={isTogglingFavorite}
@@ -425,14 +425,14 @@ export function ToolDetailModal({ tool, isOpen, onClose }: ToolDetailModalProps)
                       <Heart className={`w-4 h-4 mr-2 ${isFavorited ? 'fill-red-500 text-red-500' : ''}`} />
                       {isFavorited ? 'Favorited' : 'Favorite'}
                     </Button>
-                    <Button 
+                    <Button
                       variant="outline"
                       onClick={() => setShowCollectionDialog(true)}
                     >
                       <Plus className="w-4 h-4 mr-2" />
                       Add to Collection
                     </Button>
-                    <Button 
+                    <Button
                       variant="outline"
                       onClick={() => setShowShareDialog(true)}
                     >
@@ -496,7 +496,7 @@ export function ToolDetailModal({ tool, isOpen, onClose }: ToolDetailModalProps)
                         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                           {similarTools.map((similarTool) => (
                             <Card
-                              key={similarTool.id} 
+                              key={similarTool.id}
                               className="p-4 hover:border-primary cursor-pointer transition-colors"
                               onClick={() => {
                                 onClose()
@@ -587,7 +587,7 @@ export function ToolDetailModal({ tool, isOpen, onClose }: ToolDetailModalProps)
             </div>
             <div>
               <label className="text-sm font-medium mb-2 block">Title (optional)</label>
-              <input 
+              <input
                 type="text"
                 value={reviewTitle}
                 onChange={(e) => setReviewTitle(e.target.value)}
@@ -597,7 +597,7 @@ export function ToolDetailModal({ tool, isOpen, onClose }: ToolDetailModalProps)
             </div>
             <div>
               <label className="text-sm font-medium mb-2 block">Review (optional)</label>
-              <Textarea 
+              <Textarea
                 value={reviewText}
                 onChange={(e) => setReviewText(e.target.value)}
                 placeholder="Share your thoughts..."
@@ -619,16 +619,16 @@ export function ToolDetailModal({ tool, isOpen, onClose }: ToolDetailModalProps)
             <DialogTitle>Share {tool.name}</DialogTitle>
           </DialogHeader>
           <div className="space-y-3 py-4">
-            <Button 
-              variant="outline" 
+            <Button
+              variant="outline"
               className="w-full justify-start"
               onClick={handleNativeShare}
             >
               <Share2 className="w-4 h-4 mr-2" />
               Share via...
             </Button>
-            <Button 
-              variant="outline" 
+            <Button
+              variant="outline"
               className="w-full justify-start"
               onClick={handleCopyLink}
             >

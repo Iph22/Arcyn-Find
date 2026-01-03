@@ -3,7 +3,8 @@ import {
     exchangeCodeForTokens,
     getGoogleUserInfo,
     createSession,
-    upsertUserProfile
+    upsertUserProfile,
+    getUserProfile
 } from '@/lib/google-auth'
 
 export async function GET(request: Request) {
@@ -46,6 +47,10 @@ export async function GET(request: Request) {
             return NextResponse.redirect(new URL('/sign-in?error=user_info_failed', request.url))
         }
 
+        // Check if user exists before creating session (to determine if new user)
+        const existingProfile = await getUserProfile(googleUser.id)
+        const isNewUser = !existingProfile
+
         // Create session
         await createSession(googleUser)
 
@@ -58,8 +63,13 @@ export async function GET(request: Request) {
             username: googleUser.email.split('@')[0],
         })
 
-        // Check if user needs onboarding (new user)
-        const redirectUrl = new URL(redirectPath, request.url)
+        // Determine redirect URL
+        let finalRedirectPath = redirectPath
+        if (isNewUser) {
+            finalRedirectPath = '/onboarding'
+        }
+
+        const redirectUrl = new URL(finalRedirectPath, request.url)
 
         // Use 302 redirect for better mobile compatibility
         const response = NextResponse.redirect(redirectUrl, 302)

@@ -15,25 +15,16 @@ import { useHaptic } from "@/hooks/use-haptic"
 export function MobileNav() {
   const pathname = usePathname()
   const router = useRouter()
-
-  const [isMobile, setIsMobile] = useState(false)
   const { preferences } = usePreferences()
   const { isAuthenticated } = useAuth()
   const { trigger: haptic } = useHaptic()
 
-  useEffect(() => {
-    const checkMobile = () => {
-      setIsMobile(window.innerWidth < 768)
-    }
-    checkMobile()
-    window.addEventListener('resize', checkMobile)
-    return () => window.removeEventListener('resize', checkMobile)
-  }, [])
+
 
 
 
   // Don't show on landing page, auth pages, onboarding, instructions, or desktop
-  if (!isMobile || pathname === '/' || pathname?.startsWith('/sign-in') || pathname?.startsWith('/sign-up') || pathname?.startsWith('/contact') || pathname?.startsWith('/about') || pathname?.startsWith('/privacy') || pathname?.startsWith('/terms') || pathname?.startsWith('/onboarding') || pathname?.startsWith('/instructions')) {
+  if (pathname === '/' || pathname?.startsWith('/sign-in') || pathname?.startsWith('/sign-up') || pathname?.startsWith('/contact') || pathname?.startsWith('/about') || pathname?.startsWith('/privacy') || pathname?.startsWith('/terms') || pathname?.startsWith('/onboarding') || pathname?.startsWith('/instructions')) {
     return null
   }
 

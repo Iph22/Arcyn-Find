@@ -67,7 +67,7 @@ export default function CollectionsPage() {
   }
 
   return (
-    <div className="flex h-screen overflow-hidden bg-background">
+    <div className="flex h-dvh overflow-hidden bg-background">
       {/* Sidebar - Hidden on mobile */}
       <AnimatePresence mode="wait">
         {sidebarOpen && (
@@ -94,7 +94,7 @@ export default function CollectionsPage() {
       </AnimatePresence>
 
       {/* Main Content */}
-      <div className="flex flex-1 flex-col overflow-hidden pb-20 md:pb-0">
+      <div className="flex flex-1 flex-col overflow-hidden pb-24 md:pb-0">
         {/* Header */}
         <motion.header
           className="border-b border-border/40 bg-card/50 backdrop-blur-xl"
@@ -102,14 +102,13 @@ export default function CollectionsPage() {
           animate={{ y: 0, opacity: 1 }}
           transition={{ duration: 0.5 }}
         >
-          <div className="flex items-center justify-between px-6 py-4">
+          <div className="flex items-center justify-between px-4 sm:px-6 py-4">
             <div className="flex items-center gap-4">
               <Button variant="ghost" size="icon" onClick={() => setSidebarOpen(!sidebarOpen)} className="h-10 w-10">
                 {sidebarOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
               </Button>
-              <div className="flex items-center gap-2">
-
-                <span className="text-lg font-bold">Collections</span>
+              <div className="flex items-center gap-2 max-w-[150px] sm:max-w-none">
+                <span className="text-lg font-bold truncate">Collections</span>
               </div>
             </div>
             <div className="flex items-center gap-2">
@@ -124,16 +123,16 @@ export default function CollectionsPage() {
 
         {/* Collections Content */}
         <main className="flex-1 overflow-y-auto">
-          <div className="mx-auto max-w-6xl px-6 py-8">
+          <div className="mx-auto max-w-6xl px-4 sm:px-6 py-6 sm:py-8">
             {/* Page Title */}
             <motion.div
-              className="mb-8"
+              className="mb-6 sm:mb-8"
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.5, delay: 0.1 }}
             >
-              <h1 className="mb-2 text-4xl font-bold">My Collections</h1>
-              <p className="text-lg text-muted-foreground">Organize your favorite AI tools into custom collections</p>
+              <h1 className="mb-2 text-2xl md:text-3xl lg:text-4xl font-bold">My Collections</h1>
+              <p className="text-base sm:text-lg text-muted-foreground">Organize your favorite AI tools into custom collections</p>
             </motion.div>
 
             {/* Collections Grid */}
@@ -153,7 +152,7 @@ export default function CollectionsPage() {
               </Card>
             ) : (
               <motion.div
-                className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3"
+                className="grid gap-4 sm:gap-6 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3"
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}
                 transition={{ duration: 0.5, delay: 0.2 }}

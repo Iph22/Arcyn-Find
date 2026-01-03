@@ -414,14 +414,14 @@ export default function ProfilePage() {
                 <div className="px-8 pb-8">
                   {/* Avatar & Basic Info */}
                   <div className="relative -mt-16 mb-6 flex flex-col items-start gap-4 sm:flex-row sm:items-end sm:justify-between">
-                    <div className="flex items-end gap-4">
-                      <Avatar className="h-32 w-32 border-4 border-card ring-2 ring-border/20">
+                    <div className="flex flex-col items-start gap-4">
+                      <Avatar className="h-24 w-24 border-4 border-card ring-2 ring-border/20">
                         <AvatarImage src={avatarUrl || undefined} alt={displayName} />
                         <AvatarFallback className="bg-gradient-to-br from-primary to-chart-1 text-3xl font-bold text-primary-foreground">
                           {initials}
                         </AvatarFallback>
                       </Avatar>
-                      <div className="mb-2">
+                      <div>
                         <h1 className="text-2xl font-bold">{displayName}</h1>
                         <p className="text-muted-foreground">@{username}</p>
                         {user?.email && (
@@ -429,7 +429,7 @@ export default function ProfilePage() {
                         )}
                       </div>
                     </div>
-                    <div className="flex gap-2">
+                    <div className="flex gap-2 w-full sm:w-auto mt-2 sm:mt-0">
                       <Button
                         variant="outline"
                         size="sm"

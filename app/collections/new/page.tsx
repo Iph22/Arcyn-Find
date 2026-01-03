@@ -23,7 +23,7 @@ export default function NewCollectionPage() {
 
   const handleCreate = async (e: React.FormEvent) => {
     e.preventDefault()
-    
+
     if (!name.trim()) {
       toast.error('Please enter a collection name')
       return
@@ -36,7 +36,7 @@ export default function NewCollectionPage() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           name: name.trim(),
-          description: description.trim() || null,
+          description: description.trim() || undefined,
           is_public: isPublic
         })
       })
@@ -61,7 +61,7 @@ export default function NewCollectionPage() {
       <div className="hidden md:block">
         <Sidebar />
       </div>
-      
+
       <div className="flex flex-1 flex-col overflow-hidden pb-20 md:pb-0">
         {/* Header */}
         <motion.header

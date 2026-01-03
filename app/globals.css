@@ -230,6 +230,16 @@ body {
     scroll-snap-type: y mandatory;
   }
 
+  /* Relax snapping on mobile to prevent content locking */
+  @media (max-width: 768px) {
+    .snap-y {
+      scroll-snap-type: y proximity;
+    }
+    .snap-mandatory {
+      scroll-snap-type: y proximity;
+    }
+  }
+
   .snap-mandatory {
     scroll-snap-type: y mandatory;
   }

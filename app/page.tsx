@@ -77,7 +77,7 @@ export default function LandingPage() {
   }
 
   return (
-    <div ref={containerRef} className="min-h-screen w-full overflow-y-scroll snap-y snap-mandatory bg-background text-foreground scroll-smooth">
+    <div ref={containerRef} className="min-h-dvh w-full overflow-y-scroll snap-y snap-mandatory bg-background text-foreground scroll-smooth">
       <motion.header
         className="fixed top-0 left-0 right-0 z-50 bg-background/80 backdrop-blur-xl border-b border-border/50"
         initial={{ y: -100, opacity: 0 }}
@@ -104,7 +104,7 @@ export default function LandingPage() {
       </motion.header>
 
       {/* Frame 1: Hero & Auth */}
-      <section className="min-h-screen w-full snap-start snap-always relative flex flex-col lg:flex-row pt-16 sm:pt-20 lg:pt-24 overflow-hidden z-0 pb-8 sm:pb-0">
+      <section className="min-h-dvh w-full snap-start snap-always relative flex flex-col lg:flex-row pt-16 sm:pt-20 lg:pt-24 overflow-hidden z-0 pb-8 sm:pb-0">
         {/* Left Column: Text & Auth */}
         <div className="flex-1 flex flex-col justify-center px-4 sm:px-6 lg:px-8 xl:px-12 py-6 sm:py-8 lg:py-12 z-10 relative max-w-lg lg:max-w-xl mx-auto lg:mx-0">
           <div className="flex flex-col gap-4 sm:gap-6 lg:gap-8">
@@ -131,21 +131,42 @@ export default function LandingPage() {
               className="w-full max-w-sm mx-auto lg:mx-0 bg-card/80 backdrop-blur-sm border border-border/50 rounded-xl p-4 sm:p-5 md:p-6 shadow-xl"
             >
               <div className="mb-4 text-center">
-                <h2 className="text-lg sm:text-xl font-semibold mb-1">Get Started</h2>
+                <h2 className="text-lg sm:text-xl font-semibold mb-1">Welcome</h2>
                 <p className="text-xs sm:text-sm text-muted-foreground">
-                  Sign in with Google to continue
+                  Join the community or sign in to continue
                 </p>
               </div>
 
-              <div className="space-y-2.5 sm:space-y-3">
+              <div className="space-y-3">
+                {/* Sign Up Button (Primary) */}
                 <Button
                   onClick={handleSignIn}
-                  className="w-full h-12 sm:h-11 text-sm sm:text-base font-medium shadow-lg transition-all duration-300 active:scale-[0.98] bg-white hover:bg-gray-50 text-gray-900 border border-gray-200"
+                  className="w-full h-12 sm:h-11 text-sm sm:text-base font-medium shadow-lg transition-all duration-300 active:scale-[0.98] bg-primary hover:bg-primary/90 text-primary-foreground border-none"
+                  variant="default"
+                >
+                  <GoogleIcon className="w-5 h-5 mr-3 fill-current" />
+                  Sign Up with Google
+                </Button>
+
+                <div className="relative py-1">
+                  <div className="absolute inset-0 flex items-center">
+                    <span className="w-full border-t border-border/50" />
+                  </div>
+                  <div className="relative flex justify-center text-[10px] uppercase">
+                    <span className="bg-card px-2 text-muted-foreground">Already have an account?</span>
+                  </div>
+                </div>
+
+                {/* Sign In Button (Secondary) */}
+                <Button
+                  onClick={handleSignIn}
+                  className="w-full h-12 sm:h-11 text-sm sm:text-base font-medium transition-all duration-300 active:scale-[0.98] bg-secondary/50 hover:bg-secondary text-secondary-foreground border border-border/50"
                   variant="outline"
                 >
                   <GoogleIcon className="w-5 h-5 mr-3" />
-                  Continue with Google
+                  Sign In
                 </Button>
+
                 <Button
                   variant="ghost"
                   onClick={() => router.push('/tools')}
@@ -163,7 +184,7 @@ export default function LandingPage() {
         </div>
 
         {/* Right Column: Browser Animation */}
-        <div className="flex-1 relative min-h-[40vh] sm:min-h-[50vh] lg:min-h-screen bg-gradient-to-br from-muted/20 via-muted/10 to-transparent flex items-center justify-center overflow-visible lg:border-l border-border/30">
+        <div className="flex-1 relative min-h-[40vh] sm:min-h-[50vh] lg:min-h-dvh bg-gradient-to-br from-muted/20 via-muted/10 to-transparent flex items-center justify-center overflow-visible lg:border-l border-border/30">
           <div className="absolute inset-0 bg-gradient-to-br from-blue-500/5 via-purple-500/5 to-transparent" />
           <div className="relative z-10 w-full h-full flex items-center justify-center p-4 sm:p-6 lg:p-8">
             <BrowserSearchAnimation />
@@ -172,7 +193,7 @@ export default function LandingPage() {
       </section>
 
       {/* Frame 2: Features */}
-      <section className="min-h-screen w-full snap-start snap-always flex items-center justify-center bg-muted/20 relative overflow-hidden py-12 sm:py-16">
+      <section className="min-h-dvh w-full snap-start snap-always flex items-center justify-center bg-muted/20 relative overflow-hidden py-12 sm:py-16">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 w-full">
           <motion.div
             initial={{ opacity: 0, y: 40 }}
@@ -223,7 +244,7 @@ export default function LandingPage() {
       </section>
 
       {/* Frame 3: Stats */}
-      <section className="min-h-screen w-full snap-start snap-always flex items-center justify-center bg-background relative py-12 sm:py-16">
+      <section className="min-h-dvh w-full snap-start snap-always flex items-center justify-center bg-background relative py-12 sm:py-16">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 w-full">
           <div className="grid lg:grid-cols-2 gap-8 sm:gap-12 md:gap-16 items-center">
             <motion.div
@@ -269,7 +290,7 @@ export default function LandingPage() {
       </section>
 
       {/* Frame 3.5: Appreciation */}
-      <section className="min-h-screen w-full snap-start snap-always flex items-center justify-center bg-gradient-to-br from-primary/10 via-muted/20 to-background relative overflow-hidden py-12 sm:py-16">
+      <section className="min-h-dvh w-full snap-start snap-always flex items-center justify-center bg-gradient-to-br from-primary/10 via-muted/20 to-background relative overflow-hidden py-12 sm:py-16">
         <div className="absolute inset-0 bg-[url('/grid.svg')] opacity-5" />
         <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 w-full relative z-10">
           <motion.div
@@ -388,7 +409,7 @@ export default function LandingPage() {
       </section>
 
       {/* Frame 4: CTA */}
-      <section className="min-h-screen w-full snap-start snap-always flex items-center justify-center bg-primary/5 relative overflow-hidden py-12 sm:py-16">
+      <section className="min-h-dvh w-full snap-start snap-always flex items-center justify-center bg-primary/5 relative overflow-hidden py-12 sm:py-16">
         <div className="absolute inset-0 bg-[url('/grid.svg')] opacity-10" />
         <div className="max-w-4xl mx-auto px-4 sm:px-6 text-center relative z-10">
           <motion.div initial={{ opacity: 0, y: 40 }} whileInView={{ opacity: 1, y: 0 }} transition={{ duration: 0.8 }}>
@@ -417,7 +438,7 @@ export default function LandingPage() {
       </section>
 
       {/* Frame 5: Footer/Contact */}
-      <section className="min-h-screen w-full snap-start snap-always flex items-center justify-center bg-background relative overflow-hidden py-12 sm:py-16">
+      <section className="min-h-dvh w-full snap-start snap-always flex items-center justify-center bg-background relative overflow-hidden py-12 sm:py-16">
         <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 w-full">
           <motion.div
             initial={{ opacity: 0, y: 40 }}

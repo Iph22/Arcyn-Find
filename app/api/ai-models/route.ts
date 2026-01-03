@@ -202,19 +202,16 @@ export async function GET(request: Request) {
             conditions.push(`name.ilike.%${word}%`)
             conditions.push(`description.ilike.%${word}%`)
             conditions.push(`platform.ilike.%${word}%`)
-            // Search tags by casting to text (implicit in PostgREST ilike)
-            conditions.push(`tags.ilike.%${word}%`)
           }
           // Also search for the full phrase
           conditions.push(`name.ilike.%${escapedSearch}%`)
           conditions.push(`description.ilike.%${escapedSearch}%`)
           conditions.push(`platform.ilike.%${escapedSearch}%`)
-          conditions.push(`tags.ilike.%${escapedSearch}%`)
 
           queryBuilder = queryBuilder.or(conditions.join(','))
         } else {
-          // Single word query: search in name, description, platform, and tags
-          queryBuilder = queryBuilder.or(`name.ilike.%${escapedSearch}%,description.ilike.%${escapedSearch}%,platform.ilike.%${escapedSearch}%,tags.ilike.%${escapedSearch}%`)
+          // Single word query: search in name, description, platform
+          queryBuilder = queryBuilder.or(`name.ilike.%${escapedSearch}%,description.ilike.%${escapedSearch}%,platform.ilike.%${escapedSearch}%`)
         }
       }
       return queryBuilder

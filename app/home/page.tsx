@@ -138,7 +138,7 @@ export default function HomePage() {
   }
 
   return (
-    <div className="flex h-screen overflow-hidden bg-background snap-y snap-mandatory">
+    <div className="flex h-dvh overflow-hidden bg-background snap-y snap-proximity md:snap-mandatory">
       {/* Sidebar */}
       <AnimatePresence mode="wait">
         {sidebarOpen && (
@@ -200,7 +200,7 @@ export default function HomePage() {
 
         {/* Search Section */}
         <main className="flex-1 overflow-y-auto snap-y snap-mandatory">
-          <section className="min-h-screen snap-start snap-always flex flex-col justify-center">
+          <section className="min-h-dvh snap-start snap-always flex flex-col justify-center">
             <div className="mx-auto w-full max-w-5xl px-4 sm:px-6 py-8 sm:py-12">
               {/* Hero Search */}
               <motion.div
@@ -246,7 +246,7 @@ export default function HomePage() {
                           const element = document.activeElement
                           element?.scrollIntoView({
                             behavior: 'smooth',
-                            block: 'center',
+                            block: 'start',
                             inline: 'nearest'
                           })
                         }, 100)
@@ -277,7 +277,7 @@ export default function HomePage() {
                   animate={{ opacity: 1, y: 0 }}
                   transition={{ duration: 0.6, delay: 0.4 }}
                 >
-                  <Card className="h-full overflow-hidden border-border/50 bg-card/50 p-6 backdrop-blur-sm transition-all hover:border-border hover:shadow-md">
+                  <Card className="h-full overflow-hidden border-border/50 bg-card/50 p-4 md:p-6 backdrop-blur-sm transition-all hover:border-border hover:shadow-md">
                     <div className="mb-4 flex items-center justify-between">
                       <div className="flex items-center gap-3">
                         <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-primary/10">
@@ -287,7 +287,7 @@ export default function HomePage() {
                       </div>
                     </div>
 
-                    <div className="space-y-4">
+                    <div className="space-y-3 md:space-y-4">
                       {loadingTrending ? (
                         <div className="flex justify-center py-8">
                           <div className="h-6 w-6 animate-spin rounded-full border-3 border-primary border-t-transparent" />
@@ -299,22 +299,22 @@ export default function HomePage() {
                           <motion.div
                             key={tool.id}
                             onClick={() => setSelectedTool(tool)}
-                            className="flex items-center gap-4 p-2 rounded-xl hover:bg-accent/50 cursor-pointer transition-colors touch-manipulation active:scale-[0.98]"
+                            className="flex items-center gap-3 md:gap-4 p-2 rounded-xl hover:bg-accent/50 cursor-pointer transition-colors touch-manipulation active:scale-[0.98]"
                             whileHover={{ x: 4 }}
                           >
                             {tool.image ? (
-                              <div className="relative w-12 h-12 rounded-lg overflow-hidden shrink-0">
+                              <div className="relative w-10 h-10 md:w-12 md:h-12 rounded-lg overflow-hidden shrink-0">
                                 <Image
                                   src={tool.image}
                                   alt={tool.name}
                                   fill
                                   className="object-cover"
-                                  sizes="48px"
+                                  sizes="(max-width: 768px) 40px, 48px"
                                 />
                               </div>
                             ) : (
-                              <div className="w-12 h-12 rounded-lg bg-gradient-to-br from-primary/20 to-chart-1/20 flex items-center justify-center shrink-0">
-                                <Sparkles className="w-6 h-6 text-primary" />
+                              <div className="w-10 h-10 md:w-12 md:h-12 rounded-lg bg-gradient-to-br from-primary/20 to-chart-1/20 flex items-center justify-center shrink-0">
+                                <Sparkles className="w-5 h-5 md:w-6 md:h-6 text-primary" />
                               </div>
                             )}
                             <div className="flex-1 min-w-0">
@@ -345,7 +345,7 @@ export default function HomePage() {
                   animate={{ opacity: 1, y: 0 }}
                   transition={{ duration: 0.6, delay: 0.5 }}
                 >
-                  <Card className="h-full overflow-hidden border-border/50 bg-card/50 p-6 backdrop-blur-sm transition-all hover:border-border hover:shadow-md">
+                  <Card className="h-full overflow-hidden border-border/50 bg-card/50 p-4 md:p-6 backdrop-blur-sm transition-all hover:border-border hover:shadow-md">
                     <div className="mb-4 flex items-center gap-3">
                       <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-chart-1/10">
                         <Search className="h-5 w-5 text-chart-1" />
@@ -374,7 +374,7 @@ export default function HomePage() {
             </div>
           </section>
 
-          <section className="min-h-screen snap-start snap-always">
+          <section className="min-h-dvh snap-start snap-always">
             <div className="mx-auto max-w-5xl px-6 py-12">
               <motion.div
                 initial={{ opacity: 0, y: 20 }}
@@ -401,7 +401,7 @@ export default function HomePage() {
                   ).map((category, index) => (
                     <motion.button
                       key={category.id}
-                      className="group relative overflow-hidden rounded-xl border border-border/50 bg-card/50 p-6 text-left backdrop-blur-sm transition-all hover:border-border hover:shadow-md touch-manipulation active:scale-[0.98]"
+                      className="group relative overflow-hidden rounded-xl border border-border/50 bg-card/50 p-4 md:p-6 text-left backdrop-blur-sm transition-all hover:border-border hover:shadow-md touch-manipulation active:scale-[0.98]"
                       whileHover={{ scale: 1.02 }}
                       transition={{ type: "spring", stiffness: 400 }}
                     >

@@ -78,13 +78,6 @@ export function initMobileOptimizations() {
 
   addMobileClasses()
 
-  // Set CSS custom properties for safe area
-  const insets = getSafeAreaInsets()
-  document.documentElement.style.setProperty('--safe-area-inset-top', `${insets.top}px`)
-  document.documentElement.style.setProperty('--safe-area-inset-right', `${insets.right}px`)
-  document.documentElement.style.setProperty('--safe-area-inset-bottom', `${insets.bottom}px`)
-  document.documentElement.style.setProperty('--safe-area-inset-left', `${insets.left}px`)
-
   // Prevent pull-to-refresh on mobile (optional)
   let touchStartY = 0
   document.addEventListener('touchstart', (e) => {

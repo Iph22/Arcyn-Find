@@ -98,10 +98,10 @@ export function UserSearch({ trigger }: UserSearchProps) {
                 setIsOpen(false)
               }
             }}
-            className="fixed inset-x-0 bottom-0 z-[9999] md:fixed md:top-20 md:left-1/2 md:right-auto md:bottom-auto md:-translate-x-1/2 md:w-auto md:max-w-md md:px-4"
+            className="fixed inset-x-0 top-0 bottom-auto z-[9999] h-full overflow-hidden md:fixed md:top-20 md:left-1/2 md:right-auto md:bottom-auto md:-translate-x-1/2 md:w-auto md:max-w-md md:px-4 md:h-auto"
           >
-            <div className="md:hidden w-12 h-1.5 bg-muted rounded-full mx-auto mb-2" />
-            <Card className="p-4 shadow-2xl max-h-[85vh] flex flex-col rounded-t-xl md:rounded-xl border-b-0 md:border-b">
+            <div className="md:hidden w-12 h-1.5 bg-muted rounded-full mx-auto mb-2 mt-2" />
+            <Card className="p-4 shadow-2xl h-full flex flex-col rounded-none md:rounded-xl border-b-0 md:border-b">
               {/* Search Input */}
               <div className="flex items-center gap-3 mb-4">
                 <div className="relative flex-1">

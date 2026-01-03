@@ -91,19 +91,19 @@ export const metadata: Metadata = {
   },
   icons: {
     icon: [
-      { url: "/icon-light-32x32.png", media: "(prefers-color-scheme: light)" },
-      { url: "/icon-dark-32x32.png", media: "(prefers-color-scheme: dark)" },
-      { url: "/icon.svg", type: "image/svg+xml" },
+      // { url: "/icon-light-32x32.png", media: "(prefers-color-scheme: light)" },
+      // { url: "/icon-dark-32x32.png", media: "(prefers-color-scheme: dark)" },
+      // { url: "/icon.svg", type: "image/svg+xml" },
     ],
     apple: [
       { url: "/apple-touch-icon.png", sizes: "180x180", type: "image/png" },
     ],
     other: [
-      {
-        rel: "mask-icon",
-        url: "/icon.svg",
-        color: "#000000",
-      },
+      // {
+      //   rel: "mask-icon",
+      //   url: "/icon.svg",
+      //   color: "#000000",
+      // },
     ],
   },
   manifest: "/manifest.json",
@@ -151,11 +151,11 @@ export default function RootLayout({
         <link rel="dns-prefetch" href="https://accounts.google.com" />
 
         {/* Preload critical resources */}
-        <link rel="preload" href="/icon.svg" as="image" type="image/svg+xml" />
+        {/* <link rel="preload" href="/icon.svg" as="image" type="image/svg+xml" /> */}
 
         {/* Security headers via meta tags */}
         <meta httpEquiv="X-Content-Type-Options" content="nosniff" />
-        <meta httpEquiv="X-Frame-Options" content="DENY" />
+        {/* <meta httpEquiv="X-Frame-Options" content="DENY" /> */}
         <meta httpEquiv="X-XSS-Protection" content="1; mode=block" />
         <meta name="referrer" content="strict-origin-when-cross-origin" />
 

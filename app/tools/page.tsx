@@ -1,5 +1,7 @@
 "use client"
 
+import React, { Suspense } from "react"
+
 import { useState, useEffect, useMemo, useCallback } from "react"
 import { ToolImage } from "@/components/tool-image"
 import { useRouter, useSearchParams } from "next/navigation"
@@ -9,6 +11,8 @@ import { PremiumSearchInput } from "@/components/premium-search-input"
 import { Button } from "@/components/ui/button"
 import { Card } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Sidebar } from "@/components/sidebar"
 import { ThemeToggle } from "@/components/theme-toggle"
 import { ToolDetailModal } from "@/components/enhanced-tool-detail-modal"
@@ -132,8 +136,13 @@ const displayCategories = [
   "Multimodal AI",            // Multimodal platforms
 ]
 
-export default function ToolsPage() {
-  const [searchQuery, setSearchQuery] = useState("")
+// Inner component that uses search params
+function ToolsContent() {
+  const searchParams = useSearchParams()
+  // Initialize search from URL if present
+  const initialSearch = searchParams.get('search') || ""
+
+  const [searchQuery, setSearchQuery] = useState(initialSearch)
   const [debouncedSearch, setDebouncedSearch] = useState("")
   const [selectedCategory, setSelectedCategory] = useState("All")
   const [sidebarOpen, setSidebarOpen] = useState(false) // Hidden by default on mobile
@@ -142,6 +151,11 @@ export default function ToolsPage() {
   const [allTools, setAllTools] = useState<AIEntry[]>([])
   const [favoritedTools, setFavoritedTools] = useState<Set<string>>(new Set())
   const [togglingFavorite, setTogglingFavorite] = useState<string | null>(null)
+
+  // Filter states
+  const [accessType, setAccessType] = useState('all')
+  const [region, setRegion] = useState('all')
+
   const { preferences } = usePreferences()
   const { user, isLoading: isAuthLoading, isAuthenticated } = useAuth()
 
@@ -175,6 +189,8 @@ export default function ToolsPage() {
   const { tools: apiTools, isLoading, error, hasMore } = useAITools({
     searchQuery: debouncedSearch || undefined,
     category: apiCategory,
+    accessType: accessType === 'all' ? undefined : accessType,
+    region: region === 'all' ? undefined : region,
     limit: ITEMS_PER_PAGE,
     offset: (page - 1) * ITEMS_PER_PAGE,
   })
@@ -203,7 +219,7 @@ export default function ToolsPage() {
   useEffect(() => {
     setAllTools([])
     setPage(1)
-  }, [debouncedSearch, selectedCategory])
+  }, [debouncedSearch, selectedCategory, accessType, region])
 
   // Load favorited tools
   useEffect(() => {
@@ -332,7 +348,7 @@ export default function ToolsPage() {
   const filteredTools = sortedTools
 
   return (
-    <div className="flex h-screen overflow-hidden bg-background">
+    <div className="flex h-dvh overflow-hidden bg-background">
       {/* Sidebar - Show as drawer on mobile, fixed on desktop */}
       <AnimatePresence mode="wait">
         {sidebarOpen && (
@@ -427,10 +443,69 @@ export default function ToolsPage() {
                     }
                   }}
                 />
-                <Button variant="outline" size="lg" className="h-11 md:h-14 gap-2 px-4 md:px-6 bg-transparent shrink-0">
-                  <Filter className="h-4 w-4" />
-                  <span className="hidden sm:inline">Filters</span>
-                </Button>
+                <Popover>
+                  <PopoverTrigger asChild>
+                    <Button variant="outline" size="lg" className="h-11 md:h-14 gap-2 px-4 md:px-6 bg-transparent shrink-0">
+                      <Filter className="h-4 w-4" />
+                      <span className="hidden sm:inline">Filters</span>
+                      {(accessType !== 'all' || region !== 'all') && (
+                        <div className="absolute -right-1 -top-1 h-3 w-3 rounded-full bg-primary" />
+                      )}
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-80 p-5" align="end">
+                    <div className="space-y-4">
+                      <div className="flex items-center justify-between">
+                        <h4 className="font-semibold leading-none">Filter Tools</h4>
+                        {(accessType !== 'all' || region !== 'all') && (
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className="h-auto p-0 text-xs text-muted-foreground hover:text-foreground"
+                            onClick={() => {
+                              setAccessType('all')
+                              setRegion('all')
+                            }}
+                          >
+                            Reset
+                          </Button>
+                        )}
+                      </div>
+
+                      <div className="space-y-2">
+                        <h5 className="text-sm font-medium text-muted-foreground">Pricing Model</h5>
+                        <div className="grid grid-cols-2 gap-2">
+                          {['all', 'Free', 'Freemium', 'Paid', 'Free Trial'].map((type) => (
+                            <Button
+                              key={type}
+                              variant={accessType === type ? "default" : "outline"}
+                              size="sm"
+                              className="justify-start"
+                              onClick={() => setAccessType(type)}
+                            >
+                              {type === 'all' ? 'Any Price' : type}
+                            </Button>
+                          ))}
+                        </div>
+                      </div>
+
+                      <div className="space-y-2">
+                        <h5 className="text-sm font-medium text-muted-foreground">Region</h5>
+                        <Select value={region} onValueChange={setRegion}>
+                          <SelectTrigger>
+                            <SelectValue placeholder="Select Region" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="all">Global (Any Region)</SelectItem>
+                            <SelectItem value="US">United States</SelectItem>
+                            <SelectItem value="EU">Europe</SelectItem>
+                            <SelectItem value="Asia">Asia</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+                    </div>
+                  </PopoverContent>
+                </Popover>
               </div>
 
               {/* Category Tabs */}
@@ -624,6 +699,22 @@ export default function ToolsPage() {
         isOpen={!!selectedTool}
         onClose={() => setSelectedTool(null)}
       />
+    </div>
+  )
+}
+
+// Wrapper component with Suspense
+export default function ToolsPage() {
+  return (
+    <div className="flex h-dvh items-center justify-center bg-background">
+      <React.Suspense fallback={
+        <div className="text-center">
+          <div className="mb-4 inline-block h-8 w-8 animate-spin rounded-full border-4 border-primary border-t-transparent" />
+          <p className="text-muted-foreground">Loading...</p>
+        </div>
+      }>
+        <ToolsContent />
+      </React.Suspense>
     </div>
   )
 }

@@ -380,32 +380,32 @@ export default function SettingsPage() {
       <div className="hidden md:block">
         <Sidebar />
       </div>
-      <div className="flex-1 overflow-y-auto p-6 pb-20 md:pb-6">
+      <div className="flex-1 overflow-y-auto p-4 md:p-6 pb-24 md:pb-6">
         <div className="container mx-auto max-w-4xl">
-          <h1 className="mb-6 text-3xl font-bold">Settings</h1>
+          <h1 className="mb-4 md:mb-6 text-2xl md:text-3xl font-bold">Settings</h1>
 
           <Tabs defaultValue="profile" className="w-full">
-            <TabsList className="grid w-full grid-cols-4">
-              <TabsTrigger value="profile">
+            <TabsList className="flex w-full overflow-x-auto md:grid md:grid-cols-4 h-auto p-1 gap-1">
+              <TabsTrigger value="profile" className="flex-1 min-w-[100px]">
                 <User className="mr-2 h-4 w-4" />
                 Profile
               </TabsTrigger>
-              <TabsTrigger value="notifications">
+              <TabsTrigger value="notifications" className="flex-1 min-w-[100px]">
                 <Bell className="mr-2 h-4 w-4" />
                 Notifications
               </TabsTrigger>
-              <TabsTrigger value="privacy">
+              <TabsTrigger value="privacy" className="flex-1 min-w-[100px]">
                 <Shield className="mr-2 h-4 w-4" />
                 Privacy
               </TabsTrigger>
-              <TabsTrigger value="appearance">
+              <TabsTrigger value="appearance" className="flex-1 min-w-[100px]">
                 <Palette className="mr-2 h-4 w-4" />
                 Appearance
               </TabsTrigger>
             </TabsList>
 
-            <TabsContent value="profile" className="mt-6">
-              <Card className="p-6">
+            <TabsContent value="profile" className="mt-4 md:mt-6">
+              <Card className="p-4 md:p-6">
                 <h2 className="mb-6 text-xl font-semibold">Profile Settings</h2>
 
                 {/* Banner Upload */}
@@ -469,7 +469,7 @@ export default function SettingsPage() {
                 {/* Avatar Upload */}
                 <div className="mb-6">
                   <Label className="mb-2 block">Profile Picture</Label>
-                  <div className="flex items-center gap-4">
+                  <div className="flex flex-col sm:flex-row sm:items-center gap-4">
                     <div className="relative">
                       <Avatar className="h-24 w-24">
                         <AvatarImage src={avatarPreview || avatarUrl || contextAvatarUrl || user?.picture} />
@@ -654,8 +654,8 @@ export default function SettingsPage() {
               </Card>
             </TabsContent>
 
-            <TabsContent value="notifications" className="mt-6">
-              <Card className="p-6">
+            <TabsContent value="notifications" className="mt-4 md:mt-6">
+              <Card className="p-4 md:p-6">
                 <h2 className="mb-6 text-xl font-semibold">Notification Settings</h2>
 
                 {/* Push Notifications */}
@@ -748,8 +748,8 @@ export default function SettingsPage() {
               </Card>
             </TabsContent>
 
-            <TabsContent value="privacy" className="mt-6">
-              <Card className="p-6">
+            <TabsContent value="privacy" className="mt-4 md:mt-6">
+              <Card className="p-4 md:p-6">
                 <h2 className="mb-6 text-xl font-semibold">Privacy Settings</h2>
 
                 {/* Profile Visibility */}
@@ -847,8 +847,8 @@ export default function SettingsPage() {
               </Card>
             </TabsContent>
 
-            <TabsContent value="appearance" className="mt-6">
-              <Card className="p-6">
+            <TabsContent value="appearance" className="mt-4 md:mt-6">
+              <Card className="p-4 md:p-6">
                 <h2 className="mb-6 text-xl font-semibold">Appearance</h2>
                 <div>
                   <Label htmlFor="theme" className="mb-2 block">Theme</Label>
