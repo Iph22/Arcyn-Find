@@ -6,6 +6,7 @@ import type { AIEntry } from "@/lib/ai-data"
 interface UseAIToolsOptions {
   category?: string
   region?: string
+  accessType?: string
   searchQuery?: string
   limit?: number
   offset?: number
@@ -21,17 +22,17 @@ interface UseAIToolsReturn {
 }
 
 export function useAITools(options: UseAIToolsOptions = {}): UseAIToolsReturn {
-  const { category, region, searchQuery, limit = 50, offset = 0, enabled = true } = options
+  const { category, region, accessType, searchQuery, limit = 50, offset = 0, enabled = true } = options
   const [tools, setTools] = useState<AIEntry[]>([])
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [hasMore, setHasMore] = useState(true)
 
-  // Reset tools when category, region, or searchQuery changes
+  // Reset tools when category, region, accessType, or searchQuery changes
   useEffect(() => {
     setTools([])
     setHasMore(true)
-  }, [category, region, searchQuery])
+  }, [category, region, accessType, searchQuery])
 
   const fetchTools = useCallback(async () => {
     if (!enabled) return
@@ -43,22 +44,23 @@ export function useAITools(options: UseAIToolsOptions = {}): UseAIToolsReturn {
       const params = new URLSearchParams()
       if (category) params.append("category", category)
       if (region) params.append("region", region)
+      if (accessType) params.append("accessType", accessType)
       if (searchQuery) params.append("search", searchQuery)
       if (limit) params.append("limit", limit.toString())
       if (offset) params.append("offset", offset.toString())
 
       const response = await fetch(`/api/ai-models?${params.toString()}`)
-      
+
       if (!response.ok) {
         throw new Error(`Failed to fetch tools: ${response.statusText}`)
       }
 
       const data = await response.json()
       const toolsArray = Array.isArray(data) ? data : []
-      
+
       // Always return just the current page's tools (don't accumulate in hook)
       setTools(toolsArray)
-      
+
       // hasMore is true if we got exactly the limit (meaning there might be more)
       setHasMore(toolsArray.length === limit)
     } catch (err) {
@@ -70,7 +72,7 @@ export function useAITools(options: UseAIToolsOptions = {}): UseAIToolsReturn {
     } finally {
       setIsLoading(false)
     }
-  }, [category, region, searchQuery, limit, offset, enabled])
+  }, [category, region, accessType, searchQuery, limit, offset, enabled])
 
   useEffect(() => {
     fetchTools()
