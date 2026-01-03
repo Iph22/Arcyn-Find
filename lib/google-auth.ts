@@ -106,6 +106,13 @@ export async function getCurrentUser(): Promise<GoogleUser | null> {
 }
 
 /**
+ * Get current user from session (server-side, alias for compatibility)
+ */
+export async function getCurrentUserFromRequest(): Promise<GoogleUser | null> {
+    return getCurrentUser()
+}
+
+/**
  * Get user profile from database
  */
 export async function getUserProfile(userId?: string): Promise<UserProfile | null> {

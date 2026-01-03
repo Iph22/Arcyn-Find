@@ -5,27 +5,12 @@
  * Redirects everything to Google OAuth
  */
 
-import {
-  getCurrentUser as getBaseUser,
+export {
+  getCurrentUser,
+  getCurrentUserFromRequest,
   getUserProfile,
   upsertUserProfile,
   signOut,
   deleteAccount,
   type UserProfile,
 } from './google-auth'
-
-export {
-  getUserProfile,
-  upsertUserProfile,
-  signOut,
-  deleteAccount,
-  type UserProfile,
-}
-
-export async function getCurrentUser() {
-  return getBaseUser()
-}
-
-export async function getCurrentUserFromRequest() {
-  return getBaseUser()
-}
