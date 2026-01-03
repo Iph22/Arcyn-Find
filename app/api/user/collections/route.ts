@@ -30,7 +30,7 @@ export async function GET(request: NextRequest) {
         updated_at,
         collection_items(count)
       `)
-      .eq('user_id', userId)
+      .eq('user_id', user.id)
       .order('created_at', { ascending: false })
 
     if (error) throw error
@@ -81,7 +81,7 @@ export async function POST(request: NextRequest) {
     const { data, error } = await supabase
       .from('collections')
       .insert({
-        user_id: userId,
+        user_id: user.id,
         name,
         description: description || null,
         is_public: is_public ?? false,
@@ -97,7 +97,7 @@ export async function POST(request: NextRequest) {
     await supabase
       .from('user_activities')
       .insert({
-        user_id: userId,
+        user_id: user.id,
         activity_type: 'collection_created',
         collection_id: data.id,
         created_at: new Date().toISOString()
