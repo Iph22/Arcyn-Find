@@ -83,11 +83,18 @@ export async function createSession(user: GoogleUser): Promise<void> {
 }
 
 /**
- * Delete the session
+ * Delete the session (Sign out)
  */
 export async function deleteSession(): Promise<void> {
     const cookieStore = await cookies()
     cookieStore.delete(SESSION_COOKIE_NAME)
+}
+
+/**
+ * Alias for deleteSession
+ */
+export async function signOut(): Promise<void> {
+    return deleteSession()
 }
 
 /**
