@@ -149,13 +149,6 @@ export function UserSearch({ trigger }: UserSearchProps) {
                           <Card
                             className="overflow-hidden border-border/50 bg-card/50 backdrop-blur-sm cursor-pointer hover:border-border hover:shadow-lg transition-all group"
                             onClick={() => handleUserClick(user.id)}
-                            onTouchEnd={(e) => {
-                              // Only trigger if not clicking on a button
-                              const target = e.target as HTMLElement
-                              if (!target.closest('button')) {
-                                handleUserClick(user.id)
-                              }
-                            }}
                           >
                             {/* Banner */}
                             <div className="relative h-24 bg-gradient-to-br from-primary/20 via-chart-1/20 to-chart-3/20">
@@ -248,11 +241,6 @@ export function UserSearch({ trigger }: UserSearchProps) {
                                 size="sm"
                                 className="w-full gap-2"
                                 onClick={(e) => {
-                                  e.stopPropagation()
-                                  e.preventDefault()
-                                  handleUserClick(user.id)
-                                }}
-                                onTouchEnd={(e) => {
                                   e.stopPropagation()
                                   e.preventDefault()
                                   handleUserClick(user.id)

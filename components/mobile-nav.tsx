@@ -48,12 +48,12 @@ export function MobileNav() {
         <motion.nav
           initial={{ y: 100 }}
           animate={{ y: 0 }}
-          className="fixed bottom-0 left-0 right-0 z-50 md:hidden bg-background/95 backdrop-blur-xl border-t border-border/50 safe-area-inset-bottom"
+          className="fixed bottom-0 left-0 right-0 z-50 md:hidden bg-background/95 backdrop-blur-xl border-t border-border/50"
           style={{
             paddingBottom: 'env(safe-area-inset-bottom, 0px)',
           }}
         >
-          <div className="flex items-center justify-around h-16 px-2 gap-2">
+          <div className="flex items-center justify-around h-14 px-2 gap-2">
             {/* Tools Link */}
             <Link
               href="/tools"
@@ -103,12 +103,12 @@ export function MobileNav() {
       <motion.nav
         initial={{ y: 100 }}
         animate={{ y: 0 }}
-        className="fixed bottom-0 left-0 right-0 z-50 md:hidden bg-background/95 backdrop-blur-xl border-t border-border/50 safe-area-inset-bottom"
+        className="fixed bottom-0 left-0 right-0 z-50 md:hidden bg-background/95 backdrop-blur-xl border-t border-border/50"
         style={{
           paddingBottom: 'env(safe-area-inset-bottom, 0px)',
         }}
       >
-        <div className="grid grid-cols-5 h-16">
+        <div className="grid grid-cols-5 h-14">
           {navItems.map((item) => {
             const active = isActive(item.href)
             const Icon = item.icon

@@ -399,7 +399,7 @@ function ToolsContent() {
 
         {/* Tools Content */}
         <main className="flex-1 overflow-y-auto">
-          <div className="mx-auto max-w-7xl px-4 py-4 md:px-6 md:py-8 pb-20 md:pb-8">
+          <div className="mx-auto max-w-7xl px-4 pt-[calc(env(safe-area-inset-top)+1rem)] pb-4 md:px-6 md:py-8 md:pb-8 mb-20 md:mb-0">
             {/* Personalized Welcome Message */}
             {preferences?.categories && preferences.categories.length > 0 && (
               <motion.div

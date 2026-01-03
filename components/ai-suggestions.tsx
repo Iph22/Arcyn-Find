@@ -24,7 +24,7 @@ const suggestions: AISuggestion[] = [
         description: "Discover powerful AI tools for writing, editing, and content generation",
         icon: BookOpen,
         gradient: "from-blue-500/20 to-cyan-500/20",
-        query: "AI Writing Tools"
+        query: "writing"
     },
     {
         id: "2",
@@ -33,7 +33,7 @@ const suggestions: AISuggestion[] = [
         description: "Explore cutting-edge image generation and art creation tools",
         icon: Palette,
         gradient: "from-purple-500/20 to-pink-500/20",
-        query: "Image Generation"
+        query: "image generation"
     },
     {
         id: "3",
@@ -42,7 +42,7 @@ const suggestions: AISuggestion[] = [
         description: "Boost your productivity with AI-powered coding tools",
         icon: Code,
         gradient: "from-green-500/20 to-emerald-500/20",
-        query: "Code Assistants"
+        query: "code"
     },
     {
         id: "4",
@@ -51,7 +51,7 @@ const suggestions: AISuggestion[] = [
         description: "Check out the most popular and trending AI tools right now",
         icon: TrendingUp,
         gradient: "from-orange-500/20 to-red-500/20",
-        query: "Trending AI Tools"
+        query: "trending"
     },
     {
         id: "5",
@@ -60,7 +60,7 @@ const suggestions: AISuggestion[] = [
         description: "Streamline your workflow with intelligent productivity tools",
         icon: Zap,
         gradient: "from-yellow-500/20 to-amber-500/20",
-        query: "AI Productivity Tools"
+        query: "productivity"
     },
     {
         id: "6",
@@ -69,7 +69,7 @@ const suggestions: AISuggestion[] = [
         description: "Discover the latest language models and AI frameworks",
         icon: Sparkles,
         gradient: "from-indigo-500/20 to-violet-500/20",
-        query: "GPT-4 Alternatives"
+        query: "gpt"
     },
 ]
 

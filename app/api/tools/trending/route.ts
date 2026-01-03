@@ -40,11 +40,16 @@ export async function GET(request: NextRequest) {
       query = query.eq('category', category)
     }
 
-    // Get trending tools (either marked as trending or high popularity)
+    // Get trending tools:
+    // 1. Manually marked as trending (is_trending = true)
+    // 2. OR High popularity (popularity >= 80)
+    // 3. OR Recently added/updated with good popularity (last_updated recently + popularity >= 50)
+
+    // For "real-time" feel, we prioritize the sort by last_updated relative to popularity
     query = query
-      .or('is_trending.eq.true,popularity.gte.70')
+      .or('is_trending.eq.true,popularity.gte.60')
+      .order('last_updated', { ascending: false }) // Show freshest first
       .order('popularity', { ascending: false })
-      .order('last_updated', { ascending: false })
       .limit(limit)
 
     const { data: tools, error } = await query

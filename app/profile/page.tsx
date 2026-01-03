@@ -362,14 +362,14 @@ export default function ProfilePage() {
       <div className="flex flex-1 flex-col overflow-hidden pb-20 md:pb-0">
         {/* Header */}
         <motion.header
-          className="border-b border-border/40 bg-card/50 backdrop-blur-xl"
+          className="border-b border-border/40 bg-card/50 backdrop-blur-xl pt-[env(safe-area-inset-top)]"
           initial={{ y: -50, opacity: 0 }}
           animate={{ y: 0, opacity: 1 }}
           transition={{ duration: 0.5 }}
         >
           <div className="flex items-center justify-between px-6 py-4">
             <div className="flex items-center gap-4">
-              <Button variant="ghost" size="icon" onClick={() => setSidebarOpen(!sidebarOpen)} className="h-10 w-10">
+              <Button variant="ghost" size="icon" onClick={() => setSidebarOpen(!sidebarOpen)} className="hidden md:flex h-10 w-10">
                 {sidebarOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
               </Button>
               <div className="flex items-center gap-2">

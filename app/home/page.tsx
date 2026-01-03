@@ -138,7 +138,7 @@ export default function HomePage() {
   }
 
   return (
-    <div className="flex h-dvh overflow-hidden bg-background snap-y snap-proximity md:snap-mandatory">
+    <div className="flex h-dvh bg-background">
       {/* Sidebar */}
       <AnimatePresence mode="wait">
         {sidebarOpen && (
@@ -166,10 +166,10 @@ export default function HomePage() {
       </AnimatePresence>
 
       {/* Main Content */}
-      <div className="flex flex-1 flex-col overflow-hidden w-full pb-20 md:pb-0">
+      <div className="flex flex-1 flex-col w-full pb-20 md:pb-0 overflow-y-auto">
         {/* Header */}
         <motion.header
-          className="border-b border-border/40 bg-card/50 backdrop-blur-xl"
+          className="border-b border-border/40 bg-card/50 backdrop-blur-xl pt-[env(safe-area-inset-top)]"
           initial={{ y: -50, opacity: 0 }}
           animate={{ y: 0, opacity: 1 }}
           transition={{ duration: 0.5 }}
@@ -180,7 +180,7 @@ export default function HomePage() {
                 variant="ghost"
                 size="icon"
                 onClick={() => setSidebarOpen(!sidebarOpen)}
-                className="h-10 w-10 touch-manipulation"
+                className="hidden md:flex h-10 w-10 touch-manipulation"
               >
                 {sidebarOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
               </Button>
@@ -199,8 +199,8 @@ export default function HomePage() {
         </motion.header>
 
         {/* Search Section */}
-        <main className="flex-1 overflow-y-auto snap-y snap-mandatory">
-          <section className="min-h-dvh snap-start snap-always flex flex-col justify-center">
+        <main className="flex-1">
+          <section className="flex flex-col justify-center">
             <div className="mx-auto w-full max-w-5xl px-4 sm:px-6 py-8 sm:py-12">
               {/* Hero Search */}
               <motion.div
@@ -374,7 +374,7 @@ export default function HomePage() {
             </div>
           </section>
 
-          <section className="min-h-dvh snap-start snap-always">
+          <section className="">
             <div className="mx-auto max-w-5xl px-6 py-12">
               <motion.div
                 initial={{ opacity: 0, y: 20 }}
