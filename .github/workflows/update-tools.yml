@@ -1,0 +1,16 @@
+name: Auto Update AI Tools
+
+on:
+  schedule:
+    # Run every 30 minutes
+    - cron: '*/30 * * * *'
+  workflow_dispatch: # Allow manual trigger
+
+jobs:
+  update-tools:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Trigger Update API
+        run: |
+          curl -X GET "${{ secrets.SITE_URL }}/api/cron/update?key=${{ secrets.CRON_SECRET }}" \
+          -H "Authorization: Bearer ${{ secrets.CRON_SECRET }}"
