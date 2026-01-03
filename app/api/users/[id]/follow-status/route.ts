@@ -1,5 +1,5 @@
 import { NextRequest } from "next/server"
-import { auth } from "@clerk/nextjs/server"
+import { getCurrentUser } from "@/lib/google-auth"
 import { getSupabaseAdmin } from "@/lib/supabase"
 import { createErrorResponse, createSuccessResponse, ErrorCodes } from "@/lib/api-errors"
 import { logger } from "@/lib/logger"
@@ -9,8 +9,8 @@ export async function GET(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const { userId } = await auth()
-    if (!userId) {
+    const user = await getCurrentUser()
+    if (!user) {
       return createErrorResponse("Unauthorized", 401, ErrorCodes.UNAUTHORIZED)
     }
 
@@ -21,7 +21,7 @@ export async function GET(
     const { data, error } = await supabase
       .from("user_follows")
       .select("id")
-      .eq("follower_id", userId)
+      .eq("follower_id", user.id)
       .eq("following_id", id)
       .single()
 

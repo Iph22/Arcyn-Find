@@ -16,7 +16,7 @@ import { PricingBadge } from "@/components/pricing-badge"
 import { usePreferences } from "@/contexts/preferences-context"
 import { useAITools } from "@/lib/hooks/use-ai-tools"
 import { toast } from "sonner"
-import { useUser } from "@clerk/nextjs"
+import { useAuth } from "@/contexts/auth-context"
 import type { AIEntry } from "@/lib/ai-data"
 
 // Comprehensive category mapping from API/database categories to user-friendly display categories
@@ -143,7 +143,7 @@ export default function ToolsPage() {
   const [favoritedTools, setFavoritedTools] = useState<Set<string>>(new Set())
   const [togglingFavorite, setTogglingFavorite] = useState<string | null>(null)
   const { preferences } = usePreferences()
-  const { user, isLoaded } = useUser()
+  const { user, isLoading: isAuthLoading, isAuthenticated } = useAuth()
 
   const ITEMS_PER_PAGE = 24 // Load 24 tools at a time (divisible by 2 and 3 for grid)
 
@@ -207,7 +207,7 @@ export default function ToolsPage() {
 
   // Load favorited tools
   useEffect(() => {
-    if (isLoaded && user) {
+    if (!isAuthLoading && isAuthenticated && user) {
       const loadFavorites = async () => {
         try {
           const response = await fetch('/api/favorites')
@@ -222,7 +222,7 @@ export default function ToolsPage() {
       }
       loadFavorites()
     }
-  }, [isLoaded, user])
+  }, [isAuthLoading, isAuthenticated, user])
 
   const handleToggleFavorite = async (toolId: string, e: React.MouseEvent) => {
     e.stopPropagation()

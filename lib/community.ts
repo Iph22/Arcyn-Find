@@ -1,5 +1,5 @@
 import { supabase } from './supabase'
-import { auth } from '@clerk/nextjs/server'
+import { getCurrentUser } from '@/lib/google-auth'
 
 export interface UserActivity {
   id: string
@@ -41,19 +41,19 @@ export interface UserStats {
  */
 export async function followUser(userId: string): Promise<{ success: boolean; error?: string }> {
   try {
-    const { userId: currentUserId } = await auth()
-    if (!currentUserId) {
+    const currentUser = await getCurrentUser()
+    if (!currentUser) {
       return { success: false, error: 'You must be logged in' }
     }
 
-    if (currentUserId === userId) {
+    if (currentUser.id === userId) {
       return { success: false, error: 'You cannot follow yourself' }
     }
 
     const { error } = await supabase
       .from('user_follows')
       .insert({
-        follower_id: currentUserId,
+        follower_id: currentUser.id,
         following_id: userId,
       })
 
@@ -76,15 +76,15 @@ export async function followUser(userId: string): Promise<{ success: boolean; er
  */
 export async function unfollowUser(userId: string): Promise<{ success: boolean; error?: string }> {
   try {
-    const { userId: currentUserId } = await auth()
-    if (!currentUserId) {
+    const currentUser = await getCurrentUser()
+    if (!currentUser) {
       return { success: false, error: 'You must be logged in' }
     }
 
     const { error } = await supabase
       .from('user_follows')
       .delete()
-      .eq('follower_id', currentUserId)
+      .eq('follower_id', currentUser.id)
       .eq('following_id', userId)
 
     if (error) throw error
@@ -101,13 +101,13 @@ export async function unfollowUser(userId: string): Promise<{ success: boolean; 
  */
 export async function isFollowingUser(userId: string): Promise<boolean> {
   try {
-    const { userId: currentUserId } = await auth()
-    if (!currentUserId) return false
+    const currentUser = await getCurrentUser()
+    if (!currentUser) return false
 
     const { data } = await supabase
       .from('user_follows')
       .select('id')
-      .eq('follower_id', currentUserId)
+      .eq('follower_id', currentUser.id)
       .eq('following_id', userId)
       .single()
 
@@ -122,8 +122,8 @@ export async function isFollowingUser(userId: string): Promise<boolean> {
  */
 export async function getActivityFeed(limit: number = 20): Promise<UserActivity[]> {
   try {
-    const { userId } = await auth()
-    if (!userId) return []
+    const user = await getCurrentUser()
+    if (!user) return []
 
     const { data, error } = await supabase
       .from('user_activities')

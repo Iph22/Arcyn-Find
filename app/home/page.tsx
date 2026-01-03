@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation"
 import { motion, AnimatePresence } from "framer-motion"
 import { Search, Sparkles, TrendingUp, Menu, X, Star } from "lucide-react"
 import { PremiumSearchInput } from "@/components/premium-search-input"
+import { AISuggestions } from "@/components/ai-suggestions"
 import { Button } from "@/components/ui/button"
 import { Card } from "@/components/ui/card"
 import { Sidebar } from "@/components/sidebar"
@@ -13,7 +14,7 @@ import { ThemeToggle } from "@/components/theme-toggle"
 import { ToolDetailModal } from "@/components/enhanced-tool-detail-modal"
 import { PricingBadge } from "@/components/pricing-badge"
 import { usePreferences } from "@/contexts/preferences-context"
-import { useUser } from "@clerk/nextjs"
+import { useAuth } from "@/contexts/auth-context"
 import type { ToolWithRating } from "@/lib/types"
 import { logger } from "@/lib/logger"
 import { toast } from "sonner"
@@ -38,17 +39,17 @@ export default function HomePage() {
   const [searchQuery, setSearchQuery] = useState("")
   const [sidebarOpen, setSidebarOpen] = useState(false) // Hidden by default on mobile
   const { preferences, isLoading } = usePreferences()
-  const { user, isLoaded } = useUser()
+  const { user, isLoading: authLoading, isAuthenticated } = useAuth()
   const [selectedTool, setSelectedTool] = useState<ToolWithRating | TrendingTool | null>(null)
   const [trendingTools, setTrendingTools] = useState<TrendingTool[]>([])
   const [loadingTrending, setLoadingTrending] = useState(true)
 
   useEffect(() => {
-    if (isLoaded && !user) {
+    if (!authLoading && !isAuthenticated) {
       router.push("/")
       return
     }
-    if (user) {
+    if (isAuthenticated) {
       loadTrendingTools()
 
       // Ensure profile exists and is up-to-date with username/display_name
@@ -62,7 +63,7 @@ export default function HomePage() {
         // Silent failure - not critical for page functionality
       })
     }
-  }, [user, isLoaded, router])
+  }, [user, authLoading, isAuthenticated, router])
 
   const loadTrendingTools = async () => {
     try {
@@ -85,7 +86,7 @@ export default function HomePage() {
     }
   }
 
-  if (!isLoaded) {
+  if (authLoading || !isAuthenticated) {
     return (
       <div className="flex h-screen items-center justify-center">
         <div className="text-center">
@@ -125,54 +126,16 @@ export default function HomePage() {
     }
   }
 
-  const getPersonalizedTrending = () => {
-    const categoryMap: Record<string, string[]> = {
-      text: ["GPT-4 Alternatives", "AI Writing Assistants"],
-      vision: ["Image Generation Tools", "Video AI Tools"],
-      coding: ["Code Assistants", "GitHub Copilot Alternatives"],
-      agents: ["AI Agents Platforms", "Autonomous AI Tools"],
-      automation: ["Workflow Automation", "No-Code AI Tools"],
-      knowledge: ["Knowledge Management AI", "Research Tools"],
-      research: ["Academic AI Tools", "Data Analysis AI"],
-      productivity: ["Productivity AI", "Task Management Tools"],
+  const handleSearchSubmit = () => {
+    if (searchQuery.trim()) {
+      router.push(`/tools?search=${encodeURIComponent(searchQuery.trim())}`)
     }
-
-    const purposeMap: Record<string, string> = {
-      exploring: "Popular AI Tools",
-      work: "Business AI Tools",
-      building: "Developer AI Tools",
-      research: "Research AI Tools",
-      personal: "Personal AI Tools",
-    }
-
-    if (preferences?.categories && preferences.categories.length > 0) {
-      const userCategories = preferences.categories
-      const suggestions: Array<{ query: string; category: string }> = []
-
-      userCategories.forEach((cat) => {
-        const queries = categoryMap[cat] || []
-        queries.forEach((query) => {
-          suggestions.push({ query, category: cat.charAt(0).toUpperCase() + cat.slice(1) })
-        })
-      })
-
-      if (preferences.purpose) {
-        const purposeQuery = purposeMap[preferences.purpose] || "Trending AI Tools"
-        suggestions.unshift({ query: purposeQuery, category: "Recommended" })
-      }
-
-      return suggestions.slice(0, 4)
-    }
-
-    return [
-      { query: "GPT-4 Alternatives", category: "AI Models" },
-      { query: "Image Generation Tools", category: "Creative" },
-      { query: "Code Assistants", category: "Development" },
-      { query: "Data Analysis AI", category: "Analytics" },
-    ]
   }
 
-  const trendingSearches = getPersonalizedTrending()
+  const handleSuggestionClick = (query: string) => {
+    setSearchQuery(query)
+    router.push(`/tools?search=${encodeURIComponent(query)}`)
+  }
 
   return (
     <div className="flex h-screen overflow-hidden bg-background snap-y snap-mandatory">
@@ -213,7 +176,12 @@ export default function HomePage() {
         >
           <div className="flex items-center justify-between px-4 sm:px-6 py-4">
             <div className="flex items-center gap-3 sm:gap-4">
-              <Button variant="ghost" size="icon" onClick={() => setSidebarOpen(!sidebarOpen)} className="h-10 w-10">
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={() => setSidebarOpen(!sidebarOpen)}
+                className="h-10 w-10 touch-manipulation"
+              >
                 {sidebarOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
               </Button>
               <div className="flex items-center gap-2">
@@ -268,11 +236,7 @@ export default function HomePage() {
                   <PremiumSearchInput
                     value={searchQuery}
                     onChange={setSearchQuery}
-                    onSubmit={() => {
-                      if (searchQuery.trim()) {
-                        router.push(`/tools?search=${encodeURIComponent(searchQuery.trim())}`)
-                      }
-                    }}
+                    onSubmit={handleSearchSubmit}
                     placeholder="Search AI tools..."
                     showButton={true}
                     onFocus={() => {
@@ -290,6 +254,19 @@ export default function HomePage() {
                     }}
                   />
                 </motion.div>
+              </motion.div>
+
+              {/* AI Suggestions */}
+              <motion.div
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.6, delay: 0.3 }}
+                className="mb-8"
+              >
+                <AISuggestions
+                  onSuggestionClick={handleSuggestionClick}
+                  limit={6}
+                />
               </motion.div>
 
               {/* Quick Access Cards */}
@@ -322,11 +299,11 @@ export default function HomePage() {
                           <motion.div
                             key={tool.id}
                             onClick={() => setSelectedTool(tool)}
-                            className="flex items-center gap-4 p-2 rounded-xl hover:bg-accent/50 cursor-pointer transition-colors"
+                            className="flex items-center gap-4 p-2 rounded-xl hover:bg-accent/50 cursor-pointer transition-colors touch-manipulation active:scale-[0.98]"
                             whileHover={{ x: 4 }}
                           >
                             {tool.image ? (
-                              <div className="relative w-12 h-12 rounded-lg overflow-hidden">
+                              <div className="relative w-12 h-12 rounded-lg overflow-hidden shrink-0">
                                 <Image
                                   src={tool.image}
                                   alt={tool.name}
@@ -336,7 +313,7 @@ export default function HomePage() {
                                 />
                               </div>
                             ) : (
-                              <div className="w-12 h-12 rounded-lg bg-gradient-to-br from-primary/20 to-chart-1/20 flex items-center justify-center">
+                              <div className="w-12 h-12 rounded-lg bg-gradient-to-br from-primary/20 to-chart-1/20 flex items-center justify-center shrink-0">
                                 <Sparkles className="w-6 h-6 text-primary" />
                               </div>
                             )}
@@ -380,11 +357,11 @@ export default function HomePage() {
                         <motion.button
                           key={index}
                           onClick={() => setSearchQuery(search)}
-                          className="flex w-full items-center gap-3 rounded-xl p-3 text-left transition-colors hover:bg-accent"
+                          className="flex w-full items-center gap-3 rounded-xl p-3 text-left transition-colors hover:bg-accent touch-manipulation active:scale-[0.98]"
                           whileHover={{ x: 4 }}
                           transition={{ type: "spring", stiffness: 400 }}
                         >
-                          <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-muted">
+                          <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-muted shrink-0">
                             <Search className="h-4 w-4 text-muted-foreground" />
                           </div>
                           <span className="text-sm font-medium">{search}</span>
@@ -424,7 +401,7 @@ export default function HomePage() {
                   ).map((category, index) => (
                     <motion.button
                       key={category.id}
-                      className="group relative overflow-hidden rounded-xl border border-border/50 bg-card/50 p-6 text-left backdrop-blur-sm transition-all hover:border-border hover:shadow-md"
+                      className="group relative overflow-hidden rounded-xl border border-border/50 bg-card/50 p-6 text-left backdrop-blur-sm transition-all hover:border-border hover:shadow-md touch-manipulation active:scale-[0.98]"
                       whileHover={{ scale: 1.02 }}
                       transition={{ type: "spring", stiffness: 400 }}
                     >

@@ -13,7 +13,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Sidebar } from "@/components/sidebar"
 import { ThemeToggle } from "@/components/theme-toggle"
 import { toast } from "sonner"
-import { useUser } from "@clerk/nextjs"
+import { useAuth } from "@/contexts/auth-context"
 
 interface UserProfile {
   id: string
@@ -64,7 +64,7 @@ interface Review {
 export default function UserProfilePage() {
   const params = useParams()
   const router = useRouter()
-  const { user: currentUser } = useUser()
+  const { user: currentUser } = useAuth()
   const userId = params?.id as string
 
   const [sidebarOpen, setSidebarOpen] = useState(false) // Hidden by default on mobile

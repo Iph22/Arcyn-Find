@@ -1,5 +1,5 @@
 import { NextRequest } from 'next/server'
-import { auth } from '@clerk/nextjs/server'
+import { getCurrentUser } from '@/lib/google-auth'
 import { createErrorResponse, createSuccessResponse, ErrorCodes } from '@/lib/api-errors'
 import { getSupabaseAdmin } from '@/lib/supabase'
 import { logger } from '@/lib/logger'
@@ -11,33 +11,33 @@ import { logger } from '@/lib/logger'
  */
 export async function GET(request: NextRequest) {
   try {
-    const { userId } = await auth()
-    if (!userId) {
+    const user = await getCurrentUser()
+    if (!user) {
       return createErrorResponse('Unauthorized', 401, ErrorCodes.UNAUTHORIZED)
     }
 
     const searchParams = request.nextUrl.searchParams
     const query = searchParams.get('q')
-    
+
     if (!query || query.trim().length < 2) {
       return createErrorResponse('Search query must be at least 2 characters', 400, ErrorCodes.VALIDATION_ERROR)
     }
 
     const supabase = getSupabaseAdmin()
-    
+
     // Search users by username or display_name
     const { data: users, error } = await supabase
       .from('user_profiles')
       .select('id, username, display_name, avatar_url, banner_url, bio')
       .or(`username.ilike.%${query}%,display_name.ilike.%${query}%`)
-      .neq('id', userId) // Exclude current user from results
+      .neq('id', user.id) // Exclude current user from results
       .limit(20)
 
     if (error) throw error
 
     // Filter out users with null username AND null display_name (they're not searchable)
     // These users need to have their profiles updated via ensure-profile
-    const searchableUsers = users?.filter(user => 
+    const searchableUsers = users?.filter(user =>
       user.username || user.display_name
     ) || []
 
@@ -45,7 +45,7 @@ export async function GET(request: NextRequest) {
     const { data: followData } = await supabase
       .from('user_follows')
       .select('following_id')
-      .eq('follower_id', userId)
+      .eq('follower_id', user.id)
 
     const followingIds = new Set(followData?.map(f => f.following_id) || [])
 

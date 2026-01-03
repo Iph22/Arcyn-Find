@@ -1,5 +1,5 @@
 import { NextRequest } from "next/server"
-import { auth } from "@clerk/nextjs/server"
+import { getCurrentUser } from "@/lib/google-auth"
 import { getSupabaseAdmin } from "@/lib/supabase"
 import { createErrorResponse, createSuccessResponse, ErrorCodes } from "@/lib/api-errors"
 import { logger } from "@/lib/logger"
@@ -9,14 +9,14 @@ export async function POST(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const { userId } = await auth()
-    if (!userId) {
+    const user = await getCurrentUser()
+    if (!user) {
       return createErrorResponse("Unauthorized", 401, ErrorCodes.UNAUTHORIZED)
     }
 
     const { id } = await params
 
-    if (userId === id) {
+    if (user.id === id) {
       return createErrorResponse("Cannot follow yourself", 400, ErrorCodes.VALIDATION_ERROR)
     }
 
@@ -26,7 +26,7 @@ export async function POST(
     const { data: existing } = await supabase
       .from("user_follows")
       .select("id")
-      .eq("follower_id", userId)
+      .eq("follower_id", user.id)
       .eq("following_id", id)
       .single()
 
@@ -36,7 +36,7 @@ export async function POST(
 
     // Add follow relationship
     const { error } = await supabase.from("user_follows").insert({
-      follower_id: userId,
+      follower_id: user.id,
       following_id: id,
     })
 
@@ -60,8 +60,8 @@ export async function DELETE(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const { userId } = await auth()
-    if (!userId) {
+    const user = await getCurrentUser()
+    if (!user) {
       return createErrorResponse("Unauthorized", 401, ErrorCodes.UNAUTHORIZED)
     }
 
@@ -72,7 +72,7 @@ export async function DELETE(
     const { error } = await supabase
       .from("user_follows")
       .delete()
-      .eq("follower_id", userId)
+      .eq("follower_id", user.id)
       .eq("following_id", id)
 
     if (error) {

@@ -9,9 +9,9 @@ import { Button } from "@/components/ui/button"
 import { cn } from "@/lib/utils"
 import { usePreferences } from "@/contexts/preferences-context"
 import { useAvatar } from "@/contexts/avatar-context"
-import { useClerk } from "@clerk/nextjs"
 import { UserSearch } from "@/components/user-search"
 import { logger } from "@/lib/logger"
+import { useAuth } from "@/contexts/auth-context"
 
 interface SidebarProps {
   onClose?: () => void
@@ -22,7 +22,7 @@ export function Sidebar({ onClose }: SidebarProps) {
   const router = useRouter()
   const { logout, preferences } = usePreferences()
   const { avatarUrl, displayName, username } = useAvatar()
-  const { signOut } = useClerk()
+  const { signOut } = useAuth()
   const [isCollapsed, setIsCollapsed] = useState(() => {
     if (typeof window !== 'undefined') {
       return localStorage.getItem('sidebar-collapsed') === 'true'
@@ -45,12 +45,12 @@ export function Sidebar({ onClose }: SidebarProps) {
       logout()
       localStorage.clear()
       sessionStorage.clear()
-      await signOut({ redirectUrl: '/' })
+      await signOut()
     } catch (error) {
       logger.error("Error signing out:", error)
       localStorage.clear()
       sessionStorage.clear()
-      window.location.href = '/'
+      router.push('/')
     }
   }
 

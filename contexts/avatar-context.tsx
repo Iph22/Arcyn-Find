@@ -1,7 +1,7 @@
 "use client"
 
 import React, { createContext, useContext, useState, useEffect, useCallback } from 'react'
-import { useUser } from '@clerk/nextjs'
+import { useAuth } from '@/contexts/auth-context'
 
 interface AvatarContextType {
   avatarUrl: string | null
@@ -14,7 +14,7 @@ interface AvatarContextType {
 const AvatarContext = createContext<AvatarContextType | undefined>(undefined)
 
 export function AvatarProvider({ children }: { children: React.ReactNode }) {
-  const { user, isLoaded } = useUser()
+  const { user, isLoading, isAuthenticated } = useAuth()
   const [avatarUrl, setAvatarUrl] = useState<string | null>(null)
   const [displayName, setDisplayName] = useState<string | null>(null)
   const [username, setUsername] = useState<string | null>(null)
@@ -26,24 +26,24 @@ export function AvatarProvider({ children }: { children: React.ReactNode }) {
         if (response.ok) {
           const data = await response.json()
           if (data.profile) {
-            setAvatarUrl(data.profile.avatar_url || user.imageUrl || null)
-            setDisplayName(data.profile.display_name || user.fullName || null)
-            setUsername(data.profile.username || user.username || null)
+            setAvatarUrl(data.profile.avatar_url || user.picture || null)
+            setDisplayName(data.profile.display_name || user.name || null)
+            setUsername(data.profile.username || null)
           } else {
-            // Fallback to Clerk data if no profile exists
-            setAvatarUrl(user.imageUrl || null)
-            setDisplayName(user.fullName || null)
-            setUsername(user.username || null)
+            // Fallback to Google user data if no profile exists
+            setAvatarUrl(user.picture || null)
+            setDisplayName(user.name || null)
+            setUsername(null)
           }
         }
       }
     } catch (error) {
       console.error("Error loading avatar:", error)
-      // Fallback to Clerk data on error
+      // Fallback to Google user data on error
       if (user) {
-        setAvatarUrl(user.imageUrl || null)
-        setDisplayName(user.fullName || null)
-        setUsername(user.username || null)
+        setAvatarUrl(user.picture || null)
+        setDisplayName(user.name || null)
+        setUsername(null)
       }
     }
   }, [user])
@@ -53,16 +53,16 @@ export function AvatarProvider({ children }: { children: React.ReactNode }) {
   }, [])
 
   useEffect(() => {
-    // Only fetch avatar if Clerk is loaded and user exists
-    if (isLoaded && user) {
+    // Only fetch avatar if auth is loaded and user exists
+    if (!isLoading && isAuthenticated && user) {
       refreshAvatar()
-    } else if (isLoaded && !user) {
+    } else if (!isLoading && !isAuthenticated) {
       // Clear avatar data if user is not authenticated
       setAvatarUrl(null)
       setDisplayName(null)
       setUsername(null)
     }
-  }, [user, isLoaded, refreshAvatar])
+  }, [user, isLoading, isAuthenticated, refreshAvatar])
 
   return (
     <AvatarContext.Provider value={{ avatarUrl, displayName, username, refreshAvatar, updateAvatar }}>
@@ -80,8 +80,8 @@ export function useAvatar() {
       avatarUrl: null,
       displayName: null,
       username: null,
-      refreshAvatar: async () => {},
-      updateAvatar: () => {}
+      refreshAvatar: async () => { },
+      updateAvatar: () => { }
     }
   }
   return context

@@ -9,7 +9,7 @@ import { Card } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Sidebar } from "@/components/sidebar"
 import { ThemeToggle } from "@/components/theme-toggle"
-import { useUser } from "@clerk/nextjs"
+import { useAuth } from "@/contexts/auth-context"
 import { toast } from "sonner"
 
 interface Collection {
@@ -24,20 +24,20 @@ interface Collection {
 
 export default function CollectionsPage() {
   const router = useRouter()
-  const { user, isLoaded } = useUser()
+  const { user, isLoading: isAuthLoading, isAuthenticated } = useAuth()
   const [sidebarOpen, setSidebarOpen] = useState(false) // Hidden by default on mobile
   const [collections, setCollections] = useState<Collection[]>([])
   const [isLoading, setIsLoading] = useState(true)
 
   useEffect(() => {
-    if (isLoaded && !user) {
+    if (!isAuthLoading && !isAuthenticated) {
       router.push("/")
       return
     }
     if (user) {
       loadCollections()
     }
-  }, [user, isLoaded, router])
+  }, [user, isAuthLoading, isAuthenticated, router])
 
   const loadCollections = async () => {
     try {
@@ -55,7 +55,7 @@ export default function CollectionsPage() {
     }
   }
 
-  if (!isLoaded) {
+  if (isAuthLoading) {
     return (
       <div className="flex h-screen items-center justify-center">
         <div className="text-center">
@@ -108,7 +108,7 @@ export default function CollectionsPage() {
                 {sidebarOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
               </Button>
               <div className="flex items-center gap-2">
-                
+
                 <span className="text-lg font-bold">Collections</span>
               </div>
             </div>
@@ -166,7 +166,7 @@ export default function CollectionsPage() {
                     transition={{ duration: 0.3, delay: index * 0.1 }}
                     whileHover={{ y: -5 }}
                   >
-                    <Card 
+                    <Card
                       className="group relative h-full overflow-hidden border-border/50 bg-card/50 backdrop-blur-sm transition-all hover:border-border hover:shadow-lg cursor-pointer"
                       onClick={() => router.push(`/collections/${collection.id}`)}
                     >
@@ -191,9 +191,9 @@ export default function CollectionsPage() {
                               </>
                             )}
                           </Badge>
-                          <Button 
-                            variant="secondary" 
-                            size="icon" 
+                          <Button
+                            variant="secondary"
+                            size="icon"
                             className="h-8 w-8 backdrop-blur-sm"
                             onClick={(e) => {
                               e.stopPropagation()
@@ -214,8 +214,8 @@ export default function CollectionsPage() {
 
                         <div className="flex items-center justify-between">
                           <span className="text-sm text-muted-foreground">{collection.tools_count} tools</span>
-                          <Button 
-                            variant="ghost" 
+                          <Button
+                            variant="ghost"
                             size="sm"
                             onClick={(e) => {
                               e.stopPropagation()
@@ -240,7 +240,7 @@ export default function CollectionsPage() {
                   transition={{ duration: 0.3, delay: collections.length * 0.1 }}
                   whileHover={{ y: -5 }}
                 >
-                  <Card 
+                  <Card
                     className="flex h-full min-h-[280px] cursor-pointer items-center justify-center border-2 border-dashed border-border/50 bg-card/30 backdrop-blur-sm transition-all hover:border-border hover:bg-card/50"
                     onClick={() => router.push('/collections/new')}
                   >

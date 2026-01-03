@@ -24,7 +24,7 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog"
 import { toast } from "sonner"
-import { useUser, useClerk } from "@clerk/nextjs"
+import { useAuth } from "@/contexts/auth-context"
 import { logger } from "@/lib/logger"
 
 interface UserProfile {
@@ -84,8 +84,7 @@ interface Review {
 export default function ProfilePage() {
   const router = useRouter()
   const { preferences, clearPreferences } = usePreferences()
-  const { user, isLoaded } = useUser()
-  const { signOut } = useClerk()
+  const { user, isLoading: isAuthLoading, isAuthenticated, signOut } = useAuth()
   const [sidebarOpen, setSidebarOpen] = useState(false) // Hidden by default on mobile
   const [userProfile, setUserProfile] = useState<UserProfile | null>(null)
   const [userStats, setUserStats] = useState<UserStats | null>(null)
@@ -124,12 +123,12 @@ export default function ProfilePage() {
   useEffect(() => {
     // Check authentication and load user data
     let isMounted = true
-    
+
     const loadUserData = async () => {
       try {
-        if (!isLoaded) return
-        
-        if (!user) {
+        if (isAuthLoading) return
+
+        if (!isAuthenticated || !user) {
           // Not authenticated, redirect to landing
           if (isMounted) {
             router.push("/")
@@ -145,12 +144,12 @@ export default function ProfilePage() {
           fetch(`/api/users/${user.id}/reviews`),
           fetch('/api/user/activity')
         ])
-        
+
         if (!isMounted) return
-        
+
         // Handle each result individually - one failure doesn't block others
         const [profileResult, statsResult, toolsResult, reviewsResult, activityResult] = results
-        
+
         if (profileResult.status === 'fulfilled' && profileResult.value.ok) {
           try {
             const data = await profileResult.value.json()
@@ -163,7 +162,7 @@ export default function ProfilePage() {
         } else if (profileResult.status === 'rejected') {
           logger.error("Error fetching profile:", profileResult.reason)
         }
-        
+
         if (statsResult.status === 'fulfilled' && statsResult.value.ok) {
           try {
             const data = await statsResult.value.json()
@@ -176,7 +175,7 @@ export default function ProfilePage() {
         } else if (statsResult.status === 'rejected') {
           logger.error("Error fetching stats:", statsResult.reason)
         }
-        
+
         if (toolsResult.status === 'fulfilled' && toolsResult.value.ok) {
           try {
             const data = await toolsResult.value.json()
@@ -189,7 +188,7 @@ export default function ProfilePage() {
         } else if (toolsResult.status === 'rejected') {
           logger.error("Error fetching saved tools:", toolsResult.reason)
         }
-        
+
         if (reviewsResult.status === 'fulfilled' && reviewsResult.value.ok) {
           try {
             const data = await reviewsResult.value.json()
@@ -202,7 +201,7 @@ export default function ProfilePage() {
         } else if (reviewsResult.status === 'rejected') {
           logger.error("Error fetching reviews:", reviewsResult.reason)
         }
-        
+
         if (activityResult.status === 'fulfilled' && activityResult.value.ok) {
           try {
             const data = await activityResult.value.json()
@@ -228,11 +227,11 @@ export default function ProfilePage() {
     }
 
     loadUserData()
-    
+
     return () => {
       isMounted = false
     }
-  }, [user, isLoaded, router])
+  }, [user, isAuthLoading, isAuthenticated, router])
 
   const handleSignOut = async () => {
     try {
@@ -240,9 +239,9 @@ export default function ProfilePage() {
       clearPreferences()
       localStorage.clear()
       sessionStorage.clear()
-      
-      // Sign out from Clerk with redirect
-      await signOut({ redirectUrl: '/' })
+
+      // Sign out and redirect
+      await signOut()
     } catch (error) {
       if (process.env.NODE_ENV === 'development') {
         logger.error("Error signing out:", error)
@@ -258,12 +257,12 @@ export default function ProfilePage() {
       const response = await fetch('/api/user/delete-account', {
         method: 'DELETE',
       })
-      
+
       const data = await response.json()
-      
+
       if (response.ok) {
         toast.success("Account deleted successfully")
-        
+
         clearPreferences()
         // Clear all localStorage items
         localStorage.removeItem("arcyn-authenticated")
@@ -271,7 +270,7 @@ export default function ProfilePage() {
         localStorage.removeItem("arcyn-instructions-seen")
         localStorage.removeItem("arcyn-preferences")
         localStorage.removeItem("arcyn_onboarding")
-        
+
         // Sign out and redirect
         await signOut()
         router.push("/?deleted=true")
@@ -291,9 +290,9 @@ export default function ProfilePage() {
   }
 
   // Get display name and avatar
-  const displayName = userProfile?.display_name || user?.fullName || preferences?.userName || "User"
-  const username = userProfile?.username || user?.username || user?.emailAddresses[0]?.emailAddress?.split("@")[0] || "user"
-  const avatarUrl = userProfile?.avatar_url || user?.imageUrl || null
+  const displayName = userProfile?.display_name || user?.name || preferences?.userName || "User"
+  const username = userProfile?.username || user?.email?.split("@")[0] || "user"
+  const avatarUrl = userProfile?.avatar_url || user?.picture || null
   const initials = displayName
     .split(" ")
     .map((n: string) => n[0])
@@ -301,9 +300,9 @@ export default function ProfilePage() {
     .toUpperCase()
     .slice(0, 2) || "U"
 
-  // Get join date
-  const joinDate = user?.createdAt 
-    ? new Date(user.createdAt).toLocaleDateString("en-US", { month: "long", year: "numeric" })
+  // Get join date - not available from Google OAuth, so we use profile or "Recently"
+  const joinDate = userProfile?.created_at
+    ? new Date(userProfile.created_at).toLocaleDateString("en-US", { month: "long", year: "numeric" })
     : "Recently"
 
   if (isLoading) {
@@ -380,8 +379,8 @@ export default function ProfilePage() {
             <div className="flex items-center gap-2">
               <ThemeToggle />
               <Button variant="ghost" size="sm" onClick={handleSignOut} className="gap-2">
-                    <LogOut className="h-4 w-4" />
-                    Sign Out
+                <LogOut className="h-4 w-4" />
+                Sign Out
               </Button>
             </div>
           </div>
@@ -391,18 +390,18 @@ export default function ProfilePage() {
         <main className="flex-1 overflow-y-auto">
           <div className="mx-auto max-w-5xl px-6 py-8">
             {/* Profile Header */}
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.5, delay: 0.1 }}
             >
               <Card className="relative overflow-hidden border-border/50 bg-card/50 backdrop-blur-sm">
                 {/* Cover Image / Banner */}
                 {userProfile?.banner_url ? (
                   <div className="h-32 sm:h-48 relative">
-                    <Image 
-                      src={userProfile.banner_url} 
-                      alt="Profile banner" 
+                    <Image
+                      src={userProfile.banner_url}
+                      alt="Profile banner"
                       fill
                       className="object-cover"
                       sizes="100vw"
@@ -425,15 +424,15 @@ export default function ProfilePage() {
                       <div className="mb-2">
                         <h1 className="text-2xl font-bold">{displayName}</h1>
                         <p className="text-muted-foreground">@{username}</p>
-                        {user?.emailAddresses[0]?.emailAddress && (
-                          <p className="text-sm text-muted-foreground">{user.emailAddresses[0].emailAddress}</p>
+                        {user?.email && (
+                          <p className="text-sm text-muted-foreground">{user.email}</p>
                         )}
-              </div>
-              </div>
+                      </div>
+                    </div>
                     <div className="flex gap-2">
-                      <Button 
-                        variant="outline" 
-                        size="sm" 
+                      <Button
+                        variant="outline"
+                        size="sm"
                         className="gap-2 bg-transparent"
                         onClick={() => router.push("/settings")}
                       >
@@ -444,8 +443,8 @@ export default function ProfilePage() {
                         <Share2 className="h-4 w-4" />
                         Share
                       </Button>
-              </div>
-            </div>
+                    </div>
+                  </div>
 
                   {/* Bio */}
                   {userProfile?.bio && (
@@ -469,7 +468,7 @@ export default function ProfilePage() {
                       <div className="flex items-center gap-1">
                         <MapPin className="h-4 w-4" />
                         {userProfile.bio}
-            </div>
+                      </div>
                     )}
                     <div className="flex items-center gap-1">
                       <Calendar className="h-4 w-4" />
@@ -731,7 +730,7 @@ export default function ProfilePage() {
                   )}
                 </TabsContent>
               </Tabs>
-          </motion.div>
+            </motion.div>
           </div>
         </main>
       </div>

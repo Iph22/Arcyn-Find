@@ -6,7 +6,7 @@ import { ArrowRight, Search, Star, Heart, BookmarkPlus, TrendingUp, Users } from
 import { useRouter } from "next/navigation"
 import { Button } from "@/components/ui/button"
 import { Card } from "@/components/ui/card"
-import { useUser } from "@clerk/nextjs"
+import { useAuth } from "@/contexts/auth-context"
 
 const instructions = [
   {
@@ -52,12 +52,12 @@ const instructions = [
 
 export default function InstructionsPage() {
   const router = useRouter()
-  const { user, isLoaded } = useUser()
+  const { user, isLoading: isAuthLoading, isAuthenticated } = useAuth()
   const [isSaving, setIsSaving] = useState(false)
 
   // Check user status and redirect if needed
   useEffect(() => {
-    if (isLoaded && user) {
+    if (!isAuthLoading && isAuthenticated && user) {
       const checkUserStatus = async () => {
         try {
           const response = await fetch('/api/auth/ensure-profile', {
@@ -66,19 +66,19 @@ export default function InstructionsPage() {
               'Content-Type': 'application/json',
             },
           })
-          
+
           if (!response.ok) {
             return
           }
 
           const data = await response.json()
-          
+
           // If user hasn't completed onboarding, redirect to onboarding
           if (!data.onboarding_completed) {
             router.replace('/onboarding')
             return
           }
-          
+
           // If user has already seen instructions, redirect to home
           if (data.instructions_seen) {
             router.replace('/home')
@@ -88,10 +88,10 @@ export default function InstructionsPage() {
           console.error('Error checking user status:', error)
         }
       }
-      
+
       checkUserStatus()
     }
-  }, [user, isLoaded, router])
+  }, [user, isAuthLoading, isAuthenticated, router])
 
   const handleGetStarted = async () => {
     setIsSaving(true)
@@ -99,17 +99,17 @@ export default function InstructionsPage() {
       // Mark instructions as seen in database first
       const { markInstructionsSeen } = await import("@/lib/user-preferences")
       const result = await markInstructionsSeen()
-      
+
       if (!result.success) {
         console.error('Failed to mark instructions as seen:', result.error)
         alert('Failed to save. Please try again.')
         setIsSaving(false)
         return
       }
-      
+
       // Only update localStorage after DB save succeeds
       localStorage.setItem("arcyn-instructions-seen", "true")
-      
+
       // Now safe to redirect (use replace to avoid preserving query params)
       router.replace("/home")
     } catch (error) {
@@ -216,9 +216,9 @@ export default function InstructionsPage() {
               <p className="mb-6 sm:mb-8 text-base sm:text-lg text-muted-foreground">
                 Start discovering amazing AI tools tailored to your interests
               </p>
-              <Button 
-                size="lg" 
-                onClick={handleGetStarted} 
+              <Button
+                size="lg"
+                onClick={handleGetStarted}
                 disabled={isSaving}
                 className="group gap-2 shadow-lg w-full sm:w-auto h-12 sm:h-auto min-h-[48px] text-sm sm:text-base active:scale-[0.98]"
               >

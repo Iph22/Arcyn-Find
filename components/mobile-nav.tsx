@@ -8,6 +8,7 @@ import { motion } from "framer-motion"
 import { useState, useEffect } from "react"
 import { UserSearch } from "@/components/user-search"
 import { usePreferences } from "@/contexts/preferences-context"
+import { useAuth } from "@/contexts/auth-context"
 import { Button } from "@/components/ui/button"
 import { useHaptic } from "@/hooks/use-haptic"
 
@@ -17,7 +18,7 @@ export function MobileNav() {
 
   const [isMobile, setIsMobile] = useState(false)
   const { preferences } = usePreferences()
-  const isAuthenticated = preferences?.isAuthenticated
+  const { isAuthenticated } = useAuth()
   const { trigger: haptic } = useHaptic()
 
   useEffect(() => {
@@ -67,7 +68,7 @@ export function MobileNav() {
               href="/tools"
               onClick={() => haptic("light")}
               className={cn(
-                "flex flex-col items-center justify-center gap-1 relative transition-colors flex-1 min-w-0",
+                "flex flex-col items-center justify-center gap-1 relative transition-colors flex-1 min-w-0 touch-manipulation active:scale-95",
                 pathname === "/tools"
                   ? "text-primary"
                   : "text-muted-foreground active:text-primary"
@@ -90,7 +91,7 @@ export function MobileNav() {
             {/* Sign In Button */}
             <Button
               onClick={() => router.push("/sign-in")}
-              className="flex-[2] h-12 mx-1 flex flex-col items-center justify-center gap-1 bg-primary hover:bg-primary/90 text-primary-foreground"
+              className="flex-[2] h-12 mx-1 flex flex-col items-center justify-center gap-1 bg-primary hover:bg-primary/90 text-primary-foreground touch-manipulation active:scale-95"
               variant="default"
             >
               <Lock className="w-4 h-4 shrink-0" />
@@ -126,7 +127,7 @@ export function MobileNav() {
                 href={item.href}
                 onClick={() => haptic("light")}
                 className={cn(
-                  "flex flex-col items-center justify-center gap-1 relative transition-colors",
+                  "flex flex-col items-center justify-center gap-1 relative transition-colors touch-manipulation active:scale-95",
                   active
                     ? "text-primary"
                     : "text-muted-foreground active:text-primary"
@@ -152,7 +153,7 @@ export function MobileNav() {
             trigger={
               <div
                 className={cn(
-                  "flex flex-col items-center justify-center gap-1 relative transition-colors cursor-pointer",
+                  "flex flex-col items-center justify-center gap-1 relative transition-colors cursor-pointer touch-manipulation active:scale-95",
                   "text-muted-foreground active:text-primary"
                 )}
                 onClick={() => haptic("medium")}

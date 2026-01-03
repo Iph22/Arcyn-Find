@@ -1,5 +1,5 @@
 import { NextRequest } from 'next/server'
-import { auth } from '@clerk/nextjs/server'
+import { getCurrentUser } from '@/lib/google-auth'
 import { createErrorResponse, createSuccessResponse, ErrorCodes } from '@/lib/api-errors'
 import { getSupabaseAdmin } from '@/lib/supabase'
 import { logger } from '@/lib/logger'
@@ -11,9 +11,9 @@ import { logger } from '@/lib/logger'
  */
 export async function GET(request: NextRequest) {
   try {
-    // Get current user from Clerk
-    const { userId } = await auth()
-    if (!userId) {
+    // Get current user from Google OAuth
+    const user = await getCurrentUser()
+    if (!user) {
       return createErrorResponse('Unauthorized', 401, ErrorCodes.UNAUTHORIZED)
     }
 
@@ -23,31 +23,31 @@ export async function GET(request: NextRequest) {
     const { count: followersCount } = await supabase
       .from('user_follows')
       .select('*', { count: 'exact', head: true })
-      .eq('following_id', userId)
+      .eq('following_id', user.id)
 
     // Get following count
     const { count: followingCount } = await supabase
       .from('user_follows')
       .select('*', { count: 'exact', head: true })
-      .eq('follower_id', userId)
+      .eq('follower_id', user.id)
 
     // Get reviews count
     const { count: reviewsCount } = await supabase
       .from('tool_reviews')
       .select('*', { count: 'exact', head: true })
-      .eq('user_id', userId)
+      .eq('user_id', user.id)
 
     // Get saved tools (favorites) count
     const { count: savedToolsCount } = await supabase
       .from('user_favorites')
       .select('*', { count: 'exact', head: true })
-      .eq('user_id', userId)
+      .eq('user_id', user.id)
 
     // Get collections count
     const { count: collectionsCount } = await supabase
       .from('collections')
       .select('*', { count: 'exact', head: true })
-      .eq('user_id', userId)
+      .eq('user_id', user.id)
 
     return createSuccessResponse({
       stats: {

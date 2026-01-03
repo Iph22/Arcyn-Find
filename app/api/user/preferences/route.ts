@@ -1,5 +1,5 @@
 import { NextRequest } from 'next/server'
-import { auth } from '@clerk/nextjs/server'
+import { getCurrentUser } from '@/lib/google-auth'
 import { createErrorResponse, createSuccessResponse, ErrorCodes } from '@/lib/api-errors'
 import { getSupabaseAdmin } from '@/lib/supabase'
 import { logger } from '@/lib/logger'
@@ -10,8 +10,8 @@ import { logger } from '@/lib/logger'
  */
 export async function GET(request: NextRequest) {
   try {
-    const { userId } = await auth()
-    if (!userId) {
+    const user = await getCurrentUser()
+    if (!user) {
       return createErrorResponse('Unauthorized', 401, ErrorCodes.UNAUTHORIZED)
     }
 
@@ -19,7 +19,7 @@ export async function GET(request: NextRequest) {
     const { data, error } = await supabase
       .from('user_profiles')
       .select('user_role, purpose, experience_level, categories, features, onboarding_completed, onboarding_completed_at, instructions_seen, preferences')
-      .eq('id', userId)
+      .eq('id', user.id)
       .single()
 
     if (error) {
@@ -35,7 +35,7 @@ export async function GET(request: NextRequest) {
     }
 
     const prefs = data.preferences as Record<string, unknown> || {}
-    
+
     const preferences = {
       userRole: data.user_role,
       purpose: data.purpose || undefined,
@@ -67,18 +67,18 @@ export async function GET(request: NextRequest) {
  */
 export async function PUT(request: NextRequest) {
   try {
-    const { userId } = await auth()
-    if (!userId) {
+    const user = await getCurrentUser()
+    if (!user) {
       return createErrorResponse('Unauthorized', 401, ErrorCodes.UNAUTHORIZED)
     }
 
     const body = await request.json()
-    const { 
-      userRole, 
-      purpose, 
-      level, 
-      categories, 
-      features, 
+    const {
+      userRole,
+      purpose,
+      level,
+      categories,
+      features,
       completed,
       email_notifications,
       notify_new_followers,
@@ -91,10 +91,10 @@ export async function PUT(request: NextRequest) {
     } = body
 
     const supabase = getSupabaseAdmin()
-    
+
     // Prepare update object - only include fields that are provided
     const updateData: Record<string, unknown> = {
-      id: userId,
+      id: user.id,
       updated_at: new Date().toISOString(),
     }
 

@@ -1,5 +1,5 @@
 import { NextRequest } from 'next/server'
-import { auth } from '@clerk/nextjs/server'
+import { getCurrentUser } from '@/lib/google-auth'
 import { createErrorResponse, createSuccessResponse, ErrorCodes } from '@/lib/api-errors'
 import { getSupabaseAdmin } from '@/lib/supabase'
 import { logger } from '@/lib/logger'
@@ -11,8 +11,8 @@ import { logger } from '@/lib/logger'
  */
 export async function GET(request: NextRequest) {
   try {
-    const { userId } = await auth()
-    if (!userId) {
+    const user = await getCurrentUser()
+    if (!user) {
       return createErrorResponse('Unauthorized', 401, ErrorCodes.UNAUTHORIZED)
     }
 
@@ -32,7 +32,7 @@ export async function GET(request: NextRequest) {
           bio
         )
       `)
-      .eq('following_id', userId)
+      .eq('following_id', user.id)
       .order('created_at', { ascending: false })
 
     if (followersError) throw followersError
@@ -51,7 +51,7 @@ export async function GET(request: NextRequest) {
           bio
         )
       `)
-      .eq('follower_id', userId)
+      .eq('follower_id', user.id)
       .order('created_at', { ascending: false })
 
     if (followingError) throw followingError
@@ -113,8 +113,8 @@ export async function GET(request: NextRequest) {
  */
 export async function POST(request: NextRequest) {
   try {
-    const { userId } = await auth()
-    if (!userId) {
+    const user = await getCurrentUser()
+    if (!user) {
       return createErrorResponse('Unauthorized', 401, ErrorCodes.UNAUTHORIZED)
     }
 
@@ -125,7 +125,7 @@ export async function POST(request: NextRequest) {
       return createErrorResponse('Missing required fields', 400, ErrorCodes.VALIDATION_ERROR)
     }
 
-    if (targetUserId === userId) {
+    if (targetUserId === user.id) {
       return createErrorResponse('Cannot follow yourself', 400, ErrorCodes.VALIDATION_ERROR)
     }
 
@@ -136,7 +136,7 @@ export async function POST(request: NextRequest) {
       const { error } = await supabase
         .from('user_follows')
         .insert({
-          follower_id: userId,
+          follower_id: user.id,
           following_id: targetUserId,
           created_at: new Date().toISOString()
         })
@@ -148,7 +148,7 @@ export async function POST(request: NextRequest) {
       const { error } = await supabase
         .from('user_follows')
         .delete()
-        .eq('follower_id', userId)
+        .eq('follower_id', user.id)
         .eq('following_id', targetUserId)
 
       if (error) throw error

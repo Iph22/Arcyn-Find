@@ -1,5 +1,5 @@
 import { NextRequest } from "next/server"
-import { auth } from '@clerk/nextjs/server'
+import { getCurrentUser } from '@/lib/google-auth'
 import { createErrorResponse, createSuccessResponse, ErrorCodes } from "@/lib/api-errors"
 import { logger } from "@/lib/logger"
 import { CollectionsService } from "@/lib/services/collections.service"
@@ -49,8 +49,8 @@ export async function DELETE(
 ) {
   try {
     const { id } = await params
-    const { userId } = await auth()
-    if (!userId) {
+    const user = await getCurrentUser()
+    if (!user) {
       return createErrorResponse("Unauthorized", 401, ErrorCodes.UNAUTHORIZED)
     }
 
@@ -62,7 +62,7 @@ export async function DELETE(
     }
 
     // Verify ownership
-    const isOwner = await CollectionsService.verifyOwnership(id, userId)
+    const isOwner = await CollectionsService.verifyOwnership(id, user.id)
     if (!isOwner) {
       return createErrorResponse("Forbidden", 403, ErrorCodes.FORBIDDEN)
     }

@@ -1,5 +1,5 @@
 import { supabase } from './supabase'
-import { auth } from '@clerk/nextjs/server'
+import { getCurrentUser } from '@/lib/google-auth'
 
 export interface Review {
   id: string
@@ -60,22 +60,22 @@ export async function getToolReviews(
       const err = error as any
       const errorCode = err?.code
       const errorMessage = err?.message || String(error)
-      
-      if (errorCode === '42P01' || 
-          (typeof errorMessage === 'string' && (
-            errorMessage.includes('does not exist') || 
-            (errorMessage.includes('relation') && errorMessage.includes('does not exist'))
-          ))) {
+
+      if (errorCode === '42P01' ||
+        (typeof errorMessage === 'string' && (
+          errorMessage.includes('does not exist') ||
+          (errorMessage.includes('relation') && errorMessage.includes('does not exist'))
+        ))) {
         console.warn('Reviews table does not exist. Please run the database schema.')
         return { reviews: [], total: 0 }
       }
-      
+
       // Log detailed error information - Supabase errors have specific structure
       const errorInfo: Record<string, any> = {
         type: 'SupabaseError',
         message: errorMessage,
       }
-      
+
       // Try to extract properties from error object
       try {
         if (error && typeof error === 'object') {
@@ -83,7 +83,7 @@ export async function getToolReviews(
           if (err.code !== undefined) errorInfo.code = err.code
           if (err.details !== undefined) errorInfo.details = err.details
           if (err.hint !== undefined) errorInfo.hint = err.hint
-          
+
           // Try to get all enumerable properties
           try {
             const props = Object.keys(err)
@@ -112,14 +112,14 @@ export async function getToolReviews(
         errorInfo.fallback = String(error)
         errorInfo.extractionError = String(e)
       }
-      
+
       // Only log if we have meaningful information
       if (Object.keys(errorInfo).length > 1) {
         console.error('Supabase query error:', errorInfo)
       } else {
         console.error('Supabase query error:', error)
       }
-      
+
       // Return empty results instead of throwing for better UX
       return { reviews: [], total: 0 }
     }
@@ -173,7 +173,7 @@ export async function getToolReviews(
     const errorDetails: Record<string, any> = {
       type: 'CatchError',
     }
-    
+
     try {
       if (error instanceof Error) {
         errorDetails.message = error.message
@@ -187,7 +187,7 @@ export async function getToolReviews(
         if (err.code !== undefined) errorDetails.code = err.code
         if (err.details !== undefined) errorDetails.details = err.details
         if (err.hint !== undefined) errorDetails.hint = err.hint
-        
+
         // Try to get all enumerable properties
         try {
           const props = Object.keys(err)
@@ -213,30 +213,30 @@ export async function getToolReviews(
       errorDetails.fallback = String(error)
       errorDetails.extractionError = String(e)
     }
-    
+
     // Only log if we have meaningful information
     if (Object.keys(errorDetails).length > 1) {
       console.error('Error fetching reviews:', errorDetails)
     } else {
       console.error('Error fetching reviews:', error)
     }
-    
+
     // If it's a table doesn't exist error, return empty gracefully
     if (error && typeof error === 'object') {
       const err = error as any
       const errorCode = err?.code
       const errorMessage = err?.message || String(error)
-      
-      if (errorCode === '42P01' || 
-          (typeof errorMessage === 'string' && (
-            errorMessage.includes('does not exist') || 
-            (errorMessage.includes('relation') && errorMessage.includes('does not exist'))
-          ))) {
+
+      if (errorCode === '42P01' ||
+        (typeof errorMessage === 'string' && (
+          errorMessage.includes('does not exist') ||
+          (errorMessage.includes('relation') && errorMessage.includes('does not exist'))
+        ))) {
         console.warn('Reviews table does not exist. Please run the database schema.')
         return { reviews: [], total: 0 }
       }
     }
-    
+
     // Return empty results gracefully instead of crashing
     return { reviews: [], total: 0 }
   }
@@ -257,7 +257,7 @@ export async function getToolReviewStats(toolId: string): Promise<ReviewStats | 
       const errorInfo: Record<string, any> = {
         type: 'SupabaseStatsError',
       }
-      
+
       try {
         if (error && typeof error === 'object') {
           const err = error as any
@@ -266,7 +266,7 @@ export async function getToolReviewStats(toolId: string): Promise<ReviewStats | 
           if (err.details !== undefined) errorInfo.details = err.details
           if (err.hint !== undefined) errorInfo.hint = err.hint
           if (err.code !== undefined) errorInfo.code = err.code
-          
+
           // If we still have nothing, try to get all properties
           if (Object.keys(errorInfo).length === 1) {
             try {
@@ -291,18 +291,18 @@ export async function getToolReviewStats(toolId: string): Promise<ReviewStats | 
       } catch (e) {
         errorInfo.fallback = String(error)
       }
-      
+
       console.error('Supabase stats query error:', errorInfo)
-      
+
       // If table doesn't exist, return null gracefully
       const err = error as any
       const errorCode = err?.code
       const errorMessage = err?.message
-      if (errorCode === '42P01' || 
-          (typeof errorMessage === 'string' && (
-            errorMessage.includes('does not exist') || 
-            (errorMessage.includes('relation') && errorMessage.includes('does not exist'))
-          ))) {
+      if (errorCode === '42P01' ||
+        (typeof errorMessage === 'string' && (
+          errorMessage.includes('does not exist') ||
+          (errorMessage.includes('relation') && errorMessage.includes('does not exist'))
+        ))) {
         console.warn('Reviews table does not exist. Please run the database schema.')
         return null
       }
@@ -347,8 +347,8 @@ export async function submitReview(
   reviewText?: string
 ): Promise<{ success: boolean; review?: Review; error?: string }> {
   try {
-    const { userId } = await auth()
-    if (!userId) {
+    const user = await getCurrentUser()
+    if (!user) {
       return { success: false, error: 'You must be logged in to submit a review' }
     }
 
@@ -356,7 +356,7 @@ export async function submitReview(
       .from('tool_reviews')
       .insert({
         tool_id: toolId,
-        user_id: userId,
+        user_id: user.id,
         rating,
         title: title || null,
         review_text: reviewText || null,
@@ -388,8 +388,8 @@ export async function updateReview(
   reviewText?: string
 ): Promise<{ success: boolean; error?: string }> {
   try {
-    const { userId } = await auth()
-    if (!userId) {
+    const user = await getCurrentUser()
+    if (!user) {
       return { success: false, error: 'You must be logged in' }
     }
 
@@ -402,7 +402,7 @@ export async function updateReview(
         updated_at: new Date().toISOString(),
       })
       .eq('id', reviewId)
-      .eq('user_id', userId)
+      .eq('user_id', user.id)
 
     if (error) throw error
 
@@ -418,8 +418,8 @@ export async function updateReview(
  */
 export async function deleteReview(reviewId: string): Promise<{ success: boolean; error?: string }> {
   try {
-    const { userId } = await auth()
-    if (!userId) {
+    const user = await getCurrentUser()
+    if (!user) {
       return { success: false, error: 'You must be logged in' }
     }
 
@@ -427,7 +427,7 @@ export async function deleteReview(reviewId: string): Promise<{ success: boolean
       .from('tool_reviews')
       .delete()
       .eq('id', reviewId)
-      .eq('user_id', userId)
+      .eq('user_id', user.id)
 
     if (error) throw error
 
@@ -446,8 +446,8 @@ export async function voteReviewHelpful(
   isHelpful: boolean
 ): Promise<{ success: boolean; error?: string }> {
   try {
-    const { userId } = await auth()
-    if (!userId) {
+    const user = await getCurrentUser()
+    if (!user) {
       return { success: false, error: 'You must be logged in to vote' }
     }
 
@@ -455,7 +455,7 @@ export async function voteReviewHelpful(
       .from('review_helpful_votes')
       .upsert({
         review_id: reviewId,
-        user_id: userId,
+        user_id: user.id,
         is_helpful: isHelpful,
       }, {
         onConflict: 'review_id,user_id',

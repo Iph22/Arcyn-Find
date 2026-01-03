@@ -11,7 +11,7 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Sidebar } from "@/components/sidebar"
 import { ThemeToggle } from "@/components/theme-toggle"
-import { useUser } from "@clerk/nextjs"
+import { useAuth } from "@/contexts/auth-context"
 import { toast } from "sonner"
 
 interface UserData {
@@ -29,7 +29,7 @@ interface UserData {
 
 export default function FollowersPage() {
   const router = useRouter()
-  const { user, isLoaded } = useUser()
+  const { user, isLoading: isAuthLoading, isAuthenticated } = useAuth()
   const [sidebarOpen, setSidebarOpen] = useState(false) // Hidden by default on mobile
   const [activeTab, setActiveTab] = useState<"followers" | "following">("followers")
   const [followers, setFollowers] = useState<UserData[]>([])
@@ -39,14 +39,14 @@ export default function FollowersPage() {
   const [searchQuery, setSearchQuery] = useState("")
 
   useEffect(() => {
-    if (isLoaded && !user) {
+    if (!isAuthLoading && !isAuthenticated) {
       router.push("/")
       return
     }
     if (user) {
       loadFollowers()
     }
-  }, [user, isLoaded, router])
+  }, [user, isAuthLoading, isAuthenticated, router])
 
   const loadFollowers = async () => {
     try {
@@ -91,7 +91,7 @@ export default function FollowersPage() {
     }
   }
 
-  if (!isLoaded) {
+  if (isAuthLoading) {
     return (
       <div className="flex h-screen items-center justify-center">
         <div className="text-center">
@@ -183,7 +183,7 @@ export default function FollowersPage() {
                 {sidebarOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
               </Button>
               <div className="flex items-center gap-2">
-                
+
                 <span className="text-lg font-bold">Community</span>
               </div>
             </div>
@@ -257,9 +257,9 @@ export default function FollowersPage() {
                       <div className="h-8 w-8 animate-spin rounded-full border-4 border-primary border-t-transparent" />
                     </div>
                   ) : followers.filter(f => {
-                      const u = f.user;
-                      return !searchQuery || u.username?.toLowerCase().includes(searchQuery.toLowerCase()) || u.display_name?.toLowerCase().includes(searchQuery.toLowerCase())
-                    }).length === 0 ? (
+                    const u = f.user;
+                    return !searchQuery || u.username?.toLowerCase().includes(searchQuery.toLowerCase()) || u.display_name?.toLowerCase().includes(searchQuery.toLowerCase())
+                  }).length === 0 ? (
                     <Card className="border-border/50 bg-card/50 p-12 text-center backdrop-blur-sm">
                       <Users className="mx-auto mb-4 h-12 w-12 text-muted-foreground" />
                       <h3 className="mb-2 text-lg font-semibold">{searchQuery ? 'No followers found' : 'No followers yet'}</h3>
@@ -291,9 +291,9 @@ export default function FollowersPage() {
                       <div className="h-8 w-8 animate-spin rounded-full border-4 border-primary border-t-transparent" />
                     </div>
                   ) : following.filter(f => {
-                      const u = f.user;
-                      return !searchQuery || u.username?.toLowerCase().includes(searchQuery.toLowerCase()) || u.display_name?.toLowerCase().includes(searchQuery.toLowerCase())
-                    }).length === 0 ? (
+                    const u = f.user;
+                    return !searchQuery || u.username?.toLowerCase().includes(searchQuery.toLowerCase()) || u.display_name?.toLowerCase().includes(searchQuery.toLowerCase())
+                  }).length === 0 ? (
                     <Card className="border-border/50 bg-card/50 p-12 text-center backdrop-blur-sm">
                       <UserPlus className="mx-auto mb-4 h-12 w-12 text-muted-foreground" />
                       <h3 className="mb-2 text-lg font-semibold">{searchQuery ? 'No users found' : 'Not following anyone yet'}</h3>

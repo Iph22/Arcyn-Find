@@ -1,7 +1,7 @@
 "use client"
 
 import { createContext, useContext, useEffect, useState, type ReactNode } from "react"
-import { useUser } from "@clerk/nextjs"
+import { useAuth } from "@/contexts/auth-context"
 import { loadUserPreferences, saveUserPreferences } from "@/lib/user-preferences"
 
 interface OnboardingData {
@@ -32,30 +32,30 @@ interface PreferencesContextType {
 const PreferencesContext = createContext<PreferencesContextType | undefined>(undefined)
 
 export function PreferencesProvider({ children }: { children: ReactNode }) {
-  const { user, isLoaded } = useUser()
+  const { user, isLoading: authLoading, isAuthenticated } = useAuth()
   const [preferences, setPreferences] = useState<OnboardingData | null>(null)
   const [isLoading, setIsLoading] = useState(true)
 
   const loadPreferences = async () => {
     try {
-      if (!isLoaded) return
-      
+      if (authLoading) return
+
       // Load from database (single source of truth)
-      if (user) {
+      if (isAuthenticated && user) {
         const dbPreferences = await loadUserPreferences()
         if (dbPreferences) {
           setPreferences({
             ...dbPreferences,
-            userName: user.username || user.emailAddresses[0]?.emailAddress?.split("@")[0] || null,
-            userEmail: user.emailAddresses[0]?.emailAddress || null,
+            userName: user.name || user.email?.split("@")[0] || null,
+            userEmail: user.email || null,
             isAuthenticated: true,
           } as OnboardingData)
         } else {
           // No preferences yet - user is new
           setPreferences({
             isAuthenticated: true,
-            userName: user.username || user.emailAddresses[0]?.emailAddress?.split("@")[0] || null,
-            userEmail: user.emailAddresses[0]?.emailAddress || null,
+            userName: user.name || user.email?.split("@")[0] || null,
+            userEmail: user.email || null,
             purpose: "",
             level: "",
             categories: [],
@@ -78,15 +78,15 @@ export function PreferencesProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     loadPreferences()
-  }, [user, isLoaded])
+  }, [user, authLoading, isAuthenticated])
 
   const updatePreferences = async (data: Partial<OnboardingData>) => {
     const updated = { ...preferences, ...data } as OnboardingData
     setPreferences(updated)
-    
+
     // Save to database (single source of truth)
     try {
-      if (user) {
+      if (isAuthenticated) {
         await saveUserPreferences(data)
       }
     } catch (error) {

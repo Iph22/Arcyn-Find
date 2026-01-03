@@ -14,7 +14,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Sidebar } from "@/components/sidebar"
 import { ThemeToggle } from "@/components/theme-toggle"
 import { EmptyState } from "@/components/empty-state"
-import { useUser } from "@clerk/nextjs"
+import { useAuth } from "@/contexts/auth-context"
 import { uploadAvatar, uploadBanner } from "@/lib/storage"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { usePreferences } from "@/contexts/preferences-context"
@@ -39,7 +39,7 @@ export default function SettingsPage() {
   const router = useRouter()
   const { preferences, updatePreferences } = usePreferences()
   const { avatarUrl: contextAvatarUrl, refreshAvatar } = useAvatar()
-  const { user, isLoaded } = useUser()
+  const { user, isLoading: isAuthLoading, isAuthenticated } = useAuth()
   const { setTheme: setNextTheme } = useTheme()
   const [userProfile, setUserProfile] = useState<UserProfile | null>(null)
   const [isLoading, setIsLoading] = useState(true)
@@ -80,9 +80,9 @@ export default function SettingsPage() {
 
     const loadUserData = async () => {
       try {
-        if (!isLoaded) return
+        if (isAuthLoading) return
 
-        if (!user) {
+        if (!isAuthenticated || !user) {
           if (isMounted) {
             router.push("/")
           }
@@ -102,16 +102,16 @@ export default function SettingsPage() {
               if (profile) {
                 setUserProfile(profile)
                 // Use profile data but fallback to Clerk for empty fields
-                setDisplayName(profile.display_name || user.fullName || user.emailAddresses[0]?.emailAddress?.split("@")[0] || "")
-                setUsername(profile.username || user.username || user.emailAddresses[0]?.emailAddress?.split("@")[0]?.toLowerCase() || "")
+                setDisplayName(profile.display_name || user.name || user.email?.split("@")[0] || "")
+                setUsername(profile.username || user.email?.split("@")[0]?.toLowerCase() || "")
                 setBio(profile.bio || "")
-                setAvatarUrl(profile.avatar_url || user.imageUrl || "")
+                setAvatarUrl(profile.avatar_url || user.picture || "")
                 setBannerUrl(profile.banner_url || "")
               } else {
                 // Initialize with Clerk user data
-                setDisplayName(user.fullName || user.emailAddresses[0]?.emailAddress?.split("@")[0] || "")
-                setUsername(user.username || user.emailAddresses[0]?.emailAddress?.split("@")[0]?.toLowerCase() || "")
-                setAvatarUrl(user.imageUrl || "")
+                setDisplayName(user.name || user.email?.split("@")[0] || "")
+                setUsername(user.email?.split("@")[0]?.toLowerCase() || "")
+                setAvatarUrl(user.picture || "")
               }
             }
           } catch (err) {
@@ -138,7 +138,7 @@ export default function SettingsPage() {
     return () => {
       isMounted = false
     }
-  }, [user, isLoaded, router])
+  }, [user, isAuthLoading, isAuthenticated, router])
 
   useEffect(() => {
     // Check notification permission on mount
@@ -472,9 +472,9 @@ export default function SettingsPage() {
                   <div className="flex items-center gap-4">
                     <div className="relative">
                       <Avatar className="h-24 w-24">
-                        <AvatarImage src={avatarPreview || avatarUrl || contextAvatarUrl || user?.imageUrl} />
+                        <AvatarImage src={avatarPreview || avatarUrl || contextAvatarUrl || user?.picture} />
                         <AvatarFallback className="bg-gradient-to-br from-primary to-chart-1 text-2xl">
-                          {displayName?.charAt(0).toUpperCase() || user?.fullName?.charAt(0).toUpperCase() || user?.emailAddresses[0]?.emailAddress?.charAt(0).toUpperCase() || "U"}
+                          {displayName?.charAt(0).toUpperCase() || user?.name?.charAt(0).toUpperCase() || user?.email?.charAt(0).toUpperCase() || "U"}
                         </AvatarFallback>
                       </Avatar>
                       <Button
@@ -545,9 +545,9 @@ export default function SettingsPage() {
                         <div className="absolute bottom-0 left-4 translate-y-1/2">
                           <div className="relative">
                             <Avatar className="h-16 w-16 border-4 border-card ring-2 ring-border/20">
-                              <AvatarImage src={avatarPreview || avatarUrl || contextAvatarUrl || user?.imageUrl} />
+                              <AvatarImage src={avatarPreview || avatarUrl || contextAvatarUrl || user?.picture} />
                               <AvatarFallback className="bg-gradient-to-br from-primary to-chart-1 text-lg font-bold text-primary-foreground">
-                                {displayName?.charAt(0).toUpperCase() || user?.fullName?.charAt(0).toUpperCase() || "U"}
+                                {displayName?.charAt(0).toUpperCase() || user?.name?.charAt(0).toUpperCase() || "U"}
                               </AvatarFallback>
                             </Avatar>
                             {/* Online Status Indicator */}

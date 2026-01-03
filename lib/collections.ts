@@ -1,6 +1,6 @@
 import { supabase } from './supabase'
 import type { AIEntry } from './ai-data'
-import { auth } from '@clerk/nextjs/server'
+import { getCurrentUser } from '@/lib/google-auth'
 
 export interface Collection {
   id: string
@@ -63,11 +63,11 @@ export async function getPublicCollections(limit: number = 20, userId?: string):
         collection_items(count)
       `)
       .eq('is_public', true)
-    
+
     if (userId) {
       query = query.eq('user_id', userId)
     }
-    
+
     const { data, error } = await query
       .order('updated_at', { ascending: false })
       .limit(limit)
@@ -119,7 +119,7 @@ export async function getCollection(collectionId: string): Promise<CollectionWit
     // Fetch tool details from API
     const toolIds = (items || []).map(item => item.tool_id)
     const tools: AIEntry[] = []
-    
+
     if (toolIds.length > 0) {
       const response = await fetch('/api/ai-models')
       if (response.ok) {
@@ -147,7 +147,7 @@ export async function getCollection(collectionId: string): Promise<CollectionWit
     const errorDetails: Record<string, any> = {
       type: 'CollectionError',
     }
-    
+
     try {
       if (error instanceof Error) {
         errorDetails.message = error.message
@@ -161,7 +161,7 @@ export async function getCollection(collectionId: string): Promise<CollectionWit
         if (err.code !== undefined) errorDetails.code = err.code
         if (err.details !== undefined) errorDetails.details = err.details
         if (err.hint !== undefined) errorDetails.hint = err.hint
-        
+
         // If we still have nothing, try to get all properties
         if (Object.keys(errorDetails).length === 1) {
           try {
@@ -186,7 +186,7 @@ export async function getCollection(collectionId: string): Promise<CollectionWit
     } catch (e) {
       errorDetails.fallback = String(error)
     }
-    
+
     console.error('Error fetching collection:', errorDetails)
     return null
   }
@@ -201,15 +201,15 @@ export async function createCollection(
   isPublic: boolean = false
 ): Promise<{ success: boolean; collection?: Collection; error?: string }> {
   try {
-    const { userId } = await auth()
-    if (!userId) {
+    const user = await getCurrentUser()
+    if (!user) {
       return { success: false, error: 'You must be logged in to create a collection' }
     }
 
     const { data, error } = await supabase
       .from('collections')
       .insert({
-        user_id: userId,
+        user_id: user.id,
         name,
         description: description || null,
         is_public: isPublic,
@@ -238,8 +238,8 @@ export async function updateCollection(
   }
 ): Promise<{ success: boolean; error?: string }> {
   try {
-    const { userId } = await auth()
-    if (!userId) {
+    const user = await getCurrentUser()
+    if (!user) {
       return { success: false, error: 'You must be logged in' }
     }
 
@@ -247,7 +247,7 @@ export async function updateCollection(
       .from('collections')
       .update(updates)
       .eq('id', collectionId)
-      .eq('user_id', userId)
+      .eq('user_id', user.id)
 
     if (error) throw error
 
@@ -263,8 +263,8 @@ export async function updateCollection(
  */
 export async function deleteCollection(collectionId: string): Promise<{ success: boolean; error?: string }> {
   try {
-    const { userId } = await auth()
-    if (!userId) {
+    const user = await getCurrentUser()
+    if (!user) {
       return { success: false, error: 'You must be logged in' }
     }
 
@@ -272,7 +272,7 @@ export async function deleteCollection(collectionId: string): Promise<{ success:
       .from('collections')
       .delete()
       .eq('id', collectionId)
-      .eq('user_id', userId)
+      .eq('user_id', user.id)
 
     if (error) throw error
 
@@ -292,8 +292,8 @@ export async function addToolToCollection(
   notes?: string
 ): Promise<{ success: boolean; error?: string }> {
   try {
-    const { userId } = await auth()
-    if (!userId) {
+    const user = await getCurrentUser()
+    if (!user) {
       return { success: false, error: 'You must be logged in' }
     }
 
@@ -302,7 +302,7 @@ export async function addToolToCollection(
       .from('collections')
       .select('id')
       .eq('id', collectionId)
-      .eq('user_id', userId)
+      .eq('user_id', user.id)
       .single()
 
     if (!collection) {
@@ -339,8 +339,8 @@ export async function removeToolFromCollection(
   toolId: string
 ): Promise<{ success: boolean; error?: string }> {
   try {
-    const { userId } = await auth()
-    if (!userId) {
+    const user = await getCurrentUser()
+    if (!user) {
       return { success: false, error: 'You must be logged in' }
     }
 
@@ -349,7 +349,7 @@ export async function removeToolFromCollection(
       .from('collections')
       .select('id')
       .eq('id', collectionId)
-      .eq('user_id', userId)
+      .eq('user_id', user.id)
       .single()
 
     if (!collection) {

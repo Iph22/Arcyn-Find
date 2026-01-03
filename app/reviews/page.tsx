@@ -11,24 +11,24 @@ import { Badge } from "@/components/ui/badge"
 import { Sidebar } from "@/components/sidebar"
 import { ThemeToggle } from "@/components/theme-toggle"
 import { EmptyState } from "@/components/empty-state"
-import { useUser } from "@clerk/nextjs"
+import { useAuth } from "@/contexts/auth-context"
 import { logger } from "@/lib/logger"
 import { formatDistanceToNow } from "date-fns"
 import type { ReviewWithProfile } from "@/lib/types"
 
 export default function ReviewsPage() {
   const router = useRouter()
-  const { user, isLoaded } = useUser()
+  const { user, isLoading: isAuthLoading, isAuthenticated } = useAuth()
   const [sidebarOpen, setSidebarOpen] = useState(false) // Hidden by default on mobile
   const [reviews, setReviews] = useState<ReviewWithProfile[]>([])
   const [isLoadingReviews, setIsLoadingReviews] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {
-    if (isLoaded && !user) {
+    if (!isAuthLoading && !isAuthenticated) {
       router.push("/")
     }
-  }, [user, isLoaded, router])
+  }, [isAuthenticated, isAuthLoading, router])
 
   useEffect(() => {
     if (user?.id) {
@@ -38,7 +38,7 @@ export default function ReviewsPage() {
 
   const displayedReviews = reviews.slice(0, 20)
 
-  if (!isLoaded) {
+  if (isAuthLoading) {
     return (
       <div className="flex h-screen items-center justify-center">
         <div className="text-center">
@@ -145,7 +145,7 @@ export default function ReviewsPage() {
                 {sidebarOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
               </Button>
               <div className="flex items-center gap-2">
-                
+
                 <span className="text-lg font-bold">Reviews</span>
               </div>
             </div>
@@ -232,11 +232,10 @@ export default function ReviewsPage() {
                             {Array.from({ length: 5 }).map((_, i) => (
                               <Star
                                 key={i}
-                                className={`h-4 w-4 ${
-                                  i < review.rating
+                                className={`h-4 w-4 ${i < review.rating
                                     ? "fill-primary text-primary"
                                     : "fill-muted text-muted"
-                                }`}
+                                  }`}
                               />
                             ))}
                           </div>

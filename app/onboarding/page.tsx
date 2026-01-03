@@ -6,7 +6,7 @@ import { useRouter } from "next/navigation"
 import { ArrowRight, Check, ChevronDown, ArrowLeft, Code, GraduationCap, Briefcase, Palette, Heart } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { usePreferences } from "@/contexts/preferences-context"
-import { useUser } from "@clerk/nextjs"
+import { useAuth } from "@/contexts/auth-context"
 
 // Define types locally since we can't import types easily in this environment
 type UserRole = "developer" | "student" | "designer" | "business" | "enthusiast" | null
@@ -14,7 +14,7 @@ type UserRole = "developer" | "student" | "designer" | "business" | "enthusiast"
 export default function OnboardingPage() {
   const router = useRouter()
   const { updatePreferences, logout } = usePreferences()
-  const { user, isLoaded } = useUser()
+  const { user, isLoading: isAuthLoading, isAuthenticated } = useAuth()
   const containerRef = useRef<HTMLDivElement>(null)
   const [isReady, setIsReady] = useState(false)
 
@@ -28,7 +28,7 @@ export default function OnboardingPage() {
   // Ensure user profile exists in database with username/display_name
   // Also check if user has already completed onboarding/instructions and redirect accordingly
   useEffect(() => {
-    if (isLoaded && user) {
+    if (!isAuthLoading && isAuthenticated && user) {
       const ensureUserProfile = async () => {
         try {
           const response = await fetch('/api/auth/ensure-profile', {
@@ -37,35 +37,35 @@ export default function OnboardingPage() {
               'Content-Type': 'application/json',
             },
           })
-          
+
           if (!response.ok) {
             console.error('Failed to ensure profile:', await response.text())
             return
           }
 
           const data = await response.json()
-          
+
           // If user has completed onboarding but not seen instructions, redirect to instructions
           if (data.onboarding_completed && !data.instructions_seen) {
             router.replace('/instructions')
             return
           }
-          
+
           // If user has completed both onboarding and instructions, redirect to home
           if (data.onboarding_completed && data.instructions_seen) {
             router.replace('/home')
             return
           }
-          
+
           // If user is new (hasn't completed onboarding), stay on onboarding page
         } catch (error) {
           console.error('Error ensuring profile:', error)
         }
       }
-      
+
       ensureUserProfile()
     }
-  }, [user, isLoaded, router])
+  }, [user, isAuthLoading, isAuthenticated, router])
 
   // Clean up URL params if present
   useEffect(() => {
@@ -102,14 +102,14 @@ export default function OnboardingPage() {
         completed: true,
         timestamp: new Date().toISOString(),
       })
-      
+
       if (!result.success) {
         console.error('Failed to save onboarding:', result.error)
         alert('Failed to save onboarding data. Please try again.')
         setIsSaving(false)
         return
       }
-      
+
       // Only update local state and redirect after DB save succeeds
       await updatePreferences({
         userRole: role,
@@ -120,7 +120,7 @@ export default function OnboardingPage() {
         timestamp: new Date().toISOString(),
       })
       localStorage.setItem("arcyn-onboarding-complete", "true")
-      
+
       // Now safe to redirect
       router.push("/instructions")
     } catch (error) {
@@ -164,14 +164,13 @@ export default function OnboardingPage() {
           {[1, 2, 3, 4].map((step) => (
             <div
               key={step}
-              className={`h-1 rounded-full transition-all duration-500 ${
-                (step === 1 && role) ||
-                (step === 2 && purpose) ||
-                (step === 3 && interests.length > 0) ||
-                (step === 4 && experience)
+              className={`h-1 rounded-full transition-all duration-500 ${(step === 1 && role) ||
+                  (step === 2 && purpose) ||
+                  (step === 3 && interests.length > 0) ||
+                  (step === 4 && experience)
                   ? "w-4 sm:w-8 bg-primary"
                   : "w-2 bg-muted"
-              }`}
+                }`}
             />
           ))}
         </div>
@@ -215,11 +214,10 @@ export default function OnboardingPage() {
                     setRole(item.id as UserRole)
                     setTimeout(() => scrollToSection("section-2"), 500)
                   }}
-                  className={`p-4 sm:p-5 md:p-6 rounded-xl sm:rounded-2xl border transition-all duration-300 flex flex-col items-center gap-2 sm:gap-3 md:gap-4 min-h-[100px] sm:min-h-[120px] ${
-                    role === item.id
+                  className={`p-4 sm:p-5 md:p-6 rounded-xl sm:rounded-2xl border transition-all duration-300 flex flex-col items-center gap-2 sm:gap-3 md:gap-4 min-h-[100px] sm:min-h-[120px] ${role === item.id
                       ? "bg-primary/10 border-primary shadow-lg ring-1 ring-primary"
                       : "bg-card/50 border-border hover:bg-accent hover:border-accent-foreground/20 active:scale-[0.98]"
-                  }`}
+                    }`}
                 >
                   <item.icon
                     className={`w-5 h-5 sm:w-6 sm:h-6 md:w-8 md:h-8 ${role === item.id ? "text-primary" : "text-muted-foreground"}`}
@@ -268,11 +266,10 @@ export default function OnboardingPage() {
                     setPurpose(item.id)
                     setTimeout(() => scrollToSection("section-3"), 500)
                   }}
-                  className={`p-4 sm:p-5 md:p-6 rounded-xl sm:rounded-2xl border cursor-pointer transition-all duration-300 min-h-[100px] ${
-                    purpose === item.id
+                  className={`p-4 sm:p-5 md:p-6 rounded-xl sm:rounded-2xl border cursor-pointer transition-all duration-300 min-h-[100px] ${purpose === item.id
                       ? "bg-chart-1/10 border-chart-1 shadow-lg ring-1 ring-chart-1"
                       : "bg-card/50 border-border hover:bg-accent active:scale-[0.98]"
-                  }`}
+                    }`}
                 >
                   <h3 className="text-base sm:text-lg md:text-xl font-bold mb-1 sm:mb-2">{item.title}</h3>
                   <p className="text-xs sm:text-sm md:text-base text-muted-foreground">{item.desc}</p>
@@ -310,11 +307,10 @@ export default function OnboardingPage() {
                     onClick={() => {
                       setInterests((prev) => (prev.includes(tag) ? prev.filter((i) => i !== tag) : [...prev, tag]))
                     }}
-                    className={`px-4 sm:px-5 md:px-6 py-2.5 sm:py-3 rounded-full border transition-all duration-300 capitalize text-xs sm:text-sm md:text-base min-h-[44px] ${
-                      interests.includes(tag)
+                    className={`px-4 sm:px-5 md:px-6 py-2.5 sm:py-3 rounded-full border transition-all duration-300 capitalize text-xs sm:text-sm md:text-base min-h-[44px] ${interests.includes(tag)
                         ? "bg-chart-2/20 border-chart-2 text-chart-2 shadow-lg"
                         : "bg-card/50 border-border text-muted-foreground hover:bg-accent"
-                    }`}
+                      }`}
                   >
                     {tag}
                   </motion.button>
@@ -364,11 +360,10 @@ export default function OnboardingPage() {
                   whileHover={{ x: 10 }}
                   whileTap={{ scale: 0.98 }}
                   onClick={() => setExperience(item.id)}
-                  className={`p-3 sm:p-4 rounded-xl border cursor-pointer flex items-center justify-between transition-all duration-300 min-h-[60px] sm:min-h-[70px] ${
-                    experience === item.id
+                  className={`p-3 sm:p-4 rounded-xl border cursor-pointer flex items-center justify-between transition-all duration-300 min-h-[60px] sm:min-h-[70px] ${experience === item.id
                       ? "bg-chart-3/10 border-chart-3 ring-1 ring-chart-3"
                       : "bg-card/50 border-border hover:bg-accent active:scale-[0.98]"
-                  }`}
+                    }`}
                 >
                   <div>
                     <h4 className="font-bold text-sm sm:text-base md:text-lg">{item.label}</h4>

@@ -16,7 +16,7 @@ import {
 import { ThemeToggle } from "@/components/theme-toggle"
 import { usePreferences } from "@/contexts/preferences-context"
 import { useAvatar } from "@/contexts/avatar-context"
-import { useUser, useClerk } from "@clerk/nextjs"
+import { useAuth } from "@/contexts/auth-context"
 import { cn } from "@/lib/utils"
 import { useHaptic } from "@/hooks/use-haptic"
 import { logger } from "@/lib/logger"
@@ -30,8 +30,7 @@ export function Navbar({ className }: NavbarProps) {
   const router = useRouter()
   const { logout, preferences } = usePreferences()
   const { avatarUrl, displayName } = useAvatar()
-  const { user } = useUser()
-  const { signOut } = useClerk()
+  const { user, signOut } = useAuth()
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
   const { trigger: haptic } = useHaptic()
 
@@ -42,8 +41,8 @@ export function Navbar({ className }: NavbarProps) {
       localStorage.clear()
       sessionStorage.clear()
 
-      // Sign out from Clerk with redirect
-      await signOut({ redirectUrl: '/' })
+      // Sign out and redirect
+      await signOut()
     } catch (error) {
       logger.error("Error signing out:", error)
       // Force clear and redirect on error
@@ -53,8 +52,8 @@ export function Navbar({ className }: NavbarProps) {
     }
   }
 
-  const isAuthPage = pathname === "/" || pathname.startsWith("/auth")
-  const isAuthenticated = preferences?.isAuthenticated
+  const isAuthPage = pathname === "/" || pathname === "/sign-in" || pathname === "/sign-up"
+  // Use isAuthenticated from useAuth as the source of truth for UI state
 
   if (isAuthPage) {
     return null
@@ -154,7 +153,7 @@ export function Navbar({ className }: NavbarProps) {
                     {displayName || preferences?.userName || "User"}
                   </p>
                   <p className="text-xs text-muted-foreground">
-                    {user?.emailAddresses[0]?.emailAddress || preferences?.userEmail || ""}
+                    {user?.email || preferences?.userEmail || ""}
                   </p>
                 </div>
                 <DropdownMenuSeparator />
