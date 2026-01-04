@@ -1,3 +1,12 @@
+/**
+ * Cron Fetch Tools API Route - Security Hardened
+ * 
+ * Security Features:
+ * - Cron secret verification (timing-safe comparison)
+ * - Rate limiting for manual invocations
+ * - Secure environment variable handling
+ */
+
 import { NextResponse } from 'next/server'
 import { fetchFromRSSFeeds } from '@/scripts/sources/rss-feeds'
 import { fetchFromAggregators } from '@/scripts/sources/aggregators'
@@ -7,6 +16,7 @@ import { deduplicateEntries, mergeEntries } from '@/scripts/utils/deduplicator'
 import { getSupabaseAdmin, transformToDBRow } from '@/lib/supabase'
 import { logger } from '@/lib/logger'
 import { createErrorResponse, createSuccessResponse, ErrorCodes } from '@/lib/api-errors'
+import { verifyCronAuthorization } from '@/lib/security'
 import type { AIEntry } from '@/lib/ai-data'
 
 /**
@@ -17,19 +27,19 @@ async function storeInSupabase(entries: AIEntry[]) {
   const batchSize = 50
   let totalInserted = 0
   let totalUpdated = 0
-  
+
   // Get existing tools to check for updates
   const { data: existingTools } = await supabase
     .from('ai_tools')
     .select('id, name, platform')
     .limit(10000)
-  
+
   const existingMap = new Map<string, { id: string; name: string }>()
   existingTools?.forEach(tool => {
     const key = tool.name.toLowerCase().trim()
     existingMap.set(key, { id: tool.id, name: tool.name })
   })
-  
+
   // Process in batches
   for (let i = 0; i < entries.length; i += batchSize) {
     const batch = entries.slice(i, i + batchSize)
@@ -41,60 +51,91 @@ async function storeInSupabase(entries: AIEntry[]) {
       }
       return dbRow
     })
-    
+
     const { data, error } = await supabase
       .from('ai_tools')
       .upsert(toolsToUpsert, { onConflict: 'id' })
       .select()
-    
+
     if (!error && data) {
       const inserted = data.filter(t => !existingMap.has(t.name.toLowerCase().trim())).length
       const updated = data.length - inserted
       totalInserted += inserted
       totalUpdated += updated
     }
-    
+
     if (i + batchSize < entries.length) {
       await new Promise(resolve => setTimeout(resolve, 500))
     }
   }
-  
+
   return { totalInserted, totalUpdated }
 }
 
 /**
  * Vercel Cron endpoint to fetch tools from all sources
  * Runs daily at 2 AM UTC
+ * 
+ * SECURITY: Protected by CRON_SECRET for production environments
  */
 export async function GET(request: Request) {
-  // Verify the request is from Vercel Cron (optional - can be enabled with CRON_SECRET env var)
+  // =========================================================================
+  // AUTHORIZATION - Verify cron secret (timing-safe)
+  // =========================================================================
   const authHeader = request.headers.get('authorization')
-  if (process.env.CRON_SECRET && authHeader !== `Bearer ${process.env.CRON_SECRET}`) {
-    return createErrorResponse('Unauthorized', 401, ErrorCodes.UNAUTHORIZED)
+
+  if (!verifyCronAuthorization(authHeader)) {
+    logger.warn('[Cron] Unauthorized cron request attempt')
+    return createErrorResponse(
+      'Unauthorized - Invalid or missing cron secret',
+      401,
+      ErrorCodes.UNAUTHORIZED
+    )
   }
 
   try {
     logger.log('[Cron] Starting scheduled fetch from all sources...')
-    
-    // Fetch from all sources
+
+    // =========================================================================
+    // FETCH FROM ALL SOURCES
+    // =========================================================================
     const [rssEntries, aggregatorEntries, scraperEntries, communityEntries] = await Promise.all([
-      fetchFromRSSFeeds(),
-      fetchFromAggregators(),
-      fetchFromScrapers(),
-      fetchFromCommunity(),
+      fetchFromRSSFeeds().catch(err => {
+        logger.error('[Cron] RSS feeds error:', err)
+        return []
+      }),
+      fetchFromAggregators().catch(err => {
+        logger.error('[Cron] Aggregators error:', err)
+        return []
+      }),
+      fetchFromScrapers().catch(err => {
+        logger.error('[Cron] Scrapers error:', err)
+        return []
+      }),
+      fetchFromCommunity().catch(err => {
+        logger.error('[Cron] Community error:', err)
+        return []
+      }),
     ])
-    
+
     const allEntries = [...rssEntries, ...aggregatorEntries, ...scraperEntries, ...communityEntries]
-    
+
     // Deduplicate and merge
     const deduplicated = deduplicateEntries(allEntries)
     const merged = mergeEntries(deduplicated)
-    
+
     // Store in Supabase
     const { totalInserted, totalUpdated } = await storeInSupabase(merged)
-    
-    return createSuccessResponse({ 
-      success: true, 
+
+    logger.log('[Cron] Fetch completed successfully:', {
+      totalFetched: allEntries.length,
+      uniqueTools: merged.length,
+      inserted: totalInserted,
+      updated: totalUpdated
+    })
+
+    return createSuccessResponse({
+      success: true,
       message: 'Fetch completed successfully',
       stats: {
         totalFetched: allEntries.length,

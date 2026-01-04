@@ -1,115 +1,71 @@
 /**
- * Simple in-memory rate limiter for API routes
- * For production, consider using Redis or a dedicated rate limiting service
+ * Rate Limit Module - Backwards Compatibility Layer
+ * 
+ * This module re-exports rate limiting utilities from the new security module
+ * for backwards compatibility with existing code.
+ * 
+ * DEPRECATED: Prefer importing directly from '@/lib/security'
+ * 
+ * @deprecated Use imports from '@/lib/security' instead
  */
 
-interface RateLimitStore {
-    [key: string]: {
-        count: number
-        resetTime: number
-    }
-}
+import {
+    checkRateLimit as newCheckRateLimit,
+    getRateLimitHeaders as newGetRateLimitHeaders,
+    type RateLimitConfig as NewRateLimitConfig,
+    type RateLimitResult
+} from './security/rate-limiter'
 
-const store: RateLimitStore = {}
-
-// Clean up old entries every 5 minutes
-let cleanupInterval: NodeJS.Timeout | null = null
-
-// Initialize cleanup interval only in Node.js environment (server-side)
-if (typeof global !== 'undefined' && typeof window === 'undefined') {
-  cleanupInterval = setInterval(() => {
-    const now = Date.now()
-    Object.keys(store).forEach((key) => {
-      if (store[key].resetTime < now) {
-        delete store[key]
-      }
-    })
-  }, 5 * 60 * 1000)
-}
-
-/**
- * Cleanup function for graceful shutdown
- * Call this when shutting down the server (e.g., in a cleanup handler)
- */
-export function cleanupRateLimit(): void {
-  if (cleanupInterval) {
-    clearInterval(cleanupInterval)
-    cleanupInterval = null
-  }
-}
-
-/**
- * Rate limit configuration
- */
+// Legacy interface for backwards compatibility
 export interface RateLimitConfig {
-    windowMs: number // Time window in milliseconds
-    maxRequests: number // Maximum requests per window
-}
-
-const DEFAULT_CONFIG: RateLimitConfig = {
-    windowMs: 60 * 1000, // 1 minute
-    maxRequests: 60, // 60 requests per minute
+    windowMs: number
+    maxRequests: number
 }
 
 /**
- * Get client identifier from request
- */
-function getClientId(request: Request): string {
-    // Try to get IP from headers (works on Vercel and most platforms)
-    const forwarded = request.headers.get('x-forwarded-for')
-    const realIp = request.headers.get('x-real-ip')
-    const ip = forwarded?.split(',')[0] || realIp || 'unknown'
-
-    return ip
-}
-
-/**
- * Check if request should be rate limited
- * @returns { allowed: boolean, remaining: number, resetTime: number }
+ * Legacy checkRateLimit function - converts old config format to new
+ * @deprecated Use checkRateLimit from '@/lib/security' instead
  */
 export function checkRateLimit(
     request: Request,
-    config: RateLimitConfig = DEFAULT_CONFIG
+    config: RateLimitConfig = { windowMs: 60 * 1000, maxRequests: 60 }
 ): { allowed: boolean; remaining: number; resetTime: number } {
-    const clientId = getClientId(request)
-    const now = Date.now()
-
-    // Get or create entry for this client
-    let entry = store[clientId]
-
-    if (!entry || entry.resetTime < now) {
-        // Create new entry or reset expired one
-        entry = {
-            count: 0,
-            resetTime: now + config.windowMs,
-        }
-        store[clientId] = entry
+    // Convert legacy config to new format
+    const newConfig: NewRateLimitConfig = {
+        maxRequests: config.maxRequests,
+        windowSeconds: Math.ceil(config.windowMs / 1000)
     }
 
-    // Increment count
-    entry.count++
-
-    const allowed = entry.count <= config.maxRequests
-    const remaining = Math.max(0, config.maxRequests - entry.count)
+    const result = newCheckRateLimit(request, newConfig)
 
     return {
-        allowed,
-        remaining,
-        resetTime: entry.resetTime,
+        allowed: result.allowed,
+        remaining: result.remaining,
+        resetTime: result.resetTime
     }
 }
 
 /**
- * Create rate limit headers for response
+ * Legacy getRateLimitHeaders function
+ * @deprecated Use getRateLimitHeaders from '@/lib/security' instead
  */
 export function getRateLimitHeaders(
     remaining: number,
     resetTime: number
 ): Record<string, string> {
-    return {
-        'X-RateLimit-Limit': DEFAULT_CONFIG.maxRequests.toString(),
-        'X-RateLimit-Remaining': remaining.toString(),
-        'X-RateLimit-Reset': new Date(resetTime).toISOString(),
+    const result: RateLimitResult = {
+        allowed: true,
+        remaining,
+        resetTime,
+        limit: 60, // Default
+        retryAfterSeconds: Math.ceil((resetTime - Date.now()) / 1000)
     }
+
+    return newGetRateLimitHeaders(result)
 }
 
+/**
+ * Cleanup function
+ * @deprecated Use cleanupRateLimiter from '@/lib/security' instead
+ */
+export { cleanupRateLimiter as cleanupRateLimit } from './security/rate-limiter'

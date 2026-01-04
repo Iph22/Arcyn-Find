@@ -1,48 +1,68 @@
+/**
+ * Contact Form API Route - Security Hardened
+ * 
+ * Security Features:
+ * - Strict rate limiting (IP-based, 3/min)
+ * - Schema-based input validation
+ * - XSS sanitization on all inputs
+ * - Length limits on all fields
+ * - Rejects unexpected fields
+ */
+
 import { NextRequest } from "next/server"
 import { Resend } from "resend"
 import { createErrorResponse, createSuccessResponse, ErrorCodes } from "@/lib/api-errors"
 import { logger } from "@/lib/logger"
-import { checkRateLimit, getRateLimitHeaders } from "@/lib/rate-limit"
-import { RATE_LIMITS } from "@/lib/constants"
+import {
+  checkRateLimit,
+  createRateLimitResponse,
+  getRateLimitHeaders,
+  RATE_LIMIT_PRESETS,
+  parseAndValidateBody,
+  contactFormSchema,
+  sanitizeHtml
+} from "@/lib/security"
 
 // Ensure this runs on Node.js runtime (required for Resend)
 export const runtime = 'nodejs'
 
 export async function POST(request: NextRequest) {
   try {
-    // Rate limiting for contact form (prevent spam)
-    const rateLimit = checkRateLimit(request as Request, {
-      windowMs: 60 * 1000, // 1 minute
-      maxRequests: 5, // 5 submissions per minute
-    })
-    
+    // =========================================================================
+    // RATE LIMITING - Strict limits for contact form (prevent spam)
+    // =========================================================================
+    const rateLimit = checkRateLimit(request, RATE_LIMIT_PRESETS.CONTACT)
+
     if (!rateLimit.allowed) {
-      return createErrorResponse(
-        new Error("Too many contact form submissions. Please try again later."),
-        429,
-        ErrorCodes.RATE_LIMIT_EXCEEDED
+      logger.warn('[Contact] Rate limit exceeded:', {
+        remaining: rateLimit.remaining,
+        resetAt: new Date(rateLimit.resetTime).toISOString()
+      })
+      return createRateLimitResponse(
+        rateLimit,
+        'Too many contact form submissions. Please wait before trying again.'
       )
     }
 
-    const body = await request.json()
-    const { name, email, subject, message } = body
+    // =========================================================================
+    // INPUT VALIDATION - Schema-based with sanitization
+    // =========================================================================
+    const parseResult = await parseAndValidateBody(request, contactFormSchema)
 
-    // Validate required fields
-    if (!name || !email || !subject || !message) {
-      return createErrorResponse(new Error("All fields are required"), 400, ErrorCodes.VALIDATION_ERROR)
+    if ('error' in parseResult) {
+      return parseResult.error
     }
 
-    // Validate email format
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
-    if (!emailRegex.test(email)) {
-      return createErrorResponse(new Error("Invalid email format"), 400, ErrorCodes.VALIDATION_ERROR)
-    }
+    const { name, email, subject, message } = parseResult.data
 
-    // Check if Resend API key is configured
+    // =========================================================================
+    // EMAIL SENDING
+    // =========================================================================
     const resendApiKey = process.env.RESEND_API_KEY
 
     if (!resendApiKey) {
-      logger.error("RESEND_API_KEY is not configured")
+      logger.error("[Contact] RESEND_API_KEY is not configured")
+
       // For development, log the email instead of failing
       if (process.env.NODE_ENV === "development") {
         logger.log("=== Contact Form Submission (Resend not configured) ===")
@@ -50,11 +70,8 @@ export async function POST(request: NextRequest) {
         logger.log("Email:", email)
         logger.log("Subject:", subject)
         logger.log("Message:", message)
-        logger.log("=====================================================")
-      }
+        logger.log("=======================================================")
 
-      // Return success in development, error in production
-      if (process.env.NODE_ENV === "development") {
         return createSuccessResponse({
           success: true,
           message: "Email logged (Resend not configured in development)",
@@ -72,31 +89,19 @@ export async function POST(request: NextRequest) {
     // Initialize Resend inside the handler
     const resend = new Resend(resendApiKey)
 
-    // Escape HTML in user input to prevent XSS
-    const escapeHtml = (text: string) => {
-      const map: Record<string, string> = {
-        "&": "&amp;",
-        "<": "&lt;",
-        ">": "&gt;",
-        '"': "&quot;",
-        "'": "&#039;",
-      }
-      return text.replace(/[&<>"']/g, (m) => map[m])
-    }
+    // Double-sanitize for HTML email (already sanitized by schema, but extra safety)
+    const safeName = sanitizeHtml(name)
+    const safeEmail = sanitizeHtml(email)
+    const safeSubject = sanitizeHtml(subject)
+    const safeMessage = sanitizeHtml(message)
 
-    const safeName = escapeHtml(name)
-    const safeEmail = escapeHtml(email)
-    const safeSubject = escapeHtml(subject)
-    const safeMessage = escapeHtml(message)
-
-    // Send email using Resend
     // Use onresend.com domain for testing, or your verified domain
     const fromEmail = process.env.RESEND_FROM_EMAIL || "onboarding@resend.dev"
 
     const { data, error } = await resend.emails.send({
       from: `Arcyn Find <${fromEmail}>`,
       to: ["arcynflow@gmail.com"],
-      replyTo: email,
+      replyTo: email, // Original email for reply
       subject: `Contact Form: ${safeSubject}`,
       html: `
         <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
@@ -133,7 +138,7 @@ ${message}
     })
 
     if (error) {
-      logger.error("Resend error:", error)
+      logger.error("[Contact] Resend error:", error)
       const errorMessage = error instanceof Error
         ? error.message
         : typeof error === 'string'
@@ -146,17 +151,21 @@ ${message}
       )
     }
 
+    // Success response with rate limit headers
     const response = createSuccessResponse({
       success: true,
       messageId: data?.id,
     })
-    // Add rate limit headers
-    response.headers.set('X-RateLimit-Limit', '5')
-    response.headers.set('X-RateLimit-Remaining', rateLimit.remaining.toString())
-    response.headers.set('X-RateLimit-Reset', new Date(rateLimit.resetTime).toISOString())
+
+    // Add rate limit headers for client awareness
+    const headers = getRateLimitHeaders(rateLimit)
+    Object.entries(headers).forEach(([key, value]) => {
+      response.headers.set(key, value)
+    })
+
     return response
   } catch (error) {
-    logger.error("Error processing contact form:", error)
+    logger.error("[Contact] Error processing contact form:", error)
     return createErrorResponse(
       error instanceof Error ? error.message : "Failed to process request",
       500,
@@ -164,4 +173,3 @@ ${message}
     )
   }
 }
-

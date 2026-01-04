@@ -1,49 +1,97 @@
+/**
+ * Review by ID API Route - Security Hardened
+ * 
+ * Security Features:
+ * - User-based rate limiting
+ * - Schema-based input validation
+ * - Ownership verification
+ */
+
 import { NextRequest } from "next/server"
 import { getCurrentUser } from "@/lib/auth-server"
 import { createErrorResponse, createSuccessResponse, ErrorCodes } from "@/lib/api-errors"
-import { validateBody, updateReviewSchema } from "@/lib/validation"
 import { logger } from "@/lib/logger"
 import { ReviewsService } from "@/lib/services/reviews.service"
+import {
+  checkRateLimit,
+  createRateLimitResponse,
+  getRateLimitHeaders,
+  RATE_LIMIT_PRESETS,
+  parseAndValidateBody,
+  updateReviewSchema,
+  safeId
+} from "@/lib/security"
 
 export async function PUT(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const { id } = await params
+    // =========================================================================
+    // AUTHENTICATION
+    // =========================================================================
     const user = await getCurrentUser()
     if (!user) {
       return createErrorResponse("Unauthorized", 401, ErrorCodes.UNAUTHORIZED)
     }
 
-    const body = await request.json()
-    
-    // Handle comment alias for review_text
-    if (body.comment && !body.review_text) {
-      body.review_text = body.comment
-    }
-    
-    // Validate request body
-    const validation = validateBody(updateReviewSchema, body)
-    if (!validation.success) {
-      return createErrorResponse(validation.error, 400, ErrorCodes.VALIDATION_ERROR)
+    // =========================================================================
+    // RATE LIMITING
+    // =========================================================================
+    const rateLimit = checkRateLimit(request, RATE_LIMIT_PRESETS.WRITE, user.id)
+
+    if (!rateLimit.allowed) {
+      return createRateLimitResponse(rateLimit)
     }
 
-    // Verify ownership
+    // =========================================================================
+    // INPUT VALIDATION
+    // =========================================================================
+    const { id } = await params
+
+    // Validate ID format
+    const idValidation = safeId.safeParse(id)
+    if (!idValidation.success) {
+      return createErrorResponse('Invalid review ID format', 400, ErrorCodes.VALIDATION_ERROR)
+    }
+
+    // Parse and validate body
+    const parseResult = await parseAndValidateBody(request, updateReviewSchema)
+
+    if ('error' in parseResult) {
+      return parseResult.error
+    }
+
+    // =========================================================================
+    // OWNERSHIP VERIFICATION
+    // =========================================================================
     const isOwner = await ReviewsService.verifyOwnership(id, user.id)
     if (!isOwner) {
       return createErrorResponse("Forbidden", 403, ErrorCodes.FORBIDDEN)
     }
 
+    // =========================================================================
+    // UPDATE REVIEW
+    // =========================================================================
+    const { rating, title, review_text } = parseResult.data
+
     const review = await ReviewsService.updateReview(id, {
-      rating: validation.data.rating,
-      title: validation.data.title,
-      review_text: validation.data.review_text,
+      rating,
+      title,
+      review_text,
     })
 
-    return createSuccessResponse({ review })
+    const response = createSuccessResponse({ review })
+
+    // Add rate limit headers
+    const headers = getRateLimitHeaders(rateLimit)
+    Object.entries(headers).forEach(([key, value]) => {
+      response.headers.set(key, value)
+    })
+
+    return response
   } catch (error) {
-    logger.error("Error updating review:", error)
+    logger.error("[Reviews] Error updating review:", error)
     return createErrorResponse(
       error instanceof Error ? error.message : "Failed to update review",
       500,
@@ -57,22 +105,58 @@ export async function DELETE(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const { id } = await params
+    // =========================================================================
+    // AUTHENTICATION
+    // =========================================================================
     const user = await getCurrentUser()
     if (!user) {
       return createErrorResponse("Unauthorized", 401, ErrorCodes.UNAUTHORIZED)
     }
 
-    // Verify ownership
+    // =========================================================================
+    // RATE LIMITING
+    // =========================================================================
+    const rateLimit = checkRateLimit(request, RATE_LIMIT_PRESETS.WRITE, user.id)
+
+    if (!rateLimit.allowed) {
+      return createRateLimitResponse(rateLimit)
+    }
+
+    // =========================================================================
+    // INPUT VALIDATION
+    // =========================================================================
+    const { id } = await params
+
+    // Validate ID format
+    const idValidation = safeId.safeParse(id)
+    if (!idValidation.success) {
+      return createErrorResponse('Invalid review ID format', 400, ErrorCodes.VALIDATION_ERROR)
+    }
+
+    // =========================================================================
+    // OWNERSHIP VERIFICATION
+    // =========================================================================
     const isOwner = await ReviewsService.verifyOwnership(id, user.id)
     if (!isOwner) {
       return createErrorResponse("Forbidden", 403, ErrorCodes.FORBIDDEN)
     }
 
+    // =========================================================================
+    // DELETE REVIEW
+    // =========================================================================
     await ReviewsService.deleteReview(id)
-    return createSuccessResponse({ success: true })
+
+    const response = createSuccessResponse({ success: true })
+
+    // Add rate limit headers
+    const headers = getRateLimitHeaders(rateLimit)
+    Object.entries(headers).forEach(([key, value]) => {
+      response.headers.set(key, value)
+    })
+
+    return response
   } catch (error) {
-    logger.error("Error deleting review:", error)
+    logger.error("[Reviews] Error deleting review:", error)
     return createErrorResponse(
       error instanceof Error ? error.message : "Failed to delete review",
       500,
@@ -80,4 +164,3 @@ export async function DELETE(
     )
   }
 }
-
