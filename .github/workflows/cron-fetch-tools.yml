@@ -1,0 +1,29 @@
+# GitHub Actions Cron - Free Alternative to Vercel Cron
+# Runs daily to fetch new AI tools from all sources
+
+name: Fetch AI Tools (Daily)
+
+on:
+  schedule:
+    # Runs daily at 2 AM UTC
+    - cron: '0 2 * * *'
+  workflow_dispatch: # Allow manual trigger
+
+jobs:
+  fetch-tools:
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Trigger Fetch Tools Endpoint
+        run: |
+          curl -X GET \
+            -H "Authorization: Bearer ${{ secrets.CRON_SECRET }}" \
+            -H "Content-Type: application/json" \
+            "${{ secrets.SITE_URL }}/api/cron/fetch-tools" \
+            --fail --silent --show-error
+        env:
+          SITE_URL: ${{ secrets.SITE_URL }}
+          CRON_SECRET: ${{ secrets.CRON_SECRET }}
+
+      - name: Log Result
+        run: echo "✅ Fetch tools completed at $(date)"

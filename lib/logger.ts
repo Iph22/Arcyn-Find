@@ -21,17 +21,23 @@ export const logger = {
       console.log('[LOG]', ...args)
     }
   },
-  
+
+  info: (...args: unknown[]) => {
+    if (shouldLog('log')) {
+      console.log('[INFO]', ...args)
+    }
+  },
+
   warn: (...args: unknown[]) => {
     if (shouldLog('warn')) {
       console.warn('[WARN]', ...args)
     }
   },
-  
+
   error: (...args: unknown[]) => {
     console.error('[ERROR]', ...args)
   },
-  
+
   debug: (...args: unknown[]) => {
     if (shouldLog('debug')) {
       console.debug('[DEBUG]', ...args)

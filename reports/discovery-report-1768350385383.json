@@ -1,0 +1,1114 @@
+{
+  "generatedAt": "2026-01-14T00:26:25.381Z",
+  "statistics": {
+    "totalTools": 7008,
+    "totalWithImages": 7008,
+    "totalWithoutImages": 0,
+    "imagePercentage": 100,
+    "totalCategories": 16,
+    "githubTools": 493,
+    "recentTools": 16
+  },
+  "categories": {
+    "Generative AI": {
+      "total": 6093,
+      "withImages": 6093,
+      "withoutImages": 0,
+      "percentage": "100.0"
+    },
+    "Video & Audio": {
+      "total": 151,
+      "withImages": 151,
+      "withoutImages": 0,
+      "percentage": "100.0"
+    },
+    "Computer Vision": {
+      "total": 233,
+      "withImages": 233,
+      "withoutImages": 0,
+      "percentage": "100.0"
+    },
+    "Learning & Education": {
+      "total": 81,
+      "withImages": 81,
+      "withoutImages": 0,
+      "percentage": "100.0"
+    },
+    "AI Detection": {
+      "total": 95,
+      "withImages": 95,
+      "withoutImages": 0,
+      "percentage": "100.0"
+    },
+    "AI Coding Agents": {
+      "total": 36,
+      "withImages": 36,
+      "withoutImages": 0,
+      "percentage": "100.0"
+    },
+    "ChatBots": {
+      "total": 96,
+      "withImages": 96,
+      "withoutImages": 0,
+      "percentage": "100.0"
+    },
+    "IDEs": {
+      "total": 15,
+      "withImages": 15,
+      "withoutImages": 0,
+      "percentage": "100.0"
+    },
+    "AI Detection Tool": {
+      "total": 66,
+      "withImages": 66,
+      "withoutImages": 0,
+      "percentage": "100.0"
+    },
+    "Productivity": {
+      "total": 2,
+      "withImages": 2,
+      "withoutImages": 0,
+      "percentage": "100.0"
+    },
+    "Data & Analytics": {
+      "total": 100,
+      "withImages": 100,
+      "withoutImages": 0,
+      "percentage": "100.0"
+    },
+    "Voice & Speech": {
+      "total": 24,
+      "withImages": 24,
+      "withoutImages": 0,
+      "percentage": "100.0"
+    },
+    "Image Generation": {
+      "total": 1,
+      "withImages": 1,
+      "withoutImages": 0,
+      "percentage": "100.0"
+    },
+    "Multimodal Platform": {
+      "total": 1,
+      "withImages": 1,
+      "withoutImages": 0,
+      "percentage": "100.0"
+    },
+    "Code Generation": {
+      "total": 7,
+      "withImages": 7,
+      "withoutImages": 0,
+      "percentage": "100.0"
+    },
+    "Research & Education": {
+      "total": 7,
+      "withImages": 7,
+      "withoutImages": 0,
+      "percentage": "100.0"
+    }
+  },
+  "ideTools": [
+    {
+      "name": "Canva Image Generator",
+      "category": "Video & Audio",
+      "platform": "http://partner.canva.com/kjnJeV",
+      "hasImage": true
+    },
+    {
+      "name": "Vidnami Pro",
+      "category": "Video & Audio",
+      "platform": "https://vidnamipro.com/?utm_source=opentools.ai&utm_medium=web",
+      "hasImage": true
+    },
+    {
+      "name": "Video2Quiz",
+      "category": "Video & Audio",
+      "platform": "https://video2quiz.com/?utm_source=opentools.ai&utm_medium=web",
+      "hasImage": true
+    },
+    {
+      "name": "Kilo Code",
+      "category": "IDEs",
+      "platform": "https://kilocode.ai",
+      "hasImage": true
+    },
+    {
+      "name": "Latte Social",
+      "category": "Video & Audio",
+      "platform": "https://www.latte.social/",
+      "hasImage": true
+    },
+    {
+      "name": "Antigravity",
+      "category": "IDEs",
+      "platform": "https://cloud.google.com/antigravity",
+      "hasImage": true
+    },
+    {
+      "name": "DeepBrain AI",
+      "category": "Video & Audio",
+      "platform": "https://www.deepbrain.io",
+      "hasImage": true
+    },
+    {
+      "name": "HeyGen",
+      "category": "Video & Audio",
+      "platform": "https://www.heygen.com",
+      "hasImage": true
+    },
+    {
+      "name": "AVCLabs Video Enhancer",
+      "category": "Video & Audio",
+      "platform": "https://www.avclabs.com/video-enhancer-ai.html?utm_source=opentools.ai&utm_medium=web",
+      "hasImage": true
+    },
+    {
+      "name": "Videoleap",
+      "category": "Video & Audio",
+      "platform": "https://www.videoleapapp.com/?ref=opentools.ai",
+      "hasImage": true
+    },
+    {
+      "name": "Video Editor AI",
+      "category": "Video & Audio",
+      "platform": "https://videoeditorai.com/?utm_source=opentools.ai&utm_medium=web&utm_campaign=listing",
+      "hasImage": true
+    },
+    {
+      "name": "chatgpt-widescreen",
+      "category": "Generative AI",
+      "platform": "https://github.com/adamlui/chatgpt-widescreen",
+      "hasImage": true
+    },
+    {
+      "name": "Zeroscope Text-To-Video",
+      "category": "Video & Audio",
+      "platform": "https://huggingface.co/spaces/fffiloni/zeroscope?utm_source=opentools.ai&utm_medium=web",
+      "hasImage": true
+    },
+    {
+      "name": "Windsurf",
+      "category": "IDEs",
+      "platform": "https://code.windsurf.ai",
+      "hasImage": true
+    },
+    {
+      "name": "PyCharm",
+      "category": "IDEs",
+      "platform": "https://www.jetbrains.com/pycharm",
+      "hasImage": true
+    },
+    {
+      "name": "WebStorm",
+      "category": "IDEs",
+      "platform": "https://www.jetbrains.com/webstorm",
+      "hasImage": true
+    },
+    {
+      "name": "Jupyter",
+      "category": "IDEs",
+      "platform": "https://jupyter.org",
+      "hasImage": true
+    },
+    {
+      "name": "JupyterLab",
+      "category": "IDEs",
+      "platform": "https://jupyter.org",
+      "hasImage": true
+    },
+    {
+      "name": "Vidu AI Video Generator",
+      "category": "Video & Audio",
+      "platform": "https://www.vidu.com/",
+      "hasImage": true
+    },
+    {
+      "name": "Runway",
+      "category": "Video & Audio",
+      "platform": "https://runwayml.com",
+      "hasImage": true
+    },
+    {
+      "name": "Synthesia",
+      "category": "Video & Audio",
+      "platform": "https://www.synthesia.io",
+      "hasImage": true
+    },
+    {
+      "name": "evidently",
+      "category": "Generative AI",
+      "platform": "https://github.com/evidentlyai/evidently",
+      "hasImage": true
+    },
+    {
+      "name": "Descript",
+      "category": "Video & Audio",
+      "platform": "https://www.descript.com",
+      "hasImage": true
+    },
+    {
+      "name": "jupyter-ai",
+      "category": "IDEs",
+      "platform": "https://github.com/jupyterlab/jupyter-ai",
+      "hasImage": true
+    },
+    {
+      "name": "odin-slides",
+      "category": "Generative AI",
+      "platform": "https://github.com/leonid20000/odin-slides",
+      "hasImage": true
+    },
+    {
+      "name": "timeline-studio",
+      "category": "Video & Audio",
+      "platform": "https://github.com/chatman-media/timeline-studio",
+      "hasImage": true
+    },
+    {
+      "name": "Weet",
+      "category": "Video & Audio",
+      "platform": "https://weet.co/?utm_source=opentools.ai&utm_medium=web",
+      "hasImage": true
+    },
+    {
+      "name": "HitPaw Video Enhancer",
+      "category": "Video & Audio",
+      "platform": "https://www.hitpaw.com/hitpaw-video-enhancer.html",
+      "hasImage": true
+    },
+    {
+      "name": "Gling",
+      "category": "Video & Audio",
+      "platform": "https://www.gling.ai/",
+      "hasImage": true
+    },
+    {
+      "name": "Bannerbear",
+      "category": "Video & Audio",
+      "platform": "https://www.bannerbear.com/?via=matt",
+      "hasImage": true
+    },
+    {
+      "name": "Flowjin",
+      "category": "Video & Audio",
+      "platform": "https://www.flowjin.com/?utm_source=opentools.ai&utm_medium=web",
+      "hasImage": true
+    },
+    {
+      "name": "VideoMyListing",
+      "category": "Video & Audio",
+      "platform": "https://www.videomylisting.com/?utm_source=opentools.ai&utm_medium=web",
+      "hasImage": true
+    },
+    {
+      "name": "Klipme",
+      "category": "Video & Audio",
+      "platform": "https://klipmeapp.com/?utm_source=opentools.ai&utm_medium=web",
+      "hasImage": true
+    },
+    {
+      "name": "HitPaw Online Video Enhancer",
+      "category": "Video & Audio",
+      "platform": "https://online.hitpaw.com/online-video-enhancer.html?utm_source=opentools.ai&utm_medium=web&utm_campaign=listing",
+      "hasImage": true
+    },
+    {
+      "name": "Ssemble",
+      "category": "Video & Audio",
+      "platform": "https://www.ssemble.com/?utm_source=opentools.ai&utm_medium=web",
+      "hasImage": true
+    },
+    {
+      "name": "Lumen5",
+      "category": "Video & Audio",
+      "platform": "https://lumen5.com/",
+      "hasImage": true
+    },
+    {
+      "name": "Mootion",
+      "category": "Video & Audio",
+      "platform": "https://mootion.com/landing",
+      "hasImage": true
+    },
+    {
+      "name": "Oxolo",
+      "category": "Video & Audio",
+      "platform": "https://www.oxolo.com/",
+      "hasImage": true
+    },
+    {
+      "name": "LOVO AI",
+      "category": "Video & Audio",
+      "platform": "https://lovo.ai/",
+      "hasImage": true
+    },
+    {
+      "name": "Sora-FullStack",
+      "category": "Video & Audio",
+      "platform": "https://github.com/TornadoInsight/Sora-FullStack",
+      "hasImage": true
+    },
+    {
+      "name": "Tubtic",
+      "category": "Video & Audio",
+      "platform": "https://www.tubtic.com/",
+      "hasImage": true
+    },
+    {
+      "name": "FastCut",
+      "category": "Video & Audio",
+      "platform": "https://www.fastcutai.co/?utm_source=opentools.ai&utm_medium=web",
+      "hasImage": true
+    },
+    {
+      "name": "Wave.Video",
+      "category": "Video & Audio",
+      "platform": "https://wave.video/",
+      "hasImage": true
+    },
+    {
+      "name": "Piktochart AI",
+      "category": "Video & Audio",
+      "platform": "https://piktochart.com/generative-ai?utm_source=opentools.ai&utm_medium=web",
+      "hasImage": true
+    },
+    {
+      "name": "EditAir",
+      "category": "Video & Audio",
+      "platform": "https://www.editair.app/?utm_source=opentools.ai&utm_medium=web&utm_campaign=listing",
+      "hasImage": true
+    },
+    {
+      "name": "Pictory",
+      "category": "Video & Audio",
+      "platform": "https://pictory.ai/",
+      "hasImage": true
+    },
+    {
+      "name": "jogg.ai",
+      "category": "Video & Audio",
+      "platform": "https://www.jogg.ai/",
+      "hasImage": true
+    },
+    {
+      "name": "Yepic Studio",
+      "category": "Video & Audio",
+      "platform": "https://yepic.ai/studio?utm_source=opentools.ai&utm_medium=web",
+      "hasImage": true
+    },
+    {
+      "name": "Viral AI Video Maker",
+      "category": "Video & Audio",
+      "platform": "https://veo3video.me/",
+      "hasImage": true
+    },
+    {
+      "name": "Wondershare Presentory",
+      "category": "Video & Audio",
+      "platform": "https://presentory.wondershare.com/?utm_source=opentools.ai&utm_medium=web",
+      "hasImage": true
+    }
+  ],
+  "newlyDiscovered": {
+    "githubTools": [
+      {
+        "name": "TTS-WebUI",
+        "category": "Generative AI",
+        "platform": "https://github.com/rsxdalv/TTS-WebUI",
+        "hasImage": true
+      },
+      {
+        "name": "model-optimization",
+        "category": "Generative AI",
+        "platform": "https://github.com/tensorflow/model-optimization",
+        "hasImage": true
+      },
+      {
+        "name": "aimet",
+        "category": "Generative AI",
+        "platform": "https://github.com/quic/aimet",
+        "hasImage": true
+      },
+      {
+        "name": "MIVisionX",
+        "category": "Generative AI",
+        "platform": "https://github.com/ROCm/MIVisionX",
+        "hasImage": true
+      },
+      {
+        "name": "tuicr",
+        "category": "Generative AI",
+        "platform": "https://github.com/agavra/tuicr",
+        "hasImage": true
+      },
+      {
+        "name": "AetherLink",
+        "category": "ChatBots",
+        "platform": "https://github.com/1600822305/AetherLink",
+        "hasImage": true
+      },
+      {
+        "name": "generative-ai-application-builder-on-aws",
+        "category": "ChatBots",
+        "platform": "https://github.com/aws-solutions/generative-ai-application-builder-on-aws",
+        "hasImage": true
+      },
+      {
+        "name": "AIGC-Interview-Book",
+        "category": "Generative AI",
+        "platform": "https://github.com/WeThinkIn/AIGC-Interview-Book",
+        "hasImage": true
+      },
+      {
+        "name": "zeroshot",
+        "category": "Generative AI",
+        "platform": "https://github.com/covibes/zeroshot",
+        "hasImage": true
+      },
+      {
+        "name": "taranis-ai",
+        "category": "Generative AI",
+        "platform": "https://github.com/taranis-ai/taranis-ai",
+        "hasImage": true
+      },
+      {
+        "name": "ai-guide",
+        "category": "Generative AI",
+        "platform": "https://github.com/liyupi/ai-guide",
+        "hasImage": true
+      },
+      {
+        "name": "edge-ai",
+        "category": "Generative AI",
+        "platform": "https://github.com/crespum/edge-ai",
+        "hasImage": true
+      },
+      {
+        "name": "awesome-foundation-model-leaderboards",
+        "category": "Generative AI",
+        "platform": "https://github.com/SAILResearch/awesome-foundation-model-leaderboards",
+        "hasImage": true
+      },
+      {
+        "name": "tbp.monty",
+        "category": "Generative AI",
+        "platform": "https://github.com/thousandbrainsproject/tbp.monty",
+        "hasImage": true
+      },
+      {
+        "name": "ClimaAtmos.jl",
+        "category": "Generative AI",
+        "platform": "https://github.com/CliMA/ClimaAtmos.jl",
+        "hasImage": true
+      },
+      {
+        "name": "cog",
+        "category": "Generative AI",
+        "platform": "https://github.com/replicate/cog",
+        "hasImage": true
+      },
+      {
+        "name": "biochatter",
+        "category": "ChatBots",
+        "platform": "https://github.com/biocypher/biochatter",
+        "hasImage": true
+      },
+      {
+        "name": "sdk-python",
+        "category": "Generative AI",
+        "platform": "https://github.com/strands-agents/sdk-python",
+        "hasImage": true
+      },
+      {
+        "name": "ComfyUI_Yvann-Nodes",
+        "category": "Generative AI",
+        "platform": "https://github.com/yvann-ba/ComfyUI_Yvann-Nodes",
+        "hasImage": true
+      },
+      {
+        "name": "LTX-2",
+        "category": "Generative AI",
+        "platform": "https://github.com/Lightricks/LTX-2",
+        "hasImage": true
+      },
+      {
+        "name": "Bindu",
+        "category": "Generative AI",
+        "platform": "https://github.com/GetBindu/Bindu",
+        "hasImage": true
+      },
+      {
+        "name": "PageTalk",
+        "category": "ChatBots",
+        "platform": "https://github.com/jeanchristophe13v/PageTalk",
+        "hasImage": true
+      },
+      {
+        "name": "gaia",
+        "category": "Generative AI",
+        "platform": "https://github.com/theexperiencecompany/gaia",
+        "hasImage": true
+      },
+      {
+        "name": "plugin-ghidra",
+        "category": "Generative AI",
+        "platform": "https://github.com/RevEngAI/plugin-ghidra",
+        "hasImage": true
+      },
+      {
+        "name": "strwythura",
+        "category": "Generative AI",
+        "platform": "https://github.com/DerwenAI/strwythura",
+        "hasImage": true
+      },
+      {
+        "name": "agentica",
+        "category": "ChatBots",
+        "platform": "https://github.com/wrtnlabs/agentica",
+        "hasImage": true
+      },
+      {
+        "name": "doccano",
+        "category": "Generative AI",
+        "platform": "https://github.com/doccano/doccano",
+        "hasImage": true
+      },
+      {
+        "name": "Journals-of-Prognostics-and-Health-Management",
+        "category": "Generative AI",
+        "platform": "https://github.com/liguge/Journals-of-Prognostics-and-Health-Management",
+        "hasImage": true
+      },
+      {
+        "name": "llm7.io",
+        "category": "Generative AI",
+        "platform": "https://github.com/chigwell/llm7.io",
+        "hasImage": true
+      },
+      {
+        "name": "article-idea-generator",
+        "category": "Generative AI",
+        "platform": "https://github.com/Olanetsoft/article-idea-generator",
+        "hasImage": true
+      },
+      {
+        "name": "smalltalk",
+        "category": "ChatBots",
+        "platform": "https://github.com/tinystruct/smalltalk",
+        "hasImage": true
+      },
+      {
+        "name": "open-research-ANA",
+        "category": "ChatBots",
+        "platform": "https://github.com/CopilotKit/open-research-ANA",
+        "hasImage": true
+      },
+      {
+        "name": "agnai",
+        "category": "ChatBots",
+        "platform": "https://github.com/agnaistic/agnai",
+        "hasImage": true
+      },
+      {
+        "name": "minecraft-mcp-server",
+        "category": "Generative AI",
+        "platform": "https://github.com/yuniko-software/minecraft-mcp-server",
+        "hasImage": true
+      },
+      {
+        "name": "BodhiApp",
+        "category": "Generative AI",
+        "platform": "https://github.com/BodhiSearch/BodhiApp",
+        "hasImage": true
+      },
+      {
+        "name": "json_repair",
+        "category": "Generative AI",
+        "platform": "https://github.com/mangiucugna/json_repair",
+        "hasImage": true
+      },
+      {
+        "name": "lfai-landscape",
+        "category": "Generative AI",
+        "platform": "https://github.com/lfai/lfai-landscape",
+        "hasImage": true
+      },
+      {
+        "name": "eli5",
+        "category": "Generative AI",
+        "platform": "https://github.com/TeamHG-Memex/eli5",
+        "hasImage": true
+      },
+      {
+        "name": "accelerated-data-science",
+        "category": "Generative AI",
+        "platform": "https://github.com/oracle/accelerated-data-science",
+        "hasImage": true
+      },
+      {
+        "name": "VeritasGraph",
+        "category": "Generative AI",
+        "platform": "https://github.com/bibinprathap/VeritasGraph",
+        "hasImage": true
+      },
+      {
+        "name": "Mapperatorinator",
+        "category": "Generative AI",
+        "platform": "https://github.com/OliBomby/Mapperatorinator",
+        "hasImage": true
+      },
+      {
+        "name": "dynamiq",
+        "category": "Generative AI",
+        "platform": "https://github.com/dynamiq-ai/dynamiq",
+        "hasImage": true
+      },
+      {
+        "name": "autoflow",
+        "category": "ChatBots",
+        "platform": "https://github.com/pingcap/autoflow",
+        "hasImage": true
+      },
+      {
+        "name": "aiChatPreset",
+        "category": "ChatBots",
+        "platform": "https://github.com/tinygeeker/aiChatPreset",
+        "hasImage": true
+      },
+      {
+        "name": "unravelsports",
+        "category": "Generative AI",
+        "platform": "https://github.com/UnravelSports/unravelsports",
+        "hasImage": true
+      },
+      {
+        "name": "kedro",
+        "category": "Generative AI",
+        "platform": "https://github.com/kedro-org/kedro",
+        "hasImage": true
+      },
+      {
+        "name": "xorq",
+        "category": "Generative AI",
+        "platform": "https://github.com/xorq-labs/xorq",
+        "hasImage": true
+      },
+      {
+        "name": "vespa",
+        "category": "Generative AI",
+        "platform": "https://github.com/vespa-engine/vespa",
+        "hasImage": true
+      },
+      {
+        "name": "100-AI-Machine-learning-Deep-learning-Computer-vision-NLP",
+        "category": "Generative AI",
+        "platform": "https://github.com/darkdevil3610/100-AI-Machine-learning-Deep-learning-Computer-vision-NLP",
+        "hasImage": true
+      },
+      {
+        "name": "exospherehost",
+        "category": "Generative AI",
+        "platform": "https://github.com/exospherehost/exospherehost",
+        "hasImage": true
+      },
+      {
+        "name": "incubator-kie-optaplanner",
+        "category": "Generative AI",
+        "platform": "https://github.com/apache/incubator-kie-optaplanner",
+        "hasImage": true
+      },
+      {
+        "name": "gamspy",
+        "category": "Generative AI",
+        "platform": "https://github.com/GAMS-dev/gamspy",
+        "hasImage": true
+      },
+      {
+        "name": "sagemaker-python-sdk",
+        "category": "Generative AI",
+        "platform": "https://github.com/aws/sagemaker-python-sdk",
+        "hasImage": true
+      },
+      {
+        "name": "brainwave",
+        "category": "Generative AI",
+        "platform": "https://github.com/sanidhyy/brainwave",
+        "hasImage": true
+      },
+      {
+        "name": "BotSharp-UI",
+        "category": "ChatBots",
+        "platform": "https://github.com/SciSharp/BotSharp-UI",
+        "hasImage": true
+      },
+      {
+        "name": "ChatALL",
+        "category": "ChatBots",
+        "platform": "https://github.com/ai-shifu/ChatALL",
+        "hasImage": true
+      },
+      {
+        "name": "langfair",
+        "category": "Generative AI",
+        "platform": "https://github.com/cvs-health/langfair",
+        "hasImage": true
+      },
+      {
+        "name": "sre",
+        "category": "Generative AI",
+        "platform": "https://github.com/SmythOS/sre",
+        "hasImage": true
+      },
+      {
+        "name": "skyportal",
+        "category": "Generative AI",
+        "platform": "https://github.com/skyportal/skyportal",
+        "hasImage": true
+      },
+      {
+        "name": "fAIr",
+        "category": "Generative AI",
+        "platform": "https://github.com/hotosm/fAIr",
+        "hasImage": true
+      },
+      {
+        "name": "tract",
+        "category": "Generative AI",
+        "platform": "https://github.com/sonos/tract",
+        "hasImage": true
+      },
+      {
+        "name": "specification",
+        "category": "Generative AI",
+        "platform": "https://github.com/CycloneDX/specification",
+        "hasImage": true
+      },
+      {
+        "name": "RAGLight",
+        "category": "Generative AI",
+        "platform": "https://github.com/Bessouat40/RAGLight",
+        "hasImage": true
+      },
+      {
+        "name": "webwhiz",
+        "category": "ChatBots",
+        "platform": "https://github.com/webwhiz-ai/webwhiz",
+        "hasImage": true
+      },
+      {
+        "name": "polyaxon",
+        "category": "Generative AI",
+        "platform": "https://github.com/polyaxon/polyaxon",
+        "hasImage": true
+      },
+      {
+        "name": "chat",
+        "category": "ChatBots",
+        "platform": "https://github.com/nuxt-ui-templates/chat",
+        "hasImage": true
+      },
+      {
+        "name": "LAMBDA",
+        "category": "Generative AI",
+        "platform": "https://github.com/AMA-CMFAI/LAMBDA",
+        "hasImage": true
+      },
+      {
+        "name": "feast",
+        "category": "Generative AI",
+        "platform": "https://github.com/feast-dev/feast",
+        "hasImage": true
+      },
+      {
+        "name": "keras-hub",
+        "category": "Generative AI",
+        "platform": "https://github.com/keras-team/keras-hub",
+        "hasImage": true
+      },
+      {
+        "name": "nntrainer",
+        "category": "Generative AI",
+        "platform": "https://github.com/nntrainer/nntrainer",
+        "hasImage": true
+      },
+      {
+        "name": "elyra",
+        "category": "Generative AI",
+        "platform": "https://github.com/elyra-ai/elyra",
+        "hasImage": true
+      },
+      {
+        "name": "dipy",
+        "category": "Generative AI",
+        "platform": "https://github.com/dipy/dipy",
+        "hasImage": true
+      },
+      {
+        "name": "shimmy",
+        "category": "Generative AI",
+        "platform": "https://github.com/Michael-A-Kuykendall/shimmy",
+        "hasImage": true
+      },
+      {
+        "name": "MyBrain",
+        "category": "ChatBots",
+        "platform": "https://github.com/mhss1/MyBrain",
+        "hasImage": true
+      },
+      {
+        "name": "sparka",
+        "category": "ChatBots",
+        "platform": "https://github.com/FranciscoMoretti/sparka",
+        "hasImage": true
+      },
+      {
+        "name": "torchx",
+        "category": "Generative AI",
+        "platform": "https://github.com/meta-pytorch/torchx",
+        "hasImage": true
+      },
+      {
+        "name": "ViewComfy",
+        "category": "Generative AI",
+        "platform": "https://github.com/ViewComfy/ViewComfy",
+        "hasImage": true
+      },
+      {
+        "name": "generative-ai-with-javascript",
+        "category": "Generative AI",
+        "platform": "https://github.com/microsoft/generative-ai-with-javascript",
+        "hasImage": true
+      },
+      {
+        "name": "cleanlab",
+        "category": "Generative AI",
+        "platform": "https://github.com/cleanlab/cleanlab",
+        "hasImage": true
+      },
+      {
+        "name": "inception",
+        "category": "Generative AI",
+        "platform": "https://github.com/inception-project/inception",
+        "hasImage": true
+      },
+      {
+        "name": "Hexabot",
+        "category": "ChatBots",
+        "platform": "https://github.com/Hexastack/Hexabot",
+        "hasImage": true
+      },
+      {
+        "name": "sbi",
+        "category": "Generative AI",
+        "platform": "https://github.com/sbi-dev/sbi",
+        "hasImage": true
+      },
+      {
+        "name": "arkflow",
+        "category": "Generative AI",
+        "platform": "https://github.com/arkflow-rs/arkflow",
+        "hasImage": true
+      },
+      {
+        "name": "zenml",
+        "category": "Generative AI",
+        "platform": "https://github.com/zenml-io/zenml",
+        "hasImage": true
+      },
+      {
+        "name": "ersilia",
+        "category": "Generative AI",
+        "platform": "https://github.com/ersilia-os/ersilia",
+        "hasImage": true
+      },
+      {
+        "name": "prompt-in-context-learning",
+        "category": "ChatBots",
+        "platform": "https://github.com/EgoAlpha/prompt-in-context-learning",
+        "hasImage": true
+      },
+      {
+        "name": "ChatRWKV",
+        "category": "ChatBots",
+        "platform": "https://github.com/BlinkDL/ChatRWKV",
+        "hasImage": true
+      },
+      {
+        "name": "guardian-cli",
+        "category": "Generative AI",
+        "platform": "https://github.com/zakirkun/guardian-cli",
+        "hasImage": true
+      },
+      {
+        "name": "system_prompts_leaks",
+        "category": "Generative AI",
+        "platform": "https://github.com/asgeirtj/system_prompts_leaks",
+        "hasImage": true
+      },
+      {
+        "name": "onnxmltools",
+        "category": "Generative AI",
+        "platform": "https://github.com/onnx/onnxmltools",
+        "hasImage": true
+      },
+      {
+        "name": "Wally",
+        "category": "ChatBots",
+        "platform": "https://github.com/JLW-7/Wally",
+        "hasImage": true
+      },
+      {
+        "name": "serverless-chat-langchainjs",
+        "category": "Generative AI",
+        "platform": "https://github.com/Azure-Samples/serverless-chat-langchainjs",
+        "hasImage": true
+      },
+      {
+        "name": "langchain-aws",
+        "category": "Generative AI",
+        "platform": "https://github.com/langchain-ai/langchain-aws",
+        "hasImage": true
+      },
+      {
+        "name": "vertex-ai-samples",
+        "category": "Generative AI",
+        "platform": "https://github.com/GoogleCloudPlatform/vertex-ai-samples",
+        "hasImage": true
+      },
+      {
+        "name": "generative-ai-cdk-constructs",
+        "category": "Generative AI",
+        "platform": "https://github.com/awslabs/generative-ai-cdk-constructs",
+        "hasImage": true
+      },
+      {
+        "name": "well-architected-iac-analyzer",
+        "category": "Generative AI",
+        "platform": "https://github.com/aws-samples/well-architected-iac-analyzer",
+        "hasImage": true
+      },
+      {
+        "name": "MegaDetector",
+        "category": "Generative AI",
+        "platform": "https://github.com/agentmorris/MegaDetector",
+        "hasImage": true
+      },
+      {
+        "name": "ort",
+        "category": "Generative AI",
+        "platform": "https://github.com/pykeio/ort",
+        "hasImage": true
+      },
+      {
+        "name": "grain",
+        "category": "Generative AI",
+        "platform": "https://github.com/google/grain",
+        "hasImage": true
+      },
+      {
+        "name": "aws-genai-llm-chatbot",
+        "category": "ChatBots",
+        "platform": "https://github.com/aws-samples/aws-genai-llm-chatbot",
+        "hasImage": true
+      }
+    ],
+    "recentTools": [
+      {
+        "name": "TTS-WebUI",
+        "category": "Generative AI",
+        "platform": "https://github.com/rsxdalv/TTS-WebUI",
+        "hasImage": true
+      },
+      {
+        "name": "model-optimization",
+        "category": "Generative AI",
+        "platform": "https://github.com/tensorflow/model-optimization",
+        "hasImage": true
+      },
+      {
+        "name": "aimet",
+        "category": "Generative AI",
+        "platform": "https://github.com/quic/aimet",
+        "hasImage": true
+      },
+      {
+        "name": "MIVisionX",
+        "category": "Generative AI",
+        "platform": "https://github.com/ROCm/MIVisionX",
+        "hasImage": true
+      },
+      {
+        "name": "tuicr",
+        "category": "Generative AI",
+        "platform": "https://github.com/agavra/tuicr",
+        "hasImage": true
+      },
+      {
+        "name": "AetherLink",
+        "category": "ChatBots",
+        "platform": "https://github.com/1600822305/AetherLink",
+        "hasImage": true
+      },
+      {
+        "name": "generative-ai-application-builder-on-aws",
+        "category": "ChatBots",
+        "platform": "https://github.com/aws-solutions/generative-ai-application-builder-on-aws",
+        "hasImage": true
+      },
+      {
+        "name": "AIGC-Interview-Book",
+        "category": "Generative AI",
+        "platform": "https://github.com/WeThinkIn/AIGC-Interview-Book",
+        "hasImage": true
+      },
+      {
+        "name": "zeroshot",
+        "category": "Generative AI",
+        "platform": "https://github.com/covibes/zeroshot",
+        "hasImage": true
+      },
+      {
+        "name": "taranis-ai",
+        "category": "Generative AI",
+        "platform": "https://github.com/taranis-ai/taranis-ai",
+        "hasImage": true
+      },
+      {
+        "name": "ai-guide",
+        "category": "Generative AI",
+        "platform": "https://github.com/liyupi/ai-guide",
+        "hasImage": true
+      },
+      {
+        "name": "edge-ai",
+        "category": "Generative AI",
+        "platform": "https://github.com/crespum/edge-ai",
+        "hasImage": true
+      },
+      {
+        "name": "awesome-foundation-model-leaderboards",
+        "category": "Generative AI",
+        "platform": "https://github.com/SAILResearch/awesome-foundation-model-leaderboards",
+        "hasImage": true
+      },
+      {
+        "name": "tbp.monty",
+        "category": "Generative AI",
+        "platform": "https://github.com/thousandbrainsproject/tbp.monty",
+        "hasImage": true
+      },
+      {
+        "name": "ClimaAtmos.jl",
+        "category": "Generative AI",
+        "platform": "https://github.com/CliMA/ClimaAtmos.jl",
+        "hasImage": true
+      },
+      {
+        "name": "cog",
+        "category": "Generative AI",
+        "platform": "https://github.com/replicate/cog",
+        "hasImage": true
+      }
+    ]
+  }
+}

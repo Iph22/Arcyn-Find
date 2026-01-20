@@ -11,6 +11,7 @@ import dynamic from "next/dynamic"
 
 const ThemeToggle = dynamic(() => import("@/components/theme-toggle").then(mod => mod.ThemeToggle), { ssr: false })
 const BrowserSearchAnimation = dynamic(() => import("@/components/browser-search-animation").then(mod => mod.BrowserSearchAnimation), { ssr: false })
+import { supabase } from "@/lib/supabase"
 import { usePreferences } from "@/contexts/preferences-context"
 import { useAuth } from "@/contexts/auth-context"
 
@@ -44,12 +45,32 @@ export default function LandingPage() {
   const { isAuthenticated, isLoading, signIn } = useAuth()
   const containerRef = useRef<HTMLDivElement>(null)
   const [isReady, setIsReady] = useState(false)
+  const [toolCount, setToolCount] = useState<number>(0)
 
   // Ensure ref is attached to DOM before using useScroll
   useLayoutEffect(() => {
     if (containerRef.current) {
       setIsReady(true)
     }
+  }, [])
+
+  // Fetch tool count on mount
+  useEffect(() => {
+    async function fetchCount() {
+      try {
+        const { count } = await supabase
+          .from('ai_tools')
+          .select('*', { count: 'exact', head: true })
+
+        if (count) {
+          setToolCount(count)
+        }
+      } catch (error) {
+        console.error('Failed to fetch tool count:', error)
+      }
+    }
+
+    fetchCount()
   }, [])
 
   // Use useScroll with proper hydration handling
@@ -118,9 +139,20 @@ export default function LandingPage() {
                 <span className="text-muted-foreground">Can't Find It?</span>
                 <span className="text-foreground">Ask Arcyn.</span>
               </h1>
-              <p className="text-sm sm:text-base md:text-lg lg:text-xl text-muted-foreground font-light max-w-lg leading-relaxed">
-                Discover, compare, and master the tools of tomorrow.
-              </p>
+              <div className="flex flex-col gap-2">
+                <p className="text-sm sm:text-base md:text-lg lg:text-xl text-muted-foreground font-light max-w-lg leading-relaxed">
+                  Discover, compare, and master the tools of tomorrow.
+                </p>
+                {toolCount > 0 && (
+                  <div className="inline-flex items-center gap-2 text-sm text-primary/80 font-medium animate-in fade-in slide-in-from-bottom-2 duration-500">
+                    <span className="relative flex h-2 w-2">
+                      <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-primary opacity-75"></span>
+                      <span className="relative inline-flex rounded-full h-2 w-2 bg-primary"></span>
+                    </span>
+                    Searching across {toolCount.toLocaleString()}+ AI tools
+                  </div>
+                )}
+              </div>
             </motion.div>
 
             {/* Auth Box */}
@@ -269,7 +301,7 @@ export default function LandingPage() {
             <div className="grid grid-cols-2 gap-3 sm:gap-4 md:gap-6">
               {[
                 { label: "Active Users", value: "50K+" },
-                { label: "AI Tools", value: "2,000+" },
+                { label: "AI Tools", value: toolCount > 0 ? `${(Math.floor(toolCount / 100) / 10).toFixed(1)}K+` : "7K+" },
                 { label: "Daily Searches", value: "150K+" },
                 { label: "Countries", value: "120+" },
               ].map((stat, i) => (

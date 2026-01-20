@@ -1,21 +1,24 @@
 /**
- * Track View API Route - Security Hardened
+ * Track View API Route - Enhanced with Database Tracking
  * 
  * Security Features:
  * - Rate limiting to prevent popularity manipulation
  * - Schema-based input validation
  * - ID format validation
+ * 
+ * New Features:
+ * - Persistent view tracking in database
+ * - IP hashing for unique visitor tracking
+ * - Session-based tracking
  */
 
 import { NextResponse } from 'next/server'
 import { createErrorResponse, createSuccessResponse, ErrorCodes } from '@/lib/api-errors'
 import { logger } from '@/lib/logger'
-import { ToolsService } from '@/lib/services/tools.service'
+import { trackToolView } from '@/lib/services/view-tracking.service'
 import {
   checkRateLimit,
-  createRateLimitResponse,
   getRateLimitHeaders,
-  RATE_LIMIT_PRESETS,
   parseAndValidateBody,
   trackViewSchema
 } from '@/lib/security'
@@ -61,13 +64,28 @@ export async function POST(request: Request) {
     const { aiId } = parseResult.data
 
     // =========================================================================
-    // UPDATE POPULARITY
+    // GET CLIENT INFO FOR TRACKING
     // =========================================================================
-    const newPopularity = await ToolsService.updatePopularity(aiId, 0.1)
+    const forwarded = request.headers.get('x-forwarded-for')
+    const ip = forwarded ? forwarded.split(',')[0].trim() : 'unknown'
+
+    // Get or generate session ID from cookie
+    const cookies = request.headers.get('cookie') || ''
+    const sessionMatch = cookies.match(/arcyn-session=([^;]+)/)
+    const sessionId = sessionMatch ? sessionMatch[1] : undefined
+
+    // =========================================================================
+    // TRACK VIEW WITH NEW SERVICE
+    // =========================================================================
+    const result = await trackToolView(aiId, {
+      ip,
+      sessionId,
+      source: 'web'
+    })
 
     const response = createSuccessResponse({
-      success: true,
-      newPopularity
+      success: result.success,
+      newPopularity: result.newPopularity
     })
 
     // Add rate limit headers
@@ -89,3 +107,4 @@ export async function POST(request: Request) {
     )
   }
 }
+
