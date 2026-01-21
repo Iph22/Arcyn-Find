@@ -241,6 +241,7 @@ export async function GET(request: Request) {
       let query = supabase
         .from('ai_tools')
         .select('*')
+        .order('priority', { ascending: false, nullsFirst: false })
         .order('popularity', { ascending: false })
 
       query = buildBaseQuery(query)
@@ -313,6 +314,7 @@ export async function GET(request: Request) {
         let query = supabase
           .from('ai_tools')
           .select('*')
+          .order('priority', { ascending: false, nullsFirst: false })
           .order('popularity', { ascending: false })
 
         query = buildBaseQuery(query)
@@ -382,6 +384,7 @@ export async function GET(request: Request) {
             let batchQuery = supabase
               .from('ai_tools')
               .select('*')
+              .order('priority', { ascending: false, nullsFirst: false })
               .order('popularity', { ascending: false })
 
             batchQuery = buildBaseQuery(batchQuery)
@@ -459,8 +462,12 @@ export async function GET(request: Request) {
         logger.warn(`[API] ⚠️ Only fetched ${totalItems} items out of ${limit} requested. ${failedBatches} batches failed.`)
       }
 
-      // Sort by popularity after parallel fetch (maintain order)
-      allData.sort((a, b) => (b.popularity || 0) - (a.popularity || 0))
+      // Sort by priority then popularity after parallel fetch (maintain order)
+      allData.sort((a, b) => {
+        const priorityDiff = ((b as any).priority || 0) - ((a as any).priority || 0)
+        if (priorityDiff !== 0) return priorityDiff
+        return (b.popularity || 0) - (a.popularity || 0)
+      })
     }
 
     if (allData.length === 0) {
