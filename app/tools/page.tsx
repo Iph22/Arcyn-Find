@@ -24,116 +24,80 @@ import { useAuth } from "@/contexts/auth-context"
 import type { AIEntry } from "@/lib/ai-data"
 
 // Comprehensive category mapping from API/database categories to user-friendly display categories
-// Based on industry standards and actual database categories
+// Based on actual database categories from analyze-tools.js
 const categoryMapping: Record<string, string> = {
-  // Text & Content Generation
-  "Text Generation": "Content Generation",
-  "Generative AI": "Content Generation",
-  "AI Writing": "Content Generation",
-
-  // Image & Visual
-  "Image Generation": "Image Generation",
-  "Computer Vision": "Image Generation",
-
-  // Code & Development
-  "Code Generation": "Code Assistants",
-  "Code Assistants": "Code Assistants",
-  "IDE": "IDEs",
-  "IDEs": "IDEs",
-  "Development Environment": "IDEs",
-  "AI Coding Agents": "AI Coding Agents",
-  "Coding Agents": "AI Coding Agents",
-
-  // Audio & Speech
-  "Audio/NLP": "Voice & Speech",
-  "NLP Platform": "Voice & Speech",
-  "Audio": "Voice & Speech",
-  "Audio/Video Processing": "Voice & Speech",
-
-  // Video
-  "Video Generation": "Video & Audio",
-  "Video": "Video & Audio",
-
-  // Chatbots & Conversational
+  // Direct mappings from database categories
+  "Generative AI": "Generative AI",
+  "Research & Open Source": "Research & Open Source",
   "ChatBots": "Chatbots",
-  "Chatbots": "Chatbots",
-  "Conversational AI": "Chatbots",
-
-  // Data & Analytics
-  "Data Analytics": "Data & Analytics",
-  "Data Analysis": "Data & Analytics",
-  "ML Infrastructure": "Data & Analytics",
-
-  // AI Detection
-  "AI Detection": "AI Detection",
-  "AI Detection Tool": "AI Detection",
-
-  // Productivity & Business
   "Productivity": "Productivity",
-  "Autonomous AI": "Productivity",
-  "Business Automation": "Productivity",
-
-  // Marketing
-  "Marketing": "Marketing",
-  "Marketing Automation": "Marketing",
-
-  // Design
-  "Design": "Design",
-  "Design Assistance": "Design",
-
-  // Research & Education
-  "Research": "Research & Education",
-  "Learning & Education": "Research & Education",
-  "Search/QA": "Research & Education",
-  "Education": "Research & Education",
-
-  // Multimodal & Platforms
-  "Multimodal Platform": "Multimodal AI",
-  "Multimodal": "Multimodal AI",
+  "Image Generation": "Image Generation",
+  "Writing & Content": "Writing & Content",
+  "Audio & Music": "Audio & Music",
+  "Marketing & Sales": "Marketing",
+  "Learning & Education": "Education",
+  "Video Generation": "Video Generation",
+  "Data & Analytics": "Data & Analytics",
+  "Code & Development": "Code & Development",
+  "Translation & Language": "Translation",
+  "Finance": "Finance",
+  "Healthcare": "Healthcare",
+  "Customer Service": "Customer Service",
+  "Gaming & Entertainment": "Gaming",
+  "NLP & Text Analysis": "NLP & Text",
+  "AI Agents": "AI Agents",
+  "3D & Spatial": "3D & Spatial",
+  "Computer Vision": "Computer Vision",
 }
 
-// Reverse mapping from display categories to API/database categories
+// Reverse mapping from display categories to actual database categories
 // Maps user-friendly names back to what's actually in the database
-// Note: Many chatbots are categorized as "Generative AI" in the database
 const reverseCategoryMapping: Record<string, string[]> = {
-  "Content Generation": ["Text Generation", "AI Writing", "Generative AI"],
-  "Image Generation": ["Image Generation", "Computer Vision"],
-  "Code Assistants": ["Code Generation", "Code Assistants"],
-  "IDEs": ["IDE", "IDEs", "Development Environment"],
-  "AI Coding Agents": ["AI Coding Agents", "Coding Agents"],
-  "Voice & Speech": ["Audio/NLP", "NLP Platform", "Audio", "Audio/Video Processing"],
-  "Video & Audio": ["Video Generation", "Video"],
-  // Chatbots: Include Generative AI since most LLMs (ChatGPT, Claude, etc.) are chatbots
-  "Chatbots": ["ChatBots", "Chatbots", "Conversational AI", "Generative AI"],
-  "Data & Analytics": ["Data Analytics", "Data Analysis", "ML Infrastructure"],
-  "AI Detection": ["AI Detection", "AI Detection Tool"],
-  "Productivity": ["Productivity", "Autonomous AI", "Business Automation"],
-  // Marketing: May be under various categories, also check tags/descriptions
-  "Marketing": ["Marketing", "Marketing Automation"],
-  // Design: Tools might be under Computer Vision or other categories
-  "Design": ["Design", "Design Assistance"],
-  "Research & Education": ["Research", "Learning & Education", "Search/QA", "Education"],
-  "Multimodal AI": ["Multimodal Platform", "Multimodal"],
+  "Generative AI": ["Generative AI"],
+  "Chatbots": ["ChatBots"],
+  "Image Generation": ["Image Generation"],
+  "Video Generation": ["Video Generation"],
+  "Audio & Music": ["Audio & Music"],
+  "Writing & Content": ["Writing & Content"],
+  "Code & Development": ["Code & Development"],
+  "Productivity": ["Productivity"],
+  "Data & Analytics": ["Data & Analytics"],
+  "Marketing": ["Marketing & Sales"],
+  "Education": ["Learning & Education"],
+  "Research": ["Research & Open Source"],
+  "AI Agents": ["AI Agents"],
+  "AI Detection": ["AI Detection"],
+  "HR & Recruiting": ["HR & Recruiting"],
+  "Translation": ["Translation & Language"],
+  "NLP & Text": ["NLP & Text Analysis"],
+  "Customer Service": ["Customer Service"],
+  "Finance": ["Finance"],
+  "Healthcare": ["Healthcare"],
+  "Gaming": ["Gaming & Entertainment"],
+  "3D & Spatial": ["3D & Spatial"],
+  "Computer Vision": ["Computer Vision"],
 }
 
-// User-friendly display categories in order of popularity/importance
+// User-friendly display categories matching actual database categories
+// Updated after comprehensive recategorization v2
 const displayCategories = [
   "All",
-  "Content Generation",      // Writing, text generation, LLMs
-  "Image Generation",          // DALL-E, Midjourney, etc.
-  "Code Assistants",          // GitHub Copilot, etc.
-  "IDEs",                     // Integrated Development Environments
-  "AI Coding Agents",         // MCP servers, Figma integrations, coding agents
-  "Chatbots",                 // ChatGPT, Claude, etc.
-  "Video & Audio",            // Video generation and editing
-  "Voice & Speech",           // TTS, STT, voice AI
-  "Data & Analytics",         // Data analysis, ML infrastructure
-  "Productivity",             // Automation, workflow tools
-  "Marketing",                // Marketing automation
-  "Design",                   // Design tools
-  "Research & Education",     // Research, learning, education
-  "AI Detection",             // AI detection tools
-  "Multimodal AI",            // Multimodal platforms
+  "AI Agents",            // 18.3% - Autonomous AI agents
+  "Code & Development",   // 17.7% - Coding tools, IDEs
+  "Chatbots",             // 10.2% - ChatGPT, Claude, etc.
+  "Writing & Content",    // 8.8% - Content creation
+  "Image Generation",     // 8.4% - DALL-E, Midjourney, etc.
+  "Productivity",         // 6.0% - Workflow automation
+  "Audio & Music",        // 4.7% - Voice, music, audio
+  "Data & Analytics",     // 4.0% - Data analysis
+  "Education",            // 3.7% - Learning tools
+  "Marketing",            // 3.2% - Marketing tools
+  "Video Generation",     // 2.3% - Video AI tools
+  "AI Detection",         // 1.3% - GPTZero, Originality.ai, etc.
+  "HR & Recruiting",      // 1.7% - Resume builders, interview prep
+  "Customer Service",     // 1.4% - Support tools
+  "Translation",          // 1.2% - Translation tools
+  "Research",             // 3.5% - Research & Open Source
 ]
 
 // Inner component that uses search params

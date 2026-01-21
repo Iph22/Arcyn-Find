@@ -393,10 +393,10 @@ export default function HomePage() {
                       id: cat,
                     }))
                     : [
-                      { name: "AI Writing", count: 124, color: "primary", id: "text" },
-                      { name: "Image Generation", count: 89, color: "chart-1", id: "vision" },
-                      { name: "Code Assistants", count: 67, color: "chart-2", id: "coding" },
-                      { name: "Data Analysis", count: 53, color: "chart-3", id: "research" },
+                      { name: "AI Agents", count: 1299, color: "primary", id: "agents" },
+                      { name: "Code & Development", count: 1253, color: "chart-1", id: "coding" },
+                      { name: "Chatbots", count: 720, color: "chart-2", id: "chat" },
+                      { name: "Image Generation", count: 596, color: "chart-3", id: "vision" },
                     ]
                   ).map((category, index) => (
                     <motion.button
