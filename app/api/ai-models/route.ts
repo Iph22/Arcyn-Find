@@ -4,10 +4,17 @@ import { fetchAIModelsFromSources } from '@/lib/data-sources'
 import type { AIEntry } from '@/lib/ai-data'
 import { checkRateLimit, getRateLimitHeaders } from '@/lib/rate-limit'
 import { logger } from '@/lib/logger'
+import { parseNaturalLanguageSearch, validateSearchResults, discoverNewTools } from '@/lib/gemini'
 
 // Increase timeout for Vercel Pro (30s), or remove for Hobby plan (10s max)
 export const maxDuration = 30
 export const runtime = 'nodejs'
+
+// Simple in-memory cache for Gemini results to avoid redundant calls
+const geminiCache = new Map<string, { data: any, timestamp: number }>()
+const CACHE_TTL = 1000 * 60 * 60 // 1 hour
+let lastGeminiErrorTime = 0
+const ERRROR_COOLDOWN = 1000 * 60 // 1 minute cooldown after 429
 
 /**
  * GET /api/ai-models
@@ -70,6 +77,49 @@ export async function GET(request: Request) {
       logger.debug(`[API] Total tools in database: ${count}`)
     }
 
+    // Capture original search for NLP check
+    const originalSearch = search
+    let effectiveSearch = search
+    let effectiveCategory = category
+
+    // Check if this looks like a natural language query - ignore very short queries to save quota
+    const isNaturalLanguage = search && search.length > 15 && (
+      /\b(want|need|looking for|help me|that can|for|i want|i need|can you|find me|show me)\b/i.test(search) ||
+      search.split(/\s+/).length > 4
+    )
+
+    const now = Date.now()
+    const canUseGemini = now - lastGeminiErrorTime > ERRROR_COOLDOWN
+
+    if (isNaturalLanguage && search && canUseGemini) {
+      try {
+        // Check cache first
+        const cacheKey = `nlp:${search.toLowerCase()}`
+        const cached = geminiCache.get(cacheKey)
+        if (cached && (now - cached.timestamp < CACHE_TTL)) {
+          const nlpParams = cached.data
+          logger.debug('[API] NLP Search (Cached):', nlpParams)
+          if (nlpParams.keywords.length > 0) effectiveSearch = nlpParams.keywords.join(' ')
+          if (!category && nlpParams.categories.length > 0) effectiveCategory = nlpParams.categories[0]
+        } else {
+          const nlpParams = await parseNaturalLanguageSearch(search)
+          if (nlpParams) {
+            geminiCache.set(cacheKey, { data: nlpParams, timestamp: now })
+            logger.debug('[API] NLP Search Parsed:', nlpParams)
+            if (nlpParams.keywords.length > 0) effectiveSearch = nlpParams.keywords.join(' ')
+            if (!category && nlpParams.categories.length > 0) effectiveCategory = nlpParams.categories[0]
+          }
+        }
+      } catch (err: any) {
+        if (err.status === 429) {
+          lastGeminiErrorTime = now
+          logger.warn('[API] Gemini Quota Exceeded. Falling back to keyword search for 1 minute.')
+        } else {
+          logger.error('[API] NLP Parsing error:', err)
+        }
+      }
+    }
+
     // If fetching by specific ID, return early with just that tool
     if (id) {
       const { data, error } = await supabase
@@ -96,19 +146,19 @@ export async function GET(request: Request) {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const buildBaseQuery = (queryBuilder: any) => {
       // Category filter - use case-insensitive matching
-      if (category) {
+      if (effectiveCategory) {
         // URLSearchParams.get() automatically decodes + to spaces
         // But handle potential double-encoding
-        let decodedCategory = category
+        let decodedCategory = effectiveCategory
         try {
           // If it contains % encoding, decode it
-          if (category.includes('%')) {
-            decodedCategory = decodeURIComponent(category).trim()
+          if (effectiveCategory.includes('%')) {
+            decodedCategory = decodeURIComponent(effectiveCategory).trim()
           } else {
-            decodedCategory = category.trim()
+            decodedCategory = effectiveCategory.trim()
           }
         } catch {
-          decodedCategory = category.trim()
+          decodedCategory = effectiveCategory.trim()
         }
 
         // Special handling for Marketing and Design - also search by tags
@@ -134,9 +184,6 @@ export async function GET(request: Request) {
 
           if (process.env.NODE_ENV === 'development') {
             logger.debug(`[API] Filtering by multiple categories (OR): "${categories.join(', ')}"`)
-            if (isMarketing || isDesign) {
-              logger.debug(`[API] Also searching tags for ${isMarketing ? 'Marketing' : ''} ${isDesign ? 'Design' : ''}`)
-            }
           }
         } else {
           // For single category, combine with tag search if needed
@@ -146,14 +193,6 @@ export async function GET(request: Request) {
             queryBuilder = queryBuilder.or(`category.ilike.${decodedCategory},tags.cs.{design},tags.cs.{ui},tags.cs.{ux},tags.cs.{graphic-design},tags.cs.{design-tools}`)
           } else {
             queryBuilder = queryBuilder.ilike('category', decodedCategory)
-          }
-
-          // Debug logging in development
-          if (process.env.NODE_ENV === 'development') {
-            logger.debug(`[API] Filtering by category: "${decodedCategory}" (raw: "${category}")`)
-            if (isMarketing || isDesign) {
-              logger.debug(`[API] Also searching tags for ${isMarketing ? 'Marketing' : ''} ${isDesign ? 'Design' : ''}`)
-            }
           }
         }
       }
@@ -183,20 +222,14 @@ export async function GET(request: Request) {
         }
         queryBuilder = queryBuilder.ilike('access_type', decodedAccessType)
       }
-      if (search) {
+      if (effectiveSearch) {
         // Use proper Supabase syntax for search across name, description, and platform
-        // Tags will be searched client-side since Supabase array search is complex
-        // Escape special characters in search term
-        const escapedSearch = search.replace(/%/g, '\\%').replace(/_/g, '\\_')
+        const escapedSearch = effectiveSearch.replace(/%/g, '\\%').replace(/_/g, '\\_')
 
         // For multi-word queries, search for each word individually
-        // We'll filter client-side to ensure all words match
         const searchWords = escapedSearch.trim().split(/\s+/).filter(w => w.length > 0)
 
         if (searchWords.length > 1) {
-          // Multi-word query: search for each word in name, description, platform, or tags
-          // Use OR to match if any word appears in any field
-          // Client-side filtering will ensure all words match
           const conditions: string[] = []
           for (const word of searchWords) {
             conditions.push(`name.ilike.%${word}%`)
@@ -233,8 +266,7 @@ export async function GET(request: Request) {
       image?: string | null
     }> = []
 
-    // Check if filters are applied
-    const hasFilters = category || region || accessType || search
+    const hasFilters = effectiveCategory || region || accessType || effectiveSearch
 
     // Fast path: single query for small requests
     if (limit <= SUPABASE_MAX_LIMIT) {
@@ -245,8 +277,6 @@ export async function GET(request: Request) {
         .order('popularity', { ascending: false })
 
       query = buildBaseQuery(query)
-
-      // Apply range after filters for correct pagination
       query = query.range(offset, offset + limit - 1)
 
       const { data, error } = await query
@@ -494,13 +524,14 @@ export async function GET(request: Request) {
     let aiEntries: AIEntry[] = allData.map(transformToAIEntry)
 
     // For search queries, filter and sort by relevance
-    if (search && search.trim()) {
-      const searchLower = search.toLowerCase().trim()
+    const searchToRank = effectiveSearch || search
+    if (searchToRank && searchToRank.trim()) {
+      const searchLower = searchToRank.toLowerCase().trim()
       const searchWords = searchLower.split(/\s+/).filter(w => w.length > 0)
 
       // Filter: ensure all words match (for multi-word queries) and check tags
       if (searchWords.length > 1) {
-        // Multi-word: all words must be present
+        // Multi-word: all words must be present (using refined words from NLP if available)
         aiEntries = aiEntries.filter(entry => {
           const searchableText = `${entry.name} ${entry.description} ${entry.platform} ${entry.tags.join(' ')}`.toLowerCase()
           return searchWords.every(word => searchableText.includes(word))
@@ -519,8 +550,7 @@ export async function GET(request: Request) {
         const entryName = entry.name.toLowerCase()
         const entryDesc = entry.description.toLowerCase()
         const entryPlatform = entry.platform.toLowerCase()
-        const entryTags = entry.tags.join(' ').toLowerCase()
-        const searchableText = `${entryName} ${entryDesc} ${entryPlatform} ${entryTags}`
+        const entryTags = (entry.tags || []).join(' ').toLowerCase()
 
         // Exact name match (highest priority)
         if (entryName === searchLower) {
@@ -550,7 +580,7 @@ export async function GET(request: Request) {
         }
 
         // Tag matches (higher weight for exact tag matches)
-        const matchingTags = entry.tags.filter(tag => {
+        const matchingTags = (entry.tags || []).filter(tag => {
           const tagLower = tag.toLowerCase()
           return tagLower === searchLower || tagLower.includes(searchLower) || searchLower.includes(tagLower)
         })
@@ -558,7 +588,7 @@ export async function GET(request: Request) {
 
         // For multi-word queries, check tag matches
         if (searchWords.length > 1) {
-          const tagsWithAllWords = entry.tags.filter(tag => {
+          const tagsWithAllWords = (entry.tags || []).filter(tag => {
             const tagLower = tag.toLowerCase()
             return searchWords.every(word => tagLower.includes(word))
           })
@@ -566,7 +596,7 @@ export async function GET(request: Request) {
         }
 
         // Popularity boost (scaled)
-        relevanceScore += entry.popularity * 0.5
+        relevanceScore += (entry.popularity || 0) * 0.5
 
         // Trending boost
         if (entry.isTrending) {
@@ -586,12 +616,79 @@ export async function GET(request: Request) {
         const bScore = (b as AIEntry & { _relevanceScore: number })._relevanceScore
         const scoreDiff = bScore - aScore
         if (scoreDiff !== 0) return scoreDiff
-        return b.popularity - a.popularity
+        return (b.popularity || 0) - (a.popularity || 0)
       }).map((entry) => {
-        // Remove temporary score field
         const { _relevanceScore, ...rest } = entry as AIEntry & { _relevanceScore: number }
         return rest
       })
+    }
+
+    // AI Validation and Discovery (only for natural language searches or empty results)
+    if (originalSearch && isNaturalLanguage && canUseGemini) {
+      const cacheKeyValid = `valid:${originalSearch.toLowerCase()}:${aiEntries.length}`
+      const cachedValid = geminiCache.get(cacheKeyValid)
+
+      let validationResult = cachedValid?.data
+      if (!validationResult) {
+        validationResult = await validateSearchResults(originalSearch, aiEntries)
+        geminiCache.set(cacheKeyValid, { data: validationResult, timestamp: now })
+      }
+
+      const { isRelevant, feedback } = validationResult
+      logger.debug('[API] Search Relevance:', { isRelevant, feedback })
+
+      if (!isRelevant || aiEntries.length === 0) {
+        const cacheKeyDisc = `disc:${originalSearch.toLowerCase()}`
+        const cachedDisc = geminiCache.get(cacheKeyDisc)
+
+        if (cachedDisc && (now - cachedDisc.timestamp < CACHE_TTL)) {
+          logger.info('[API] Using cached discovery results')
+          const dbTools = cachedDisc.data
+          const newEntries = dbTools.map(transformToAIEntry)
+          aiEntries = [...newEntries, ...aiEntries].slice(0, limit)
+        } else {
+          logger.info('[API] Triggering AI Discovery for:', originalSearch)
+          try {
+            const newTools = await discoverNewTools(originalSearch)
+            if (newTools.length > 0) {
+              const dbTools = newTools.map(tool => ({
+                id: `ai-discovery-${tool.name.toLowerCase().replace(/[^a-z0-9]/g, '-')}`,
+                name: tool.name,
+                category: tool.category,
+                description: tool.description,
+                platform: tool.platform,
+                region: tool.region,
+                access_type: tool.accessType,
+                pricing: tool.pricing,
+                tags: tool.tags,
+                popularity: 70,
+                last_updated: new Date().toISOString().split('T')[0],
+                priority: 5
+              }))
+
+              // Save to cache and database
+              geminiCache.set(cacheKeyDisc, { data: dbTools, timestamp: now })
+
+              const { error: insertError } = await supabase
+                .from('ai_tools')
+                .upsert(dbTools, { onConflict: 'id' })
+
+              if (insertError) {
+                logger.error('[API] Discovery Ingestion Error:', insertError)
+              } else {
+                logger.info(`[API] Successfully ingested ${dbTools.length} new tools via discovery`)
+                const newEntries = dbTools.map(transformToAIEntry)
+                aiEntries = [...newEntries, ...aiEntries].slice(0, limit)
+              }
+            }
+          } catch (err: any) {
+            if (err.status === 429) {
+              lastGeminiErrorTime = now
+              logger.warn('[API] Gemini Quota Exceeded during discovery.')
+            }
+          }
+        }
+      }
     }
 
     // Log response size for debugging
