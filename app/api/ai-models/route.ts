@@ -603,8 +603,8 @@ export async function GET(request: Request) {
       })
     }
 
-    // AI Validation and Discovery (only for natural language searches or empty results)
-    if (originalSearch && isNaturalLanguage && canUseGemini) {
+    // AI Validation and Discovery (for natural language searches OR when zero local results found)
+    if (originalSearch && canUseGemini && (isNaturalLanguage || aiEntries.length === 0)) {
       const cacheKeyValid = `valid:${originalSearch.toLowerCase()}:${aiEntries.length}`
       const cachedValid = geminiCache.get(cacheKeyValid)
 
@@ -677,7 +677,10 @@ export async function GET(request: Request) {
       try {
         const externalModels = await fetchAIModelsFromSources()
         if (externalModels.length > 0) {
-          aiEntries = externalModels.slice(0, limit)
+          // Filter out research papers if user is searching for something specific
+          aiEntries = externalModels
+            .filter(item => item.category !== 'Research Paper')
+            .slice(0, limit)
         }
       } catch (externalError) {
         logger.error('[API] External source error:', externalError)

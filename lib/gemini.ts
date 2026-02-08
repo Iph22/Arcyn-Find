@@ -105,6 +105,7 @@ export async function validateSearchResults(query: string, results: any[]): Prom
       ${resultsSummary}
 
       Evaluate if THE MAJORITY of these results actually help the user achieve their goal.
+      Be lenient: if the tool is technically capable of the task described in the query, it IS relevant.
       Return JSON:
       {
         "isRelevant": boolean,
@@ -132,7 +133,10 @@ export async function discoverNewTools(query: string): Promise<DiscoveredTool[]>
         const prompt = `
       The user is looking for: "${query}"
       We couldn't find good matches in our database. 
-      Suggest 3-5 REAL, well-known AI tools that would be perfect for this query.
+      Suggest 3-5 REAL, functional AI software tools or platforms (SaaS) that would be perfect for this query.
+      
+      CRITICAL: DO NOT suggest research papers, GitHub repositories with no UI, or academic datasets.
+      Focus on tools a non-technical user could sign up for and use.
       
       Return ONLY a JSON array of objects with:
       name, category, description (max 150 chars), platform (URL), region (e.g. USA, EU, Global), accessType (Free, Freemium, Paid), pricing (brief string), tags (array).
@@ -143,12 +147,12 @@ export async function discoverNewTools(query: string): Promise<DiscoveredTool[]>
       [{
         "name": "Example Tool",
         "category": "Productivity",
-        "description": "Short description",
+        "description": "Short description of a functional app",
         "platform": "https://example.com",
         "region": "Global",
         "accessType": "Freemium",
         "pricing": "Free tier available",
-        "tags": ["tag1", "tag2"]
+        "tags": ["productivity", "webapp"]
       }]
     `
 
