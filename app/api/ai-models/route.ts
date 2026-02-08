@@ -500,26 +500,6 @@ export async function GET(request: Request) {
       })
     }
 
-    if (allData.length === 0) {
-      // Fallback to external sources only if Supabase is completely empty
-      logger.debug('Supabase returned no data, trying external sources...')
-      try {
-        const externalModels = await fetchAIModelsFromSources()
-        return NextResponse.json(externalModels.slice(0, limit), {
-          headers: {
-            'Cache-Control': 'public, s-maxage=300, stale-while-revalidate=600',
-          },
-        })
-      } catch (externalError) {
-        // Return empty array instead of failing
-        return NextResponse.json([], {
-          headers: {
-            'Cache-Control': 'public, s-maxage=60',
-          },
-        })
-      }
-    }
-
     // Transform database rows to AIEntry format
     let aiEntries: AIEntry[] = allData.map(transformToAIEntry)
 
@@ -688,6 +668,19 @@ export async function GET(request: Request) {
             }
           }
         }
+      }
+    }
+
+    // Fallback to external sources if we still have no results after discovery
+    if (aiEntries.length === 0) {
+      logger.debug('[API] No results after discovery, trying external sources...')
+      try {
+        const externalModels = await fetchAIModelsFromSources()
+        if (externalModels.length > 0) {
+          aiEntries = externalModels.slice(0, limit)
+        }
+      } catch (externalError) {
+        logger.error('[API] External source error:', externalError)
       }
     }
 
