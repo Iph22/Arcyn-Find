@@ -118,6 +118,7 @@ export async function PUT(request: NextRequest) {
     const parseResult = await parseAndValidateBody(request, updateProfileSchema)
 
     if ('error' in parseResult) {
+      logger.warn('[Profile] Validation error for user:', user.id, 'Error:', parseResult)
       return parseResult.error
     }
 

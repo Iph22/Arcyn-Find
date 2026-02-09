@@ -135,13 +135,15 @@ export const safeEmail = z.string()
     .transform((email) => email.toLowerCase().trim())
 
 /**
- * Safe URL validator
+ * Safe URL validator - allows empty string to clear the URL
  */
 export const safeUrl = z.string()
-    .url('Invalid URL format')
     .max(2048, 'URL too long') // Standard browser limit
     .refine(
         (url) => {
+            // Allow empty string (to clear the URL)
+            if (url === '' || url === null || url === undefined) return true
+
             try {
                 const parsed = new URL(url)
                 return ['http:', 'https:'].includes(parsed.protocol)
@@ -149,8 +151,9 @@ export const safeUrl = z.string()
                 return false
             }
         },
-        'URL must use http or https protocol'
+        'URL must be a valid http or https URL, or empty to clear'
     )
+    .transform(url => url === '' ? null : url) // Convert empty string to null for DB
 
 /**
  * Safe UUID validator
