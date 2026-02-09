@@ -9,21 +9,61 @@ const FALLBACK_MODEL = "gemini-flash-latest" // Usually 1.5 Flash with much high
 export const geminiModel = genAI.getGenerativeModel({ model: PRIMARY_MODEL })
 const fallbackModel = genAI.getGenerativeModel({ model: FALLBACK_MODEL })
 
-// Helper to handle tiered generation
+// Helper to handle tiered generation with retries
 async function generateWithFallback(prompt: string) {
-    try {
-        // Try Gemini 3 first
-        const result = await geminiModel.generateContent(prompt)
-        return await result.response
-    } catch (error: any) {
-        // If it's a quota error (429), try the fallback model
-        if (error.status === 429) {
-            console.warn(`[AI] ${PRIMARY_MODEL} quota reached. Falling back to ${FALLBACK_MODEL}`)
+    const MAX_RETRIES = 2
+    const RETRY_DELAY_MS = 1000
+
+    // Try with main model first
+    for (let attempt = 0; attempt < MAX_RETRIES; attempt++) {
+        try {
+            const result = await geminiModel.generateContent(prompt)
+            return await result.response
+        } catch (error: any) {
+            const isRetryable = error.status === 429 || error.status === 503
+
+            // If it's a retryable error and we have attempts left, wait and retry
+            if (isRetryable && attempt < MAX_RETRIES - 1) {
+                console.warn(`[AI] ${PRIMARY_MODEL} error (${error.status}), retrying in ${RETRY_DELAY_MS * (attempt + 1)}ms...`)
+                await new Promise(resolve => setTimeout(resolve, RETRY_DELAY_MS * (attempt + 1)))
+                continue
+            }
+
+            // If it's a quota/overload error, try fallback model
+            if (isRetryable) {
+                console.warn(`[AI] ${PRIMARY_MODEL} unavailable (${error.status}). Falling back to ${FALLBACK_MODEL}`)
+                break
+            }
+
+            throw error
+        }
+    }
+
+    // Try fallback model
+    for (let attempt = 0; attempt < MAX_RETRIES; attempt++) {
+        try {
             const result = await fallbackModel.generateContent(prompt)
             return await result.response
+        } catch (error: any) {
+            const isRetryable = error.status === 429 || error.status === 503
+
+            if (isRetryable && attempt < MAX_RETRIES - 1) {
+                console.warn(`[AI] ${FALLBACK_MODEL} error (${error.status}), retrying...`)
+                await new Promise(resolve => setTimeout(resolve, RETRY_DELAY_MS * (attempt + 1)))
+                continue
+            }
+
+            // Mark as AI unavailable so callers can use keyword fallback
+            const aiUnavailableError = new Error('AI_UNAVAILABLE')
+                ; (aiUnavailableError as any).isAIUnavailable = true
+            throw aiUnavailableError
         }
-        throw error
     }
+
+    // This shouldn't be reached, but just in case
+    const aiUnavailableError = new Error('AI_UNAVAILABLE')
+        ; (aiUnavailableError as any).isAIUnavailable = true
+    throw aiUnavailableError
 }
 
 export interface NLPSeachParams {

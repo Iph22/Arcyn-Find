@@ -111,9 +111,12 @@ export async function GET(request: Request) {
           }
         }
       } catch (err: any) {
-        if (err.status === 429) {
+        // Handle both quota errors (429) and AI unavailable (503)
+        if (err.status === 429 || err.status === 503 || err.isAIUnavailable) {
           lastGeminiErrorTime = now
-          logger.warn('[API] Gemini Quota Exceeded. Falling back to keyword search for 1 minute.')
+          logger.warn('[API] Gemini unavailable. Falling back to keyword search for 1 minute.')
+          // Use the raw search terms as keywords for fallback
+          effectiveSearch = search
         } else {
           logger.error('[API] NLP Parsing error:', err)
         }
@@ -664,9 +667,12 @@ export async function GET(request: Request) {
               }
             }
           } catch (err: any) {
-            if (err.status === 429) {
+            // Handle both quota (429) and service unavailable (503) errors
+            if (err.status === 429 || err.status === 503 || err.isAIUnavailable) {
               lastGeminiErrorTime = now
-              logger.warn('[API] Gemini Quota Exceeded during discovery.')
+              logger.warn('[API] Gemini unavailable during discovery. Using cached/external sources.')
+            } else {
+              logger.error('[API] Discovery error:', err)
             }
           }
         }
