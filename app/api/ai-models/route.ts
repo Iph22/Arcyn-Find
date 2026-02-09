@@ -123,6 +123,11 @@ export async function GET(request: Request) {
       }
     }
 
+    // Log what search terms are being used (debug)
+    if (originalSearch) {
+      logger.info(`[API] Search: original="${originalSearch}" effective="${effectiveSearch}" category="${effectiveCategory || 'none'}"`)
+    }
+
     // If fetching by specific ID, return early with just that tool
     if (id) {
       const { data, error } = await supabase
@@ -226,11 +231,11 @@ export async function GET(request: Request) {
         queryBuilder = queryBuilder.ilike('access_type', decodedAccessType)
       }
       if (effectiveSearch) {
-        // Use proper Supabase syntax for search across name, description, and platform
+        // Use proper Supabase syntax for search across name, description, platform, and tags
         const escapedSearch = effectiveSearch.replace(/%/g, '\\%').replace(/_/g, '\\_')
 
         // For multi-word queries, search for each word individually
-        const searchWords = escapedSearch.trim().split(/\s+/).filter(w => w.length > 0)
+        const searchWords = escapedSearch.trim().split(/\s+/).filter(w => w.length > 2) // Filter very short words
 
         if (searchWords.length > 1) {
           const conditions: string[] = []
@@ -238,6 +243,8 @@ export async function GET(request: Request) {
             conditions.push(`name.ilike.%${word}%`)
             conditions.push(`description.ilike.%${word}%`)
             conditions.push(`platform.ilike.%${word}%`)
+            // Also search in tags (case-insensitive contains)
+            conditions.push(`tags.cs.{${word.toLowerCase()}}`)
           }
           // Also search for the full phrase
           conditions.push(`name.ilike.%${escapedSearch}%`)
@@ -245,8 +252,13 @@ export async function GET(request: Request) {
           conditions.push(`platform.ilike.%${escapedSearch}%`)
 
           queryBuilder = queryBuilder.or(conditions.join(','))
-        } else {
-          // Single word query: search in name, description, platform
+        } else if (searchWords.length === 1) {
+          // Single word query: search in name, description, platform, tags
+          const word = searchWords[0]
+          queryBuilder = queryBuilder.or(`name.ilike.%${word}%,description.ilike.%${word}%,platform.ilike.%${word}%,tags.cs.{${word.toLowerCase()}}`)
+        }
+        // If all words were filtered out (too short), search the full escaped query
+        else {
           queryBuilder = queryBuilder.or(`name.ilike.%${escapedSearch}%,description.ilike.%${escapedSearch}%,platform.ilike.%${escapedSearch}%`)
         }
       }
