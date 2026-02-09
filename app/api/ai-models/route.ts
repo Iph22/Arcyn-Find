@@ -6,7 +6,7 @@ import { checkRateLimit, getRateLimitHeaders } from '@/lib/rate-limit'
 import { logger } from '@/lib/logger'
 import { parseNaturalLanguageSearch, validateSearchResults, discoverNewTools } from '@/lib/gemini'
 import { processSearchQuery, buildSearchConditions } from '@/lib/search-utils'
-import { hybridSearch, isSemanticSearchAvailable } from '@/lib/embeddings'
+import { hybridSearch, isSemanticSearchAvailable, generateToolEmbedding } from '@/lib/embeddings'
 
 // Increase timeout for Vercel Pro (30s), or remove for Hobby plan (10s max)
 export const maxDuration = 30
@@ -163,13 +163,14 @@ export async function GET(request: Request) {
               category: r.category,
               description: r.description || '',
               platform: r.platform,
-              region: 'Global',
-              accessType: 'Freemium',
-              pricing: '',
-              tags: [],
-              popularity: 0,
-              lastUpdated: '',
-              isTrending: false,
+              region: r.region || 'Global',
+              accessType: r.access_type || 'Freemium',
+              pricing: r.pricing || '',
+              tags: r.tags || [],
+              popularity: r.popularity || 0,
+              lastUpdated: r.last_updated || '',
+              isTrending: r.is_trending || false,
+              image: r.image || '',
               _similarity: r.similarity
             } as AIEntry & { _similarity: number }))
 
@@ -725,12 +726,30 @@ export async function GET(request: Request) {
                 priority: 5
               }))
 
+              // Generate embeddings for new tools
+              const toolsWithEmbeddings = await Promise.all(
+                dbTools.map(async (tool) => {
+                  try {
+                    const embedding = await generateToolEmbedding(
+                      tool.name,
+                      tool.description || '',
+                      tool.category,
+                      tool.tags || []
+                    )
+                    return { ...tool, embedding }
+                  } catch (e) {
+                    logger.warn(`[API] Could not generate embedding for discovery tool: ${tool.name}`, e)
+                    return tool
+                  }
+                })
+              )
+
               // Save to cache and database
               geminiCache.set(cacheKeyDisc, { data: dbTools, timestamp: now })
 
               const { error: insertError } = await supabase
                 .from('ai_tools')
-                .upsert(dbTools, { onConflict: 'id' })
+                .upsert(toolsWithEmbeddings, { onConflict: 'id' })
 
               if (insertError) {
                 logger.error('[API] Discovery Ingestion Error:', insertError)
