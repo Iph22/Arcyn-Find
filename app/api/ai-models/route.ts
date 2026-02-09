@@ -5,6 +5,7 @@ import type { AIEntry } from '@/lib/ai-data'
 import { checkRateLimit, getRateLimitHeaders } from '@/lib/rate-limit'
 import { logger } from '@/lib/logger'
 import { parseNaturalLanguageSearch, validateSearchResults, discoverNewTools } from '@/lib/gemini'
+import { processSearchQuery, buildSearchConditions } from '@/lib/search-utils'
 
 // Increase timeout for Vercel Pro (30s), or remove for Hobby plan (10s max)
 export const maxDuration = 30
@@ -81,6 +82,23 @@ export async function GET(request: Request) {
     const originalSearch = search
     let effectiveSearch = search
     let effectiveCategory = category
+    let searchKeywords: string[] = []  // Processed keywords for enhanced search
+
+    // Process search query with smart enhancements (typo correction, synonyms, etc.)
+    if (search) {
+      const processed = processSearchQuery(search)
+      searchKeywords = processed.expanded // Use expanded keywords (includes synonyms)
+
+      if (processed.typosCorrected) {
+        logger.info(`[API] Typo corrected: "${search}" → "${processed.normalized}"`)
+      }
+
+      logger.debug('[API] Processed search:', {
+        original: processed.original,
+        keywords: processed.keywords,
+        expanded: processed.expanded
+      })
+    }
 
     // Check if this looks like a natural language query - ignore very short queries to save quota
     const isNaturalLanguage = search && search.length > 15 && (
@@ -230,35 +248,33 @@ export async function GET(request: Request) {
         }
         queryBuilder = queryBuilder.ilike('access_type', decodedAccessType)
       }
-      if (effectiveSearch) {
-        // Use proper Supabase syntax for search across name, description, platform, and tags
+
+      // Use enhanced search with processed keywords (includes synonyms and typo corrections)
+      if (searchKeywords.length > 0) {
+        // Build search conditions using expanded keywords
+        const conditions = buildSearchConditions(searchKeywords)
+        queryBuilder = queryBuilder.or(conditions)
+
+        // Also add the full original search phrase for exact matches
+        if (effectiveSearch) {
+          const escapedSearch = effectiveSearch.replace(/%/g, '\\%').replace(/_/g, '\\_')
+          queryBuilder = queryBuilder.or(`name.ilike.%${escapedSearch}%,description.ilike.%${escapedSearch}%`)
+        }
+      } else if (effectiveSearch) {
+        // Fallback: no processed keywords, use raw search
         const escapedSearch = effectiveSearch.replace(/%/g, '\\%').replace(/_/g, '\\_')
+        const searchWords = escapedSearch.trim().split(/\s+/).filter(w => w.length > 2)
 
-        // For multi-word queries, search for each word individually
-        const searchWords = escapedSearch.trim().split(/\s+/).filter(w => w.length > 2) // Filter very short words
-
-        if (searchWords.length > 1) {
+        if (searchWords.length > 0) {
           const conditions: string[] = []
           for (const word of searchWords) {
             conditions.push(`name.ilike.%${word}%`)
             conditions.push(`description.ilike.%${word}%`)
             conditions.push(`platform.ilike.%${word}%`)
-            // Also search in tags (case-insensitive contains)
             conditions.push(`tags.cs.{${word.toLowerCase()}}`)
           }
-          // Also search for the full phrase
-          conditions.push(`name.ilike.%${escapedSearch}%`)
-          conditions.push(`description.ilike.%${escapedSearch}%`)
-          conditions.push(`platform.ilike.%${escapedSearch}%`)
-
           queryBuilder = queryBuilder.or(conditions.join(','))
-        } else if (searchWords.length === 1) {
-          // Single word query: search in name, description, platform, tags
-          const word = searchWords[0]
-          queryBuilder = queryBuilder.or(`name.ilike.%${word}%,description.ilike.%${word}%,platform.ilike.%${word}%,tags.cs.{${word.toLowerCase()}}`)
-        }
-        // If all words were filtered out (too short), search the full escaped query
-        else {
+        } else {
           queryBuilder = queryBuilder.or(`name.ilike.%${escapedSearch}%,description.ilike.%${escapedSearch}%,platform.ilike.%${escapedSearch}%`)
         }
       }
