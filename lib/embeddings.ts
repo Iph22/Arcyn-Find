@@ -1,0 +1,314 @@
+/**
+ * Embedding Service - Generates semantic embeddings for AI tool search
+ * 
+ * Uses Gemini's text-embedding-004 model to create 768-dimensional vectors
+ * that capture the semantic meaning of text.
+ */
+
+import { GoogleGenerativeAI } from "@google/generative-ai"
+import { getSupabaseAdmin } from "./supabase"
+import { logger } from "./logger"
+
+const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY || "")
+
+// Gemini's embedding model
+const EMBEDDING_MODEL = "text-embedding-004"
+
+// Cache embeddings in memory to reduce API calls
+const embeddingCache = new Map<string, number[]>()
+const CACHE_MAX_SIZE = 1000
+
+/**
+ * Generate an embedding vector for the given text
+ */
+export async function generateEmbedding(text: string): Promise<number[] | null> {
+    if (!process.env.GEMINI_API_KEY) {
+        logger.warn("[Embeddings] GEMINI_API_KEY is not set")
+        return null
+    }
+
+    if (!text || text.trim().length === 0) {
+        return null
+    }
+
+    // Check cache first
+    const cacheKey = text.toLowerCase().trim().substring(0, 200)
+    if (embeddingCache.has(cacheKey)) {
+        return embeddingCache.get(cacheKey)!
+    }
+
+    try {
+        const model = genAI.getGenerativeModel({ model: EMBEDDING_MODEL })
+        const result = await model.embedContent(text)
+        const embedding = result.embedding.values
+
+        // Cache the result
+        if (embeddingCache.size >= CACHE_MAX_SIZE) {
+            // Remove oldest entry (first key)
+            const firstKey = embeddingCache.keys().next().value
+            if (firstKey) embeddingCache.delete(firstKey)
+        }
+        embeddingCache.set(cacheKey, embedding)
+
+        return embedding
+    } catch (error) {
+        logger.error("[Embeddings] Error generating embedding:", error)
+        return null
+    }
+}
+
+/**
+ * Generate embedding for search query with retry logic
+ */
+export async function generateQueryEmbedding(query: string): Promise<number[] | null> {
+    // Clean and prepare the query
+    const cleanQuery = query
+        .toLowerCase()
+        .replace(/[^\w\s-]/g, ' ')
+        .replace(/\s+/g, ' ')
+        .trim()
+
+    if (cleanQuery.length < 3) {
+        return null
+    }
+
+    // Add context to improve search quality
+    const enhancedQuery = `AI tool for: ${cleanQuery}`
+
+    return await generateEmbedding(enhancedQuery)
+}
+
+/**
+ * Generate embedding for a tool (name + description combined)
+ */
+export async function generateToolEmbedding(
+    name: string,
+    description: string,
+    category?: string,
+    tags?: string[]
+): Promise<number[] | null> {
+    // Combine tool information for rich embedding
+    const parts = [
+        name,
+        description || "",
+        category ? `Category: ${category}` : "",
+        tags && tags.length > 0 ? `Tags: ${tags.join(", ")}` : ""
+    ].filter(Boolean)
+
+    const text = parts.join(". ").substring(0, 2000) // Limit text length
+
+    return await generateEmbedding(text)
+}
+
+/**
+ * Batch generate embeddings for multiple tools
+ * Includes rate limiting to avoid quota issues
+ */
+export async function batchGenerateEmbeddings(
+    tools: Array<{
+        id: string
+        name: string
+        description?: string | null
+        category?: string
+        tags?: string[] | null
+    }>,
+    onProgress?: (completed: number, total: number) => void
+): Promise<Map<string, number[]>> {
+    const results = new Map<string, number[]>()
+    const batchSize = 5 // Process 5 at a time
+    const delayMs = 200 // Delay between batches to avoid rate limits
+
+    for (let i = 0; i < tools.length; i += batchSize) {
+        const batch = tools.slice(i, i + batchSize)
+
+        await Promise.all(
+            batch.map(async (tool) => {
+                const embedding = await generateToolEmbedding(
+                    tool.name,
+                    tool.description || "",
+                    tool.category,
+                    tool.tags || []
+                )
+                if (embedding) {
+                    results.set(tool.id, embedding)
+                }
+            })
+        )
+
+        if (onProgress) {
+            onProgress(Math.min(i + batchSize, tools.length), tools.length)
+        }
+
+        // Rate limit delay
+        if (i + batchSize < tools.length) {
+            await new Promise(resolve => setTimeout(resolve, delayMs))
+        }
+    }
+
+    return results
+}
+
+/**
+ * Perform semantic search using embeddings
+ */
+export async function semanticSearch(
+    query: string,
+    limit: number = 20,
+    threshold: number = 0.5
+): Promise<Array<{
+    id: string
+    name: string
+    category: string
+    description: string
+    platform: string
+    similarity: number
+}>> {
+    const queryEmbedding = await generateQueryEmbedding(query)
+
+    if (!queryEmbedding) {
+        logger.warn("[Embeddings] Could not generate query embedding")
+        return []
+    }
+
+    const supabase = getSupabaseAdmin()
+
+    try {
+        // Use the semantic search function we created
+        const { data, error } = await supabase.rpc('search_tools_semantic', {
+            query_embedding: queryEmbedding,
+            match_threshold: threshold,
+            match_count: limit
+        })
+
+        if (error) {
+            logger.error("[Embeddings] Semantic search error:", error)
+            return []
+        }
+
+        return data || []
+    } catch (error) {
+        logger.error("[Embeddings] Semantic search failed:", error)
+        return []
+    }
+}
+
+/**
+ * Hybrid search - combines semantic + keyword search
+ */
+export async function hybridSearch(
+    query: string,
+    limit: number = 30,
+    threshold: number = 0.4
+): Promise<Array<{
+    id: string
+    name: string
+    category: string
+    description: string
+    platform: string
+    similarity: number
+    keyword_match: boolean
+}>> {
+    const queryEmbedding = await generateQueryEmbedding(query)
+
+    const supabase = getSupabaseAdmin()
+
+    // If no embedding, fall back to pure keyword search
+    if (!queryEmbedding) {
+        logger.info("[Embeddings] No embedding available, using keyword search only")
+        return []
+    }
+
+    try {
+        const { data, error } = await supabase.rpc('search_tools_hybrid', {
+            query_embedding: queryEmbedding,
+            search_text: query,
+            match_threshold: threshold,
+            match_count: limit
+        })
+
+        if (error) {
+            // If the function doesn't exist yet, return empty (migration not run)
+            if (error.message?.includes('does not exist')) {
+                logger.warn("[Embeddings] Hybrid search function not found. Run the migration.")
+                return []
+            }
+            logger.error("[Embeddings] Hybrid search error:", error)
+            return []
+        }
+
+        return data || []
+    } catch (error) {
+        logger.error("[Embeddings] Hybrid search failed:", error)
+        return []
+    }
+}
+
+/**
+ * Update a single tool's embedding in the database
+ */
+export async function updateToolEmbedding(toolId: string): Promise<boolean> {
+    const supabase = getSupabaseAdmin()
+
+    // Fetch the tool
+    const { data: tool, error: fetchError } = await supabase
+        .from('ai_tools')
+        .select('id, name, description, category, tags')
+        .eq('id', toolId)
+        .single()
+
+    if (fetchError || !tool) {
+        logger.error("[Embeddings] Tool not found:", toolId)
+        return false
+    }
+
+    // Generate embedding
+    const embedding = await generateToolEmbedding(
+        tool.name,
+        tool.description,
+        tool.category,
+        tool.tags
+    )
+
+    if (!embedding) {
+        logger.error("[Embeddings] Could not generate embedding for:", toolId)
+        return false
+    }
+
+    // Update the tool with the embedding
+    const { error: updateError } = await supabase
+        .from('ai_tools')
+        .update({ embedding })
+        .eq('id', toolId)
+
+    if (updateError) {
+        logger.error("[Embeddings] Error updating embedding:", updateError)
+        return false
+    }
+
+    logger.info(`[Embeddings] Updated embedding for: ${tool.name}`)
+    return true
+}
+
+/**
+ * Check if semantic search is available (migration has been run)
+ */
+export async function isSemanticSearchAvailable(): Promise<boolean> {
+    const supabase = getSupabaseAdmin()
+
+    try {
+        // Check if the embedding column exists
+        const { data, error } = await supabase
+            .from('ai_tools')
+            .select('embedding')
+            .limit(1)
+
+        if (error) {
+            // Column doesn't exist
+            return false
+        }
+
+        return true
+    } catch {
+        return false
+    }
+}

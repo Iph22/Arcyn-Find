@@ -6,6 +6,7 @@ import { checkRateLimit, getRateLimitHeaders } from '@/lib/rate-limit'
 import { logger } from '@/lib/logger'
 import { parseNaturalLanguageSearch, validateSearchResults, discoverNewTools } from '@/lib/gemini'
 import { processSearchQuery, buildSearchConditions } from '@/lib/search-utils'
+import { hybridSearch, isSemanticSearchAvailable } from '@/lib/embeddings'
 
 // Increase timeout for Vercel Pro (30s), or remove for Hobby plan (10s max)
 export const maxDuration = 30
@@ -144,6 +145,40 @@ export async function GET(request: Request) {
     // Log what search terms are being used (debug)
     if (originalSearch) {
       logger.info(`[API] Search: original="${originalSearch}" effective="${effectiveSearch}" category="${effectiveCategory || 'none'}"`)
+    }
+
+    // Try semantic search first if available (best results)
+    let semanticResults: AIEntry[] = []
+    if (originalSearch && !category && !region && !accessType) {
+      try {
+        const isAvailable = await isSemanticSearchAvailable()
+        if (isAvailable) {
+          logger.info('[API] Using semantic/hybrid search')
+          const results = await hybridSearch(originalSearch, limit)
+
+          if (results.length > 0) {
+            semanticResults = results.map(r => ({
+              id: r.id,
+              name: r.name,
+              category: r.category,
+              description: r.description || '',
+              platform: r.platform,
+              region: 'Global',
+              accessType: 'Freemium',
+              pricing: '',
+              tags: [],
+              popularity: 0,
+              lastUpdated: '',
+              isTrending: false,
+              _similarity: r.similarity
+            } as AIEntry & { _similarity: number }))
+
+            logger.info(`[API] Semantic search found ${semanticResults.length} results`)
+          }
+        }
+      } catch (error) {
+        logger.debug('[API] Semantic search not available:', error)
+      }
     }
 
     // If fetching by specific ID, return early with just that tool
@@ -298,6 +333,19 @@ export async function GET(request: Request) {
     }> = []
 
     const hasFilters = effectiveCategory || region || accessType || effectiveSearch
+
+    // If semantic search found good results, return them directly
+    if (semanticResults.length >= 5) {
+      logger.info(`[API] Returning ${semanticResults.length} semantic search results`)
+
+      return NextResponse.json(semanticResults, {
+        headers: {
+          ...getRateLimitHeaders(rateLimit.remaining, rateLimit.resetTime),
+          'Cache-Control': 'public, s-maxage=60, stale-while-revalidate=300',
+          'X-Search-Type': 'semantic'
+        },
+      })
+    }
 
     // Fast path: single query for small requests
     if (limit <= SUPABASE_MAX_LIMIT) {
