@@ -116,6 +116,14 @@ export async function GET(request: NextRequest) {
 
   const url = urlValidation.data
 
+  // safeUrl transforms empty strings to null - check for that
+  if (!url) {
+    return NextResponse.json(
+      { error: 'URL parameter is required' },
+      { status: 400 }
+    )
+  }
+
   // =========================================================================
   // SSRF PREVENTION - Block internal/private URLs
   // =========================================================================
