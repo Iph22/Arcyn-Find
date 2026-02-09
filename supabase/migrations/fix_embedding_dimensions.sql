@@ -1,25 +1,10 @@
--- Fix: Update embedding column from 768 to 3072 dimensions
--- The old text-embedding-004 model (768 dims) was shut down Jan 2026
--- The new gemini-embedding-001 model uses 3072 dimensions
+-- Fix: Update search functions for gemini-embedding-001 model
+-- We use outputDimensionality=768 so column stays vector(768)
+-- The old text-embedding-004 model was shut down Jan 2026
 
--- Drop the old index
-DROP INDEX IF EXISTS ai_tools_embedding_idx;
-
--- Change column type to 3072 dimensions
-ALTER TABLE ai_tools 
-ALTER COLUMN embedding TYPE vector(3072);
-
--- Recreate index with new dimensions
-CREATE INDEX IF NOT EXISTS ai_tools_embedding_idx 
-ON ai_tools 
-USING ivfflat (embedding vector_cosine_ops)
-WITH (lists = 100);
-
--- Update the search functions to use 3072 dimensions
-
--- Function to search tools by semantic similarity
+-- Recreate the semantic search function (same as before, just refreshing)
 CREATE OR REPLACE FUNCTION search_tools_semantic(
-  query_embedding vector(3072),
+  query_embedding vector(768),
   match_threshold float DEFAULT 0.5,
   match_count int DEFAULT 20
 )
@@ -66,9 +51,9 @@ BEGIN
 END;
 $$;
 
--- Hybrid search: combines semantic + keyword search with ranking
+-- Hybrid search function (same as before, just refreshing)
 CREATE OR REPLACE FUNCTION search_tools_hybrid(
-  query_embedding vector(3072),
+  query_embedding vector(768),
   search_text text DEFAULT '',
   match_threshold float DEFAULT 0.4,
   match_count int DEFAULT 30
@@ -136,4 +121,4 @@ BEGIN
 END;
 $$;
 
-COMMENT ON COLUMN ai_tools.embedding IS 'Semantic embedding vector (3072 dimensions) generated using gemini-embedding-001';
+COMMENT ON COLUMN ai_tools.embedding IS 'Semantic embedding vector (768 dimensions) generated using gemini-embedding-001 with outputDimensionality=768';
