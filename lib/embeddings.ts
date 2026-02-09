@@ -37,24 +37,36 @@ export async function generateEmbedding(text: string): Promise<number[] | null> 
         return embeddingCache.get(cacheKey)!
     }
 
-    try {
-        const model = genAI.getGenerativeModel({ model: EMBEDDING_MODEL })
-        const result = await model.embedContent(text)
-        const embedding = result.embedding.values
+    const MAX_RETRIES = 3
+    const BASE_DELAY = 1500
 
-        // Cache the result
-        if (embeddingCache.size >= CACHE_MAX_SIZE) {
-            // Remove oldest entry (first key)
-            const firstKey = embeddingCache.keys().next().value
-            if (firstKey) embeddingCache.delete(firstKey)
+    for (let attempt = 0; attempt < MAX_RETRIES; attempt++) {
+        try {
+            const model = genAI.getGenerativeModel({ model: EMBEDDING_MODEL })
+            const result = await model.embedContent(text)
+            const embedding = result.embedding.values
+
+            // Cache the result
+            if (embeddingCache.size >= CACHE_MAX_SIZE) {
+                const firstKey = embeddingCache.keys().next().value
+                if (firstKey) embeddingCache.delete(firstKey)
+            }
+            embeddingCache.set(cacheKey, embedding)
+
+            return embedding
+        } catch (error: any) {
+            const isRetryable = error?.status === 429 || error?.status === 503
+            if (isRetryable && attempt < MAX_RETRIES - 1) {
+                const delay = BASE_DELAY * Math.pow(2, attempt)
+                console.warn(`[Embeddings] Rate limited (${error.status}), retrying in ${delay}ms... (attempt ${attempt + 1}/${MAX_RETRIES})`)
+                await new Promise(resolve => setTimeout(resolve, delay))
+                continue
+            }
+            console.error(`[Embeddings] Error generating embedding (attempt ${attempt + 1}):`, error?.message || error)
+            return null
         }
-        embeddingCache.set(cacheKey, embedding)
-
-        return embedding
-    } catch (error) {
-        logger.error("[Embeddings] Error generating embedding:", error)
-        return null
     }
+    return null
 }
 
 /**
@@ -115,8 +127,9 @@ export async function batchGenerateEmbeddings(
     onProgress?: (completed: number, total: number) => void
 ): Promise<Map<string, number[]>> {
     const results = new Map<string, number[]>()
-    const batchSize = 5 // Process 5 at a time
-    const delayMs = 200 // Delay between batches to avoid rate limits
+    const batchSize = 3 // Process 3 at a time (conservative to avoid rate limits)
+    const delayMs = 500 // Delay between batches to avoid rate limits
+    let nullCount = 0
 
     for (let i = 0; i < tools.length; i += batchSize) {
         const batch = tools.slice(i, i + batchSize)
@@ -131,6 +144,8 @@ export async function batchGenerateEmbeddings(
                 )
                 if (embedding) {
                     results.set(tool.id, embedding)
+                } else {
+                    nullCount++
                 }
             })
         )
@@ -139,12 +154,20 @@ export async function batchGenerateEmbeddings(
             onProgress(Math.min(i + batchSize, tools.length), tools.length)
         }
 
+        // If we're getting too many nulls, slow down significantly
+        if (nullCount > 5) {
+            console.warn(`[Embeddings] Many failures (${nullCount}), slowing down...`)
+            await new Promise(resolve => setTimeout(resolve, 3000))
+            nullCount = 0 // Reset counter
+        }
+
         // Rate limit delay
         if (i + batchSize < tools.length) {
             await new Promise(resolve => setTimeout(resolve, delayMs))
         }
     }
 
+    console.log(`[Embeddings] Batch complete: ${results.size} succeeded, ${nullCount} failed out of ${tools.length}`)
     return results
 }
 

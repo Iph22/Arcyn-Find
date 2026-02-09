@@ -81,18 +81,36 @@ export async function POST(request: NextRequest) {
             logger.info(`[Embeddings API] Progress: ${completed}/${total}`)
         })
 
+        logger.info(`[Embeddings API] Generated ${embeddings.size} embeddings out of ${tools.length} tools`)
+
+        if (embeddings.size === 0) {
+            return NextResponse.json({
+                message: 'No embeddings could be generated. Check Gemini API key and quota.',
+                processed: tools.length,
+                updated: 0,
+                failed: tools.length,
+                remaining: tools.length
+            })
+        }
+
         // Update tools with their embeddings
         let updated = 0
         let failed = 0
 
         for (const [toolId, embedding] of embeddings) {
+            // Convert array to pgvector format string: [1,2,3,...] 
+            const vectorStr = `[${embedding.join(',')}]`
+
             const { error: updateError } = await supabase
                 .from('ai_tools')
-                .update({ embedding })
+                .update({ embedding: vectorStr })
                 .eq('id', toolId)
 
             if (updateError) {
-                logger.error(`[Embeddings API] Failed to update ${toolId}:`, updateError)
+                if (failed < 3) {
+                    // Only log first few failures to avoid spam
+                    logger.error(`[Embeddings API] Failed to update ${toolId}:`, updateError.message)
+                }
                 failed++
             } else {
                 updated++
@@ -110,6 +128,7 @@ export async function POST(request: NextRequest) {
         return NextResponse.json({
             message: 'Embeddings generated successfully',
             processed: tools.length,
+            generated: embeddings.size,
             updated,
             failed,
             remaining: remaining || 0
