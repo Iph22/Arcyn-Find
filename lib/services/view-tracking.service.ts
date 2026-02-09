@@ -269,16 +269,30 @@ export async function updateViewCountCaches(): Promise<{
 
     try {
         // Get view counts per tool for last 24h
-        const { data: views24h } = await supabase
+        const { data: views24h, error: error24h } = await supabase
             .from('tool_views')
             .select('tool_id')
             .gte('viewed_at', yesterday.toISOString())
 
+        // If tool_views table doesn't exist, skip gracefully
+        if (error24h) {
+            if (error24h.message?.includes('does not exist') || error24h.code === '42P01') {
+                console.warn('[ViewTracking] tool_views table does not exist. Run the add_view_tracking.sql migration.')
+                return { updated: 0, errors: 0 }
+            }
+            // For other errors, log but don't fail completely
+            console.error('[ViewTracking] Error querying views24h:', error24h)
+        }
+
         // Get view counts per tool for last 7d
-        const { data: views7d } = await supabase
+        const { data: views7d, error: error7d } = await supabase
             .from('tool_views')
             .select('tool_id')
             .gte('viewed_at', lastWeek.toISOString())
+
+        if (error7d && !error7d.message?.includes('does not exist')) {
+            console.error('[ViewTracking] Error querying views7d:', error7d)
+        }
 
         // Count views per tool
         const counts24h: Record<string, number> = {}
@@ -334,10 +348,19 @@ export async function cleanupOldViews(): Promise<number> {
 
     try {
         // First count how many will be deleted
-        const { count } = await supabase
+        const { count, error } = await supabase
             .from('tool_views')
             .select('*', { count: 'exact', head: true })
             .lt('viewed_at', thirtyDaysAgo.toISOString())
+
+        // If tool_views table doesn't exist, skip gracefully
+        if (error) {
+            if (error.message?.includes('does not exist') || error.code === '42P01') {
+                return 0 // Table doesn't exist, nothing to clean
+            }
+            console.error('[ViewTracking] Error in cleanupOldViews:', error)
+            return 0
+        }
 
         // Then delete them
         await supabase

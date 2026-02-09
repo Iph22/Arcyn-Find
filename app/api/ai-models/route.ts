@@ -656,7 +656,9 @@ export async function GET(request: Request) {
               if (insertError) {
                 logger.error('[API] Discovery Ingestion Error:', insertError)
               } else {
-                logger.info(`[API] Successfully ingested ${dbTools.length} new tools via discovery`)
+                logger.info(`[API] ✅ Successfully saved ${dbTools.length} NEW tools to database:`)
+                dbTools.forEach(t => logger.info(`  → ${t.name} (${t.category}) - ID: ${t.id}`))
+                logger.info('[API] These tools will now be found in regular searches without using Gemini tokens!')
                 const newEntries = dbTools.map(transformToAIEntry)
                 aiEntries = [...newEntries, ...aiEntries].slice(0, limit)
               }
