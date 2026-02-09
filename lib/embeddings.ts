@@ -11,8 +11,8 @@ import { logger } from "./logger"
 
 const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY || "")
 
-// Gemini's embedding model
-const EMBEDDING_MODEL = "text-embedding-004"
+// Gemini's embedding model (gemini-embedding-001 replaced text-embedding-004 which was shut down Jan 2026)
+const EMBEDDING_MODEL = "gemini-embedding-001"
 
 // Cache embeddings in memory to reduce API calls
 const embeddingCache = new Map<string, number[]>()

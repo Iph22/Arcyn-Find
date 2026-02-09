@@ -97,7 +97,7 @@
     "@types/react": "^19",
     "@types/react-dom": "^19",
     "baseline-browser-mapping": "^2.8.32",
-    "dotenv": "^17.2.3",
+    "dotenv": "^17.2.4",
     "postcss": "^8.5",
     "tailwindcss": "^4.1.17",
     "tsx": "^4.7.0",
