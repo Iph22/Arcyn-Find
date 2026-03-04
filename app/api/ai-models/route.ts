@@ -186,15 +186,21 @@ export async function GET(request: Request) {
       // Track popular searches for autocomplete suggestions (fire-and-forget)
       const cleanQuery = originalSearch.toLowerCase().trim()
       if (cleanQuery.length >= 3) {
-        supabase.rpc('increment_search_count', { search_query: cleanQuery })
-          .then(() => { })
-          .catch(() => {
-            // Table might not exist — try upsert fallback
-            supabase.from('search_cache').upsert({
-              query_text: cleanQuery,
-              use_count: 1,
-            }, { onConflict: 'query_text' }).then()
-          })
+        // Track popular searches for autocomplete (fire-and-forget async)
+        ; (async () => {
+          try {
+            const { error } = await supabase.rpc('increment_search_count', { search_query: cleanQuery })
+            if (error) {
+              // Table might not exist — try upsert fallback
+              await supabase.from('search_cache').upsert({
+                query_text: cleanQuery,
+                use_count: 1,
+              }, { onConflict: 'query_text' })
+            }
+          } catch {
+            // Ignore errors for background tracking
+          }
+        })()
       }
     }
 

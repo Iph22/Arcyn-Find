@@ -44,8 +44,7 @@ export async function generateEmbedding(text: string): Promise<number[] | null> 
         try {
             const model = genAI.getGenerativeModel({ model: EMBEDDING_MODEL })
             const result = await model.embedContent({
-                content: { parts: [{ text }] },
-                outputDimensionality: 768
+                content: { role: 'user', parts: [{ text }] }
             })
             const embedding = result.embedding.values
 
