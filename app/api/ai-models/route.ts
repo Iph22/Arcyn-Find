@@ -111,29 +111,66 @@ export async function GET(request: Request) {
     const canUseGemini = now - lastGeminiErrorTime > ERRROR_COOLDOWN
 
     if (isNaturalLanguage && search && canUseGemini) {
+      const cleanQuery = search.toLowerCase().trim()
       try {
-        // Check cache first
-        const cacheKey = `nlp:${search.toLowerCase()}`
+        // 1. Check in-memory fast cache first
+        const cacheKey = `nlp:${cleanQuery}`
         const cached = geminiCache.get(cacheKey)
+        let nlpParams = null
+
         if (cached && (now - cached.timestamp < CACHE_TTL)) {
-          const nlpParams = cached.data
-          logger.debug('[API] NLP Search (Cached):', nlpParams)
+          nlpParams = cached.data
+          logger.debug('[API] NLP Search (Memory Cache):', nlpParams)
+        } else {
+          // 2. Check long-term Supabase database cache to heavily save Gemini tokens!
+          try {
+            const { data: dbCache } = await supabase
+              .from('search_cache')
+              .select('nlp_keywords, nlp_categories')
+              .eq('query_text', cleanQuery)
+              .single()
+
+            if (dbCache && dbCache.nlp_keywords && dbCache.nlp_keywords.length > 0) {
+              nlpParams = {
+                keywords: dbCache.nlp_keywords,
+                categories: dbCache.nlp_categories || []
+              }
+              logger.debug('[API] NLP Search (Database Cache):', nlpParams)
+              geminiCache.set(cacheKey, { data: nlpParams, timestamp: now })
+            }
+          } catch (e) {
+            // Table doesn't exist yet or cache miss
+          }
+
+          // 3. Fallback: Parse via Gemini API
+          if (!nlpParams) {
+            nlpParams = await parseNaturalLanguageSearch(search)
+            if (nlpParams) {
+              geminiCache.set(cacheKey, { data: nlpParams, timestamp: now })
+              logger.debug('[API] NLP Search Parsed (Gemini):', nlpParams)
+              // Update long-term database cache to avoid future API calls for this search
+              try {
+                // Ignore await so we don't block the request
+                supabase.from('search_cache').upsert({
+                  query_text: cleanQuery,
+                  nlp_keywords: nlpParams.keywords,
+                  nlp_categories: nlpParams.categories
+                }, { onConflict: 'query_text' }).then()
+              } catch (e) { }
+            }
+          }
+        }
+
+        // Apply NLP output to query logic
+        if (nlpParams) {
           if (nlpParams.keywords.length > 0) effectiveSearch = nlpParams.keywords.join(' ')
           if (!category && nlpParams.categories.length > 0) effectiveCategory = nlpParams.categories[0]
-        } else {
-          const nlpParams = await parseNaturalLanguageSearch(search)
-          if (nlpParams) {
-            geminiCache.set(cacheKey, { data: nlpParams, timestamp: now })
-            logger.debug('[API] NLP Search Parsed:', nlpParams)
-            if (nlpParams.keywords.length > 0) effectiveSearch = nlpParams.keywords.join(' ')
-            if (!category && nlpParams.categories.length > 0) effectiveCategory = nlpParams.categories[0]
-          }
         }
       } catch (err: any) {
         // Handle both quota errors (429) and AI unavailable (503)
         if (err.status === 429 || err.status === 503 || err.isAIUnavailable) {
           lastGeminiErrorTime = now
-          logger.warn('[API] Gemini unavailable. Falling back to keyword search for 1 minute.')
+          logger.warn('[API] Gemini NLP unavailable. Falling back to keyword search for 1 minute.')
           // Use the raw search terms as keywords for fallback
           effectiveSearch = search
         } else {
@@ -145,6 +182,20 @@ export async function GET(request: Request) {
     // Log what search terms are being used (debug)
     if (originalSearch) {
       logger.info(`[API] Search: original="${originalSearch}" effective="${effectiveSearch}" category="${effectiveCategory || 'none'}"`)
+
+      // Track popular searches for autocomplete suggestions (fire-and-forget)
+      const cleanQuery = originalSearch.toLowerCase().trim()
+      if (cleanQuery.length >= 3) {
+        supabase.rpc('increment_search_count', { search_query: cleanQuery })
+          .then(() => { })
+          .catch(() => {
+            // Table might not exist — try upsert fallback
+            supabase.from('search_cache').upsert({
+              query_text: cleanQuery,
+              use_count: 1,
+            }, { onConflict: 'query_text' }).then()
+          })
+      }
     }
 
     // Try semantic search first if available (best results)

@@ -187,6 +187,14 @@ export async function semanticSearch(
     category: string
     description: string
     platform: string
+    region?: string
+    access_type?: string
+    pricing?: string
+    tags?: string[]
+    popularity?: number
+    last_updated?: string
+    is_trending?: boolean
+    image?: string
     similarity: number
 }>> {
     const queryEmbedding = await generateQueryEmbedding(query)
@@ -231,31 +239,71 @@ export async function hybridSearch(
     category: string
     description: string
     platform: string
+    region?: string
+    access_type?: string
+    pricing?: string
+    tags?: string[]
+    popularity?: number
+    last_updated?: string
+    is_trending?: boolean
+    image?: string
     similarity: number
-    keyword_match: boolean
+    keyword_match?: boolean
+    fts_score?: number
+    combined_score?: number
 }>> {
-    const queryEmbedding = await generateQueryEmbedding(query)
-
     const supabase = getSupabaseAdmin()
 
-    // If no embedding, fall back to pure keyword search
+    // 1. Try to fetch embedding from permanent cache to save tokens
+    let queryEmbedding: number[] | null = null;
+    const cleanQuery = query.toLowerCase().trim();
+
+    try {
+        const { data: cached } = await supabase
+            .from('search_cache')
+            .select('semantic_embedding')
+            .eq('query_text', cleanQuery)
+            .single()
+
+        if (cached && cached.semantic_embedding) {
+            queryEmbedding = cached.semantic_embedding;
+            logger.info("[Embeddings] Using heavily cached query embedding for tokens!")
+            // Update last_used asynchronously 
+            supabase.from('search_cache').update({
+                last_used_at: new Date().toISOString(),
+            }).eq('query_text', cleanQuery).then();
+        }
+    } catch (e) {
+        // Cache miss or table doesn't exist yet
+    }
+
+    // 2. Generate embedding and cache it
     if (!queryEmbedding) {
-        logger.info("[Embeddings] No embedding available, using keyword search only")
-        return []
+        queryEmbedding = await generateQueryEmbedding(query)
+        if (queryEmbedding) {
+            try {
+                // Try caching it async
+                supabase.from('search_cache').upsert({
+                    query_text: cleanQuery,
+                    semantic_embedding: queryEmbedding
+                }, { onConflict: 'query_text' }).then()
+            } catch (err) { }
+        } else {
+            logger.info("[Embeddings] No embedding available, using FTS-only advanced search fallback")
+        }
     }
 
     try {
-        const { data, error } = await supabase.rpc('search_tools_hybrid', {
+        const { data, error } = await supabase.rpc('search_tools_advanced', {
+            search_query: query,
             query_embedding: queryEmbedding,
-            search_text: query,
             match_threshold: threshold,
             match_count: limit
         })
 
         if (error) {
-            // If the function doesn't exist yet, return empty (migration not run)
             if (error.message?.includes('does not exist')) {
-                logger.warn("[Embeddings] Hybrid search function not found. Run the migration.")
+                logger.warn("[Embeddings] Advanced hybrid search function not found. Did you run the migration?")
                 return []
             }
             logger.error("[Embeddings] Hybrid search error:", error)
@@ -317,8 +365,17 @@ export async function updateToolEmbedding(toolId: string): Promise<boolean> {
 
 /**
  * Check if semantic search is available (migration has been run)
+ * Cached for 5 minutes to avoid checking on every request.
  */
+let semanticAvailableCache: { value: boolean, timestamp: number } | null = null
+const SEMANTIC_CHECK_TTL = 1000 * 60 * 5 // 5 minutes
+
 export async function isSemanticSearchAvailable(): Promise<boolean> {
+    // Return cached result if fresh
+    if (semanticAvailableCache && (Date.now() - semanticAvailableCache.timestamp < SEMANTIC_CHECK_TTL)) {
+        return semanticAvailableCache.value
+    }
+
     const supabase = getSupabaseAdmin()
 
     try {
@@ -329,12 +386,15 @@ export async function isSemanticSearchAvailable(): Promise<boolean> {
             .limit(1)
 
         if (error) {
-            // Column doesn't exist
+            semanticAvailableCache = { value: false, timestamp: Date.now() }
             return false
         }
 
+        semanticAvailableCache = { value: true, timestamp: Date.now() }
         return true
     } catch {
+        semanticAvailableCache = { value: false, timestamp: Date.now() }
         return false
     }
 }
+

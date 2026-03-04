@@ -8,6 +8,8 @@ import { useRouter, useSearchParams } from "next/navigation"
 import { motion, AnimatePresence } from "framer-motion"
 import { Search, Sparkles, Star, Bookmark, ExternalLink, Menu, X, Filter } from "lucide-react"
 import { PremiumSearchInput } from "@/components/premium-search-input"
+import { SearchSkeleton } from "@/components/search-skeleton"
+import { HighlightedText } from "@/components/search-highlight"
 import { Button } from "@/components/ui/button"
 import { Card } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
@@ -125,11 +127,11 @@ function ToolsContent() {
 
   const ITEMS_PER_PAGE = 24 // Load 24 tools at a time (divisible by 2 and 3 for grid)
 
-  // Debounce search input to avoid excessive API calls
+  // Debounce search input — 200ms for Google-like speed
   useEffect(() => {
     const timer = setTimeout(() => {
       setDebouncedSearch(searchQuery)
-    }, 500) // Wait 500ms after user stops typing
+    }, 200) // 200ms — fast enough to feel instant, slow enough to avoid API spam
 
     return () => clearTimeout(timer)
   }, [searchQuery])
@@ -491,14 +493,9 @@ function ToolsContent() {
               </div>
             </motion.div>
 
-            {/* Loading State */}
-            {isLoading && (
-              <div className="flex items-center justify-center py-20">
-                <div className="text-center">
-                  <div className="mb-4 inline-block h-8 w-8 animate-spin rounded-full border-4 border-primary border-t-transparent" />
-                  <p className="text-muted-foreground">Loading AI tools...</p>
-                </div>
-              </div>
+            {/* Loading State — Premium skeleton cards instead of spinner */}
+            {isLoading && allTools.length === 0 && (
+              <SearchSkeleton count={6} />
             )}
 
             {/* Error State */}
@@ -558,7 +555,9 @@ function ToolsContent() {
                           {/* Tool Info */}
                           <div className="p-4 md:p-5">
                             <div className="mb-2 flex items-start justify-between gap-2">
-                              <h3 className="text-base md:text-lg font-semibold leading-tight">{tool.name}</h3>
+                              <h3 className="text-base md:text-lg font-semibold leading-tight">
+                                <HighlightedText text={tool.name} query={debouncedSearch} />
+                              </h3>
                               <Button
                                 variant="ghost"
                                 size="icon"
@@ -572,7 +571,7 @@ function ToolsContent() {
                             </div>
 
                             <p className="mb-3 md:mb-4 line-clamp-2 text-xs md:text-sm text-muted-foreground leading-relaxed">
-                              {tool.description}
+                              <HighlightedText text={tool.description || ''} query={debouncedSearch} />
                             </p>
 
                             <div className="mb-3 md:mb-4 flex items-center gap-2 flex-wrap">

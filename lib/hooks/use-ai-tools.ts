@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect, useCallback } from "react"
+import { useState, useEffect, useCallback, useRef } from "react"
 import type { AIEntry } from "@/lib/ai-data"
 
 interface UseAIToolsOptions {
@@ -19,6 +19,46 @@ interface UseAIToolsReturn {
   error: string | null
   refetch: () => void
   hasMore: boolean
+  isCached: boolean // NEW: tells the UI if we're showing cached data
+}
+
+/**
+ * Client-side search result cache.
+ * Stores recent API results so repeated searches are INSTANT.
+ * Uses a simple LRU-like Map with max 50 entries.
+ */
+const clientCache = new Map<string, { data: AIEntry[], timestamp: number }>()
+const CLIENT_CACHE_TTL = 1000 * 60 * 3 // 3 minutes
+const CLIENT_CACHE_MAX = 50
+
+function getCacheKey(options: UseAIToolsOptions): string {
+  return JSON.stringify({
+    c: options.category || '',
+    r: options.region || '',
+    a: options.accessType || '',
+    q: options.searchQuery || '',
+    l: options.limit || 50,
+    o: options.offset || 0,
+  })
+}
+
+function setCache(key: string, data: AIEntry[]) {
+  // LRU eviction
+  if (clientCache.size >= CLIENT_CACHE_MAX) {
+    const oldest = clientCache.keys().next().value
+    if (oldest) clientCache.delete(oldest)
+  }
+  clientCache.set(key, { data, timestamp: Date.now() })
+}
+
+function getCache(key: string): AIEntry[] | null {
+  const entry = clientCache.get(key)
+  if (!entry) return null
+  if (Date.now() - entry.timestamp > CLIENT_CACHE_TTL) {
+    clientCache.delete(key)
+    return null
+  }
+  return entry.data
 }
 
 export function useAITools(options: UseAIToolsOptions = {}): UseAIToolsReturn {
@@ -27,8 +67,10 @@ export function useAITools(options: UseAIToolsOptions = {}): UseAIToolsReturn {
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [hasMore, setHasMore] = useState(true)
+  const [isCached, setIsCached] = useState(false)
+  const abortControllerRef = useRef<AbortController | null>(null)
 
-  // Reset tools when category, region, accessType, or searchQuery changes
+  // Reset tools when filters change
   useEffect(() => {
     setTools([])
     setHasMore(true)
@@ -36,6 +78,26 @@ export function useAITools(options: UseAIToolsOptions = {}): UseAIToolsReturn {
 
   const fetchTools = useCallback(async () => {
     if (!enabled) return
+
+    const cacheKey = getCacheKey({ category, region, accessType, searchQuery, limit, offset })
+
+    // 1. Check client cache first — show immediately (stale-while-revalidate)
+    const cached = getCache(cacheKey)
+    if (cached) {
+      setTools(cached)
+      setIsCached(true)
+      setHasMore(cached.length === limit)
+      // Still fetch fresh data in background
+    } else {
+      setIsCached(false)
+    }
+
+    // 2. Abort any in-flight request (race condition prevention)
+    if (abortControllerRef.current) {
+      abortControllerRef.current.abort()
+    }
+    const controller = new AbortController()
+    abortControllerRef.current = controller
 
     setIsLoading(true)
     setError(null)
@@ -49,7 +111,9 @@ export function useAITools(options: UseAIToolsOptions = {}): UseAIToolsReturn {
       if (limit) params.append("limit", limit.toString())
       if (offset) params.append("offset", offset.toString())
 
-      const response = await fetch(`/api/ai-models?${params.toString()}`)
+      const response = await fetch(`/api/ai-models?${params.toString()}`, {
+        signal: controller.signal,
+      })
 
       if (!response.ok) {
         throw new Error(`Failed to fetch tools: ${response.statusText}`)
@@ -58,24 +122,43 @@ export function useAITools(options: UseAIToolsOptions = {}): UseAIToolsReturn {
       const data = await response.json()
       const toolsArray = Array.isArray(data) ? data : []
 
-      // Always return just the current page's tools (don't accumulate in hook)
-      setTools(toolsArray)
+      // Only update if this request wasn't aborted
+      if (!controller.signal.aborted) {
+        setTools(toolsArray)
+        setHasMore(toolsArray.length === limit)
+        setIsCached(false)
 
-      // hasMore is true if we got exactly the limit (meaning there might be more)
-      setHasMore(toolsArray.length === limit)
+        // Cache the result for future use
+        setCache(cacheKey, toolsArray)
+      }
     } catch (err) {
+      if (err instanceof DOMException && err.name === 'AbortError') {
+        // Request was aborted — do nothing
+        return
+      }
       const errorMessage = err instanceof Error ? err.message : "Failed to fetch AI tools"
-      setError(errorMessage)
-      console.error("Error fetching AI tools:", err)
-      setTools([])
+      // Don't show error if we have cached data
+      if (!cached) {
+        setError(errorMessage)
+        setTools([])
+      }
       setHasMore(false)
+      console.error("Error fetching AI tools:", err)
     } finally {
-      setIsLoading(false)
+      if (!controller.signal.aborted) {
+        setIsLoading(false)
+      }
     }
   }, [category, region, accessType, searchQuery, limit, offset, enabled])
 
   useEffect(() => {
     fetchTools()
+    return () => {
+      // Cleanup: abort on unmount
+      if (abortControllerRef.current) {
+        abortControllerRef.current.abort()
+      }
+    }
   }, [fetchTools])
 
   return {
@@ -84,6 +167,7 @@ export function useAITools(options: UseAIToolsOptions = {}): UseAIToolsReturn {
     error,
     refetch: fetchTools,
     hasMore,
+    isCached,
   }
 }
 
@@ -118,7 +202,7 @@ export function useAITool(id: string | null) {
         return res.json()
       })
       .then((data) => {
-        // API returns an array when fetching by ID, not an object with tools/tool properties
+        // API returns an array when fetching by ID
         const toolData = Array.isArray(data) ? data[0] : null
         if (isMounted) {
           setTool(toolData)
@@ -143,4 +227,3 @@ export function useAITool(id: string | null) {
 
   return { tool, isLoading, error }
 }
-

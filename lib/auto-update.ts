@@ -25,17 +25,33 @@ const DEFAULT_IMAGE_PATH = '/og-image.png'
 function mapCategory(externalCategory: string): string {
     const normalized = externalCategory.toLowerCase().trim()
     const categoryMap: Record<string, string> = {
-        'text-generation': 'Text Generation',
-        'code-generation': 'Code Generation',
-        'code generation': 'Code Generation',
-        'ide': 'IDE',
-        'ides': 'IDE',
-        'development-environment': 'IDE',
+        'text-generation': 'Generative AI',
+        'code-generation': 'Code & Development',
+        'code generation': 'Code & Development',
+        'code-assistant': 'Code & Development',
+        'ide': 'Code & Development',
+        'ides': 'Code & Development',
+        'development-environment': 'Code & Development',
         'image-generation': 'Image Generation',
+        'stable-diffusion': 'Image Generation',
+        'text-to-image': 'Image Generation',
         'generative-ai': 'Generative AI',
-        'ai-writing': 'Text Generation',
+        'ai-writing': 'Writing & Content',
         'chatbot': 'ChatBots',
         'chat-bots': 'ChatBots',
+        'ai-tools': 'AI Agents',
+        'ai-agent': 'AI Agents',
+        'ai-agents': 'AI Agents',
+        'artificial-intelligence': 'Generative AI',
+        'machine-learning': 'Data & Analytics',
+        'deep-learning': 'Data & Analytics',
+        'llm': 'Generative AI',
+        'ai-powered': 'Productivity',
+        'text-to-speech': 'Audio & Music',
+        'speech': 'Audio & Music',
+        'computer-vision': 'Computer Vision',
+        'nlp': 'NLP & Text Analysis',
+        'video': 'Video Generation',
     }
     return categoryMap[normalized] || 'Generative AI'
 }
@@ -105,62 +121,114 @@ function cleanDescription(description: string, maxLength = 500): string {
 
 export async function discoverNewTools() {
     const tools: Tool[] = []
+    // Search ALL topics every run — not just 1 random one
     const topics = [
         'ai-tools', 'artificial-intelligence', 'machine-learning',
-        'generative-ai', 'chatbot', 'code-assistant'
+        'generative-ai', 'chatbot', 'code-assistant',
+        'ai-agent', 'llm', 'stable-diffusion', 'deep-learning',
+        'ai-powered', 'text-to-speech',
     ]
-    // Pick one random topic per run to be lightweight
-    const topic = topics[Math.floor(Math.random() * topics.length)]
 
-    try {
-        const response = await fetch(
-            `https://api.github.com/search/repositories?q=topic:${topic}+stars:>100&sort=updated&order=desc&per_page=20`,
-            { headers: { 'User-Agent': 'Arcyn-Auto-Update' } }
-        )
+    const supabase = getSupabaseAdmin()
+    let totalNew = 0
+    const searchedTopics: string[] = []
 
-        if (!response.ok) return { topic, count: 0, error: 'Rate limited' }
+    for (const topic of topics) {
+        try {
+            const response = await fetch(
+                `https://api.github.com/search/repositories?q=topic:${topic}+stars:>30&sort=updated&order=desc&per_page=50`,
+                { headers: { 'User-Agent': 'Arcyn-Auto-Update' } }
+            )
 
-        const data = await response.json()
-        const repos = data.items || []
-
-        for (const repo of repos) {
-            if (repo.description &&
-                (repo.description.toLowerCase().includes('tool') ||
-                    repo.description.toLowerCase().includes('platform') ||
-                    repo.description.toLowerCase().includes('ai') ||
-                    repo.description.toLowerCase().includes('gpt'))) {
-
-                tools.push({
-                    id: '', // Generated later
-                    name: repo.name,
-                    description: cleanDescription(repo.description || 'AI tool', 200),
-                    platform: repo.html_url,
-                    category: mapCategory(topic),
-                    tags: extractTags(repo.description, topic, repo.name),
-                    accessType: 'Free',
-                    pricing: 'Free',
-                    region: determineRegion(repo.html_url),
-                    popularity: Math.min(100, Math.max(30, Math.floor(Math.log10(repo.stargazers_count + 1) * 15))),
-                    isTrending: repo.stargazers_count > 1000,
-                    source: 'github-cron'
-                })
+            if (!response.ok) {
+                if (response.status === 403) {
+                    // Rate limited — stop searching
+                    break
+                }
+                continue
             }
-        }
 
-        // Deduplicate against DB
-        const supabase = getSupabaseAdmin()
+            const data = await response.json()
+            const repos = data.items || []
+
+            for (const repo of repos) {
+                const desc = (repo.description || '').toLowerCase()
+                // More inclusive filter — accept anything with a reasonable description
+                if (desc.length > 15 &&
+                    (desc.includes('tool') || desc.includes('platform') ||
+                        desc.includes('ai') || desc.includes('gpt') ||
+                        desc.includes('llm') || desc.includes('assistant') ||
+                        desc.includes('model') || desc.includes('generator') ||
+                        desc.includes('app') || desc.includes('framework'))) {
+
+                    tools.push({
+                        id: '',
+                        name: repo.name,
+                        description: cleanDescription(repo.description || 'AI tool', 300),
+                        platform: repo.html_url,
+                        category: mapCategory(topic),
+                        tags: extractTags(repo.description, topic, repo.name),
+                        accessType: 'Free',
+                        pricing: 'Free / Open Source',
+                        region: determineRegion(repo.html_url),
+                        popularity: Math.min(100, Math.max(25, Math.floor(Math.log10(repo.stargazers_count + 1) * 15))),
+                        isTrending: repo.stargazers_count > 500,
+                        source: 'github-cron'
+                    })
+                }
+            }
+
+            searchedTopics.push(topic)
+
+            // Small delay between topic searches to respect rate limits
+            await new Promise(resolve => setTimeout(resolve, 500))
+        } catch {
+            continue
+        }
+    }
+
+    // Deduplicate tools against each other first (by name)
+    const uniqueTools = new Map<string, Tool>()
+    for (const tool of tools) {
+        const key = tool.name.toLowerCase().trim()
+        if (!uniqueTools.has(key)) {
+            uniqueTools.set(key, tool)
+        }
+    }
+
+    // Now deduplicate against DB
+    const toolNames = [...uniqueTools.keys()]
+
+    if (toolNames.length === 0) {
+        return { topics: searchedTopics, count: 0 }
+    }
+
+    // Check DB in batches of 50 (Supabase IN clause limit)
+    const existingNames = new Set<string>()
+    for (let i = 0; i < toolNames.length; i += 50) {
+        const batch = toolNames.slice(i, i + 50)
         const { data: existing } = await supabase
             .from('ai_tools')
-            .select('name, platform')
-            .in('name', tools.map(t => t.name))
-            .limit(100)
+            .select('name')
+            .in('name', [...uniqueTools.values()].slice(i, i + 50).map(t => t.name))
+            .limit(50)
 
-        const existingNames = new Set(existing?.map(t => t.name))
-        const newTools = tools.filter(t => !existingNames.has(t.name))
+        if (existing) {
+            existing.forEach(t => existingNames.add(t.name.toLowerCase()))
+        }
+    }
 
-        if (newTools.length > 0) {
-            const dbTools = newTools.map((tool, idx) => ({
-                id: generateId(tool.name, tool.source, Date.now() + idx),
+    const newTools = [...uniqueTools.values()].filter(t =>
+        !existingNames.has(t.name.toLowerCase())
+    )
+
+    if (newTools.length > 0) {
+        // Insert in batches
+        const batchSize = 50
+        for (let i = 0; i < newTools.length; i += batchSize) {
+            const batch = newTools.slice(i, i + batchSize)
+            const dbTools = batch.map((tool, idx) => ({
+                id: generateId(tool.name, tool.source, Date.now() + i + idx),
                 name: tool.name,
                 category: tool.category,
                 description: tool.description,
@@ -175,15 +243,12 @@ export async function discoverNewTools() {
                 image: null
             }))
 
-            await supabase.from('ai_tools').upsert(dbTools, { onConflict: 'id' as never }) // Cast to never to bypass strict typing if needed
+            await supabase.from('ai_tools').upsert(dbTools, { onConflict: 'id' as never })
         }
-
-        return { topic, count: newTools.length }
-
-    } catch (error) {
-        console.error('Auto-discovery failed:', error)
-        return { topic, count: 0, error: String(error) }
+        totalNew = newTools.length
     }
+
+    return { topics: searchedTopics, found: tools.length, unique: uniqueTools.size, newlyAdded: totalNew }
 }
 
 // --- Logo Fetch Logic ---

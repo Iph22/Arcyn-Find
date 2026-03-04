@@ -3,6 +3,7 @@
 
 /* Mobile optimizations */
 @supports (-webkit-touch-callout: none) {
+
   /* iOS specific styles */
   body {
     -webkit-tap-highlight-color: transparent;
@@ -25,27 +26,33 @@
 
 /* Mobile touch optimizations */
 @media (hover: none) and (pointer: coarse) {
+
   /* Touch device styles */
-  button, a {
+  button,
+  a {
     min-height: 44px;
     min-width: 44px;
   }
-  
+
   /* Prevent text selection on tap */
   * {
     -webkit-tap-highlight-color: transparent;
     -webkit-touch-callout: none;
   }
-  
+
   /* Better spacing for mobile cards */
-  .card, [class*="Card"] {
+  .card,
+  [class*="Card"] {
     margin-bottom: 1rem;
   }
-  
+
   /* Larger touch targets for mobile */
-  input, textarea, select {
+  input,
+  textarea,
+  select {
     min-height: 44px;
-    font-size: 16px; /* Prevents zoom on iOS */
+    font-size: 16px;
+    /* Prevents zoom on iOS */
   }
 }
 
@@ -80,13 +87,14 @@ body {
 
 /* Prevent mobile input auto-scroll and zoom issues */
 @media (max-width: 768px) {
+
   /* Prevent iOS zoom on input focus - minimum 16px font size */
   input[type="text"],
   input[type="search"],
   textarea {
     font-size: 16px !important;
   }
-  
+
   /* Better scroll behavior for focused inputs */
   input[type="text"]:focus,
   input[type="search"]:focus,
@@ -216,6 +224,7 @@ body {
   * {
     @apply border-border outline-ring/50;
   }
+
   body {
     @apply bg-background text-foreground;
   }
@@ -235,6 +244,7 @@ body {
     .snap-y {
       scroll-snap-type: y proximity;
     }
+
     .snap-mandatory {
       scroll-snap-type: y proximity;
     }
@@ -285,3 +295,36 @@ body {
   scrollbar-color: rgba(59, 130, 246, 0.3) rgba(10, 10, 20, 0.5);
 }
 
+/* Skeleton shimmer animation for loading states */
+@keyframes skeleton-shine {
+  0% {
+    background-position: -200% 0;
+  }
+
+  100% {
+    background-position: 200% 0;
+  }
+}
+
+.skeleton-shimmer {
+  background: linear-gradient(90deg,
+      transparent 0%,
+      rgba(255, 255, 255, 0.06) 40%,
+      rgba(255, 255, 255, 0.12) 50%,
+      rgba(255, 255, 255, 0.06) 60%,
+      transparent 100%);
+  background-size: 200% 100%;
+  animation: skeleton-shine 1.8s ease-in-out infinite;
+}
+
+/* Light mode shimmer */
+:root .skeleton-shimmer {
+  background: linear-gradient(90deg,
+      transparent 0%,
+      rgba(0, 0, 0, 0.04) 40%,
+      rgba(0, 0, 0, 0.08) 50%,
+      rgba(0, 0, 0, 0.04) 60%,
+      transparent 100%);
+  background-size: 200% 100%;
+  animation: skeleton-shine 1.8s ease-in-out infinite;
+}

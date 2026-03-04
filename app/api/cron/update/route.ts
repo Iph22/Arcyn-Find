@@ -1,8 +1,8 @@
 import { NextResponse } from 'next/server'
 import { discoverNewTools, fetchMissingLogos } from '@/lib/auto-update'
 
-// Prevent long-running process timeout
-export const maxDuration = 60 // 60 seconds (max for Hobby)
+// Allow longer runtime for expanded discovery (searches 12 topics)
+export const maxDuration = 120 // 120 seconds
 export const dynamic = 'force-dynamic'
 
 export async function GET(req: Request) {
