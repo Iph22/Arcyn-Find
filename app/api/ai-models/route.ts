@@ -7,6 +7,7 @@ import { logger } from '@/lib/logger'
 import { parseNaturalLanguageSearch, validateSearchResults, discoverNewTools } from '@/lib/gemini'
 import { processSearchQuery, buildSearchConditions } from '@/lib/search-utils'
 import { hybridSearch, isSemanticSearchAvailable, generateToolEmbedding } from '@/lib/embeddings'
+import { searchExternalFallback } from '@/lib/search-fallback'
 
 // Increase timeout for Vercel Pro (30s), or remove for Hobby plan (10s max)
 export const maxDuration = 30
@@ -831,19 +832,17 @@ export async function GET(request: Request) {
       }
     }
 
-    // Fallback to external sources if we still have no results after discovery
-    if (aiEntries.length === 0) {
-      logger.debug('[API] No results after discovery, trying external sources...')
+    // Real-time external fallback — if search returned few/no results, search GitHub + HuggingFace live
+    if (originalSearch && aiEntries.length < 3) {
+      logger.info(`[API] Only ${aiEntries.length} results for "${originalSearch}". Trying real-time external search...`)
       try {
-        const externalModels = await fetchAIModelsFromSources()
-        if (externalModels.length > 0) {
-          // Filter out research papers if user is searching for something specific
-          aiEntries = externalModels
-            .filter(item => item.category !== 'Research Paper')
-            .slice(0, limit)
+        const fallback = await searchExternalFallback(originalSearch, aiEntries, limit)
+        if (fallback.results.length > aiEntries.length) {
+          logger.info(`[API] External fallback found ${fallback.results.length - aiEntries.length} additional results (source: ${fallback.source})`)
+          aiEntries = fallback.results
         }
-      } catch (externalError) {
-        logger.error('[API] External source error:', externalError)
+      } catch (fallbackError) {
+        logger.error('[API] External fallback error:', fallbackError)
       }
     }
 
@@ -866,6 +865,7 @@ export async function GET(request: Request) {
       headers: {
         'Cache-Control': 'public, s-maxage=300, stale-while-revalidate=600',
         ...getRateLimitHeaders(rateLimit.remaining, rateLimit.resetTime),
+        ...(originalSearch ? { 'X-Search-Query': originalSearch } : {}),
       },
     })
   } catch (error) {

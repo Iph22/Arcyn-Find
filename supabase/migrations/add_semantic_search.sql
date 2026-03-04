@@ -14,6 +14,7 @@ USING ivfflat (embedding vector_cosine_ops)
 WITH (lists = 100);
 
 -- Function to search tools by semantic similarity
+DROP FUNCTION IF EXISTS search_tools_semantic(vector, float, int);
 CREATE OR REPLACE FUNCTION search_tools_semantic(
   query_embedding vector(768),
   match_threshold float DEFAULT 0.5,
@@ -30,7 +31,7 @@ RETURNS TABLE (
   pricing text,
   tags text[],
   popularity int,
-  last_updated text,
+  last_updated date,
   is_trending boolean,
   image text,
   similarity float
@@ -53,7 +54,7 @@ BEGIN
     ai_tools.last_updated,
     ai_tools.is_trending,
     ai_tools.image,
-    1 - (ai_tools.embedding <=> query_embedding) as similarity
+    (1 - (ai_tools.embedding <=> query_embedding))::double precision as similarity
   FROM ai_tools
   WHERE ai_tools.embedding IS NOT NULL
     AND 1 - (ai_tools.embedding <=> query_embedding) > match_threshold
@@ -63,6 +64,7 @@ END;
 $$;
 
 -- Hybrid search: combines semantic + keyword search with ranking
+DROP FUNCTION IF EXISTS search_tools_hybrid(vector, text, float, int);
 CREATE OR REPLACE FUNCTION search_tools_hybrid(
   query_embedding vector(768),
   search_text text DEFAULT '',
@@ -80,7 +82,7 @@ RETURNS TABLE (
   pricing text,
   tags text[],
   popularity int,
-  last_updated text,
+  last_updated date,
   is_trending boolean,
   image text,
   similarity float,
@@ -105,8 +107,8 @@ BEGIN
     t.is_trending,
     t.image,
     CASE 
-      WHEN t.embedding IS NOT NULL THEN 1 - (t.embedding <=> query_embedding)
-      ELSE 0.0
+      WHEN t.embedding IS NOT NULL THEN (1 - (t.embedding <=> query_embedding))::double precision
+      ELSE 0.0::double precision
     END as similarity,
     (
       search_text != '' AND (

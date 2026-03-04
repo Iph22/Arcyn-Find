@@ -52,6 +52,7 @@ CREATE INDEX IF NOT EXISTS ai_tools_fts_idx ON ai_tools USING GIN (fts_vector);
 
 -- 7. Advanced Hybrid Search Function that combines FTS and Semantic Search
 -- If query_embedding is NULL, it falls back to pure FTS (much better than ILIKE)
+DROP FUNCTION IF EXISTS search_tools_advanced(text, vector, float, int);
 CREATE OR REPLACE FUNCTION search_tools_advanced(
   search_query text,           -- The raw text search query
   query_embedding vector(768) DEFAULT NULL, -- Optional semantic embedding
@@ -69,7 +70,7 @@ RETURNS TABLE (
   pricing text,
   tags text[],
   popularity int,
-  last_updated text,
+  last_updated date,
   is_trending boolean,
   image text,
   priority int,
@@ -105,27 +106,27 @@ BEGIN
     -- Calculate Semantic Similarity 
     CASE 
       WHEN t.embedding IS NOT NULL AND query_embedding IS NOT NULL 
-      THEN 1 - (t.embedding <=> query_embedding)
-      ELSE 0.0
+      THEN (1 - (t.embedding <=> query_embedding))::double precision
+      ELSE 0.0::double precision
     END as similarity,
     -- Calculate FTS Score (how well keywords match, based on weights A/B/C/D)
-    ts_rank(t.fts_vector, tsquery_val) as fts_score,
+    ts_rank(t.fts_vector, tsquery_val)::double precision as fts_score,
     -- Calculate Combined Score
     -- Semantic similarity is bounded 0 to 1. FTS rank is unbounded but generally small.
     (
       (CASE 
         WHEN t.embedding IS NOT NULL AND query_embedding IS NOT NULL 
-        THEN 1 - (t.embedding <=> query_embedding)
-        ELSE 0.0
+        THEN (1 - (t.embedding <=> query_embedding))::double precision
+        ELSE 0.0::double precision
        END * 2.0) -- Weight semantic higher if present
       + 
-      ts_rank(t.fts_vector, tsquery_val)
+      ts_rank(t.fts_vector, tsquery_val)::double precision
       +
       -- Boost for trending/popularity
-      (COALESCE(t.popularity, 0)::float / 1000.0)
+      (COALESCE(t.popularity, 0)::double precision / 1000.0)
       +
-      (CASE WHEN t.is_trending THEN 0.1 ELSE 0.0 END)
-    ) as combined_score
+      (CASE WHEN t.is_trending THEN 0.1::double precision ELSE 0.0::double precision END)
+    )::double precision as combined_score
   FROM ai_tools t
   WHERE 
     -- Condition 1: Semantic match passes threshold

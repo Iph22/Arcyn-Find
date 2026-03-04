@@ -38,8 +38,9 @@ async function generateEmbedding(text: string, retries = 3): Promise<number[] | 
         try {
             const model = genAI.getGenerativeModel({ model: EMBEDDING_MODEL })
             const result = await model.embedContent({
-                content: { role: 'user', parts: [{ text }] }
-            })
+                content: { role: 'user', parts: [{ text }] },
+                outputDimensionality: 768
+            } as any)
             return result.embedding.values
         } catch (error: any) {
             const isRetryable = error?.status === 429 || error?.status === 503
