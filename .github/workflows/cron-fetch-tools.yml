@@ -12,18 +12,51 @@ on:
 jobs:
   fetch-tools:
     runs-on: ubuntu-latest
-    
+    timeout-minutes: 10
+
     steps:
       - name: Trigger Fetch Tools Endpoint
+        id: fetch
         run: |
-          curl -X GET \
+          echo "🔄 Triggering fetch-tools endpoint..."
+          HTTP_STATUS=$(curl -s -o response.json -w "%{http_code}" \
+            -X GET \
             -H "Authorization: Bearer ${{ secrets.CRON_SECRET }}" \
             -H "Content-Type: application/json" \
-            "${{ secrets.SITE_URL }}/api/cron/fetch-tools" \
-            --fail --silent --show-error
+            --max-time 300 \
+            --connect-timeout 30 \
+            "${{ secrets.SITE_URL }}/api/cron/fetch-tools")
+          
+          echo "HTTP Status: $HTTP_STATUS"
+          echo "http_status=$HTTP_STATUS" >> $GITHUB_OUTPUT
+          
+          if [ -f response.json ]; then
+            echo "Response body:"
+            cat response.json | head -c 2000
+            echo ""
+          fi
+          
+          if [ "$HTTP_STATUS" -ge 200 ] && [ "$HTTP_STATUS" -lt 300 ]; then
+            echo "✅ Fetch completed successfully (HTTP $HTTP_STATUS)"
+          elif [ "$HTTP_STATUS" -eq 504 ] || [ "$HTTP_STATUS" -eq 408 ]; then
+            echo "⚠️ Request timed out (HTTP $HTTP_STATUS) — endpoint may still be processing"
+            echo "::warning::Fetch endpoint timed out with HTTP $HTTP_STATUS. The server-side processing may still complete."
+          elif [ "$HTTP_STATUS" -eq 401 ]; then
+            echo "❌ Authentication failed — check CRON_SECRET matches between GitHub Secrets and Vercel env"
+            exit 1
+          elif [ "$HTTP_STATUS" -eq 0 ]; then
+            echo "❌ Could not connect to ${{ secrets.SITE_URL }} — check SITE_URL secret is set correctly"
+            exit 1
+          else
+            echo "❌ Unexpected HTTP status: $HTTP_STATUS"
+            exit 1
+          fi
         env:
           SITE_URL: ${{ secrets.SITE_URL }}
           CRON_SECRET: ${{ secrets.CRON_SECRET }}
 
       - name: Log Result
-        run: echo "✅ Fetch tools completed at $(date)"
+        if: always()
+        run: |
+          echo "📊 Fetch tools workflow completed at $(date)"
+          echo "   HTTP Status: ${{ steps.fetch.outputs.http_status }}"

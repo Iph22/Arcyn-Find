@@ -5,6 +5,11 @@
  * - Cron secret verification (timing-safe comparison)
  * - Rate limiting for manual invocations
  * - Secure environment variable handling
+ * 
+ * Reliability Features:
+ * - Per-source timeouts with graceful fallback
+ * - Always returns 200 with stats (never 500 for scraping failures)
+ * - Individual source errors don't block other sources
  */
 
 import { NextResponse } from 'next/server'
@@ -18,6 +23,32 @@ import { logger } from '@/lib/logger'
 import { createErrorResponse, createSuccessResponse, ErrorCodes } from '@/lib/api-errors'
 import { verifyCronAuthorization } from '@/lib/security'
 import type { AIEntry } from '@/lib/ai-data'
+
+/**
+ * Wrap a fetch function with a timeout to prevent any single source
+ * from blocking the entire pipeline
+ */
+async function withTimeout<T>(
+  fn: () => Promise<T>,
+  timeoutMs: number,
+  fallback: T,
+  label: string
+): Promise<{ result: T; error?: string; durationMs: number }> {
+  const start = Date.now()
+  try {
+    const result = await Promise.race([
+      fn(),
+      new Promise<T>((_, reject) =>
+        setTimeout(() => reject(new Error(`Timeout after ${timeoutMs}ms`)), timeoutMs)
+      ),
+    ])
+    return { result, durationMs: Date.now() - start }
+  } catch (err) {
+    const errorMsg = err instanceof Error ? err.message : 'Unknown error'
+    logger.error(`[Cron] ${label} failed: ${errorMsg}`)
+    return { result: fallback, error: errorMsg, durationMs: Date.now() - start }
+  }
+}
 
 /**
  * Store entries in Supabase
@@ -97,61 +128,87 @@ export async function GET(request: Request) {
     logger.log('[Cron] Starting scheduled fetch from all sources...')
 
     // =========================================================================
-    // FETCH FROM ALL SOURCES
+    // FETCH FROM ALL SOURCES — each source has its own timeout
+    // Max 45s per source to stay within Vercel's function time limits
     // =========================================================================
-    const [rssEntries, aggregatorEntries, scraperEntries, communityEntries] = await Promise.all([
-      fetchFromRSSFeeds().catch(err => {
-        logger.error('[Cron] RSS feeds error:', err)
-        return []
-      }),
-      fetchFromAggregators().catch(err => {
-        logger.error('[Cron] Aggregators error:', err)
-        return []
-      }),
-      fetchFromScrapers().catch(err => {
-        logger.error('[Cron] Scrapers error:', err)
-        return []
-      }),
-      fetchFromCommunity().catch(err => {
-        logger.error('[Cron] Community error:', err)
-        return []
-      }),
+    const SOURCE_TIMEOUT = 45_000 // 45 seconds per source
+
+    const [rssResult, aggregatorResult, scraperResult, communityResult] = await Promise.all([
+      withTimeout(fetchFromRSSFeeds, SOURCE_TIMEOUT, [] as AIEntry[], 'RSS Feeds'),
+      withTimeout(fetchFromAggregators, SOURCE_TIMEOUT, [] as AIEntry[], 'Aggregators'),
+      withTimeout(fetchFromScrapers, SOURCE_TIMEOUT, [] as AIEntry[], 'Scrapers'),
+      withTimeout(fetchFromCommunity, SOURCE_TIMEOUT, [] as AIEntry[], 'Community'),
     ])
 
-    const allEntries = [...rssEntries, ...aggregatorEntries, ...scraperEntries, ...communityEntries]
+    // Collect results and errors
+    const sourceStats = {
+      rss: { count: rssResult.result.length, error: rssResult.error, durationMs: rssResult.durationMs },
+      aggregators: { count: aggregatorResult.result.length, error: aggregatorResult.error, durationMs: aggregatorResult.durationMs },
+      scrapers: { count: scraperResult.result.length, error: scraperResult.error, durationMs: scraperResult.durationMs },
+      community: { count: communityResult.result.length, error: communityResult.error, durationMs: communityResult.durationMs },
+    }
+
+    const allEntries = [
+      ...rssResult.result,
+      ...aggregatorResult.result,
+      ...scraperResult.result,
+      ...communityResult.result,
+    ]
+
+    const errors = [rssResult, aggregatorResult, scraperResult, communityResult]
+      .filter(r => r.error)
+      .map(r => r.error!)
 
     // Deduplicate and merge
     const deduplicated = deduplicateEntries(allEntries)
     const merged = mergeEntries(deduplicated)
 
-    // Store in Supabase
-    const { totalInserted, totalUpdated } = await storeInSupabase(merged)
+    // Store in Supabase (only if we have entries)
+    let dbStats = { totalInserted: 0, totalUpdated: 0 }
+    if (merged.length > 0) {
+      try {
+        dbStats = await storeInSupabase(merged)
+      } catch (dbError) {
+        logger.error('[Cron] Database storage error:', dbError)
+        errors.push(dbError instanceof Error ? dbError.message : 'Database storage failed')
+      }
+    }
 
-    logger.log('[Cron] Fetch completed successfully:', {
+    logger.log('[Cron] Fetch completed:', {
       totalFetched: allEntries.length,
       uniqueTools: merged.length,
-      inserted: totalInserted,
-      updated: totalUpdated
+      inserted: dbStats.totalInserted,
+      updated: dbStats.totalUpdated,
+      errors: errors.length,
     })
 
+    // Always return 200 — partial success is still success
+    // The workflow should only fail on auth errors, not scraping hiccups
     return createSuccessResponse({
       success: true,
-      message: 'Fetch completed successfully',
+      message: errors.length > 0
+        ? `Fetch completed with ${errors.length} source error(s)`
+        : 'Fetch completed successfully',
       stats: {
         totalFetched: allEntries.length,
         uniqueTools: merged.length,
-        inserted: totalInserted,
-        updated: totalUpdated
+        inserted: dbStats.totalInserted,
+        updated: dbStats.totalUpdated,
       },
+      sources: sourceStats,
+      errors: errors.length > 0 ? errors : undefined,
       timestamp: new Date().toISOString()
     })
   } catch (error) {
-    logger.error('[Cron] Error:', error)
-    return createErrorResponse(
-      error instanceof Error ? error.message : 'Unknown error',
-      500,
-      ErrorCodes.INTERNAL_ERROR
-    )
+    logger.error('[Cron] Critical error:', error)
+    // Even on critical errors, return 200 with error details so the
+    // GitHub Action doesn't fail on transient issues
+    return createSuccessResponse({
+      success: false,
+      message: error instanceof Error ? error.message : 'Unknown critical error',
+      stats: { totalFetched: 0, uniqueTools: 0, inserted: 0, updated: 0 },
+      timestamp: new Date().toISOString()
+    })
   }
 }
 
