@@ -25,6 +25,7 @@ const ERRROR_COOLDOWN = 1000 * 60 // 1 minute cooldown after 429
  * Falls back to external sources if Supabase fails
  */
 export async function GET(request: Request) {
+  console.log('HIT API ROUTE:', request.url)
   // Rate limiting - more balanced limits
   const rateLimit = checkRateLimit(request, {
     windowMs: 60 * 1000, // 1 minute
@@ -394,16 +395,33 @@ export async function GET(request: Request) {
     const hasFilters = effectiveCategory || region || accessType || effectiveSearch
 
     // If semantic search found good results, return them directly
-    if (semanticResults.length >= 5) {
-      logger.info(`[API] Returning ${semanticResults.length} semantic search results`)
+    if (semanticResults.length >= 1) {
+      // Find the best match score
+      const maxScore = Math.max(...semanticResults.map(r => r._similarity || 0))
 
-      return NextResponse.json(semanticResults, {
-        headers: {
-          ...getRateLimitHeaders(rateLimit.remaining, rateLimit.resetTime),
-          'Cache-Control': 'public, s-maxage=60, stale-while-revalidate=300',
-          'X-Search-Type': 'semantic'
-        },
-      })
+      // If our DB actually contains a very strong semantic match (e.g. > 0.65 similarity)
+      // then we should just use our DB results!
+      if (maxScore > 0.65) {
+        // Filter out the "loose" trailing matches (cosine similarity < 0.55) so we only return relevant stuff
+        const filteredSemantic = semanticResults.filter(r => (r._similarity || 0) > 0.55)
+
+        if (filteredSemantic.length > 0) {
+          logger.info(`[API] Returning ${filteredSemantic.length} strong semantic search results (max similarity: ${maxScore.toFixed(3)})`)
+
+          return NextResponse.json(filteredSemantic, {
+            headers: {
+              ...getRateLimitHeaders(rateLimit.remaining, rateLimit.resetTime),
+              'Cache-Control': 'public, s-maxage=60, stale-while-revalidate=300',
+              'X-Search-Type': 'semantic',
+              ...(originalSearch ? { 'X-Search-Query': originalSearch } : {}),
+            },
+          })
+        }
+      } else {
+        logger.info(`[API] Semantic results were too weak (max similarity: ${maxScore.toFixed(3)}). Falling back to traditional + external search...`)
+        // Clear semantic results so it doesn't mess up our fallback flow
+        semanticResults = []
+      }
     }
 
     // Fast path: single query for small requests

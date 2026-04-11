@@ -2,7 +2,8 @@
 
 /**
  * Main orchestrator script to fetch AI tools from all sources
- * Combines RSS feeds, aggregators, scrapers, and community sources
+ * Combines RSS feeds, aggregators, scrapers, community sources,
+ * news sources, Product Hunt, and curated popular tools
  */
 
 import { fetchFromRSSFeeds } from './sources/rss-feeds'
@@ -10,6 +11,8 @@ import { fetchFromAggregators } from './sources/aggregators'
 import { fetchFromScrapers } from './sources/scrapers'
 import { fetchFromCommunity } from './sources/community'
 import { fetchFromNewsSources } from './sources/news-sources'
+import { fetchFromProductHunt } from './sources/product-hunt'
+import { fetchFromCuratedList } from './sources/curated-tools'
 import { deduplicateEntries, mergeEntries } from './utils/deduplicator'
 import { getSupabaseAdmin, transformToDBRow } from '../lib/supabase'
 import type { AIEntry } from '../lib/ai-data'
@@ -23,40 +26,64 @@ async function fetchFromAllSources() {
   
   const startTime = Date.now()
   const allEntries: AIEntry[] = []
+  const phaseResults: { phase: string; count: number }[] = []
   
   try {
     // Phase 1: RSS Feeds
     console.log('\n📰 Phase 1: RSS Feeds')
     const rssEntries = await fetchFromRSSFeeds()
     allEntries.push(...rssEntries)
+    phaseResults.push({ phase: 'RSS Feeds', count: rssEntries.length })
     console.log(`   ✓ Found ${rssEntries.length} tools from RSS feeds`)
     
-    // Phase 2: Aggregators
-    console.log('\n🔍 Phase 2: Aggregators')
+    // Phase 2: Aggregators (TAAFT, Futurepedia, Toolify)
+    console.log('\n🔍 Phase 2: Aggregators (TAAFT, Futurepedia, Toolify)')
     const aggregatorEntries = await fetchFromAggregators()
     allEntries.push(...aggregatorEntries)
+    phaseResults.push({ phase: 'Aggregators', count: aggregatorEntries.length })
     console.log(`   ✓ Found ${aggregatorEntries.length} tools from aggregators`)
     
-    // Phase 3: Scrapers
+    // Phase 3: Scrapers (TopAI.tools, AI directories)
     console.log('\n🕷️  Phase 3: Web Scrapers')
     const scraperEntries = await fetchFromScrapers()
     allEntries.push(...scraperEntries)
+    phaseResults.push({ phase: 'Scrapers', count: scraperEntries.length })
     console.log(`   ✓ Found ${scraperEntries.length} tools from scrapers`)
     
-    // Phase 4: Community Sources
+    // Phase 4: Community Sources (Reddit, HackerNoon)
     console.log('\n👥 Phase 4: Community Sources')
     const communityEntries = await fetchFromCommunity()
     allEntries.push(...communityEntries)
+    phaseResults.push({ phase: 'Community', count: communityEntries.length })
     console.log(`   ✓ Found ${communityEntries.length} tools from community sources`)
     
     // Phase 5: News Sources (Blogs, Newsletters, News Sites)
     console.log('\n📰 Phase 5: News Sources')
     const newsEntries = await fetchFromNewsSources()
     allEntries.push(...newsEntries)
+    phaseResults.push({ phase: 'News', count: newsEntries.length })
     console.log(`   ✓ Found ${newsEntries.length} tools from news sources`)
+    
+    // Phase 6: Product Hunt (GraphQL API + RSS fallback)
+    console.log('\n🚀 Phase 6: Product Hunt')
+    const phEntries = await fetchFromProductHunt()
+    allEntries.push(...phEntries)
+    phaseResults.push({ phase: 'Product Hunt', count: phEntries.length })
+    console.log(`   ✓ Found ${phEntries.length} tools from Product Hunt`)
+    
+    // Phase 7: Curated Popular Tools (guaranteed quality baseline)
+    console.log('\n📋 Phase 7: Curated Popular Tools')
+    const curatedEntries = await fetchFromCuratedList()
+    allEntries.push(...curatedEntries)
+    phaseResults.push({ phase: 'Curated', count: curatedEntries.length })
+    console.log(`   ✓ Found ${curatedEntries.length} tools from curated list`)
     
     console.log('\n' + '='.repeat(60))
     console.log(`\n📊 Total tools fetched: ${allEntries.length}`)
+    console.log('\n📈 Breakdown by source:')
+    for (const result of phaseResults) {
+      console.log(`   ${result.phase}: ${result.count}`)
+    }
     
     // Deduplicate and merge
     console.log('\n🔄 Deduplicating and merging entries...')
