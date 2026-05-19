@@ -228,30 +228,42 @@ export async function semanticSearch(
 
 /**
  * Hybrid search - combines semantic + keyword search
+ * Returns results in a normalized shape ready for the ranking pipeline.
  */
+export interface HybridSearchResult {
+    // Identity
+    id: string
+    title: string
+    description: string
+    url: string
+    category: string
+    platform: string
+    pricing: string
+    tags: string[]
+    // Normalized scores (0–1, 3 decimal places)
+    keyword_score: number
+    vector_score: number
+    popularity_score: number
+    source_trust_score: number
+    combined_score: number
+    // Metadata
+    freshness_date: string | null
+    is_trending: boolean
+    // Raw DB fields preserved for downstream consumers
+    region?: string
+    access_type?: string
+    popularity?: number
+    last_updated?: string
+    image?: string
+    similarity: number
+    fts_score?: number
+}
+
 export async function hybridSearch(
     query: string,
     limit: number = 30,
-    threshold: number = 0.4
-): Promise<Array<{
-    id: string
-    name: string
-    category: string
-    description: string
-    platform: string
-    region?: string
-    access_type?: string
-    pricing?: string
-    tags?: string[]
-    popularity?: number
-    last_updated?: string
-    is_trending?: boolean
-    image?: string
-    similarity: number
-    keyword_match?: boolean
-    fts_score?: number
-    combined_score?: number
-}>> {
+    threshold: number = 0.25
+): Promise<HybridSearchResult[]> {
     const supabase = getSupabaseAdmin()
 
     // 1. Try to fetch embedding from permanent cache to save tokens
@@ -310,7 +322,37 @@ export async function hybridSearch(
             return []
         }
 
-        return data || []
+        if (!data || data.length === 0) return []
+
+        // Transform raw Supabase rows into the normalized ranking-ready shape
+        return data.map((item: any): HybridSearchResult => ({
+            // Identity
+            id: item.id,
+            title: item.name,
+            description: item.description || '',
+            url: item.id,
+            category: item.category,
+            platform: item.platform,
+            pricing: item.pricing || '',
+            tags: item.tags || [],
+            // Normalized scores — parseFloat + toFixed(3) to eliminate FP noise
+            keyword_score: parseFloat((item.keyword_score || 0).toFixed(3)),
+            vector_score: parseFloat((item.similarity || 0).toFixed(3)),
+            popularity_score: parseFloat(Math.min((item.popularity || 0) / 10000, 1).toFixed(3)),
+            source_trust_score: parseFloat((item.source_trust_score || 0).toFixed(3)),
+            combined_score: parseFloat((item.combined_score || 0).toFixed(3)),
+            // Metadata
+            freshness_date: item.last_updated || null,
+            is_trending: item.is_trending || false,
+            // Raw DB fields preserved
+            region: item.region || 'Global',
+            access_type: item.access_type || 'Freemium',
+            popularity: item.popularity || 0,
+            last_updated: item.last_updated || '',
+            image: item.image || '',
+            similarity: parseFloat((item.similarity || 0).toFixed(3)),
+            fts_score: parseFloat((item.fts_score || 0).toFixed(3)),
+        }))
     } catch (error) {
         logger.error("[Embeddings] Hybrid search failed:", error)
         return []

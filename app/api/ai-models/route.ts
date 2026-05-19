@@ -8,6 +8,7 @@ import { parseNaturalLanguageSearch, validateSearchResults, discoverNewTools } f
 import { processSearchQuery, buildSearchConditions } from '@/lib/search-utils'
 import { hybridSearch, isSemanticSearchAvailable, generateToolEmbedding } from '@/lib/embeddings'
 import { searchExternalFallback } from '@/lib/search-fallback'
+import { runSearchPipeline } from '@/lib/search-pipeline'
 
 // Increase timeout for Vercel Pro (30s), or remove for Hobby plan (10s max)
 export const maxDuration = 30
@@ -208,6 +209,7 @@ export async function GET(request: Request) {
 
     // Try semantic search first if available (best results)
     let semanticResults: (AIEntry & { _similarity?: number })[] = []
+    let rawHybridResults: any[] = [] // Preserved for the ranking pipeline
     if (originalSearch && !category && !region && !accessType) {
       try {
         const isAvailable = await isSemanticSearchAvailable()
@@ -216,9 +218,13 @@ export async function GET(request: Request) {
           const results = await hybridSearch(originalSearch, limit)
 
           if (results.length > 0) {
+            // Preserve raw normalized results for the ranking pipeline
+            rawHybridResults = results
+
+            // Also map to AIEntry shape for downstream consumers
             semanticResults = results.map(r => ({
               id: r.id,
-              name: r.name,
+              name: r.title,
               category: r.category,
               description: r.description || '',
               platform: r.platform,
@@ -394,28 +400,49 @@ export async function GET(request: Request) {
 
     const hasFilters = effectiveCategory || region || accessType || effectiveSearch
 
-    // If semantic search found good results, return them directly
+    // If semantic search found good results, run them through the ranking pipeline
     if (semanticResults.length >= 1) {
       // Find the best match score
       const maxScore = Math.max(...semanticResults.map((r: AIEntry & { _similarity?: number }) => r._similarity || 0))
 
       // If our DB actually contains a very strong semantic match (e.g. > 0.65 similarity)
-      // then we should just use our DB results!
+      // then run through the ranking pipeline for proper ordering
       if (maxScore > 0.65) {
         // Filter out the "loose" trailing matches (cosine similarity < 0.55) so we only return relevant stuff
         const filteredSemantic = semanticResults.filter((r: AIEntry & { _similarity?: number }) => (r._similarity || 0) > 0.55)
+        const filteredRaw = rawHybridResults.filter((r: any) => (r.similarity || 0) > 0.55)
 
         if (filteredSemantic.length > 0) {
-          logger.info(`[API] Returning ${filteredSemantic.length} strong semantic search results (max similarity: ${maxScore.toFixed(3)})`)
+          logger.info(`[API] Running ${filteredRaw.length} strong semantic results through ranking pipeline (max similarity: ${maxScore.toFixed(3)})`)
 
-          return NextResponse.json(filteredSemantic, {
-            headers: {
-              ...getRateLimitHeaders(rateLimit.remaining, rateLimit.resetTime),
-              'Cache-Control': 'public, s-maxage=60, stale-while-revalidate=300',
-              'X-Search-Type': 'semantic',
-              ...(originalSearch ? { 'X-Search-Query': originalSearch } : {}),
-            },
-          })
+          try {
+            // Run through the Gemini-powered ranking pipeline
+            const ranked = await runSearchPipeline(originalSearch!, filteredRaw)
+
+            return NextResponse.json({
+              tools: filteredSemantic,
+              ranking: ranked,
+            }, {
+              headers: {
+                ...getRateLimitHeaders(rateLimit.remaining, rateLimit.resetTime),
+                'Cache-Control': 'public, s-maxage=60, stale-while-revalidate=300',
+                'X-Search-Type': 'semantic+ranked',
+                'X-Search-Pipeline': ranked.confidence_level,
+                ...(originalSearch ? { 'X-Search-Query': originalSearch } : {}),
+              },
+            })
+          } catch (pipelineError) {
+            logger.error('[API] Search pipeline failed, returning unranked results:', pipelineError)
+            // Fallback: return unranked semantic results
+            return NextResponse.json(filteredSemantic, {
+              headers: {
+                ...getRateLimitHeaders(rateLimit.remaining, rateLimit.resetTime),
+                'Cache-Control': 'public, s-maxage=60, stale-while-revalidate=300',
+                'X-Search-Type': 'semantic',
+                ...(originalSearch ? { 'X-Search-Query': originalSearch } : {}),
+              },
+            })
+          }
         }
       } else {
         logger.info(`[API] Semantic results were too weak (max similarity: ${maxScore.toFixed(3)}). Falling back to traditional + external search...`)

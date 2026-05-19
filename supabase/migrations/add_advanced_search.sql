@@ -52,11 +52,12 @@ CREATE INDEX IF NOT EXISTS ai_tools_fts_idx ON ai_tools USING GIN (fts_vector);
 
 -- 7. Advanced Hybrid Search Function that combines FTS and Semantic Search
 -- If query_embedding is NULL, it falls back to pure FTS (much better than ILIKE)
+-- v2: All signals normalized to 0–1 before weighting. Explicit weight formula.
 DROP FUNCTION IF EXISTS search_tools_advanced(text, vector, float, int);
 CREATE OR REPLACE FUNCTION search_tools_advanced(
   search_query text,           -- The raw text search query
   query_embedding vector(768) DEFAULT NULL, -- Optional semantic embedding
-  match_threshold float DEFAULT 0.4,
+  match_threshold float DEFAULT 0.25,
   match_count int DEFAULT 30
 )
 RETURNS TABLE (
@@ -76,6 +77,8 @@ RETURNS TABLE (
   priority int,
   similarity float,
   fts_score float,
+  keyword_score float,
+  source_trust_score float,
   combined_score float
 )
 LANGUAGE plpgsql
@@ -103,30 +106,45 @@ BEGIN
     t.is_trending,
     t.image,
     t.priority,
-    -- Calculate Semantic Similarity 
+
+    -- Semantic Similarity (already 0–1 from cosine distance)
     CASE 
       WHEN t.embedding IS NOT NULL AND query_embedding IS NOT NULL 
       THEN (1 - (t.embedding <=> query_embedding))::double precision
       ELSE 0.0::double precision
     END as similarity,
-    -- Calculate FTS Score (how well keywords match, based on weights A/B/C/D)
-    ts_rank(t.fts_vector, tsquery_val)::double precision as fts_score,
-    -- Calculate Combined Score
-    -- Semantic similarity is bounded 0 to 1. FTS rank is unbounded but generally small.
+
+    -- FTS Score: multiply by 4.0 then cap at 1.0 so it actually contributes
+    LEAST(ts_rank(t.fts_vector, tsquery_val)::double precision * 4.0, 1.0) as fts_score,
+
+    -- keyword_score: same normalized FTS value, kept separate for the ranking layer
+    LEAST(ts_rank(t.fts_vector, tsquery_val)::double precision * 4.0, 1.0) as keyword_score,
+
+    -- source_trust_score: derived from priority column, normalized 0–1
+    LEAST(COALESCE(t.priority, 0)::double precision / 10.0, 1.0) as source_trust_score,
+
+    -- Combined Score with explicit weights (all inputs normalized 0–1)
     (
+      -- Semantic similarity × 3.0
       (CASE 
         WHEN t.embedding IS NOT NULL AND query_embedding IS NOT NULL 
         THEN (1 - (t.embedding <=> query_embedding))::double precision
         ELSE 0.0::double precision
-       END * 2.0) -- Weight semantic higher if present
-      + 
-      ts_rank(t.fts_vector, tsquery_val)::double precision
+       END * 3.0)
       +
-      -- Boost for trending/popularity
-      (COALESCE(t.popularity, 0)::double precision / 1000.0)
+      -- FTS / keyword match × 4.0 (highest weight — most direct relevance)
+      (LEAST(ts_rank(t.fts_vector, tsquery_val)::double precision * 4.0, 1.0) * 4.0)
       +
-      (CASE WHEN t.is_trending THEN 0.1::double precision ELSE 0.0::double precision END)
+      -- Source trust × 3.0
+      (LEAST(COALESCE(t.priority, 0)::double precision / 10.0, 1.0) * 3.0)
+      +
+      -- Popularity normalized × 1.5
+      (LEAST(COALESCE(t.popularity, 0)::double precision / 10000.0, 1.0) * 1.5)
+      +
+      -- Trending bonus × 1.0
+      (CASE WHEN t.is_trending THEN 1.0::double precision ELSE 0.0::double precision END)
     )::double precision as combined_score
+
   FROM ai_tools t
   WHERE 
     -- Condition 1: Semantic match passes threshold
@@ -136,7 +154,7 @@ BEGIN
     (tsquery_val @@ t.fts_vector)
   ORDER BY 
     combined_score DESC,
-    t.priority DESC NULLS LAST,
+    t.is_trending DESC,
     t.popularity DESC NULLS LAST
   LIMIT match_count;
 END;
