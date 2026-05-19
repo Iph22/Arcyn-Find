@@ -468,11 +468,11 @@ function ToolsContent() {
                             <SelectValue placeholder={t("search.selectRegion")} />
                           </SelectTrigger>
                           <SelectContent>
-                            <SelectItem value="all">🌍 {t("search.region")} — {t("search.anyPrice").replace("Price", "Region")}</SelectItem>
-                            <SelectItem value="Global">🌐 Global</SelectItem>
+                            <SelectItem value="all">{t("search.region")} — {t("search.anyPrice").replace("Price", "Region")}</SelectItem>
+                            <SelectItem value="Global">Global</SelectItem>
                             <SelectItem value="USA">🇺🇸 United States</SelectItem>
                             <SelectItem value="EU">🇪🇺 Europe</SelectItem>
-                            <SelectItem value="Asia">🌏 Asia</SelectItem>
+                            <SelectItem value="Asia">Asia</SelectItem>
                             <SelectItem value="Canada">🇨🇦 Canada</SelectItem>
                           </SelectContent>
                         </Select>
