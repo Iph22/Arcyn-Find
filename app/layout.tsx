@@ -6,6 +6,7 @@ import "./globals.css"
 import { PreferencesProvider } from "@/contexts/preferences-context"
 import { AvatarProvider } from "@/contexts/avatar-context"
 import { AuthProvider } from "@/contexts/auth-context"
+import { LanguageProvider } from "@/contexts/language-context"
 import { ThemeProvider } from "next-themes"
 import ClientLayout from "./client-layout"
 import { Analytics } from "@vercel/analytics/next"
@@ -179,15 +180,17 @@ export default function RootLayout({
           disableTransitionOnChange={false}
           storageKey="arcyn-theme"
         >
-          <AuthProvider>
-            <PreferencesProvider>
-              <AvatarProvider>
-                <ClientLayout>
-                  {children}
-                </ClientLayout>
-              </AvatarProvider>
-            </PreferencesProvider>
-          </AuthProvider>
+          <LanguageProvider>
+            <AuthProvider>
+              <PreferencesProvider>
+                <AvatarProvider>
+                  <ClientLayout>
+                    {children}
+                  </ClientLayout>
+                </AvatarProvider>
+              </PreferencesProvider>
+            </AuthProvider>
+          </LanguageProvider>
         </ThemeProvider>
         <Analytics />
         <Toaster />

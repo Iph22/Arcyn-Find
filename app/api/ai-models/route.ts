@@ -334,7 +334,7 @@ export async function GET(request: Request) {
         } catch {
           decodedRegion = region.trim()
         }
-        queryBuilder = queryBuilder.ilike('region', decodedRegion)
+        queryBuilder = queryBuilder.ilike('region', `%${decodedRegion}%`)
       }
       if (accessType) {
         let decodedAccessType = accessType

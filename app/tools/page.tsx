@@ -462,10 +462,21 @@ function ToolsContent() {
                             <SelectValue placeholder="Select Region" />
                           </SelectTrigger>
                           <SelectContent>
-                            <SelectItem value="all">Global (Any Region)</SelectItem>
-                            <SelectItem value="US">United States</SelectItem>
-                            <SelectItem value="EU">Europe</SelectItem>
-                            <SelectItem value="Asia">Asia</SelectItem>
+                            <SelectItem value="all">🌍 Global (Any Region)</SelectItem>
+                            <SelectItem value="Global">🌐 Global</SelectItem>
+                            <SelectItem value="USA">🇺🇸 United States</SelectItem>
+                            <SelectItem value="US">🇺🇸 United States (US)</SelectItem>
+                            <SelectItem value="Europe">🇪🇺 Europe</SelectItem>
+                            <SelectItem value="EU">🇪🇺 Europe (EU)</SelectItem>
+                            <SelectItem value="Asia">🌏 Asia</SelectItem>
+                            <SelectItem value="Asia Pacific">🌏 Asia Pacific</SelectItem>
+                            <SelectItem value="UK">🇬🇧 United Kingdom</SelectItem>
+                            <SelectItem value="Canada">🇨🇦 Canada</SelectItem>
+                            <SelectItem value="Australia">🇦🇺 Australia</SelectItem>
+                            <SelectItem value="India">🇮🇳 India</SelectItem>
+                            <SelectItem value="Latin America">🌎 Latin America</SelectItem>
+                            <SelectItem value="Middle East">🌍 Middle East</SelectItem>
+                            <SelectItem value="Africa">🌍 Africa</SelectItem>
                           </SelectContent>
                         </Select>
                       </div>

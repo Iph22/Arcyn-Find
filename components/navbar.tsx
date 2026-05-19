@@ -14,6 +14,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
 import { ThemeToggle } from "@/components/theme-toggle"
+import { LanguagePicker } from "@/components/language-picker"
 import { usePreferences } from "@/contexts/preferences-context"
 import { useAvatar } from "@/contexts/avatar-context"
 import { useAuth } from "@/contexts/auth-context"
@@ -132,6 +133,7 @@ export function Navbar({ className }: NavbarProps) {
         </div>
 
         <div className="flex items-center gap-1 md:gap-2">
+          <LanguagePicker />
           <ThemeToggle />
           {isAuthenticated ? (
             <DropdownMenu>
