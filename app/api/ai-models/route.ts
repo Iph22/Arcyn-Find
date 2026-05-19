@@ -419,15 +419,35 @@ export async function GET(request: Request) {
             // Run through the Gemini-powered ranking pipeline
             const ranked = await runSearchPipeline(originalSearch!, filteredRaw)
 
-            return NextResponse.json({
-              tools: filteredSemantic,
-              ranking: ranked,
-            }, {
+            // Re-order filteredSemantic according to the ranked result order
+            if (ranked.results && ranked.results.length > 0) {
+              const rankedOrder = new Map(ranked.results.map((r, i) => [r.id || r.title, i]))
+              const reordered = [...filteredSemantic].sort((a, b) => {
+                const aIdx = rankedOrder.get(a.id) ?? rankedOrder.get(a.name) ?? 999
+                const bIdx = rankedOrder.get(b.id) ?? rankedOrder.get(b.name) ?? 999
+                return aIdx - bIdx
+              })
+
+              logger.info(`[API] Returning ${reordered.length} ranked semantic results (intent: ${ranked.query_intent}, confidence: ${ranked.confidence_level})`)
+
+              return NextResponse.json(reordered, {
+                headers: {
+                  ...getRateLimitHeaders(rateLimit.remaining, rateLimit.resetTime),
+                  'Cache-Control': 'public, s-maxage=60, stale-while-revalidate=300',
+                  'X-Search-Type': 'semantic+ranked',
+                  'X-Search-Pipeline': ranked.confidence_level,
+                  'X-Search-Intent': ranked.query_intent,
+                  ...(originalSearch ? { 'X-Search-Query': originalSearch } : {}),
+                },
+              })
+            }
+
+            // If ranking returned no results, fall through to unranked
+            return NextResponse.json(filteredSemantic, {
               headers: {
                 ...getRateLimitHeaders(rateLimit.remaining, rateLimit.resetTime),
                 'Cache-Control': 'public, s-maxage=60, stale-while-revalidate=300',
-                'X-Search-Type': 'semantic+ranked',
-                'X-Search-Pipeline': ranked.confidence_level,
+                'X-Search-Type': 'semantic',
                 ...(originalSearch ? { 'X-Search-Query': originalSearch } : {}),
               },
             })
