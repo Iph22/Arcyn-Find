@@ -20,6 +20,7 @@ import { ThemeToggle } from "@/components/theme-toggle"
 import { ToolDetailModal } from "@/components/enhanced-tool-detail-modal"
 import { PricingBadge } from "@/components/pricing-badge"
 import { usePreferences } from "@/contexts/preferences-context"
+import { useLanguage } from "@/contexts/language-context"
 import { useAITools } from "@/lib/hooks/use-ai-tools"
 import { toast } from "sonner"
 import { useAuth } from "@/contexts/auth-context"
@@ -124,6 +125,7 @@ function ToolsContent() {
 
   const { preferences } = usePreferences()
   const { user, isLoading: isAuthLoading, isAuthenticated } = useAuth()
+  const { t } = useLanguage()
 
   const ITEMS_PER_PAGE = 24 // Load 24 tools at a time (divisible by 2 and 3 for grid)
 
@@ -210,7 +212,7 @@ function ToolsContent() {
     e.stopPropagation()
 
     if (!user) {
-      toast.error("Please sign in to save tools")
+      toast.error(t("tools.signInToSave"))
       return
     }
 
@@ -356,7 +358,7 @@ function ToolsContent() {
                 {sidebarOpen ? <X className="h-4 w-4 md:h-5 md:w-5" /> : <Menu className="h-4 w-4 md:h-5 md:w-5" />}
               </Button>
               <div className="flex items-center gap-2">
-                <span className="text-base md:text-lg font-bold">AI Tools</span>
+                <span className="text-base md:text-lg font-bold">{t("nav.tools")}</span>
               </div>
             </div>
             <ThemeToggle />
@@ -374,7 +376,7 @@ function ToolsContent() {
                 animate={{ opacity: 1, y: 0 }}
               >
                 <p className="text-xs md:text-sm text-foreground">
-                  <span className="font-semibold text-primary">Personalized results:</span> Showing tools matched to
+                  <span className="font-semibold text-primary">{t("search.personalized")}:</span> Showing tools matched to
                   your interests in {preferences.categories.slice(0, 2).join(", ")}
                   {preferences.categories.length > 2 && ` and ${preferences.categories.length - 2} more`}.
                 </p>
@@ -392,7 +394,7 @@ function ToolsContent() {
                 <PremiumSearchInput
                   value={searchQuery}
                   onChange={setSearchQuery}
-                  placeholder="Search AI tools..."
+                  placeholder={t("search.placeholder")}
                   className="flex-1"
                   showButton={false}
                   onFocus={() => {
@@ -413,7 +415,7 @@ function ToolsContent() {
                   <PopoverTrigger asChild>
                     <Button variant="outline" size="lg" className="h-11 md:h-14 gap-2 px-4 md:px-6 bg-transparent shrink-0">
                       <Filter className="h-4 w-4" />
-                      <span className="hidden sm:inline">Filters</span>
+                      <span className="hidden sm:inline">{t("search.filters")}</span>
                       {(accessType !== 'all' || region !== 'all') && (
                         <div className="absolute -right-1 -top-1 h-3 w-3 rounded-full bg-primary" />
                       )}
@@ -422,7 +424,7 @@ function ToolsContent() {
                   <PopoverContent className="w-80 p-5" align="end">
                     <div className="space-y-4">
                       <div className="flex items-center justify-between">
-                        <h4 className="font-semibold leading-none">Filter Tools</h4>
+                        <h4 className="font-semibold leading-none">{t("search.filters")}</h4>
                         {(accessType !== 'all' || region !== 'all') && (
                           <Button
                             variant="ghost"
@@ -433,13 +435,13 @@ function ToolsContent() {
                               setRegion('all')
                             }}
                           >
-                            Reset
+                            {t("search.reset")}
                           </Button>
                         )}
                       </div>
 
                       <div className="space-y-2">
-                        <h5 className="text-sm font-medium text-muted-foreground">Pricing Model</h5>
+                        <h5 className="text-sm font-medium text-muted-foreground">{t("search.pricingModel")}</h5>
                         <div className="grid grid-cols-2 gap-2">
                           {['all', 'Free', 'Freemium', 'Paid', 'Free Trial'].map((type) => (
                             <Button
@@ -449,34 +451,25 @@ function ToolsContent() {
                               className="justify-start"
                               onClick={() => setAccessType(type)}
                             >
-                              {type === 'all' ? 'Any Price' : type}
+                              {type === 'all' ? t("search.anyPrice") : type}
                             </Button>
                           ))}
                         </div>
                       </div>
 
                       <div className="space-y-2">
-                        <h5 className="text-sm font-medium text-muted-foreground">Region</h5>
+                        <h5 className="text-sm font-medium text-muted-foreground">{t("search.region")}</h5>
                         <Select value={region} onValueChange={setRegion}>
                           <SelectTrigger>
-                            <SelectValue placeholder="Select Region" />
+                            <SelectValue placeholder={t("search.selectRegion")} />
                           </SelectTrigger>
                           <SelectContent>
-                            <SelectItem value="all">🌍 Global (Any Region)</SelectItem>
+                            <SelectItem value="all">🌍 {t("search.region")} — {t("search.anyPrice").replace("Price", "Region")}</SelectItem>
                             <SelectItem value="Global">🌐 Global</SelectItem>
                             <SelectItem value="USA">🇺🇸 United States</SelectItem>
-                            <SelectItem value="US">🇺🇸 United States (US)</SelectItem>
-                            <SelectItem value="Europe">🇪🇺 Europe</SelectItem>
-                            <SelectItem value="EU">🇪🇺 Europe (EU)</SelectItem>
+                            <SelectItem value="EU">🇪🇺 Europe</SelectItem>
                             <SelectItem value="Asia">🌏 Asia</SelectItem>
-                            <SelectItem value="Asia Pacific">🌏 Asia Pacific</SelectItem>
-                            <SelectItem value="UK">🇬🇧 United Kingdom</SelectItem>
                             <SelectItem value="Canada">🇨🇦 Canada</SelectItem>
-                            <SelectItem value="Australia">🇦🇺 Australia</SelectItem>
-                            <SelectItem value="India">🇮🇳 India</SelectItem>
-                            <SelectItem value="Latin America">🌎 Latin America</SelectItem>
-                            <SelectItem value="Middle East">🌍 Middle East</SelectItem>
-                            <SelectItem value="Africa">🌍 Africa</SelectItem>
                           </SelectContent>
                         </Select>
                       </div>
@@ -530,7 +523,7 @@ function ToolsContent() {
                 <AnimatePresence mode="popLayout">
                   {filteredTools.length === 0 ? (
                     <div className="col-span-full py-20 text-center">
-                      <p className="text-muted-foreground">No tools found. Try adjusting your filters.</p>
+                      <p className="text-muted-foreground">{t("search.noToolsFound")}. {t("search.tryAdjusting")}</p>
                     </div>
                   ) : (
                     filteredTools.map((tool, index) => (
@@ -558,7 +551,7 @@ function ToolsContent() {
                             {tool.featured && (
                               <Badge className="absolute right-3 top-3 bg-primary/90 text-primary-foreground backdrop-blur-sm">
                                 <Sparkles className="mr-1 h-3 w-3" />
-                                Featured
+                                {t("tools.featured")}
                               </Badge>
                             )}
                           </div>
@@ -575,7 +568,7 @@ function ToolsContent() {
                                 className="h-8 w-8 shrink-0 rounded-lg"
                                 onClick={(e) => handleToggleFavorite(tool.id, e)}
                                 disabled={togglingFavorite === tool.id || !user}
-                                title={favoritedTools.has(tool.id) ? "Remove from favorites" : "Add to favorites"}
+                                title={favoritedTools.has(tool.id) ? t("tools.removeFromFavorites") : t("tools.addToFavorites")}
                               >
                                 <Bookmark className={`h-4 w-4 ${favoritedTools.has(tool.id) ? 'fill-primary text-primary' : ''}`} />
                               </Button>
@@ -616,7 +609,7 @@ function ToolsContent() {
                                   setSelectedTool(tool)
                                 }}
                               >
-                                Details
+                                {t("tools.details")}
                                 <ExternalLink className="h-3 w-3" />
                               </Button>
                             </div>
@@ -637,11 +630,11 @@ function ToolsContent() {
                   onClick={() => setPage(prev => prev + 1)}
                   className="gap-2"
                 >
-                  Load More Tools
+                  {t("search.loadMore")}
                   <ExternalLink className="h-4 w-4" />
                 </Button>
                 <p className="mt-2 text-xs md:text-sm text-muted-foreground">
-                  Showing {filteredTools.length} tools. Click to load more.
+                  {t("search.showing", { count: String(filteredTools.length) })}
                 </p>
               </div>
             )}
@@ -659,8 +652,8 @@ function ToolsContent() {
                 <div className="mx-auto mb-4 flex h-12 w-12 md:h-16 md:w-16 items-center justify-center rounded-2xl bg-muted">
                   <Search className="h-6 w-6 md:h-8 md:w-8 text-muted-foreground" />
                 </div>
-                <h3 className="mb-2 text-base md:text-lg font-semibold">No tools found</h3>
-                <p className="text-sm md:text-base text-muted-foreground">Try adjusting your search or filters</p>
+                <h3 className="mb-2 text-base md:text-lg font-semibold">{t("search.noToolsFound")}</h3>
+                <p className="text-sm md:text-base text-muted-foreground">{t("search.tryAdjusting")}</p>
               </motion.div>
             )}
           </div>

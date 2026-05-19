@@ -18,6 +18,7 @@ import { LanguagePicker } from "@/components/language-picker"
 import { usePreferences } from "@/contexts/preferences-context"
 import { useAvatar } from "@/contexts/avatar-context"
 import { useAuth } from "@/contexts/auth-context"
+import { useLanguage } from "@/contexts/language-context"
 import { cn } from "@/lib/utils"
 import { useHaptic } from "@/hooks/use-haptic"
 import { logger } from "@/lib/logger"
@@ -34,6 +35,7 @@ export function Navbar({ className }: NavbarProps) {
   const { user, signOut, isAuthenticated } = useAuth()
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
   const { trigger: haptic } = useHaptic()
+  const { t } = useLanguage()
 
   const handleSignOut = async () => {
     try {
@@ -89,7 +91,7 @@ export function Navbar({ className }: NavbarProps) {
                       : "text-muted-foreground hover:text-foreground hover:bg-accent/50"
                   )}
                 >
-                  Home
+                  {t("nav.home")}
                 </Link>
                 <Link
                   href="/tools"
@@ -101,7 +103,7 @@ export function Navbar({ className }: NavbarProps) {
                       : "text-muted-foreground hover:text-foreground hover:bg-accent/50"
                   )}
                 >
-                  Tools
+                  {t("nav.tools")}
                 </Link>
                 <Link
                   href="/collections"
@@ -113,7 +115,7 @@ export function Navbar({ className }: NavbarProps) {
                       : "text-muted-foreground hover:text-foreground hover:bg-accent/50"
                   )}
                 >
-                  Collections
+                  {t("nav.collections")}
                 </Link>
               </>
             ) : (
@@ -126,7 +128,7 @@ export function Navbar({ className }: NavbarProps) {
                     : "text-muted-foreground hover:text-foreground hover:bg-accent/50"
                 )}
               >
-                Tools
+                {t("nav.tools")}
               </Link>
             )}
           </div>
@@ -162,31 +164,31 @@ export function Navbar({ className }: NavbarProps) {
                 <DropdownMenuItem asChild>
                   <Link href="/profile" className="cursor-pointer">
                     <User className="mr-2 h-4 w-4" />
-                    Profile
+                    {t("nav.profile")}
                   </Link>
                 </DropdownMenuItem>
                 <DropdownMenuItem asChild>
                   <Link href="/collections" className="cursor-pointer">
                     <Bookmark className="mr-2 h-4 w-4" />
-                    Collections
+                    {t("nav.collections")}
                   </Link>
                 </DropdownMenuItem>
                 <DropdownMenuItem asChild>
                   <Link href="/reviews" className="cursor-pointer">
                     <Star className="mr-2 h-4 w-4" />
-                    Reviews
+                    {t("nav.reviews")}
                   </Link>
                 </DropdownMenuItem>
                 <DropdownMenuItem asChild>
                   <Link href="/settings" className="cursor-pointer">
                     <Settings className="mr-2 h-4 w-4" />
-                    Settings
+                    {t("nav.settings")}
                   </Link>
                 </DropdownMenuItem>
                 <DropdownMenuSeparator />
                 <DropdownMenuItem onClick={handleSignOut} className="text-destructive" aria-label="Sign out of your account">
                   <LogOut className="mr-2 h-4 w-4" />
-                  Sign Out
+                  {t("nav.signOut")}
                 </DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>
@@ -202,7 +204,7 @@ export function Navbar({ className }: NavbarProps) {
                 className="h-8 px-2 md:px-3 text-xs md:text-sm"
                 aria-label="Sign in to your account"
               >
-                Sign In
+                {t("nav.signIn")}
               </Button>
               <Button
                 size="sm"
@@ -213,8 +215,8 @@ export function Navbar({ className }: NavbarProps) {
                 className="h-8 px-2 md:px-3 text-xs md:text-sm"
                 aria-label="Get started with Arcyn Find"
               >
-                <span className="hidden sm:inline">Get Started</span>
-                <span className="sm:hidden">Start</span>
+                <span className="hidden sm:inline">{t("nav.getStarted")}</span>
+                <span className="sm:hidden">{t("nav.signIn")}</span>
               </Button>
             </div>
           )}
