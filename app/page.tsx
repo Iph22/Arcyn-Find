@@ -563,7 +563,7 @@ export default function LandingPage() {
                 </li>
                 <li className="flex items-center justify-center gap-2 min-h-[44px]">
                   <Instagram className="w-4 h-4" />
-                  <a href="https://instagram.com/arcyn.x" target="_blank" rel="noopener noreferrer" className="hover:text-primary transition-colors">
+                  <a href="https://instagram.com/arcynfind" target="_blank" rel="noopener noreferrer" className="hover:text-primary transition-colors">
                     Instagram
                   </a>
                 </li>

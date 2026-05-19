@@ -97,7 +97,7 @@ export default function AboutPage() {
             </p>
             <div className="flex flex-wrap gap-4">
               <Button asChild>
-                <a href="https://instagram.com/arcyn.x" target="_blank" rel="noopener noreferrer" className="gap-2">
+                <a href="https://instagram.com/arcynfind" target="_blank" rel="noopener noreferrer" className="gap-2">
                   <Instagram className="w-4 h-4" />
                   Instagram
                 </a>
