@@ -12,6 +12,7 @@ import { Badge } from "@/components/ui/badge"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Sidebar } from "@/components/sidebar"
 import { ThemeToggle } from "@/components/theme-toggle"
+import { LanguagePicker } from "@/components/language-picker"
 import { usePreferences } from "@/contexts/preferences-context"
 import {
   AlertDialog,
@@ -377,6 +378,7 @@ export default function ProfilePage() {
               </div>
             </div>
             <div className="flex items-center gap-2">
+              <LanguagePicker />
               <ThemeToggle />
               <Button variant="ghost" size="sm" onClick={handleSignOut} className="gap-2">
                 <LogOut className="h-4 w-4" />

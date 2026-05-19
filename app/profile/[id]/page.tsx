@@ -12,6 +12,7 @@ import { Badge } from "@/components/ui/badge"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Sidebar } from "@/components/sidebar"
 import { ThemeToggle } from "@/components/theme-toggle"
+import { LanguagePicker } from "@/components/language-picker"
 import { toast } from "sonner"
 import { useAuth } from "@/contexts/auth-context"
 
@@ -363,7 +364,10 @@ export default function UserProfilePage() {
                 <span className="text-lg font-bold">Profile</span>
               </div>
             </div>
-            <ThemeToggle />
+            <div className="flex items-center gap-2">
+              <LanguagePicker />
+              <ThemeToggle />
+            </div>
           </div>
         </motion.header>
 

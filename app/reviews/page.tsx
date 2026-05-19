@@ -10,6 +10,7 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Badge } from "@/components/ui/badge"
 import { Sidebar } from "@/components/sidebar"
 import { ThemeToggle } from "@/components/theme-toggle"
+import { LanguagePicker } from "@/components/language-picker"
 import { EmptyState } from "@/components/empty-state"
 import { useAuth } from "@/contexts/auth-context"
 import { logger } from "@/lib/logger"
@@ -149,7 +150,10 @@ export default function ReviewsPage() {
                 <span className="text-lg font-bold">Reviews</span>
               </div>
             </div>
-            <ThemeToggle />
+            <div className="flex items-center gap-2">
+              <LanguagePicker />
+              <ThemeToggle />
+            </div>
           </div>
         </motion.header>
 

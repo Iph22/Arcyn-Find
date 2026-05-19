@@ -11,6 +11,7 @@ import { Button } from "@/components/ui/button"
 import { Card } from "@/components/ui/card"
 import { Sidebar } from "@/components/sidebar"
 import { ThemeToggle } from "@/components/theme-toggle"
+import { LanguagePicker } from "@/components/language-picker"
 import { ToolDetailModal } from "@/components/enhanced-tool-detail-modal"
 import { PricingBadge } from "@/components/pricing-badge"
 import { usePreferences } from "@/contexts/preferences-context"
@@ -193,6 +194,7 @@ export default function HomePage() {
                 <Sparkles className="w-4 h-4 text-yellow-400" />
                 <span className="text-sm text-muted-foreground">{preferences?.level || "Explorer"} level</span>
               </div>
+              <LanguagePicker />
               <ThemeToggle />
             </div>
           </div>

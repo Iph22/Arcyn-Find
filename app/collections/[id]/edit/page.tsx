@@ -13,6 +13,7 @@ import { Switch } from "@/components/ui/switch"
 import { toast } from "sonner"
 import { Sidebar } from "@/components/sidebar"
 import { ThemeToggle } from "@/components/theme-toggle"
+import { LanguagePicker } from "@/components/language-picker"
 
 export default function EditCollectionPage() {
   const router = useRouter()
@@ -116,7 +117,10 @@ export default function EditCollectionPage() {
               </Button>
               <h1 className="text-lg font-bold">Edit Collection</h1>
             </div>
-            <ThemeToggle />
+            <div className="flex items-center gap-2">
+              <LanguagePicker />
+              <ThemeToggle />
+            </div>
           </div>
         </motion.header>
 

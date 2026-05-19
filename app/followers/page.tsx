@@ -11,6 +11,7 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Sidebar } from "@/components/sidebar"
 import { ThemeToggle } from "@/components/theme-toggle"
+import { LanguagePicker } from "@/components/language-picker"
 import { useAuth } from "@/contexts/auth-context"
 import { toast } from "sonner"
 
@@ -187,7 +188,10 @@ export default function FollowersPage() {
                 <span className="text-lg font-bold">Community</span>
               </div>
             </div>
-            <ThemeToggle />
+            <div className="flex items-center gap-2">
+              <LanguagePicker />
+              <ThemeToggle />
+            </div>
           </div>
         </motion.header>
 

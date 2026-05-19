@@ -17,6 +17,7 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Sidebar } from "@/components/sidebar"
 import { ThemeToggle } from "@/components/theme-toggle"
+import { LanguagePicker } from "@/components/language-picker"
 import { ToolDetailModal } from "@/components/enhanced-tool-detail-modal"
 import { PricingBadge } from "@/components/pricing-badge"
 import { usePreferences } from "@/contexts/preferences-context"
@@ -361,7 +362,10 @@ function ToolsContent() {
                 <span className="text-base md:text-lg font-bold">{t("nav.tools")}</span>
               </div>
             </div>
-            <ThemeToggle />
+            <div className="flex items-center gap-2">
+              <LanguagePicker />
+              <ThemeToggle />
+            </div>
           </div>
         </motion.header>
 

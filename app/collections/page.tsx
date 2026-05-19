@@ -9,6 +9,7 @@ import { Card } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Sidebar } from "@/components/sidebar"
 import { ThemeToggle } from "@/components/theme-toggle"
+import { LanguagePicker } from "@/components/language-picker"
 import { useAuth } from "@/contexts/auth-context"
 import { toast } from "sonner"
 
@@ -116,6 +117,7 @@ export default function CollectionsPage() {
                 <Plus className="h-4 w-4" />
                 New Collection
               </Button>
+              <LanguagePicker />
               <ThemeToggle />
             </div>
           </div>

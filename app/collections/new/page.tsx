@@ -13,6 +13,7 @@ import { Switch } from "@/components/ui/switch"
 import { toast } from "sonner"
 import { Sidebar } from "@/components/sidebar"
 import { ThemeToggle } from "@/components/theme-toggle"
+import { LanguagePicker } from "@/components/language-picker"
 
 export default function NewCollectionPage() {
   const router = useRouter()
@@ -76,7 +77,10 @@ export default function NewCollectionPage() {
               </Button>
               <h1 className="text-lg font-bold">Create New Collection</h1>
             </div>
-            <ThemeToggle />
+            <div className="flex items-center gap-2">
+              <LanguagePicker />
+              <ThemeToggle />
+            </div>
           </div>
         </motion.header>
 

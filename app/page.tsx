@@ -10,6 +10,7 @@ import { Button } from "@/components/ui/button"
 import dynamic from "next/dynamic"
 
 const ThemeToggle = dynamic(() => import("@/components/theme-toggle").then(mod => mod.ThemeToggle), { ssr: false })
+const LanguagePicker = dynamic(() => import("@/components/language-picker").then(mod => mod.LanguagePicker), { ssr: false })
 const BrowserSearchAnimation = dynamic(() => import("@/components/browser-search-animation").then(mod => mod.BrowserSearchAnimation), { ssr: false })
 import { supabase } from "@/lib/supabase"
 import { usePreferences } from "@/contexts/preferences-context"
@@ -117,7 +118,8 @@ export default function LandingPage() {
               <CodesandboxIcon className="w-5 h-5 sm:w-6 sm:h-6 text-primary" />
               <span className="text-lg sm:text-xl font-bold tracking-tight">Arcyn Find</span>
             </div>
-            <nav className="flex items-center gap-4 sm:gap-6">
+            <nav className="flex items-center gap-2 sm:gap-4">
+              <LanguagePicker />
               <ThemeToggle />
             </nav>
           </div>
