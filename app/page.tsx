@@ -9,9 +9,9 @@ import { useRouter } from "next/navigation"
 import { Button } from "@/components/ui/button"
 import dynamic from "next/dynamic"
 
-const ThemeToggle = dynamic(() => import("@/components/theme-toggle").then(mod => mod.ThemeToggle), { ssr: false })
-const LanguagePicker = dynamic(() => import("@/components/language-picker").then(mod => mod.LanguagePicker), { ssr: false })
-const BrowserSearchAnimation = dynamic(() => import("@/components/browser-search-animation").then(mod => mod.BrowserSearchAnimation), { ssr: false })
+const ThemeToggle = dynamic(() => import("@/components/layout/theme-toggle").then(mod => mod.ThemeToggle), { ssr: false })
+const LanguagePicker = dynamic(() => import("@/components/layout/language-picker").then(mod => mod.LanguagePicker), { ssr: false })
+const BrowserSearchAnimation = dynamic(() => import("@/components/search/browser-search-animation").then(mod => mod.BrowserSearchAnimation), { ssr: false })
 import { supabase } from "@/lib/supabase"
 import { usePreferences } from "@/contexts/preferences-context"
 import { useAuth } from "@/contexts/auth-context"

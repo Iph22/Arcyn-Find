@@ -18,8 +18,8 @@ try {
   console.warn('Canvas module not found. Image generation requires: npm install canvas')
   process.exit(1)
 }
-import { getSupabaseAdmin, transformToAIEntry } from '../lib/supabase'
-import type { AIEntry } from '../lib/ai-data'
+import { getSupabaseAdmin, transformToAIEntry } from '../../lib/supabase'
+import type { AIEntry } from '../../lib/ai-data'
 
 const OUTPUT_DIR = path.join(process.cwd(), 'public', 'ai-tools')
 const FONT_PATH = path.join(process.cwd(), 'public', 'fonts') // You'll need to add fonts

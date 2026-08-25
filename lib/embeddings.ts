@@ -262,7 +262,8 @@ export interface HybridSearchResult {
 export async function hybridSearch(
     query: string,
     limit: number = 30,
-    threshold: number = 0.25
+    threshold: number = 0.20,
+    extraKeywords: string[] = []
 ): Promise<HybridSearchResult[]> {
     const supabase = getSupabaseAdmin()
 
@@ -310,7 +311,8 @@ export async function hybridSearch(
             search_query: query,
             query_embedding: queryEmbedding,
             match_threshold: threshold,
-            match_count: limit
+            match_count: limit,
+            extra_keywords: extraKeywords.length > 0 ? extraKeywords : null
         })
 
         if (error) {

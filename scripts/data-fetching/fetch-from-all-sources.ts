@@ -6,16 +6,16 @@
  * news sources, Product Hunt, and curated popular tools
  */
 
-import { fetchFromRSSFeeds } from './sources/rss-feeds'
-import { fetchFromAggregators } from './sources/aggregators'
-import { fetchFromScrapers } from './sources/scrapers'
-import { fetchFromCommunity } from './sources/community'
-import { fetchFromNewsSources } from './sources/news-sources'
-import { fetchFromProductHunt } from './sources/product-hunt'
-import { fetchFromCuratedList } from './sources/curated-tools'
-import { deduplicateEntries, mergeEntries } from './utils/deduplicator'
-import { getSupabaseAdmin, transformToDBRow } from '../lib/supabase'
-import type { AIEntry } from '../lib/ai-data'
+import { fetchFromRSSFeeds } from '../sources/rss-feeds'
+import { fetchFromAggregators } from '../sources/aggregators'
+import { fetchFromScrapers } from '../sources/scrapers'
+import { fetchFromCommunity } from '../sources/community'
+import { fetchFromNewsSources } from '../sources/news-sources'
+import { fetchFromProductHunt } from '../sources/product-hunt'
+import { fetchFromCuratedList } from '../sources/curated-tools'
+import { deduplicateEntries, mergeEntries } from '../utils/deduplicator'
+import { getSupabaseAdmin, transformToDBRow } from '../../lib/supabase'
+import type { AIEntry } from '../../lib/ai-data'
 
 /**
  * Main function to fetch from all sources and store in Supabase

@@ -10,9 +10,9 @@ import { Card } from "@/components/ui/card"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Badge } from "@/components/ui/badge"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { Sidebar } from "@/components/sidebar"
-import { ThemeToggle } from "@/components/theme-toggle"
-import { LanguagePicker } from "@/components/language-picker"
+import { Sidebar } from "@/components/layout/sidebar"
+import { ThemeToggle } from "@/components/layout/theme-toggle"
+import { LanguagePicker } from "@/components/layout/language-picker"
 import { usePreferences } from "@/contexts/preferences-context"
 import {
   AlertDialog,

@@ -4,9 +4,9 @@
  * Script to add Tixu.ai to the database
  */
 
-import { getSupabaseAdmin, transformToDBRow } from '../lib/supabase'
-import type { AIEntry } from '../lib/ai-data'
-import { generateId, normalizePopularity } from './utils/transformer'
+import { getSupabaseAdmin, transformToDBRow } from '../../lib/supabase'
+import type { AIEntry } from '../../lib/ai-data'
+import { generateId, normalizePopularity } from '../utils/transformer'
 
 const TIXU_AI: AIEntry = {
   id: generateId('Tixu.ai', 'tixu'),

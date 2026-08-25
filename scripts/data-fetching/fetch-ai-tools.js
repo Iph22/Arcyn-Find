@@ -7,10 +7,11 @@
 
 const fs = require('fs');
 const path = require('path');
-const { getToolImage } = require('./fetch-tool-images');
+const { getToolImage } = require('../images/fetch-tool-images');
 
 const OPENTOOLS_API = 'https://opentools.ai/api/tools';
-const AI_DATA_PATH = path.join(__dirname, '../lib/ai-data.ts');
+// Path to ai-data.ts
+const AI_DATA_PATH = path.join(__dirname, '../../lib/ai-data.ts');
 
 // Category mapping from OpenTools categories to our categories
 const categoryMapping = {

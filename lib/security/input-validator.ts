@@ -312,8 +312,8 @@ export const userSearchSchema = z.object({
  * Pagination schema
  */
 export const paginationSchema = z.object({
-    limit: z.coerce.number().pipe(safePaginationLimit),
-    offset: z.coerce.number().pipe(safePaginationOffset)
+    limit: z.coerce.number().pipe(safePaginationLimit as any),
+    offset: z.coerce.number().pipe(safePaginationOffset as any)
 })
 
 /**
@@ -349,7 +349,7 @@ export function validateBody<T>(
         if (error instanceof z.ZodError) {
             // Extract field-specific errors
             const fieldErrors: Record<string, string[]> = {}
-            for (const issue of error.errors) {
+            for (const issue of error.issues) {
                 const path = issue.path.join('.') || '_root'
                 if (!fieldErrors[path]) {
                     fieldErrors[path] = []
@@ -358,7 +358,7 @@ export function validateBody<T>(
             }
 
             // Get first error message for simple error response
-            const firstError = error.errors[0]
+            const firstError = error.issues[0]
             const errorMessage = firstError
                 ? `${firstError.path.join('.') || 'Input'}: ${firstError.message}`
                 : 'Validation failed'

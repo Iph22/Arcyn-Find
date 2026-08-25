@@ -5,9 +5,9 @@
  * Specifically targets newer models like Gemini 3, GPT-5, Claude 4, etc.
  */
 
-import { getSupabaseAdmin, transformToDBRow } from '../lib/supabase'
-import type { AIEntry } from '../lib/ai-data'
-import { generateId, normalizePopularity } from './utils/transformer'
+import { getSupabaseAdmin, transformToDBRow } from '../../lib/supabase'
+import type { AIEntry } from '../../lib/ai-data'
+import { generateId, normalizePopularity } from '../utils/transformer'
 
 /**
  * Known new models to add

@@ -7,9 +7,9 @@ import { Sparkles, Menu, X, Plus, MoreVertical, Lock, Globe, Bookmark } from "lu
 import { Button } from "@/components/ui/button"
 import { Card } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
-import { Sidebar } from "@/components/sidebar"
-import { ThemeToggle } from "@/components/theme-toggle"
-import { LanguagePicker } from "@/components/language-picker"
+import { Sidebar } from "@/components/layout/sidebar"
+import { ThemeToggle } from "@/components/layout/theme-toggle"
+import { LanguagePicker } from "@/components/layout/language-picker"
 import { useAuth } from "@/contexts/auth-context"
 import { toast } from "sonner"
 

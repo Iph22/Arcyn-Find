@@ -1,8 +1,8 @@
 const fs = require('fs')
 const path = require('path')
 
-const AI_DATA_PATH = path.join(__dirname, '../lib/ai-data.ts')
-const JSON_OUTPUT_PATH = path.join(__dirname, '../public/ai-data.json')
+const AI_DATA_PATH = path.join(__dirname, '../../lib/ai-data.ts')
+const JSON_OUTPUT_PATH = path.join(__dirname, '../../public/ai-data.json')
 
 // Read the TypeScript file
 const content = fs.readFileSync(AI_DATA_PATH, 'utf-8')

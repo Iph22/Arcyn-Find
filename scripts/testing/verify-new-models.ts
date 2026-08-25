@@ -4,7 +4,7 @@
  * Script to verify new models are in the database
  */
 
-import { getSupabaseAdmin } from '../lib/supabase'
+import { getSupabaseAdmin } from '../../lib/supabase'
 
 async function verifyNewModels() {
   console.log('🔍 Verifying new models in database...\n')

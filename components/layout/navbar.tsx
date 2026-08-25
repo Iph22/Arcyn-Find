@@ -13,14 +13,14 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
-import { ThemeToggle } from "@/components/theme-toggle"
-import { LanguagePicker } from "@/components/language-picker"
+import { ThemeToggle } from "@/components/layout/theme-toggle"
+import { LanguagePicker } from "@/components/layout/language-picker"
 import { usePreferences } from "@/contexts/preferences-context"
 import { useAvatar } from "@/contexts/avatar-context"
 import { useAuth } from "@/contexts/auth-context"
 import { useLanguage } from "@/contexts/language-context"
 import { cn } from "@/lib/utils"
-import { useHaptic } from "@/hooks/use-haptic"
+import { useHaptic } from "@/lib/hooks/use-haptic"
 import { logger } from "@/lib/logger"
 
 interface NavbarProps {

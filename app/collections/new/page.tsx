@@ -11,9 +11,9 @@ import { Card } from "@/components/ui/card"
 import { Label } from "@/components/ui/label"
 import { Switch } from "@/components/ui/switch"
 import { toast } from "sonner"
-import { Sidebar } from "@/components/sidebar"
-import { ThemeToggle } from "@/components/theme-toggle"
-import { LanguagePicker } from "@/components/language-picker"
+import { Sidebar } from "@/components/layout/sidebar"
+import { ThemeToggle } from "@/components/layout/theme-toggle"
+import { LanguagePicker } from "@/components/layout/language-picker"
 
 export default function NewCollectionPage() {
   const router = useRouter()

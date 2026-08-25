@@ -9,7 +9,7 @@ import { Button } from "@/components/ui/button"
 import { cn } from "@/lib/utils"
 import { usePreferences } from "@/contexts/preferences-context"
 import { useAvatar } from "@/contexts/avatar-context"
-import { UserSearch } from "@/components/user-search"
+import { UserSearch } from "@/components/search/user-search"
 import { logger } from "@/lib/logger"
 import { useAuth } from "@/contexts/auth-context"
 

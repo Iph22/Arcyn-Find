@@ -8,7 +8,7 @@ require('dotenv').config();
 require('dotenv').config({ path: '.env.local' });
 
 // Import functions from fetch-logos.js
-const fetchLogoModule = require('./fetch-logos.js');
+const fetchLogoModule = require('../images/fetch-logos.js');
 
 // Well-known tools that must have proper images
 const wellKnownTools = [

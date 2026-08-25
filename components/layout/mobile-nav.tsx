@@ -6,11 +6,11 @@ import { Home, Sparkles, Bookmark, User, Search, Lock } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { motion } from "framer-motion"
 import { useState, useEffect } from "react"
-import { UserSearch } from "@/components/user-search"
+import { UserSearch } from "@/components/search/user-search"
 import { usePreferences } from "@/contexts/preferences-context"
 import { useAuth } from "@/contexts/auth-context"
 import { Button } from "@/components/ui/button"
-import { useHaptic } from "@/hooks/use-haptic"
+import { useHaptic } from "@/lib/hooks/use-haptic"
 
 export function MobileNav() {
   const pathname = usePathname()

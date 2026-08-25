@@ -215,7 +215,7 @@ export async function GET(request: Request) {
         const isAvailable = await isSemanticSearchAvailable()
         if (isAvailable) {
           logger.info('[API] Using semantic/hybrid search')
-          const results = await hybridSearch(originalSearch, limit)
+          const results = await hybridSearch(originalSearch, limit, 0.20, searchKeywords)
 
           if (results.length > 0) {
             // Preserve raw normalized results for the ranking pipeline
@@ -939,7 +939,7 @@ export async function GET(request: Request) {
     // User-friendly error message
     const errorMessage = error instanceof Error
       ? error.message
-      : 'An unexpected error occurred while fetching AI tools.'
+      : typeof error === 'object' ? JSON.stringify(error) : 'An unexpected error occurred while fetching AI tools.'
 
     // Return user-friendly error with empty data - better UX
     return NextResponse.json(

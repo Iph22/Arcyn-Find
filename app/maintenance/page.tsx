@@ -2,7 +2,7 @@
 
 import dynamic from 'next/dynamic'
 
-const MaintenanceScene = dynamic(() => import('@/components/maintenance-scene'), { ssr: false })
+const MaintenanceScene = dynamic(() => import('@/components/feedback/maintenance-scene'), { ssr: false })
 
 export default function MaintenancePage() {
   return (
