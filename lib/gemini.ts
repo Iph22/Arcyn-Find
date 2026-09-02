@@ -9,61 +9,56 @@ const FALLBACK_MODEL = "gemini-flash-latest" // Usually 1.5 Flash with much high
 export const geminiModel = genAI.getGenerativeModel({ model: PRIMARY_MODEL })
 const fallbackModel = genAI.getGenerativeModel({ model: FALLBACK_MODEL })
 
-// Helper to handle tiered generation with retries
+// Hard per-call timeout. This is the critical piece the old code was missing:
+// a slow/hanging Gemini response (not just an error response) was never cut off,
+// so a single stuck call could eat the entire Vercel function budget.
+const PRIMARY_TIMEOUT_MS = 7000
+const FALLBACK_TIMEOUT_MS = 6000
+
+function withTimeout<T>(promise: Promise<T>, ms: number, label: string): Promise<T> {
+    return new Promise<T>((resolve, reject) => {
+        const timer = setTimeout(() => {
+            reject(Object.assign(new Error(`${label} timed out after ${ms}ms`), { status: 503, isTimeout: true }))
+        }, ms)
+        promise.then(
+            (val) => { clearTimeout(timer); resolve(val) },
+            (err) => { clearTimeout(timer); reject(err) }
+        )
+    })
+}
+
+// Helper to handle tiered generation — ONE attempt per tier, no retry-with-backoff.
+// Rationale: this is called from a user-facing request path with a hard deadline
+// (Vercel maxDuration). Retrying in place just doubles latency for the same coin-flip
+// outcome. Instead: try primary once (bounded), try fallback once (bounded), give up fast
+// so the caller's deterministic fallback (keyword search) can take over immediately.
 async function generateWithFallback(prompt: string) {
-    const MAX_RETRIES = 2
-    const RETRY_DELAY_MS = 1000
+    try {
+        const result = await withTimeout(
+            geminiModel.generateContent(prompt),
+            PRIMARY_TIMEOUT_MS,
+            PRIMARY_MODEL
+        )
+        return await result.response
+    } catch (error: any) {
+        const isRetryable = error.status === 429 || error.status === 503 || error.isTimeout
+        if (!isRetryable) throw error
 
-    // Try with main model first
-    for (let attempt = 0; attempt < MAX_RETRIES; attempt++) {
+        console.warn(`[AI] ${PRIMARY_MODEL} unavailable (${error.status || 'timeout'}). Falling back to ${FALLBACK_MODEL}`)
+
         try {
-            const result = await geminiModel.generateContent(prompt)
+            const result = await withTimeout(
+                fallbackModel.generateContent(prompt),
+                FALLBACK_TIMEOUT_MS,
+                FALLBACK_MODEL
+            )
             return await result.response
-        } catch (error: any) {
-            const isRetryable = error.status === 429 || error.status === 503
-
-            // If it's a retryable error and we have attempts left, wait and retry
-            if (isRetryable && attempt < MAX_RETRIES - 1) {
-                console.warn(`[AI] ${PRIMARY_MODEL} error (${error.status}), retrying in ${RETRY_DELAY_MS * (attempt + 1)}ms...`)
-                await new Promise(resolve => setTimeout(resolve, RETRY_DELAY_MS * (attempt + 1)))
-                continue
-            }
-
-            // If it's a quota/overload error, try fallback model
-            if (isRetryable) {
-                console.warn(`[AI] ${PRIMARY_MODEL} unavailable (${error.status}). Falling back to ${FALLBACK_MODEL}`)
-                break
-            }
-
-            throw error
-        }
-    }
-
-    // Try fallback model
-    for (let attempt = 0; attempt < MAX_RETRIES; attempt++) {
-        try {
-            const result = await fallbackModel.generateContent(prompt)
-            return await result.response
-        } catch (error: any) {
-            const isRetryable = error.status === 429 || error.status === 503
-
-            if (isRetryable && attempt < MAX_RETRIES - 1) {
-                console.warn(`[AI] ${FALLBACK_MODEL} error (${error.status}), retrying...`)
-                await new Promise(resolve => setTimeout(resolve, RETRY_DELAY_MS * (attempt + 1)))
-                continue
-            }
-
-            // Mark as AI unavailable so callers can use keyword fallback
+        } catch (fallbackError: any) {
             const aiUnavailableError = new Error('AI_UNAVAILABLE')
                 ; (aiUnavailableError as any).isAIUnavailable = true
             throw aiUnavailableError
         }
     }
-
-    // This shouldn't be reached, but just in case
-    const aiUnavailableError = new Error('AI_UNAVAILABLE')
-        ; (aiUnavailableError as any).isAIUnavailable = true
-    throw aiUnavailableError
 }
 
 export interface NLPSeachParams {
