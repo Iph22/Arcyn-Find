@@ -18,8 +18,30 @@ const EMBEDDING_MODEL = "gemini-embedding-001"
 const embeddingCache = new Map<string, number[]>()
 const CACHE_MAX_SIZE = 1000
 
+// Hard per-call timeout. Without this, a hanging (not erroring) call to Gemini's embedding
+// endpoint has no way to be cut off — this was the cause of full 30s Vercel timeouts with
+// zero Postgres involvement, since the request never even reached search_tools_advanced.
+const EMBEDDING_TIMEOUT_MS = 6000
+
+function withTimeout<T>(promise: Promise<T>, ms: number): Promise<T> {
+    return new Promise<T>((resolve, reject) => {
+        const timer = setTimeout(() => {
+            reject(Object.assign(new Error(`Embedding generation timed out after ${ms}ms`), { status: 503, isTimeout: true }))
+        }, ms)
+        promise.then(
+            (val) => { clearTimeout(timer); resolve(val) },
+            (err) => { clearTimeout(timer); reject(err) }
+        )
+    })
+}
+
 /**
- * Generate an embedding vector for the given text
+ * Generate an embedding vector for the given text.
+ *
+ * NOTE: no retry-with-backoff here on purpose. This is called from a user-facing request
+ * path with a hard deadline (Vercel maxDuration). A single bounded attempt that fails fast
+ * to null lets hybridSearch() fall back to FTS-only search immediately, rather than a
+ * multi-second retry chain risking a full request timeout for the same coin-flip outcome.
  */
 export async function generateEmbedding(text: string): Promise<number[] | null> {
     if (!process.env.GEMINI_API_KEY) {
@@ -37,39 +59,29 @@ export async function generateEmbedding(text: string): Promise<number[] | null> 
         return embeddingCache.get(cacheKey)!
     }
 
-    const MAX_RETRIES = 3
-    const BASE_DELAY = 1500
-
-    for (let attempt = 0; attempt < MAX_RETRIES; attempt++) {
-        try {
-            const model = genAI.getGenerativeModel({ model: EMBEDDING_MODEL })
-            const result = await model.embedContent({
+    try {
+        const model = genAI.getGenerativeModel({ model: EMBEDDING_MODEL })
+        const result = await withTimeout(
+            model.embedContent({
                 content: { role: 'user', parts: [{ text }] },
                 outputDimensionality: 768
-            } as any)
-            const embedding = result.embedding.values
+            } as any),
+            EMBEDDING_TIMEOUT_MS
+        )
+        const embedding = result.embedding.values
 
-            // Cache the result
-            if (embeddingCache.size >= CACHE_MAX_SIZE) {
-                const firstKey = embeddingCache.keys().next().value
-                if (firstKey) embeddingCache.delete(firstKey)
-            }
-            embeddingCache.set(cacheKey, embedding)
-
-            return embedding
-        } catch (error: any) {
-            const isRetryable = error?.status === 429 || error?.status === 503
-            if (isRetryable && attempt < MAX_RETRIES - 1) {
-                const delay = BASE_DELAY * Math.pow(2, attempt)
-                console.warn(`[Embeddings] Rate limited (${error.status}), retrying in ${delay}ms... (attempt ${attempt + 1}/${MAX_RETRIES})`)
-                await new Promise(resolve => setTimeout(resolve, delay))
-                continue
-            }
-            console.error(`[Embeddings] Error generating embedding (attempt ${attempt + 1}):`, error?.message || error)
-            return null
+        // Cache the result
+        if (embeddingCache.size >= CACHE_MAX_SIZE) {
+            const firstKey = embeddingCache.keys().next().value
+            if (firstKey) embeddingCache.delete(firstKey)
         }
+        embeddingCache.set(cacheKey, embedding)
+
+        return embedding
+    } catch (error: any) {
+        console.error(`[Embeddings] Error generating embedding:`, error?.message || error)
+        return null // No retry — caller (hybridSearch) already falls back to FTS-only on null
     }
-    return null
 }
 
 /**
@@ -441,4 +453,3 @@ export async function isSemanticSearchAvailable(): Promise<boolean> {
         return false
     }
 }
-
