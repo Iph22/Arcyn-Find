@@ -271,29 +271,43 @@ export interface HybridSearchResult {
     fts_score?: number
 }
 
+/**
+ * Tagged result so the caller (route.ts) can tell "the database/RPC is broken"
+ * apart from "nothing matched" — both used to collapse to the same empty
+ * array, which made it impossible to decide differently for each case (a DB
+ * error should fall back to FTS-only/traditional search without touching the
+ * self-healing discovery flow; a genuine zero-match result is exactly what
+ * self-healing discovery exists for).
+ */
+export type HybridSearchResponse =
+    | { status: 'ok'; results: HybridSearchResult[]; cachedEmbeddingAt?: string | null }
+    | { status: 'error'; results: []; errorReason: string }
+
 export async function hybridSearch(
     query: string,
     limit: number = 30,
     threshold: number = 0.20,
     extraKeywords: string[] = []
-): Promise<HybridSearchResult[]> {
+): Promise<HybridSearchResponse> {
     const supabase = getSupabaseAdmin()
 
     // 1. Try to fetch embedding from permanent cache to save tokens
     let queryEmbedding: number[] | null = null;
+    let cachedEmbeddingAt: string | null = null;
     const cleanQuery = query.toLowerCase().trim();
 
     try {
         const { data: cached } = await supabase
             .from('search_cache')
-            .select('semantic_embedding')
+            .select('semantic_embedding, created_at')
             .eq('query_text', cleanQuery)
             .single()
 
         if (cached && cached.semantic_embedding) {
             queryEmbedding = cached.semantic_embedding;
+            cachedEmbeddingAt = cached.created_at || null;
             logger.info("[Embeddings] Using heavily cached query embedding for tokens!")
-            // Update last_used asynchronously 
+            // Update last_used asynchronously
             supabase.from('search_cache').update({
                 last_used_at: new Date().toISOString(),
             }).eq('query_text', cleanQuery).then();
@@ -330,16 +344,18 @@ export async function hybridSearch(
         if (error) {
             if (error.message?.includes('does not exist')) {
                 logger.warn("[Embeddings] Advanced hybrid search function not found. Did you run the migration?")
-                return []
+                return { status: 'error', results: [], errorReason: 'rpc_missing' }
             }
             logger.error("[Embeddings] Hybrid search error:", error)
-            return []
+            return { status: 'error', results: [], errorReason: error.message || 'rpc_error' }
         }
 
-        if (!data || data.length === 0) return []
+        if (!data || data.length === 0) {
+            return { status: 'ok', results: [], cachedEmbeddingAt }
+        }
 
         // Transform raw Supabase rows into the normalized ranking-ready shape
-        return data.map((item: any): HybridSearchResult => ({
+        const results = data.map((item: any): HybridSearchResult => ({
             // Identity
             id: item.id,
             title: item.name,
@@ -367,9 +383,49 @@ export async function hybridSearch(
             similarity: parseFloat((item.similarity || 0).toFixed(3)),
             fts_score: parseFloat((item.fts_score || 0).toFixed(3)),
         }))
-    } catch (error) {
+
+        return { status: 'ok', results, cachedEmbeddingAt }
+    } catch (error: any) {
         logger.error("[Embeddings] Hybrid search failed:", error)
-        return []
+        return { status: 'error', results: [], errorReason: error?.message || 'exception' }
+    }
+}
+
+/**
+ * Look up an existing tool whose name is a close fuzzy match to `name`.
+ * Used before inserting a self-healing-discovery tool so Gemini can't create
+ * a duplicate of an existing tool under a slightly different name (e.g.
+ * "ChatGPT" vs "Chat GPT"). Returns null on no match OR on any DB error —
+ * callers should treat both the same way (proceed with insertion) since this
+ * is a best-effort guard, not a correctness requirement.
+ */
+export async function findSimilarToolByName(
+    name: string,
+    threshold: number = 0.35
+): Promise<{ id: string; name: string; similarity_score: number } | null> {
+    if (!name || !name.trim()) return null
+
+    const supabase = getSupabaseAdmin()
+
+    try {
+        const { data, error } = await supabase.rpc('find_similar_tool_name', {
+            p_name: name,
+            p_threshold: threshold,
+        })
+
+        if (error) {
+            if (error.message?.includes('does not exist')) {
+                logger.warn("[Embeddings] find_similar_tool_name function not found. Did you run the migration?")
+            } else {
+                logger.warn("[Embeddings] find_similar_tool_name error:", error)
+            }
+            return null
+        }
+
+        return data && data.length > 0 ? data[0] : null
+    } catch (error) {
+        logger.warn("[Embeddings] find_similar_tool_name failed:", error)
+        return null
     }
 }
 

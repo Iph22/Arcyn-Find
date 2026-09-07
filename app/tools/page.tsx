@@ -130,11 +130,15 @@ function ToolsContent() {
 
   const ITEMS_PER_PAGE = 24 // Load 24 tools at a time (divisible by 2 and 3 for grid)
 
-  // Debounce search input — 200ms for Google-like speed
+  // Debounce search input. 200ms was too short in production: normal typing
+  // pauses (between words, thinking mid-query) routinely exceed 200ms, so
+  // partial words like "coding assignm" were firing real API requests, and a
+  // second pause later in the same typing session fired an overlapping one.
+  // 450ms waits out a mid-typing pause without feeling laggy for a completed query.
   useEffect(() => {
     const timer = setTimeout(() => {
       setDebouncedSearch(searchQuery)
-    }, 200) // 200ms — fast enough to feel instant, slow enough to avoid API spam
+    }, 450)
 
     return () => clearTimeout(timer)
   }, [searchQuery])

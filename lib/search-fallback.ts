@@ -1,9 +1,11 @@
 import type { AIEntry } from './ai-data'
+import { normalizeQuery } from './search-utils'
+import { logger } from './logger'
 
 /**
  * Real-time fallback search — searches GitHub and HuggingFace APIs
  * directly when the local database has no results.
- * 
+ *
  * This does NOT require Gemini API tokens. It uses free public APIs.
  * Called as a last resort when DB search returns 0 or very few results.
  */
@@ -69,7 +71,7 @@ async function searchGitHubLive(query: string, limit = 15): Promise<AIEntry[]> {
                 } as AIEntry
             })
     } catch (err) {
-        console.warn('[Fallback] GitHub live search failed:', err)
+        logger.warn('[Fallback] GitHub live search failed (rate-limited or unreachable):', err)
         return []
     }
 }
@@ -124,7 +126,7 @@ async function searchHuggingFaceLive(query: string, limit = 10): Promise<AIEntry
             } as AIEntry
         })
     } catch (err) {
-        console.warn('[Fallback] HuggingFace live search failed:', err)
+        logger.warn('[Fallback] HuggingFace live search failed (rate-limited or unreachable):', err)
         return []
     }
 }
@@ -151,12 +153,24 @@ export async function searchExternalFallback(
     const github = githubResults.status === 'fulfilled' ? githubResults.value : []
     const hf = hfResults.status === 'fulfilled' ? hfResults.value : []
 
-    // Combine: existing DB results first, then external results
-    const existingNames = new Set(existingResults.map(r => r.name.toLowerCase()))
+    // Combine: existing DB results first, then external results.
+    // Normalize (not just lowercase) so "GPT-4", "GPT 4", and "  GPT-4  " all
+    // collapse to the same key — a plain .toLowerCase() let those slip through
+    // as separate "duplicate" entries when DB + live external results overlapped.
+    const existingNames = new Set(existingResults.map(r => normalizeQuery(r.name)))
 
-    // Deduplicate externals against existing results
-    const newGithub = github.filter(r => !existingNames.has(r.name.toLowerCase()))
-    const newHf = hf.filter(r => !existingNames.has(r.name.toLowerCase()))
+    // Deduplicate externals against existing results, AND against each other
+    // (GitHub and HuggingFace can both surface the same project under
+    // slightly different casing/punctuation).
+    const seenExternal = new Set<string>()
+    const dedupeAgainstAll = (r: AIEntry) => {
+        const key = normalizeQuery(r.name)
+        if (existingNames.has(key) || seenExternal.has(key)) return false
+        seenExternal.add(key)
+        return true
+    }
+    const newGithub = github.filter(dedupeAgainstAll)
+    const newHf = hf.filter(dedupeAgainstAll)
 
     // Interleave GitHub and HuggingFace for variety
     const external: AIEntry[] = []

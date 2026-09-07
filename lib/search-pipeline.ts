@@ -100,60 +100,57 @@ export async function runSearchPipeline(
     return localResult
 }
 
+// Hard per-call timeouts, matching lib/gemini.ts. This function runs inside the
+// same user-facing request (called from route.ts's search path) with a hard
+// Vercel maxDuration deadline — a hanging or slowly-retried call here can blow
+// that budget just as easily as an unbounded call in gemini.ts.
+const PRIMARY_TIMEOUT_MS = 7000
+const FALLBACK_TIMEOUT_MS = 6000
+
+function withTimeout<T>(promise: Promise<T>, ms: number, label: string): Promise<T> {
+    return new Promise<T>((resolve, reject) => {
+        const timer = setTimeout(() => {
+            reject(Object.assign(new Error(`${label} timed out after ${ms}ms`), { status: 503, isTimeout: true }))
+        }, ms)
+        promise.then(
+            (val) => { clearTimeout(timer); resolve(val) },
+            (err) => { clearTimeout(timer); reject(err) }
+        )
+    })
+}
+
 /**
  * Call Gemini to re-rank search results with intent-aware scoring.
  * Returns null on failure so caller can fall back gracefully.
+ *
+ * ONE bounded attempt per tier (primary, then fallback) — no retry-with-backoff.
+ * A retry loop here just doubles latency for the same coin-flip outcome; the
+ * local deterministic orchestrator is the correct fallback, not a slower retry.
  */
 async function rankWithGemini(query: string, results: any[]): Promise<OrchestratorOutput | null> {
-    const MAX_RETRIES = 2
-    const RETRY_DELAY_MS = 1000
-
     const userMessage = `User Query: ${query}\n\nCandidate Results:\n${JSON.stringify(results, null, 2)}`
 
     const fullPrompt = `${SYSTEM_PROMPT}\n\n${userMessage}\n\nRank and return the results as JSON matching this exact schema:\n{\n  "query_intent": "navigational | informational | transactional | comparative | exploratory",\n  "confidence_level": "high | medium | low",\n  "results": [\n    {\n      "rank": 1,\n      "title": "...",\n      "summary": "one sentence summary in your own words",\n      "source": "...",\n      "relevance_reason": "why this result wins this rank",\n      "stability_tier": "tier_A | tier_B | tier_C",\n      "score": 0.0\n    }\n  ],\n  "pipeline_health": {\n    "input_pool_size": 0,\n    "after_filter_size": 0,\n    "weak_input_detected": false\n  },\n  "notes": "any issues flagged"\n}\n\nRules:\n- Never invent results or URLs\n- Never exceed 10 results\n- Never score missing fields as anything other than 0\n- Never include tier_C results in the initial set\n- Sort by score descending, deterministic order\n- Return ONLY the JSON object, nothing else`
 
-    // Try primary model first
-    for (let attempt = 0; attempt < MAX_RETRIES; attempt++) {
-        try {
-            const model = genAI.getGenerativeModel({ model: PRIMARY_MODEL })
-            const result = await model.generateContent(fullPrompt)
-            const text = result.response.text()
-            return parseGeminiResponse(text)
-        } catch (error: any) {
-            const isRetryable = error?.status === 429 || error?.status === 503
-            if (isRetryable && attempt < MAX_RETRIES - 1) {
-                logger.warn(`[SearchPipeline] ${PRIMARY_MODEL} error (${error.status}), retrying in ${RETRY_DELAY_MS * (attempt + 1)}ms...`)
-                await new Promise(resolve => setTimeout(resolve, RETRY_DELAY_MS * (attempt + 1)))
-                continue
-            }
-            if (isRetryable) {
-                logger.warn(`[SearchPipeline] ${PRIMARY_MODEL} unavailable. Trying ${FALLBACK_MODEL}...`)
-                break
-            }
-            throw error
-        }
-    }
+    try {
+        const model = genAI.getGenerativeModel({ model: PRIMARY_MODEL })
+        const result = await withTimeout(model.generateContent(fullPrompt), PRIMARY_TIMEOUT_MS, PRIMARY_MODEL)
+        return parseGeminiResponse(result.response.text())
+    } catch (error: any) {
+        const isRetryable = error?.status === 429 || error?.status === 503 || error?.isTimeout
+        if (!isRetryable) throw error
 
-    // Try fallback model
-    for (let attempt = 0; attempt < MAX_RETRIES; attempt++) {
+        logger.warn(`[SearchPipeline] ${PRIMARY_MODEL} unavailable (${error.status || 'timeout'}). Trying ${FALLBACK_MODEL}...`)
+
         try {
             const model = genAI.getGenerativeModel({ model: FALLBACK_MODEL })
-            const result = await model.generateContent(fullPrompt)
-            const text = result.response.text()
-            return parseGeminiResponse(text)
-        } catch (error: any) {
-            const isRetryable = error?.status === 429 || error?.status === 503
-            if (isRetryable && attempt < MAX_RETRIES - 1) {
-                logger.warn(`[SearchPipeline] ${FALLBACK_MODEL} error (${error.status}), retrying...`)
-                await new Promise(resolve => setTimeout(resolve, RETRY_DELAY_MS * (attempt + 1)))
-                continue
-            }
-            logger.error(`[SearchPipeline] Both Gemini models failed. Returning null for local fallback.`)
+            const result = await withTimeout(model.generateContent(fullPrompt), FALLBACK_TIMEOUT_MS, FALLBACK_MODEL)
+            return parseGeminiResponse(result.response.text())
+        } catch (fallbackError: any) {
+            logger.error(`[SearchPipeline] Both Gemini models failed. Returning null for local fallback.`, fallbackError?.message || fallbackError)
             return null
         }
     }
-
-    return null
 }
 
 /**

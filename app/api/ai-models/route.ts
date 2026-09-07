@@ -6,7 +6,7 @@ import { checkRateLimit, getRateLimitHeaders } from '@/lib/rate-limit'
 import { logger } from '@/lib/logger'
 import { parseNaturalLanguageSearch, validateSearchResults, discoverNewTools } from '@/lib/gemini'
 import { processSearchQuery, buildSearchConditions } from '@/lib/search-utils'
-import { hybridSearch, isSemanticSearchAvailable, generateToolEmbedding } from '@/lib/embeddings'
+import { hybridSearch, isSemanticSearchAvailable, generateToolEmbedding, findSimilarToolByName } from '@/lib/embeddings'
 import { searchExternalFallback } from '@/lib/search-fallback'
 import { runSearchPipeline } from '@/lib/search-pipeline'
 
@@ -34,6 +34,38 @@ export async function GET(request: Request) {
   const requestStart = Date.now()
   const TIME_BUDGET_MS = (maxDuration * 1000) - 7000
   const timeRemaining = () => TIME_BUDGET_MS - (Date.now() - requestStart)
+
+  // Diagnostic state threaded through the whole handler and surfaced as response
+  // headers at every return point (see buildDiagnosticHeaders below). Declared
+  // this early so both the NLP-parsing stage and the semantic-search stage
+  // (which run before the final return) can record into them.
+  let searchDegraded = false
+  let searchDegradedReason: string | null = null
+  let cachedEmbeddingAt: string | null = null
+  const stagesRun: string[] = []
+
+  // Diagnostic headers shared across every return point below. These are pure
+  // signal for the frontend/observability — no response body shape changes,
+  // so nothing that already does `Array.isArray(data) ? data : []` breaks.
+  //   X-Search-State        full | sparse | empty  (result count vs requested limit)
+  //   X-Search-Elapsed-Ms   time spent in this handler so far
+  //   X-Search-Stages       which expensive stages actually ran, comma-separated
+  //   X-Search-Degraded     "true" only when a retrieval tier (e.g. the hybrid
+  //                         search RPC) errored — distinct from a clean empty result
+  const buildDiagnosticHeaders = (resultCount: number, requestedLimit: number): Record<string, string> => {
+    const state = resultCount === 0 ? 'empty' : resultCount < requestedLimit ? 'sparse' : 'full'
+    const headers: Record<string, string> = {
+      'X-Search-State': state,
+      'X-Search-Elapsed-Ms': String(Date.now() - requestStart),
+    }
+    if (stagesRun.length > 0) headers['X-Search-Stages'] = stagesRun.join(',')
+    if (searchDegraded) {
+      headers['X-Search-Degraded'] = 'true'
+      if (searchDegradedReason) headers['X-Search-Degraded-Reason'] = searchDegradedReason
+    }
+    if (cachedEmbeddingAt) headers['X-Search-Embedding-Cached-At'] = cachedEmbeddingAt
+    return headers
+  }
   // Rate limiting - more balanced limits
   const rateLimit = checkRateLimit(request, {
     windowMs: 60 * 1000, // 1 minute
@@ -121,6 +153,7 @@ export async function GET(request: Request) {
     const canUseGemini = now - lastGeminiErrorTime > ERRROR_COOLDOWN
 
     if (isNaturalLanguage && search && canUseGemini) {
+      stagesRun.push('nlp-parse')
       const cleanQuery = search.toLowerCase().trim()
       try {
         // 1. Check in-memory fast cache first
@@ -222,31 +255,43 @@ export async function GET(request: Request) {
         const isAvailable = await isSemanticSearchAvailable()
         if (isAvailable) {
           logger.info('[API] Using semantic/hybrid search')
-          const results = await hybridSearch(originalSearch, limit, 0.20, searchKeywords)
+          const hybridResponse = await hybridSearch(originalSearch, limit, 0.20, searchKeywords)
+          stagesRun.push('semantic-search')
 
-          if (results.length > 0) {
-            // Preserve raw normalized results for the ranking pipeline
-            rawHybridResults = results
+          if (hybridResponse.status === 'error') {
+            searchDegraded = true
+            searchDegradedReason = hybridResponse.errorReason
+            logger.warn(`[API] Hybrid search degraded (${hybridResponse.errorReason}) — falling back to traditional keyword search for this request`)
+          } else {
+            cachedEmbeddingAt = hybridResponse.cachedEmbeddingAt || null
+            const results = hybridResponse.results
 
-            // Also map to AIEntry shape for downstream consumers
-            semanticResults = results.map(r => ({
-              id: r.id,
-              name: r.title,
-              category: r.category,
-              description: r.description || '',
-              platform: r.platform,
-              region: r.region || 'Global',
-              accessType: (r.access_type || 'Freemium') as AIEntry['accessType'],
-              pricing: r.pricing || '',
-              tags: r.tags || [],
-              popularity: r.popularity || 0,
-              lastUpdated: r.last_updated || '',
-              isTrending: r.is_trending || false,
-              image: r.image || '',
-              _similarity: r.similarity
-            }))
+            if (results.length > 0) {
+              // Preserve raw normalized results for the ranking pipeline
+              rawHybridResults = results
 
-            logger.info(`[API] Semantic search found ${semanticResults.length} results`)
+              // Also map to AIEntry shape for downstream consumers
+              semanticResults = results.map(r => ({
+                id: r.id,
+                name: r.title,
+                category: r.category,
+                description: r.description || '',
+                platform: r.platform,
+                region: r.region || 'Global',
+                accessType: (r.access_type || 'Freemium') as AIEntry['accessType'],
+                pricing: r.pricing || '',
+                tags: r.tags || [],
+                popularity: r.popularity || 0,
+                lastUpdated: r.last_updated || '',
+                isTrending: r.is_trending || false,
+                image: r.image || '',
+                _similarity: r.similarity
+              }))
+
+              logger.info(`[API] Semantic search found ${semanticResults.length} results`)
+            } else {
+              logger.debug('[API] Semantic search returned zero matches (not an error) — eligible for self-healing discovery')
+            }
           }
         }
       } catch (error) {
@@ -440,6 +485,7 @@ export async function GET(request: Request) {
               return NextResponse.json(reordered, {
                 headers: {
                   ...getRateLimitHeaders(rateLimit.remaining, rateLimit.resetTime),
+                  ...buildDiagnosticHeaders(reordered.length, limit),
                   'Cache-Control': 'public, s-maxage=60, stale-while-revalidate=300',
                   'X-Search-Type': 'semantic+ranked',
                   'X-Search-Pipeline': ranked.confidence_level,
@@ -453,6 +499,7 @@ export async function GET(request: Request) {
             return NextResponse.json(filteredSemantic, {
               headers: {
                 ...getRateLimitHeaders(rateLimit.remaining, rateLimit.resetTime),
+                ...buildDiagnosticHeaders(filteredSemantic.length, limit),
                 'Cache-Control': 'public, s-maxage=60, stale-while-revalidate=300',
                 'X-Search-Type': 'semantic',
                 ...(originalSearch ? { 'X-Search-Query': originalSearch } : {}),
@@ -464,6 +511,7 @@ export async function GET(request: Request) {
             return NextResponse.json(filteredSemantic, {
               headers: {
                 ...getRateLimitHeaders(rateLimit.remaining, rateLimit.resetTime),
+                ...buildDiagnosticHeaders(filteredSemantic.length, limit),
                 'Cache-Control': 'public, s-maxage=60, stale-while-revalidate=300',
                 'X-Search-Type': 'semantic',
                 ...(originalSearch ? { 'X-Search-Query': originalSearch } : {}),
@@ -739,6 +787,7 @@ export async function GET(request: Request) {
           }
         } else {
           logger.info('[API] Triggering AI Discovery for:', originalSearch)
+          stagesRun.push('ai-discovery')
           try {
             const newTools = await discoverNewTools(originalSearch)
             if (newTools.length > 0) {
@@ -774,18 +823,42 @@ export async function GET(request: Request) {
                 })
               )
 
-              geminiCache.set(cacheKeyDisc, { data: dbTools, timestamp: now })
+              // Guard against Gemini inventing a near-duplicate of a tool that already
+              // exists under a slightly different name (e.g. "ChatGPT" vs "Chat GPT").
+              // A fuzzy name match above threshold skips that tool's insert entirely.
+              const duplicateMatches = await Promise.all(
+                dbTools.map(tool => findSimilarToolByName(tool.name, 0.45))
+              )
+              const uniqueIndices = duplicateMatches
+                .map((match, idx) => ({ match, idx }))
+                .filter(({ match, idx }) => {
+                  if (match) {
+                    logger.info(`[API] Skipping discovery insert for "${dbTools[idx].name}" — matches existing tool "${match.name}" (similarity: ${match.similarity_score.toFixed(2)})`)
+                    return false
+                  }
+                  return true
+                })
+                .map(({ idx }) => idx)
 
-              const { error: insertError } = await supabase
-                .from('ai_tools')
-                .upsert(toolsWithEmbeddings, { onConflict: 'id' })
+              const dbToolsToInsert = uniqueIndices.map(i => dbTools[i])
+              const toolsWithEmbeddingsToInsert = uniqueIndices.map(i => toolsWithEmbeddings[i])
 
-              if (insertError) {
-                logger.error('[API] Discovery Ingestion Error:', insertError)
+              if (toolsWithEmbeddingsToInsert.length === 0) {
+                logger.info('[API] All discovered tools were duplicates of existing entries — nothing to insert')
               } else {
-                logger.info(`[API] ✅ Successfully saved ${dbTools.length} NEW tools to database:`)
-                const newEntries = dbTools.map(transformToAIEntry)
-                aiEntries = [...newEntries, ...aiEntries].slice(0, limit)
+                geminiCache.set(cacheKeyDisc, { data: dbToolsToInsert, timestamp: now })
+
+                const { error: insertError } = await supabase
+                  .from('ai_tools')
+                  .upsert(toolsWithEmbeddingsToInsert, { onConflict: 'id' })
+
+                if (insertError) {
+                  logger.error('[API] Discovery Ingestion Error:', insertError)
+                } else {
+                  logger.info(`[API] ✅ Successfully saved ${dbToolsToInsert.length} NEW tools to database:`)
+                  const newEntries = dbToolsToInsert.map(transformToAIEntry)
+                  aiEntries = [...newEntries, ...aiEntries].slice(0, limit)
+                }
               }
             }
           } catch (err: any) {
@@ -805,6 +878,7 @@ export async function GET(request: Request) {
     // never be the thing that pushes us over maxDuration.
     if (originalSearch && aiEntries.length < 3 && timeRemaining() > 9000) {
       logger.info(`[API] Only ${aiEntries.length} results for "${originalSearch}". Trying real-time external search...`)
+      stagesRun.push('external-fallback')
       try {
         const fallback = await searchExternalFallback(originalSearch, aiEntries, limit)
         if (fallback.results.length > aiEntries.length) {
@@ -820,6 +894,7 @@ export async function GET(request: Request) {
       headers: {
         'Cache-Control': 'public, s-maxage=300, stale-while-revalidate=600',
         ...getRateLimitHeaders(rateLimit.remaining, rateLimit.resetTime),
+        ...buildDiagnosticHeaders(aiEntries.length, limit),
         ...(originalSearch ? { 'X-Search-Query': originalSearch } : {}),
       },
     })
@@ -842,6 +917,10 @@ export async function GET(request: Request) {
         headers: {
           'Cache-Control': 'public, s-maxage=60',
           ...getRateLimitHeaders(rateLimit.remaining, rateLimit.resetTime),
+          // Distinct from the array-shaped "legitimately empty" response above —
+          // this is a system error, not zero matches. Both the object body shape
+          // AND this header make that unambiguous to any caller.
+          'X-Search-Error': 'true',
         }
       }
     )

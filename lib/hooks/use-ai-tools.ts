@@ -120,6 +120,11 @@ export function useAITools(options: UseAIToolsOptions = {}): UseAIToolsReturn {
       }
 
       const data = await response.json()
+      // The route returns a plain array on success, but on an unrecoverable
+      // system error it returns { error, message, data: [] } at HTTP 200 (so
+      // it isn't treated as a hard network failure) — that shape must not be
+      // silently flattened to the same empty array a clean "no results" gets.
+      const isErrorShape = !Array.isArray(data) && data && typeof data === 'object' && 'error' in data
       const toolsArray = Array.isArray(data) ? data : []
 
       // Only update if this request wasn't aborted
@@ -128,8 +133,12 @@ export function useAITools(options: UseAIToolsOptions = {}): UseAIToolsReturn {
         setHasMore(toolsArray.length === limit)
         setIsCached(false)
 
-        // Cache the result for future use
-        setCache(cacheKey, toolsArray)
+        if (isErrorShape) {
+          setError(data.message || data.error)
+        } else {
+          // Cache the result for future use
+          setCache(cacheKey, toolsArray)
+        }
       }
     } catch (err) {
       if (err instanceof DOMException && err.name === 'AbortError') {

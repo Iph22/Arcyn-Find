@@ -11,7 +11,6 @@ export async function fetchAIModelsFromSources(): Promise<AIEntry[]> {
     sources.push(fetchFromHuggingFace())
   }
 
-  sources.push(fetchFromPapersWithCode())
   sources.push(fetchFromArXiv())
 
   if (process.env.GITHUB_TOKEN) {
@@ -150,83 +149,6 @@ function transformHuggingFaceModel(model: any, index: number): AIEntry {
     popularity: Math.min(100, Math.max(30, Math.log10((model.downloads || 1) + 1) * 12)),
     lastUpdated: model.updatedAt || new Date().toISOString().split('T')[0],
     isTrending: (model.downloads || 0) > 100000,
-  }
-}
-
-/**
- * Fetches models from Papers with Code API
- */
-async function fetchFromPapersWithCode(): Promise<AIEntry[]> {
-  const controller = new AbortController()
-  const timeoutId = setTimeout(() => controller.abort(), 5000)
-
-  try {
-    const response = await fetch(
-      'https://paperswithcode.com/api/v1/papers/?ordering=-stars&page_size=20',
-      {
-        headers: {
-          'Accept': 'application/json',
-        },
-        next: { revalidate: 3600 }, // Cache for 1 hour
-        signal: controller.signal,
-      }
-    )
-
-    clearTimeout(timeoutId)
-
-    if (!response.ok) {
-      console.warn(`Papers with Code API returned status ${response.status}`)
-      return []
-    }
-
-    const contentType = response.headers.get('content-type')
-    if (!contentType || !contentType.includes('application/json')) {
-      console.warn('Papers with Code API returned non-JSON response')
-      return []
-    }
-
-    const data = await response.json()
-
-    if (!data.results || !Array.isArray(data.results)) {
-      console.warn('Papers with Code API returned unexpected format')
-      return []
-    }
-
-    return data.results
-      .slice(0, 10)
-      .map((paper: any, index: number) => transformPapersWithCodePaper(paper, index))
-  } catch (error) {
-    clearTimeout(timeoutId)
-    if (error instanceof Error && error.name === 'AbortError') {
-      console.warn('Papers with Code API request timed out')
-    } else {
-      console.error('Error fetching from Papers with Code:', error)
-    }
-    return []
-  }
-}
-
-/**
- * Transforms Papers with Code paper to AIEntry format
- */
-function transformPapersWithCodePaper(paper: any, index: number): AIEntry {
-  return {
-    id: `pwc-${paper.id || index}`,
-    name: paper.title || 'Research Paper',
-    category: 'Research Paper',
-    description: paper.abstract?.substring(0, 200) + '...' || 'Research paper from Papers with Code',
-    platform: paper.url_pdf || paper.paper_url || `https://paperswithcode.com/paper/${paper.id}`,
-    region: 'Global',
-    accessType: 'Free' as const,
-    pricing: 'Free / Open access',
-    tags: [
-      'research-paper',
-      'papers-with-code',
-      ...(paper.tasks?.slice(0, 2) || []),
-    ],
-    popularity: Math.min(100, Math.max(50, 70 + index * 2)),
-    lastUpdated: paper.published || new Date().toISOString().split('T')[0],
-    isTrending: index < 3,
   }
 }
 
