@@ -18,6 +18,38 @@
 -- ORDER BY + LIMIT match_count over that bounded set.
 -- ============================================================================
 
+-- ============================================================================
+-- Fix: the traditional ILIKE fallback path (route.ts's buildBaseQuery, used
+-- whenever hybridSearch degrades or returns nothing) was hitting a Postgres
+-- statement timeout for common queries like "gauth ai". Root cause: two of
+-- its OR-branches had no usable index at all —
+--   - tags.cs.{word} (array containment) had NO index on ai_tools.tags. Any
+--     unindexed branch in a Supabase `.or(...)` filter forces a sequential
+--     scan for the WHOLE combined WHERE clause, even though name/description
+--     already had trigram indexes — one unindexed OR branch defeats all of them.
+--   - platform ILIKE had no trigram index either (only name/description got one
+--     in update_advanced_search_v2.sql).
+-- Adding these lets Postgres satisfy every branch of the OR via BitmapOr
+-- across index scans instead of a full sequential scan.
+-- ============================================================================
+
+-- "operator class gin_trgm_ops does not exist for access method gin" means
+-- pg_trgm's operator classes aren't resolvable in the current search_path —
+-- either the extension was never actually installed on this database (the
+-- CREATE EXTENSION in update_advanced_search_v2.sql may never have been run,
+-- or aborted partway through a multi-statement script), or Supabase installed
+-- it into its dedicated "extensions" schema rather than "public", and this
+-- session's search_path doesn't include it. Covering both: make sure the
+-- extension exists, and make sure both plausible schemas are searched.
+SET search_path = public, extensions;
+CREATE EXTENSION IF NOT EXISTS pg_trgm;
+
+CREATE INDEX IF NOT EXISTS idx_ai_tools_platform_trgm
+  ON ai_tools USING gin (platform gin_trgm_ops);
+
+CREATE INDEX IF NOT EXISTS idx_ai_tools_tags_gin
+  ON ai_tools USING gin (tags);
+
 DROP FUNCTION IF EXISTS search_tools_advanced(text, vector, float, int, text[]);
 
 CREATE OR REPLACE FUNCTION search_tools_advanced(
@@ -69,12 +101,21 @@ BEGIN
   FROM unnest(regexp_split_to_array(lower(trim(search_query)), '\s+')) AS token
   WHERE length(token) >= 2;
 
+  -- NOTE on column naming below: RETURNS TABLE(id text, ...) implicitly declares
+  -- a PL/pgSQL variable named "id" (and one per output column) visible to every
+  -- SQL command in this function body. A bare, unqualified `id` anywhere in a
+  -- query here is ambiguous between that variable and any FROM-list column
+  -- also named "id" (42702 "column reference is ambiguous") — this bit us in
+  -- production for the candidate_ids CTE below, which read `id` unqualified
+  -- from each candidate CTE. Every candidate CTE now exposes the tool's id as
+  -- `tool_id` instead, which cannot collide with any RETURNS TABLE column name,
+  -- so it's safe to reference unqualified anywhere, including GROUP BY.
   RETURN QUERY
   WITH vector_candidates AS (
     -- Index-accelerated: ORDER BY <=> LIMIT is the access pattern IVFFlat
     -- supports. The similarity threshold is applied later, against this
     -- already-bounded pool, never as a full-table predicate.
-    SELECT t.id, (1 - (t.embedding <=> query_embedding))::double precision AS sim
+    SELECT t.id AS tool_id, (1 - (t.embedding <=> query_embedding))::double precision AS sim
     FROM ai_tools t
     WHERE query_embedding IS NOT NULL AND t.embedding IS NOT NULL
     ORDER BY t.embedding <=> query_embedding
@@ -85,9 +126,9 @@ BEGIN
     -- cheap ordering (popularity) first, THEN rank within that bounded set.
     -- A common word matching thousands of rows still only ever contributes
     -- text_pool_size candidates.
-    SELECT capped.id
+    SELECT capped.tool_id
     FROM (
-      SELECT t.id, t.popularity
+      SELECT t.id AS tool_id, t.popularity
       FROM ai_tools t
       WHERE tsquery_val IS NOT NULL AND tsquery_val @@ t.fts_vector
       ORDER BY t.popularity DESC NULLS LAST
@@ -95,9 +136,9 @@ BEGIN
     ) capped
   ),
   ilike_candidates AS (
-    SELECT capped.id
+    SELECT capped.tool_id
     FROM (
-      SELECT t.id, t.popularity
+      SELECT t.id AS tool_id, t.popularity
       FROM ai_tools t
       WHERE query_tokens IS NOT NULL AND EXISTS (
         SELECT 1 FROM unnest(query_tokens) qt
@@ -108,9 +149,9 @@ BEGIN
     ) capped
   ),
   synonym_candidates AS (
-    SELECT capped.id
+    SELECT capped.tool_id
     FROM (
-      SELECT t.id, t.popularity
+      SELECT t.id AS tool_id, t.popularity
       FROM ai_tools t
       WHERE extra_keywords IS NOT NULL AND EXISTS (
         SELECT 1 FROM unnest(extra_keywords) kw
@@ -121,22 +162,22 @@ BEGIN
     ) capped
   ),
   candidate_ids AS (
-    -- Track provenance per id so we can still require the semantic threshold
+    -- Track provenance per tool so we can still require the semantic threshold
     -- for rows that ONLY qualified via vector similarity (a row with a weak
     -- vector match but a real FTS/ILIKE/synonym hit should still be kept).
     SELECT
-      id,
+      tool_id,
       bool_or(src = 'vector') AS via_vector,
       bool_or(src = 'fts') AS via_fts,
       bool_or(src = 'ilike') AS via_ilike,
       bool_or(src = 'synonym') AS via_synonym
     FROM (
-      SELECT id, 'vector' AS src FROM vector_candidates
-      UNION ALL SELECT id, 'fts' FROM fts_candidates
-      UNION ALL SELECT id, 'ilike' FROM ilike_candidates
-      UNION ALL SELECT id, 'synonym' FROM synonym_candidates
+      SELECT tool_id, 'vector' AS src FROM vector_candidates
+      UNION ALL SELECT tool_id, 'fts' FROM fts_candidates
+      UNION ALL SELECT tool_id, 'ilike' FROM ilike_candidates
+      UNION ALL SELECT tool_id, 'synonym' FROM synonym_candidates
     ) u
-    GROUP BY id
+    GROUP BY tool_id
   )
   SELECT
     t.id,
@@ -169,8 +210,8 @@ BEGIN
     )::double precision AS combined_score
 
   FROM candidate_ids ci
-  JOIN ai_tools t ON t.id = ci.id
-  LEFT JOIN vector_candidates vc ON vc.id = ci.id
+  JOIN ai_tools t ON t.id = ci.tool_id
+  LEFT JOIN vector_candidates vc ON vc.tool_id = ci.tool_id
   WHERE
     ci.via_fts OR ci.via_ilike OR ci.via_synonym
     OR (ci.via_vector AND vc.sim > match_threshold)

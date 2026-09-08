@@ -109,6 +109,12 @@ export function removeStopWords(query: string): string[] {
     .filter(word => word.length > 1 && !STOP_WORDS.has(word))
 }
 
+// Hard cap on the total number of expanded terms. Each term fans out into
+// several OR-branches downstream (buildSearchConditions: name/description/tags
+// per term, plus the SQL side's ILIKE/synonym candidate CTEs), so an unbounded
+// expansion directly means an unbounded, unindexable-in-practice OR chain.
+const MAX_EXPANDED_TERMS = 5
+
 /**
  * Expand a query with synonyms
  */
@@ -116,14 +122,20 @@ export function expandWithSynonyms(words: string[]): string[] {
   const expanded = new Set(words)
 
   for (const word of words) {
+    if (expanded.size >= MAX_EXPANDED_TERMS) break
     const synonyms = SYNONYMS[word]
     if (synonyms) {
       // Add first 2 most relevant synonyms to avoid over-expansion
-      synonyms.slice(0, 2).forEach(syn => expanded.add(syn))
+      for (const syn of synonyms.slice(0, 2)) {
+        if (expanded.size >= MAX_EXPANDED_TERMS) break
+        expanded.add(syn)
+      }
     }
   }
 
-  return Array.from(expanded)
+  // Original keywords take priority; truncate rather than let a long query
+  // (many non-stop-word terms) alone blow past the cap.
+  return Array.from(expanded).slice(0, MAX_EXPANDED_TERMS)
 }
 
 /**
