@@ -1,7 +1,7 @@
 /**
- * Query understanding + tool discovery, backed by Claude.
+ * Query understanding + tool discovery, backed by the configured AI provider.
  *
- * Replaces lib/gemini.ts. Behaviour contract is deliberately identical to what
+ * Behaviour contract is deliberately identical to what
  * it replaced — every function still returns null / [] / a lenient default on
  * failure, so all existing callers and their deterministic fallbacks work
  * unchanged.
@@ -14,7 +14,7 @@
  */
 
 import { z } from "zod"
-import { parseWithClaude } from "./claude"
+import { parseStructured } from "./ai-provider"
 
 const ALLOWED_CATEGORIES = [
     "Generative AI", "AI Agents", "Code & Development", "Chatbots",
@@ -50,7 +50,7 @@ export type NLPSeachParams = z.infer<typeof NLPSearchParamsSchema> & {
  * Returns null when unavailable — callers fall back to raw keyword search.
  */
 export async function parseNaturalLanguageSearch(query: string): Promise<NLPSeachParams | null> {
-    return parseWithClaude(
+    return parseStructured(
         NLPSearchParamsSchema,
         `Parse this search query for an AI tool directory.
 
@@ -95,7 +95,7 @@ export async function validateSearchResults(
 
     const resultsSummary = results.map(r => `${r.name}: ${r.description}`).join("\n")
 
-    const parsed = await parseWithClaude(
+    const parsed = await parseStructured(
         RelevanceSchema,
         `User query: "${query}"
 
@@ -143,7 +143,7 @@ export type DiscoveredTool = z.infer<typeof DiscoveredToolSchema>
  * (find_similar_tool_name) before anything is inserted.
  */
 export async function discoverNewTools(query: string): Promise<DiscoveredTool[]> {
-    const parsed = await parseWithClaude(
+    const parsed = await parseStructured(
         DiscoveredToolsSchema,
         `A user is looking for: "${query}"
 

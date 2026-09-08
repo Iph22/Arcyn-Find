@@ -10,6 +10,7 @@ import { motion, AnimatePresence } from "framer-motion"
 import { Search, Sparkles, Star, Bookmark, ExternalLink, Menu, X, Filter } from "lucide-react"
 import { PremiumSearchInput } from "@/components/search/premium-search-input"
 import { SearchSkeleton } from "@/components/search/search-skeleton"
+import { RecommendationPanel } from "@/components/recommend/recommendation-panel"
 import { HighlightedText } from "@/components/search/search-highlight"
 import { Button } from "@/components/ui/button"
 import { Card } from "@/components/ui/card"
@@ -29,6 +30,7 @@ import { PricingBadge } from "@/components/tools/pricing-badge"
 import { usePreferences } from "@/contexts/preferences-context"
 import { useLanguage } from "@/contexts/language-context"
 import { useAITools } from "@/lib/hooks/use-ai-tools"
+import { useRecommendation } from "@/lib/hooks/use-recommendation"
 import { toast } from "sonner"
 import { useAuth } from "@/contexts/auth-context"
 import type { AIEntry } from "@/lib/ai-data"
@@ -165,6 +167,12 @@ function ToolsContent() {
   const apiCategory = getApiCategory()
 
   // Fetch AI tools from API with pagination
+  // Shares the SAME debounced value as the search below, so a reasoning call
+  // can't fire per keystroke. Runs in parallel with the search, not before it.
+  const { recommendation, isLoading: isRecommendationLoading } = useRecommendation(
+    debouncedSearch || undefined
+  )
+
   const { tools: apiTools, isLoading, error, hasMore } = useAITools({
     searchQuery: debouncedSearch || undefined,
     category: apiCategory,
@@ -511,6 +519,30 @@ function ToolsContent() {
                 ))}
               </div>
             </motion.div>
+
+            {/* Arcyn's recommendation — our take first, the full directory below,
+                the same hierarchy Google uses for its AI answer. This panel
+                loads independently of the grid: it renders its own skeleton and
+                fills in when the reasoning call returns, so the results list
+                below never waits on it. */}
+            {debouncedSearch && (
+              <RecommendationPanel
+                query={debouncedSearch}
+                recommendation={recommendation}
+                isLoading={isRecommendationLoading}
+              />
+            )}
+
+            {/* Heading that separates our pick from the directory itself.
+                Only shown when the panel above is actually present. */}
+            {debouncedSearch && (recommendation?.bestMatch || isRecommendationLoading) && (
+              <div className="mb-3 flex items-center gap-2">
+                <h2 className="text-sm font-semibold uppercase tracking-wide text-muted-foreground">
+                  All matching tools
+                </h2>
+                <div className="h-px flex-1 bg-border/50" />
+              </div>
+            )}
 
             {/* Loading State — Premium skeleton cards instead of spinner */}
             {isLoading && allTools.length === 0 && (

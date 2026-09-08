@@ -12,7 +12,7 @@
  */
 
 import { z } from "zod"
-import { parseWithClaude, isClaudeConfigured } from "./claude"
+import { parseStructured, isAIConfigured } from "./ai-provider"
 import type { RankedResult } from "./search-orchestrator"
 import { logger } from "./logger"
 
@@ -55,7 +55,7 @@ export interface Recommendation {
     query: string
     bestMatch: RecommendedTool | null
     alternatives: RecommendedTool[]
-    /** true when Claude reasoning was unavailable and we fell back to the
+    /** true when AI reasoning was unavailable and we fell back to the
      *  deterministic template — callers can surface this as a subtle signal
      *  ("recommendation" vs "top match") without ever blocking on it. */
     degraded: boolean
@@ -94,12 +94,12 @@ export async function generateRecommendation(
         return { query, bestMatch: null, alternatives: [], degraded: false }
     }
 
-    if (isClaudeConfigured()) {
+    if (isAIConfigured()) {
         try {
-            const llmResult = await reasonWithClaude(query, candidates)
+            const llmResult = await reasonWithAI(query, candidates)
             if (llmResult) return { query, ...llmResult, degraded: false }
         } catch (error: any) {
-            logger.warn("[Recommend] Claude reasoning failed, using deterministic fallback:", error?.message || error)
+            logger.warn("[Recommend] AI reasoning failed, using deterministic fallback:", error?.message || error)
         }
     }
 
@@ -139,7 +139,7 @@ const ReasoningSchema = z.object({
     })).describe("At most 3, never the bestMatchId"),
 })
 
-async function reasonWithClaude(
+async function reasonWithAI(
     query: string,
     candidates: { ranked: RankedResult; tool: RecommendableTool }[]
 ): Promise<LLMReasoningResult | null> {
@@ -155,7 +155,7 @@ async function reasonWithClaude(
         relevance_reason: ranked.relevance_reason,
     }))
 
-    const parsed = await parseWithClaude(
+    const parsed = await parseStructured(
         ReasoningSchema,
         `User's goal: "${query}"
 
@@ -169,7 +169,7 @@ label explaining what makes it worth considering instead.`,
             // No effort override: this is the text a user actually reads, so it
             // gets the model's default (high).
             system: REASONING_SYSTEM_PROMPT,
-            label: "reasonWithClaude",
+            label: "reasonWithAI",
         }
     )
 
@@ -178,7 +178,7 @@ label explaining what makes it worth considering instead.`,
     const byId = new Map(candidates.map(c => [c.tool.id, c.tool]))
     const bestTool = byId.get(parsed.bestMatchId)
     if (!bestTool) {
-        logger.warn("[Recommend] Claude chose a bestMatchId outside the candidate set — discarding.")
+        logger.warn("[Recommend] Model chose a bestMatchId outside the candidate set — discarding.")
         return null
     }
 

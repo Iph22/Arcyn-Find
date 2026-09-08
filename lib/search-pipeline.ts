@@ -1,14 +1,14 @@
 /**
- * ArcynFind Search Pipeline — Claude-powered ranking layer
+ * ArcynFind Search Pipeline — AI-powered ranking layer
  *
- * Takes raw hybrid search results and runs them through Claude
+ * Takes raw hybrid search results and runs them through the configured AI provider
  * for intent-aware re-ranking, filtering, and scoring.
  *
- * Falls back to deterministic local orchestrator if Claude is unavailable.
+ * Falls back to deterministic local orchestrator if the AI provider is unavailable.
  */
 
 import { z } from "zod"
-import { parseWithClaude, isClaudeConfigured } from "./claude"
+import { parseStructured, isAIConfigured } from "./ai-provider"
 import { runSearchOrchestrator, type CandidateResult, type OrchestratorOutput } from "./search-orchestrator"
 import { logger } from "./logger"
 
@@ -19,14 +19,14 @@ const RANK_TIMEOUT_MS = 15_000
 
 const SYSTEM_PROMPT = `You are the ArcynFind Search Orchestrator. Your only job is to filter, score, and rank search results for maximum relevance and consistency. You are not a chatbot. Never invent results. Never randomize output — identical input must produce identical ranking.`
 
-// In-memory cache to avoid redundant Claude calls for the same query+results
+// In-memory cache to avoid redundant AI calls for the same query+results
 const pipelineCache = new Map<string, { data: OrchestratorOutput, timestamp: number }>()
 const PIPELINE_CACHE_TTL = 1000 * 60 * 30 // 30 minutes
 const PIPELINE_CACHE_MAX = 200
 
 /**
  * Run the full search pipeline:
- *   1. Try Claude-powered ranking
+ *   1. Try AI-powered ranking
  *   2. Falls back to local deterministic orchestrator on any failure
  *
  * @param query   The raw user search query
@@ -50,10 +50,10 @@ export async function runSearchPipeline(
         return cached.data
     }
 
-    // Try Claude-powered ranking
-    if (isClaudeConfigured()) {
+    // Try AI-powered ranking
+    if (isAIConfigured()) {
         try {
-            const aiResult = await rankWithClaude(query, results)
+            const aiResult = await rankWithAI(query, results)
             if (aiResult) {
                 // Cache the result
                 if (pipelineCache.size >= PIPELINE_CACHE_MAX) {
@@ -62,16 +62,16 @@ export async function runSearchPipeline(
                 }
                 pipelineCache.set(cacheKey, { data: aiResult, timestamp: Date.now() })
 
-                logger.info(`[SearchPipeline] Claude ranking returned ${aiResult.results.length} results (intent: ${aiResult.query_intent}, confidence: ${aiResult.confidence_level})`)
+                logger.info(`[SearchPipeline] AI ranking returned ${aiResult.results.length} results (intent: ${aiResult.query_intent}, confidence: ${aiResult.confidence_level})`)
                 return aiResult
             }
         } catch (error: any) {
-            logger.warn("[SearchPipeline] Claude ranking failed, falling back to local orchestrator:", error?.message || error)
+            logger.warn("[SearchPipeline] AI ranking failed, falling back to local orchestrator:", error?.message || error)
         }
     }
 
     // Fallback: local deterministic orchestrator
-    logger.info("[SearchPipeline] Using local deterministic orchestrator (Claude unavailable or failed).")
+    logger.info("[SearchPipeline] Using local deterministic orchestrator (AI unavailable or failed).")
     const candidates: CandidateResult[] = results.map((r: any) => ({
         id: r.id,
         title: r.title || r.name,
@@ -102,7 +102,7 @@ export async function runSearchPipeline(
 
 
 // ---------------------------------------------------------------------------
-// Claude-powered ranking
+// AI-powered ranking
 // ---------------------------------------------------------------------------
 
 /** Mirrors OrchestratorOutput so the model's response is schema-validated on
@@ -139,8 +139,8 @@ const OrchestratorOutputSchema = z.object({
  * ONE bounded attempt, no retries — the local deterministic orchestrator is the
  * correct fallback, not a slower retry. Returns null on any failure.
  */
-async function rankWithClaude(query: string, results: any[]): Promise<OrchestratorOutput | null> {
-    const parsed = await parseWithClaude(
+async function rankWithAI(query: string, results: any[]): Promise<OrchestratorOutput | null> {
+    const parsed = await parseStructured(
         OrchestratorOutputSchema,
         `User query: ${query}
 
@@ -157,7 +157,7 @@ Rank these candidates. Rules:
             timeoutMs: RANK_TIMEOUT_MS,
             effort: "medium",
             system: SYSTEM_PROMPT,
-            label: "rankWithClaude",
+            label: "rankWithAI",
         }
     )
 

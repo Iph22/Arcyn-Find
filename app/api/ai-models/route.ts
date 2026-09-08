@@ -4,7 +4,7 @@ import { fetchAIModelsFromSources } from '@/lib/data-sources'
 import type { AIEntry } from '@/lib/ai-data'
 import { checkRateLimit, getRateLimitHeaders } from '@/lib/rate-limit'
 import { logger } from '@/lib/logger'
-import { parseNaturalLanguageSearch, validateSearchResults, discoverNewTools } from '@/lib/claude-nlp'
+import { parseNaturalLanguageSearch, validateSearchResults, discoverNewTools } from '@/lib/ai-nlp'
 import { processSearchQuery } from '@/lib/search-utils'
 import { hybridSearch, isSemanticSearchAvailable, generateToolEmbedding, findSimilarToolByName } from '@/lib/embeddings'
 import { searchExternalFallback } from '@/lib/search-fallback'
@@ -185,12 +185,12 @@ export async function GET(request: Request) {
             // Table doesn't exist yet or cache miss
           }
 
-          // 3. Fallback: Parse via Claude
+          // 3. Fallback: Parse via the AI provider
           if (!nlpParams) {
             nlpParams = await parseNaturalLanguageSearch(search)
             if (nlpParams) {
               aiCache.set(cacheKey, { data: nlpParams, timestamp: now })
-              logger.debug('[API] NLP Search Parsed (Claude):', nlpParams)
+              logger.debug('[API] NLP Search Parsed (AI):', nlpParams)
               // Update long-term database cache to avoid future API calls for this search
               try {
                 // Ignore await so we don't block the request
@@ -213,7 +213,7 @@ export async function GET(request: Request) {
         // Handle both quota errors (429) and AI unavailable (503)
         if (err.status === 429 || err.status === 503 || err.isAIUnavailable) {
           lastAiErrorTime = now
-          logger.warn('[API] Claude NLP unavailable. Falling back to keyword search for 1 minute.')
+          logger.warn('[API] AI NLP unavailable. Falling back to keyword search for 1 minute.')
           // Use the raw search terms as keywords for fallback
           effectiveSearch = search
         } else {
@@ -475,7 +475,7 @@ export async function GET(request: Request) {
           logger.info(`[API] Running ${filteredRaw.length} strong semantic results through ranking pipeline (max similarity: ${maxScore.toFixed(3)})`)
 
           try {
-            // Run through the Claude-powered ranking pipeline
+            // Run through the AI-powered ranking pipeline
             const ranked = await runSearchPipeline(originalSearch!, filteredRaw)
 
             // Re-order filteredSemantic according to the ranked result order
@@ -777,7 +777,7 @@ export async function GET(request: Request) {
           const newEntries = dbTools.map(transformToAIEntry)
           aiEntries = [...newEntries, ...aiEntries].slice(0, limit)
         } else if (timeRemaining() < 16000) {
-          // Not enough budget left to safely run discovery (Claude call + per-tool embedding
+          // Not enough budget left to safely run discovery (AI call + per-tool embedding
           // generation + DB upsert can easily take 5-10s+). Queue it instead of blocking the
           // response — a background worker/cron can pick this up and populate the corpus for
           // future searches without making *this* user wait or risk a 504.
@@ -871,7 +871,7 @@ export async function GET(request: Request) {
           } catch (err: any) {
             if (err.status === 429 || err.status === 503 || err.isAIUnavailable) {
               lastAiErrorTime = now
-              logger.warn('[API] Claude unavailable during discovery. Using cached/external sources.')
+              logger.warn('[API] AI unavailable during discovery. Using cached/external sources.')
             } else {
               logger.error('[API] Discovery error:', err)
             }

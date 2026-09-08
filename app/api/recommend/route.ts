@@ -4,7 +4,7 @@ import { checkRateLimit, getRateLimitHeaders } from '@/lib/rate-limit'
 import { logger } from '@/lib/logger'
 import { hybridSearch, isSemanticSearchAvailable } from '@/lib/embeddings'
 import { processSearchQuery } from '@/lib/search-utils'
-import { runSearchPipeline } from '@/lib/search-pipeline'
+import { runSearchOrchestrator } from '@/lib/search-orchestrator'
 import { generateRecommendation, type RecommendableTool } from '@/lib/recommend'
 
 // Same Vercel-duration reasoning as /api/ai-models: leave headroom for the
@@ -165,8 +165,19 @@ export async function POST(request: Request) {
         )
     }
 
-    // 3. Ranking — the existing Gemini-powered pipeline (falls back to the
-    // deterministic orchestrator internally if Gemini is unavailable).
+    // 3. Ordering — the DETERMINISTIC orchestrator, not the AI ranking pipeline.
+    //
+    // This is a measured tradeoff, not an oversight. A structured-output call to
+    // gemini-2.5-flash costs ~11s. Two of them (rank + reason) blew the request
+    // budget outright — an earlier build of this route took 41s and returned a
+    // degraded result because both calls hit their timeouts. Only one fits.
+    //
+    // Reasoning is the one worth keeping: it produces the explanation the user
+    // reads, and it can't be replicated locally. Ranking can — the deterministic
+    // orchestrator scores on the same signals (keyword, vector, popularity,
+    // trust, freshness, intent) and has ordered these candidates correctly
+    // throughout testing. So ordering stays local and the latency budget goes to
+    // the reasoning call.
     const rankingCandidates = candidates.map(c => ({
         id: c.id,
         title: c.name,
@@ -180,7 +191,7 @@ export async function POST(request: Request) {
         freshness_date: null,
         is_trending: false,
     }))
-    const ranked = await runSearchPipeline(query, rankingCandidates)
+    const ranked = runSearchOrchestrator(query, rankingCandidates)
 
     // 4. Reasoning — bounded to the top ~6 ranked candidates, never the full pool.
     const toolsById = new Map<string, RecommendableTool>()
