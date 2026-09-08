@@ -1,4 +1,4 @@
-import { getSupabaseAdmin, transformToAIEntry } from '@/lib/supabase'
+import { getSupabaseAdmin, transformToAIEntry, AI_TOOLS_COLUMNS } from '@/lib/supabase'
 import type { AIEntry } from '@/lib/ai-data'
 
 /**
@@ -16,7 +16,7 @@ export class ToolsService {
     search?: string
   }) {
     const supabase = getSupabaseAdmin()
-    let queryBuilder = supabase.from('ai_tools').select('*', { count: 'exact' })
+    let queryBuilder = supabase.from('ai_tools').select(AI_TOOLS_COLUMNS, { count: 'exact' })
 
     if (filters.category) {
       let decodedCategory = filters.category
@@ -177,7 +177,7 @@ export class ToolsService {
 
     const { data, error } = await supabase
       .from('ai_tools')
-      .select('*')
+      .select(AI_TOOLS_COLUMNS)
       .eq('id', toolId)
       .single()
 

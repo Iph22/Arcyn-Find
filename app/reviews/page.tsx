@@ -203,7 +203,9 @@ export default function ReviewsPage() {
                     key={review.id}
                     initial={{ opacity: 0, y: 20 }}
                     animate={{ opacity: 1, y: 0 }}
-                    transition={{ duration: 0.3, delay: index * 0.1 }}
+                    // Capped so the tail of a long feed doesn't wait multiple
+                    // seconds to animate in on every re-render.
+                    transition={{ duration: 0.3, delay: Math.min(index, 10) * 0.1 }}
                   >
                     <Card className="overflow-hidden border-border/50 bg-card/50 backdrop-blur-sm transition-all hover:border-border hover:shadow-md">
                       <div className="p-6">

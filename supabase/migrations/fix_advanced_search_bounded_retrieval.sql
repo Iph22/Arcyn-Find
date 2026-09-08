@@ -29,8 +29,14 @@
 --     already had trigram indexes — one unindexed OR branch defeats all of them.
 --   - platform ILIKE had no trigram index either (only name/description got one
 --     in update_advanced_search_v2.sql).
--- Adding these lets Postgres satisfy every branch of the OR via BitmapOr
--- across index scans instead of a full sequential scan.
+--
+-- CORRECTION (added after measuring): adding these indexes was NOT sufficient,
+-- and the original conclusion here was wrong. Trigram ILIKE on this table is
+-- non-viable regardless of indexing — see the long note inside
+-- search_tools_advanced below for the measurements and the reason. The tags
+-- GIN index below is still worth keeping (array containment genuinely uses
+-- it); the platform trigram index is retained only because dropping an index
+-- is a separate decision, but nothing should be adding new ILIKE paths.
 -- ============================================================================
 
 -- "operator class gin_trgm_ops does not exist for access method gin" means
@@ -49,6 +55,36 @@ CREATE INDEX IF NOT EXISTS idx_ai_tools_platform_trgm
 
 CREATE INDEX IF NOT EXISTS idx_ai_tools_tags_gin
   ON ai_tools USING gin (tags);
+
+-- Every text tier below does `WHERE <fts match> ORDER BY popularity DESC LIMIT n`.
+-- With only a GIN index available, Postgres must collect ALL matching rows and
+-- sort them before applying the LIMIT — fine for a rare term (594ms measured
+-- for "basketball highlight clipper"), but for a very common lexeme like "ai"
+-- or "image" that means sorting ~100k rows (8-10s measured, sometimes timing
+-- out). This index gives the planner a second option for exactly those cases:
+-- walk popularity in index order and stop as soon as it has n FTS matches,
+-- which terminates almost immediately when matches are dense. The planner
+-- picks per query based on estimated selectivity, so rare terms keep the
+-- bitmap plan and common terms get the ordered-scan plan.
+CREATE INDEX IF NOT EXISTS idx_ai_tools_popularity
+  ON ai_tools (popularity DESC NULLS LAST);
+
+-- Supports the rewritten find_similar_tool_name below: a normalized-name
+-- equality lookup, replacing the pg_trgm similarity scan that timed out.
+CREATE INDEX IF NOT EXISTS idx_ai_tools_name_normalized
+  ON ai_tools (lower(regexp_replace(name, '[^a-zA-Z0-9]', '', 'g')));
+
+-- Refresh planner statistics so the newly created indexes above are costed
+-- against current data rather than a stale snapshot. Worth doing after any
+-- index creation on a table this size.
+--
+-- (Historical note, corrected: an earlier revision of this file claimed the
+-- rare-term-slower-than-common-term inversion we observed — "gauth" at 8.5s
+-- vs "for" at 287ms — was caused by stale statistics. That was wrong. The
+-- real cause was trigram posting-list cost, explained in detail inside
+-- search_tools_advanced below. This ANALYZE is still good practice, but it
+-- was never the fix for that symptom.)
+ANALYZE ai_tools;
 
 DROP FUNCTION IF EXISTS search_tools_advanced(text, vector, float, int, text[]);
 
@@ -83,7 +119,10 @@ RETURNS TABLE (
 LANGUAGE plpgsql
 AS $$
 DECLARE
-  tsquery_val tsquery;
+  tsquery_val tsquery;      -- primary query, AND semantics (high precision)
+  tsquery_broad tsquery;    -- same terms OR'd (breadth — replaces the ILIKE net)
+  tsquery_synonym tsquery;  -- caller-supplied synonym expansion, OR'd
+  tsquery_token tsquery;
   query_tokens text[];
   -- Candidate pool sizes: bounded multiples of match_count so a single common
   -- word/token can never force a full-table rank-and-sort. Floors keep small
@@ -91,6 +130,12 @@ DECLARE
   -- candidate pool entirely.
   vector_pool_size int := GREATEST(match_count * 4, 40);
   text_pool_size int := GREATEST(match_count * 8, 80);
+  tok text;
+  -- Above this many matches, sorting the precise tier by popularity costs more
+  -- than the ordering is worth (see the note on fts_candidates below).
+  sort_safe_limit int := 5000;
+  precise_matches int;
+  sort_is_safe boolean;
 BEGIN
   tsquery_val := websearch_to_tsquery('english', search_query);
   IF tsquery_val IS NULL OR numnode(tsquery_val) = 0 THEN
@@ -100,6 +145,76 @@ BEGIN
   SELECT array_agg(DISTINCT token) INTO query_tokens
   FROM unnest(regexp_split_to_array(lower(trim(search_query)), '\s+')) AS token
   WHERE length(token) >= 2;
+
+  -- ==========================================================================
+  -- Round 4 — and this time the fix is to STOP using ILIKE entirely.
+  --
+  -- Measured on this instance (257k rows), per mechanism:
+  --     FTS  (fts_vector @@ tsquery)      421ms – 1.5s   <- viable
+  --     ILIKE on name (trigram indexed)   8.5s           <- not viable
+  --     ILIKE on description (indexed)    TIMEOUT        <- not viable
+  --
+  -- Trigram ILIKE cannot be made fast here, and rounds 1-3 of this migration
+  -- (EXISTS/unnest, then JOIN/unnest, then LATERAL, then literal-pattern
+  -- dynamic SQL) were all fighting an unwinnable battle. The reason ILIKE cost
+  -- is so bad — and so unpredictable — is trigram commonality, not row
+  -- selectivity: '%gauth%' decomposes to trigrams gau/aut/uth, and aut/uth are
+  -- pervasive in an AI-tools corpus (automation, authentication, automatic),
+  -- so GIN intersects enormous posting lists and rechecks thousands of heap
+  -- rows to return a single match. A *rarer* search term can therefore be
+  -- dramatically SLOWER than a common one, which makes latency impossible to
+  -- reason about on a user-facing path.
+  --
+  -- FTS has none of these problems: lexeme postings are per-word, so cost
+  -- tracks actual match counts. So the loose-text "safety net" that ILIKE used
+  -- to provide is now served by a second, OR-semantics tsquery over the same
+  -- GIN index, plus the caller's synonym list as a third OR'd tsquery. Typo
+  -- tolerance is retained upstream by correctTypos() in lib/search-utils.ts,
+  -- and FTS stemming covers morphological variants ("editing" -> "edit").
+  --
+  -- Semantics note: this drops MID-WORD substring matching. Searching "auth"
+  -- will no longer match "Gauthier". That is a deliberate trade — it is the
+  -- specific capability that cannot be delivered within the time budget.
+  -- ==========================================================================
+
+  -- Breadth query: same tokens, OR'd instead of AND'd.
+  IF query_tokens IS NOT NULL THEN
+    FOREACH tok IN ARRAY query_tokens LOOP
+      tsquery_token := plainto_tsquery('english', tok);
+      IF tsquery_token IS NOT NULL AND numnode(tsquery_token) > 0 THEN
+        tsquery_broad := CASE
+          WHEN tsquery_broad IS NULL THEN tsquery_token
+          ELSE tsquery_broad || tsquery_token   -- || is tsquery OR
+        END;
+      END IF;
+    END LOOP;
+  END IF;
+
+  -- Synonym expansion supplied by processSearchQuery() in the app layer.
+  IF extra_keywords IS NOT NULL THEN
+    FOREACH tok IN ARRAY extra_keywords LOOP
+      tsquery_token := plainto_tsquery('english', tok);
+      IF tsquery_token IS NOT NULL AND numnode(tsquery_token) > 0 THEN
+        tsquery_synonym := CASE
+          WHEN tsquery_synonym IS NULL THEN tsquery_token
+          ELSE tsquery_synonym || tsquery_token
+        END;
+      END IF;
+    END LOOP;
+  END IF;
+
+  -- Bounded probe: is the precise tier's match set small enough that sorting it
+  -- by popularity is affordable? The probe itself is cheap because it's LIMITed
+  -- (measured ~330ms even for the single most common lexeme in the corpus).
+  SELECT count(*) INTO precise_matches
+  FROM (
+    SELECT 1
+    FROM ai_tools t
+    WHERE tsquery_val IS NOT NULL AND tsquery_val @@ t.fts_vector
+    LIMIT sort_safe_limit
+  ) probe;
+
+  sort_is_safe := precise_matches < sort_safe_limit;
 
   -- NOTE on column naming below: RETURNS TABLE(id text, ...) implicitly declares
   -- a PL/pgSQL variable named "id" (and one per output column) visible to every
@@ -122,60 +237,81 @@ BEGIN
     LIMIT vector_pool_size
   ),
   fts_candidates AS (
-    -- Capped BEFORE ranking: take the top `text_pool_size` FTS matches by a
-    -- cheap ordering (popularity) first, THEN rank within that bounded set.
-    -- A common word matching thousands of rows still only ever contributes
-    -- text_pool_size candidates.
-    SELECT capped.tool_id
-    FROM (
-      SELECT t.id AS tool_id, t.popularity
+    -- Precise tier (AND semantics). Popularity ordering matters most here, so
+    -- unlike the breadth tiers it is KEPT — but only when the match set is
+    -- small enough to sort. Measured: "gauth & ai" (rare term narrows the
+    -- intersection to 1 row) sorts in 1982ms, but a lone common lexeme like
+    -- "ai", or "image & generator" where both terms are common, matches ~100k
+    -- rows and the sort times out.
+    --
+    -- The two branches below are mutually exclusive on the `sort_is_safe`
+    -- boolean computed above, which reaches the planner as a constant — so
+    -- whichever branch is disabled has a constant-false WHERE and is skipped
+    -- outright rather than executed and discarded.
+    (
+      SELECT t.id AS tool_id
       FROM ai_tools t
-      WHERE tsquery_val IS NOT NULL AND tsquery_val @@ t.fts_vector
+      WHERE sort_is_safe
+        AND tsquery_val IS NOT NULL AND tsquery_val @@ t.fts_vector
       ORDER BY t.popularity DESC NULLS LAST
       LIMIT text_pool_size
-    ) capped
+    )
+    UNION ALL
+    (
+      SELECT t.id AS tool_id
+      FROM ai_tools t
+      WHERE NOT sort_is_safe
+        AND tsquery_val IS NOT NULL AND tsquery_val @@ t.fts_vector
+      LIMIT text_pool_size
+    )
   ),
-  ilike_candidates AS (
-    SELECT capped.tool_id
-    FROM (
-      SELECT t.id AS tool_id, t.popularity
-      FROM ai_tools t
-      WHERE query_tokens IS NOT NULL AND EXISTS (
-        SELECT 1 FROM unnest(query_tokens) qt
-        WHERE t.name ILIKE '%' || qt || '%' OR t.description ILIKE '%' || qt || '%'
-      )
-      ORDER BY t.popularity DESC NULLS LAST
-      LIMIT text_pool_size
-    ) capped
+  -- IMPORTANT — no ORDER BY in the two OR tiers below, deliberately.
+  --
+  -- Measured, isolating this exact tier:
+  --     "gauth | ai"  + ORDER BY popularity LIMIT 240   TIMEOUT (>9.1s)
+  --     "gauth | ai"    no ORDER BY,        LIMIT 240   1626ms
+  --     "image | generator" no ORDER BY,    LIMIT 240    291ms
+  --
+  -- An OR of a common lexeme matches ~100k rows. With ORDER BY, Postgres must
+  -- fetch and sort that entire match set before applying LIMIT. Without it,
+  -- the bitmap heap scan streams and stops as soon as it has LIMIT rows.
+  --
+  -- The trade-off is real and intentional: these tiers now contribute an
+  -- ARBITRARY bounded slice of the match set rather than the most popular
+  -- slice. That's acceptable because they exist purely for recall — the
+  -- precise AND tier below keeps its popularity ordering, the vector tier is
+  -- ordered by similarity, and everything is re-ranked by combined_score in
+  -- the final SELECT anyway. The one case it degrades is a query where ONLY
+  -- the breadth tier matches, where results will be less popularity-weighted
+  -- than before.
+  broad_candidates AS (
+    -- Breadth tier: OR'd tokens over the same GIN index. This is what replaced
+    -- the ILIKE safety net — same purpose (catch loose matches the strict AND
+    -- query misses), viable mechanism.
+    SELECT t.id AS tool_id
+    FROM ai_tools t
+    WHERE tsquery_broad IS NOT NULL AND tsquery_broad @@ t.fts_vector
+    LIMIT text_pool_size
   ),
   synonym_candidates AS (
-    SELECT capped.tool_id
-    FROM (
-      SELECT t.id AS tool_id, t.popularity
-      FROM ai_tools t
-      WHERE extra_keywords IS NOT NULL AND EXISTS (
-        SELECT 1 FROM unnest(extra_keywords) kw
-        WHERE t.name ILIKE '%' || kw || '%' OR t.description ILIKE '%' || kw || '%'
-      )
-      ORDER BY t.popularity DESC NULLS LAST
-      LIMIT text_pool_size
-    ) capped
+    SELECT t.id AS tool_id
+    FROM ai_tools t
+    WHERE tsquery_synonym IS NOT NULL AND tsquery_synonym @@ t.fts_vector
+    LIMIT text_pool_size
   ),
   candidate_ids AS (
     -- Track provenance per tool so we can still require the semantic threshold
     -- for rows that ONLY qualified via vector similarity (a row with a weak
-    -- vector match but a real FTS/ILIKE/synonym hit should still be kept).
+    -- vector match but a real text hit should still be kept).
     SELECT
       tool_id,
       bool_or(src = 'vector') AS via_vector,
-      bool_or(src = 'fts') AS via_fts,
-      bool_or(src = 'ilike') AS via_ilike,
-      bool_or(src = 'synonym') AS via_synonym
+      bool_or(src = 'text') AS via_text
     FROM (
       SELECT tool_id, 'vector' AS src FROM vector_candidates
-      UNION ALL SELECT tool_id, 'fts' FROM fts_candidates
-      UNION ALL SELECT tool_id, 'ilike' FROM ilike_candidates
-      UNION ALL SELECT tool_id, 'synonym' FROM synonym_candidates
+      UNION ALL SELECT tool_id, 'text' FROM fts_candidates
+      UNION ALL SELECT tool_id, 'text' FROM broad_candidates
+      UNION ALL SELECT tool_id, 'text' FROM synonym_candidates
     ) u
     GROUP BY tool_id
   )
@@ -213,7 +349,7 @@ BEGIN
   JOIN ai_tools t ON t.id = ci.tool_id
   LEFT JOIN vector_candidates vc ON vc.tool_id = ci.tool_id
   WHERE
-    ci.via_fts OR ci.via_ilike OR ci.via_synonym
+    ci.via_text
     OR (ci.via_vector AND vc.sim > match_threshold)
   ORDER BY
     combined_score DESC,
@@ -224,10 +360,29 @@ END;
 $$;
 
 -- ============================================================================
--- New: fuzzy tool-name lookup used by the self-healing discovery flow to
--- avoid inserting a duplicate of an existing tool under a slightly different
--- name (e.g. "ChatGPT" vs "Chat GPT"). Reuses the trigram index already
--- created in update_advanced_search_v2.sql (idx_ai_tools_name_trgm).
+-- Tool-name duplicate check used by the self-healing discovery flow to avoid
+-- inserting a duplicate of an existing tool under a slightly different name
+-- (e.g. "ChatGPT" vs "Chat GPT").
+--
+-- Originally implemented with pg_trgm's `%` similarity operator, which TIMED
+-- OUT in production for exactly the same reason the ILIKE tiers did: trigram
+-- posting-list cost. "ChatGPT" decomposes to cha/hat/atg/tgp/gpt, and cha/hat
+-- are pervasive, so the similarity scan is enormous.
+--
+-- Rewritten as a normalized-name equality lookup against
+-- idx_ai_tools_name_normalized (strip everything non-alphanumeric, lowercase).
+-- This is a btree equality probe — effectively instant — and still catches the
+-- motivating cases: "ChatGPT" / "Chat GPT" / "chat-gpt" / "Chat  G.P.T." all
+-- normalize to "chatgpt".
+--
+-- What it no longer catches: names that differ by more than punctuation and
+-- case, e.g. "ChatGPT" vs "ChatGPT Pro". That is an acceptable narrowing for
+-- what is only a best-effort insert guard — callers already treat "no match"
+-- and "lookup failed" identically and proceed with the insert.
+--
+-- The p_threshold parameter is retained for signature compatibility with the
+-- existing caller (lib/embeddings.ts findSimilarToolByName) but is no longer
+-- used; an exact normalized match is reported as similarity_score 1.0.
 -- ============================================================================
 
 DROP FUNCTION IF EXISTS find_similar_tool_name(text, float);
@@ -239,18 +394,20 @@ CREATE OR REPLACE FUNCTION find_similar_tool_name(
 RETURNS TABLE (id text, name text, similarity_score float)
 LANGUAGE plpgsql STABLE
 AS $$
+DECLARE
+  normalized_input text;
 BEGIN
-  -- Transaction-local: lowers pg_trgm's default match bar (0.3) only for this
-  -- call so p_threshold controls recall directly via the index-assisted `%`
-  -- operator, without touching the session/global setting.
-  PERFORM set_config('pg_trgm.similarity_threshold', LEAST(p_threshold, 0.3)::text, true);
+  normalized_input := lower(regexp_replace(COALESCE(p_name, ''), '[^a-zA-Z0-9]', '', 'g'));
+
+  IF normalized_input = '' THEN
+    RETURN;
+  END IF;
 
   RETURN QUERY
-  SELECT t.id, t.name, similarity(t.name, p_name)::float AS similarity_score
+  SELECT t.id, t.name, 1.0::float AS similarity_score
   FROM ai_tools t
-  WHERE t.name % p_name
-    AND similarity(t.name, p_name) >= p_threshold
-  ORDER BY similarity_score DESC
+  WHERE lower(regexp_replace(t.name, '[^a-zA-Z0-9]', '', 'g')) = normalized_input
+  ORDER BY t.popularity DESC NULLS LAST
   LIMIT 1;
 END;
 $$;

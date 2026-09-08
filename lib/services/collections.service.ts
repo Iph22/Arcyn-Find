@@ -80,7 +80,7 @@ export class CollectionsService {
         *,
         collection_items(
           tool_id,
-          ai_tools(*)
+          ai_tools(id, name, category, description, platform, region, access_type, pricing, tags, popularity, last_updated, is_trending, image, priority)
         )
       `
       )

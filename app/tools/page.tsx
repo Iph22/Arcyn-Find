@@ -1,6 +1,7 @@
 "use client"
 
 import React, { Suspense } from "react"
+import dynamic from "next/dynamic"
 
 import { useState, useEffect, useMemo, useCallback } from "react"
 import { ToolImage } from "@/components/tools/tool-image"
@@ -18,7 +19,12 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Sidebar } from "@/components/layout/sidebar"
 import { ThemeToggle } from "@/components/layout/theme-toggle"
 import { LanguagePicker } from "@/components/layout/language-picker"
-import { ToolDetailModal } from "@/components/tools/enhanced-tool-detail-modal"
+// Code-split: a 649-line modal (framer-motion + several Radix dialogs) that's
+// invisible until a card is clicked shouldn't ship in this page's main bundle.
+const ToolDetailModal = dynamic(
+  () => import("@/components/tools/enhanced-tool-detail-modal").then((mod) => mod.ToolDetailModal),
+  { ssr: false }
+)
 import { PricingBadge } from "@/components/tools/pricing-badge"
 import { usePreferences } from "@/contexts/preferences-context"
 import { useLanguage } from "@/contexts/language-context"
@@ -286,7 +292,12 @@ function ToolsContent() {
     }))
   }, [allTools])
 
-  const getSortedTools = () => {
+  // Was recomputed (a fresh sort + fresh array) on every render of
+  // ToolsContent — including re-renders triggered by unrelated state like
+  // sidebarOpen or togglingFavorite — which combined with per-item motion
+  // animations below caused needless list churn. Memoized on the only inputs
+  // that actually change the result.
+  const sortedTools = useMemo(() => {
     if (!preferences?.categories || preferences.categories.length === 0) {
       return tools
     }
@@ -300,7 +311,7 @@ function ToolsContent() {
 
     const userPreferredCategories = preferences.categories.map((cat) => userCategoryMapping[cat]).filter(Boolean)
 
-    const prioritized = tools.slice().sort((a, b) => {
+    return tools.slice().sort((a, b) => {
       const aMatch = userPreferredCategories.includes(a.category)
       const bMatch = userPreferredCategories.includes(b.category)
       if (aMatch && !bMatch) return -1
@@ -310,11 +321,7 @@ function ToolsContent() {
       if (!a.featured && b.featured) return 1
       return b.saves - a.saves
     })
-
-    return prioritized
-  }
-
-  const sortedTools = getSortedTools()
+  }, [tools, preferences?.categories])
 
   // Client-side search filtering is redundant since the API handles it.
   // We just use the sorted tools returned from the API.
@@ -541,7 +548,11 @@ function ToolsContent() {
                         initial={{ opacity: 0, scale: 0.9 }}
                         animate={{ opacity: 1, scale: 1 }}
                         exit={{ opacity: 0, scale: 0.9 }}
-                        transition={{ duration: 0.3, delay: index * 0.05 }}
+                        // Cap the stagger so it only affects the first screenful —
+                        // uncapped `index * 0.05` meant a card at position 100
+                        // (easily reached via "Load more") wouldn't finish
+                        // animating in for 5 full seconds after every re-render.
+                        transition={{ duration: 0.3, delay: Math.min(index, 12) * 0.05 }}
                       >
                         <Card
                           className="group relative h-full overflow-hidden border-border/50 bg-card/50 backdrop-blur-sm transition-all hover:border-border hover:shadow-lg cursor-pointer"

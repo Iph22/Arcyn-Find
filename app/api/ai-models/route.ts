@@ -1,11 +1,11 @@
 import { NextResponse } from 'next/server'
-import { getSupabaseAdmin, transformToAIEntry } from '@/lib/supabase'
+import { getSupabaseAdmin, transformToAIEntry, AI_TOOLS_COLUMNS } from '@/lib/supabase'
 import { fetchAIModelsFromSources } from '@/lib/data-sources'
 import type { AIEntry } from '@/lib/ai-data'
 import { checkRateLimit, getRateLimitHeaders } from '@/lib/rate-limit'
 import { logger } from '@/lib/logger'
 import { parseNaturalLanguageSearch, validateSearchResults, discoverNewTools } from '@/lib/gemini'
-import { processSearchQuery, buildSearchConditions } from '@/lib/search-utils'
+import { processSearchQuery } from '@/lib/search-utils'
 import { hybridSearch, isSemanticSearchAvailable, generateToolEmbedding, findSimilarToolByName } from '@/lib/embeddings'
 import { searchExternalFallback } from '@/lib/search-fallback'
 import { runSearchPipeline } from '@/lib/search-pipeline'
@@ -303,7 +303,7 @@ export async function GET(request: Request) {
     if (id) {
       const { data, error } = await supabase
         .from('ai_tools')
-        .select('*')
+        .select(AI_TOOLS_COLUMNS)
         .eq('id', id)
         .single()
 
@@ -402,33 +402,40 @@ export async function GET(request: Request) {
         queryBuilder = queryBuilder.ilike('access_type', decodedAccessType)
       }
 
-      // Use enhanced search with processed keywords (includes synonyms and typo corrections)
-      if (searchKeywords.length > 0) {
-        // Build search conditions using expanded keywords
-        const conditions = buildSearchConditions(searchKeywords)
-        queryBuilder = queryBuilder.or(conditions)
+      // Text search via full-text search, NOT ILIKE.
+      //
+      // This path used to build an OR-chain of `name.ilike.%word%`,
+      // `description.ilike.%word%`, `platform.ilike.%word%` and
+      // `tags.cs.{word}` per keyword. Measured on this table (257k rows), a
+      // single `description ILIKE '%term%'` predicate takes 8.5s or times out
+      // outright, EVEN WITH a gin_trgm_ops index on the column — trigram cost
+      // is driven by how common the pattern's constituent trigrams are, not by
+      // how many rows actually match, so latency is both high and
+      // unpredictable. FTS over the existing ai_tools_fts_idx GIN index does
+      // the same job in 421ms-1.5s. See the long note in
+      // supabase/migrations/fix_advanced_search_bounded_retrieval.sql.
+      //
+      // fts_vector is maintained by a trigger and weights name+tags (A),
+      // category (B), description (C), so it already covers every column the
+      // old ILIKE chain touched except `platform` (a URL — not useful to
+      // free-text search anyway).
+      const ftsTerms = searchKeywords.length > 0
+        ? searchKeywords
+        : (effectiveSearch || '').trim().split(/\s+/).filter(Boolean)
 
-        // Also add the full original search phrase for exact matches
-        if (effectiveSearch) {
-          const escapedSearch = effectiveSearch.replace(/%/g, '\\%').replace(/_/g, '\\_')
-          queryBuilder = queryBuilder.or(`name.ilike.%${escapedSearch}%,description.ilike.%${escapedSearch}%`)
-        }
-      } else if (effectiveSearch) {
-        // Fallback: no processed keywords, use raw search
-        const escapedSearch = effectiveSearch.replace(/%/g, '\\%').replace(/_/g, '\\_')
-        const searchWords = escapedSearch.trim().split(/\s+/).filter(w => w.length > 2)
+      if (ftsTerms.length > 0) {
+        // OR the terms together so this stays a breadth-oriented fallback,
+        // matching the old ILIKE chain's semantics (any keyword may match).
+        // Strip tsquery operators so user input can't produce a syntax error.
+        const sanitized = ftsTerms
+          .map(term => term.replace(/[^\w\s-]/g, ' ').trim())
+          .filter(Boolean)
+          .join(' | ')
 
-        if (searchWords.length > 0) {
-          const conditions: string[] = []
-          for (const word of searchWords) {
-            conditions.push(`name.ilike.%${word}%`)
-            conditions.push(`description.ilike.%${word}%`)
-            conditions.push(`platform.ilike.%${word}%`)
-            conditions.push(`tags.cs.{${word.toLowerCase()}}`)
-          }
-          queryBuilder = queryBuilder.or(conditions.join(','))
-        } else {
-          queryBuilder = queryBuilder.or(`name.ilike.%${escapedSearch}%,description.ilike.%${escapedSearch}%,platform.ilike.%${escapedSearch}%`)
+        if (sanitized) {
+          // config must match how fts_vector was built (to_tsvector('english', ...)),
+          // otherwise lexemes won't line up and matches silently disappear.
+          queryBuilder = queryBuilder.textSearch('fts_vector', sanitized, { config: 'english' })
         }
       }
       return queryBuilder
@@ -530,7 +537,7 @@ export async function GET(request: Request) {
     if (limit <= SUPABASE_MAX_LIMIT) {
       let query = supabase
         .from('ai_tools')
-        .select('*')
+        .select(AI_TOOLS_COLUMNS)
         .order('priority', { ascending: false, nullsFirst: false })
         .order('popularity', { ascending: false })
 
@@ -555,7 +562,7 @@ export async function GET(request: Request) {
       while (hasMore && allData.length < MAX_FETCH) {
         let query = supabase
           .from('ai_tools')
-          .select('*')
+          .select(AI_TOOLS_COLUMNS)
           .order('priority', { ascending: false, nullsFirst: false })
           .order('popularity', { ascending: false })
 
@@ -595,7 +602,7 @@ export async function GET(request: Request) {
           try {
             let batchQuery = supabase
               .from('ai_tools')
-              .select('*')
+              .select(AI_TOOLS_COLUMNS)
               .order('priority', { ascending: false, nullsFirst: false })
               .order('popularity', { ascending: false })
 

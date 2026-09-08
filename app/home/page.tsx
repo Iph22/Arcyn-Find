@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react"
 import Image from "next/image"
+import dynamic from "next/dynamic"
 import { useRouter } from "next/navigation"
 import { motion, AnimatePresence } from "framer-motion"
 import { Search, Sparkles, TrendingUp, Menu, X, Star } from "lucide-react"
@@ -12,7 +13,12 @@ import { Card } from "@/components/ui/card"
 import { Sidebar } from "@/components/layout/sidebar"
 import { ThemeToggle } from "@/components/layout/theme-toggle"
 import { LanguagePicker } from "@/components/layout/language-picker"
-import { ToolDetailModal } from "@/components/tools/enhanced-tool-detail-modal"
+// Code-split: not visible until a card is clicked, no reason to ship it in
+// the homepage's initial bundle.
+const ToolDetailModal = dynamic(
+  () => import("@/components/tools/enhanced-tool-detail-modal").then((mod) => mod.ToolDetailModal),
+  { ssr: false }
+)
 import { PricingBadge } from "@/components/tools/pricing-badge"
 import { usePreferences } from "@/contexts/preferences-context"
 import { useAuth } from "@/contexts/auth-context"
@@ -64,7 +70,12 @@ export default function HomePage() {
         // Silent failure - not critical for page functionality
       })
     }
-  }, [user, authLoading, isAuthenticated, router])
+    // Keyed on user?.id, not the whole `user` object — a new object identity
+    // from useAuth/usePreferences context re-renders (same user) was refiring
+    // this effect (and re-fetching trending tools + re-hitting ensure-profile)
+    // more than once per mount.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user?.id, authLoading, isAuthenticated, router])
 
   const loadTrendingTools = async () => {
     try {

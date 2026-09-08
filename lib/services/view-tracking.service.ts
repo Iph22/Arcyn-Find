@@ -212,6 +212,11 @@ export async function updateAllTrendingStats(): Promise<{
 
             if (error || !tools || tools.length === 0) break
 
+            // Compute every row's new values first, then write the whole batch
+            // in ONE upsert instead of one .update() round trip per tool — the
+            // per-row loop was easily exceeding the cron's 60s maxDuration for
+            // any table with more than a few hundred rows.
+            const batchUpdates: { id: string; trending_score: number; is_trending: boolean }[] = []
             for (const tool of tools) {
                 try {
                     const newScore = calculateTrendingScore(
@@ -226,17 +231,21 @@ export async function updateAllTrendingStats(): Promise<{
                     // Auto-update is_trending flag
                     const shouldBeTrending = newScore >= 60 || (tool.view_count_24h || 0) > 10
 
-                    await supabase
-                        .from('ai_tools')
-                        .update({
-                            trending_score: newScore,
-                            is_trending: shouldBeTrending
-                        })
-                        .eq('id', tool.id)
-
-                    updated++
+                    batchUpdates.push({ id: tool.id, trending_score: newScore, is_trending: shouldBeTrending })
                 } catch {
                     errors++
+                }
+            }
+
+            if (batchUpdates.length > 0) {
+                const { error: upsertError } = await supabase
+                    .from('ai_tools')
+                    .upsert(batchUpdates, { onConflict: 'id' })
+
+                if (upsertError) {
+                    errors += batchUpdates.length
+                } else {
+                    updated += batchUpdates.length
                 }
             }
 
@@ -306,22 +315,27 @@ export async function updateViewCountCaches(): Promise<{
             counts7d[v.tool_id] = (counts7d[v.tool_id] || 0) + 1
         })
 
-        // Update all tools with their counts
-        const allToolIds = new Set([...Object.keys(counts24h), ...Object.keys(counts7d)])
+        // Update all tools with their counts — one batched upsert instead of
+        // one .update() round trip per tool (could be thousands of tools).
+        const allToolIds = Array.from(new Set([...Object.keys(counts24h), ...Object.keys(counts7d)]))
+        const UPSERT_BATCH_SIZE = 500
 
-        for (const toolId of allToolIds) {
-            try {
-                await supabase
-                    .from('ai_tools')
-                    .update({
-                        view_count_24h: counts24h[toolId] || 0,
-                        view_count_7d: counts7d[toolId] || 0
-                    })
-                    .eq('id', toolId)
+        for (let i = 0; i < allToolIds.length; i += UPSERT_BATCH_SIZE) {
+            const batchIds = allToolIds.slice(i, i + UPSERT_BATCH_SIZE)
+            const batchRows = batchIds.map(toolId => ({
+                id: toolId,
+                view_count_24h: counts24h[toolId] || 0,
+                view_count_7d: counts7d[toolId] || 0,
+            }))
 
-                updated++
-            } catch {
-                errors++
+            const { error: upsertError } = await supabase
+                .from('ai_tools')
+                .upsert(batchRows, { onConflict: 'id' })
+
+            if (upsertError) {
+                errors += batchRows.length
+            } else {
+                updated += batchRows.length
             }
         }
 

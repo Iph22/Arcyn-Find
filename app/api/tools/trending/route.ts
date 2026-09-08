@@ -56,35 +56,46 @@ export async function GET(request: NextRequest) {
 
     if (error) throw error
 
-    // Get review stats for each tool
-    const toolsWithStats = await Promise.all(
-      (tools || []).map(async (tool) => {
-        // Get review count and average rating
-        const { data: reviewStats } = await supabase
-          .from('tool_reviews')
-          .select('rating, helpful_count')
-          .eq('tool_id', tool.id)
+    // Get review + favorites stats for ALL tools in 2 batched queries instead
+    // of 2 queries per tool (was up to 2*limit round trips on a hot public route).
+    const toolIds = (tools || []).map((t) => t.id)
 
-        const reviews = reviewStats || []
-        const avgRating = reviews.length > 0
-          ? reviews.reduce((sum, r) => sum + r.rating, 0) / reviews.length
-          : 0
+    const [reviewRowsResult, favoriteRowsResult] = await Promise.all([
+      toolIds.length > 0
+        ? supabase.from('tool_reviews').select('tool_id, rating').in('tool_id', toolIds)
+        : Promise.resolve({ data: [] as { tool_id: string; rating: number }[] }),
+      toolIds.length > 0
+        ? supabase.from('user_favorites').select('tool_id').in('tool_id', toolIds)
+        : Promise.resolve({ data: [] as { tool_id: string }[] }),
+    ])
 
-        // Get favorites count
-        const { count: favoritesCount } = await supabase
-          .from('user_favorites')
-          .select('*', { count: 'exact', head: true })
-          .eq('tool_id', tool.id)
+    const reviewsByTool = new Map<string, number[]>()
+    for (const row of reviewRowsResult.data || []) {
+      const arr = reviewsByTool.get(row.tool_id) || []
+      arr.push(row.rating)
+      reviewsByTool.set(row.tool_id, arr)
+    }
 
-        return {
-          ...tool,
-          rating: Number(avgRating.toFixed(1)),
-          review_count: reviews.length,
-          favorites_count: favoritesCount || 0,
-          users: favoritesCount ? `${favoritesCount}+` : '0'
-        }
-      })
-    )
+    const favoritesCountByTool = new Map<string, number>()
+    for (const row of favoriteRowsResult.data || []) {
+      favoritesCountByTool.set(row.tool_id, (favoritesCountByTool.get(row.tool_id) || 0) + 1)
+    }
+
+    const toolsWithStats = (tools || []).map((tool) => {
+      const ratings = reviewsByTool.get(tool.id) || []
+      const avgRating = ratings.length > 0
+        ? ratings.reduce((sum, r) => sum + r, 0) / ratings.length
+        : 0
+      const favoritesCount = favoritesCountByTool.get(tool.id) || 0
+
+      return {
+        ...tool,
+        rating: Number(avgRating.toFixed(1)),
+        review_count: ratings.length,
+        favorites_count: favoritesCount,
+        users: favoritesCount ? `${favoritesCount}+` : '0'
+      }
+    })
 
     // Sort by combined score (popularity + rating + favorites)
     const sortedTools = toolsWithStats.sort((a, b) => {

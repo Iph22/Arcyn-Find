@@ -34,6 +34,7 @@ export async function GET(request: NextRequest) {
       `)
       .eq('following_id', user.id)
       .order('created_at', { ascending: false })
+      .limit(500)
 
     if (followersError) throw followersError
 
@@ -53,14 +54,20 @@ export async function GET(request: NextRequest) {
       `)
       .eq('follower_id', user.id)
       .order('created_at', { ascending: false })
+      .limit(500)
 
     if (followingError) throw followingError
 
-    // Get list of user IDs I'm following for the follow status check
-    const followingIds = followingData?.map(f => {
-      const following = Array.isArray(f.following) ? f.following[0] : f.following
-      return following?.id
-    }).filter(Boolean) || []
+    // Get set of user IDs I'm following for the follow status check — a Set
+    // gives O(1) lookups below instead of an O(n) .includes() scan per follower.
+    const followingIds = new Set(
+      (followingData || [])
+        .map(f => {
+          const following = Array.isArray(f.following) ? f.following[0] : f.following
+          return following?.id
+        })
+        .filter(Boolean)
+    )
 
     // Transform data and add follow status
     const followers = followersData?.map(item => {
@@ -74,7 +81,7 @@ export async function GET(request: NextRequest) {
           avatar_url: follower?.avatar_url || null,
           bio: follower?.bio || '',
         },
-        isFollowing: followingIds.includes(follower?.id),
+        isFollowing: followingIds.has(follower?.id),
         created_at: item.created_at
       }
     }) || []

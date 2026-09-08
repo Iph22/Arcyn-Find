@@ -38,6 +38,13 @@ export function getSupabaseAdmin() {
   return createClient(supabaseUrl, serviceRoleKey)
 }
 
+// Explicit column list for ai_tools reads. `embedding` is a 768-dim pgvector
+// column and `fts_vector` a tsvector — both are large, neither is used by any
+// consumer of AIEntry/transformToAIEntry, so `select('*')` was pulling several
+// KB of unused data over the wire on every list/filter/detail request.
+export const AI_TOOLS_COLUMNS =
+  'id, name, category, description, platform, region, access_type, pricing, tags, popularity, last_updated, is_trending, image, priority'
+
 // Transform database row to AIEntry
 export function transformToAIEntry(row: {
   id: string

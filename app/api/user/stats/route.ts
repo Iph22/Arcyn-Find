@@ -19,35 +19,21 @@ export async function GET(request: NextRequest) {
 
     const supabase = getSupabaseAdmin()
 
-    // Get followers count
-    const { count: followersCount } = await supabase
-      .from('user_follows')
-      .select('*', { count: 'exact', head: true })
-      .eq('following_id', user.id)
-
-    // Get following count
-    const { count: followingCount } = await supabase
-      .from('user_follows')
-      .select('*', { count: 'exact', head: true })
-      .eq('follower_id', user.id)
-
-    // Get reviews count
-    const { count: reviewsCount } = await supabase
-      .from('tool_reviews')
-      .select('*', { count: 'exact', head: true })
-      .eq('user_id', user.id)
-
-    // Get saved tools (favorites) count
-    const { count: savedToolsCount } = await supabase
-      .from('user_favorites')
-      .select('*', { count: 'exact', head: true })
-      .eq('user_id', user.id)
-
-    // Get collections count
-    const { count: collectionsCount } = await supabase
-      .from('collections')
-      .select('*', { count: 'exact', head: true })
-      .eq('user_id', user.id)
+    // 5 independent count-only queries — run them concurrently instead of one
+    // round trip at a time (this route is hit on every profile/dashboard load).
+    const [
+      { count: followersCount },
+      { count: followingCount },
+      { count: reviewsCount },
+      { count: savedToolsCount },
+      { count: collectionsCount },
+    ] = await Promise.all([
+      supabase.from('user_follows').select('*', { count: 'exact', head: true }).eq('following_id', user.id),
+      supabase.from('user_follows').select('*', { count: 'exact', head: true }).eq('follower_id', user.id),
+      supabase.from('tool_reviews').select('*', { count: 'exact', head: true }).eq('user_id', user.id),
+      supabase.from('user_favorites').select('*', { count: 'exact', head: true }).eq('user_id', user.id),
+      supabase.from('collections').select('*', { count: 'exact', head: true }).eq('user_id', user.id),
+    ])
 
     return createSuccessResponse({
       stats: {
