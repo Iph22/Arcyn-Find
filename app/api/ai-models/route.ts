@@ -4,7 +4,7 @@ import { fetchAIModelsFromSources } from '@/lib/data-sources'
 import type { AIEntry } from '@/lib/ai-data'
 import { checkRateLimit, getRateLimitHeaders } from '@/lib/rate-limit'
 import { logger } from '@/lib/logger'
-import { parseNaturalLanguageSearch, validateSearchResults, discoverNewTools } from '@/lib/gemini'
+import { parseNaturalLanguageSearch, validateSearchResults, discoverNewTools } from '@/lib/claude-nlp'
 import { processSearchQuery } from '@/lib/search-utils'
 import { hybridSearch, isSemanticSearchAvailable, generateToolEmbedding, findSimilarToolByName } from '@/lib/embeddings'
 import { searchExternalFallback } from '@/lib/search-fallback'
@@ -14,10 +14,10 @@ import { runSearchPipeline } from '@/lib/search-pipeline'
 export const maxDuration = 30
 export const runtime = 'nodejs'
 
-// Simple in-memory cache for Gemini results to avoid redundant calls
-const geminiCache = new Map<string, { data: any, timestamp: number }>()
+// Simple in-memory cache for model results to avoid redundant calls
+const aiCache = new Map<string, { data: any, timestamp: number }>()
 const CACHE_TTL = 1000 * 60 * 60 // 1 hour
-let lastGeminiErrorTime = 0
+let lastAiErrorTime = 0
 const ERRROR_COOLDOWN = 1000 * 60 // 1 minute cooldown after 429
 
 /**
@@ -150,22 +150,22 @@ export async function GET(request: Request) {
     )
 
     const now = Date.now()
-    const canUseGemini = now - lastGeminiErrorTime > ERRROR_COOLDOWN
+    const canUseAi = now - lastAiErrorTime > ERRROR_COOLDOWN
 
-    if (isNaturalLanguage && search && canUseGemini) {
+    if (isNaturalLanguage && search && canUseAi) {
       stagesRun.push('nlp-parse')
       const cleanQuery = search.toLowerCase().trim()
       try {
         // 1. Check in-memory fast cache first
         const cacheKey = `nlp:${cleanQuery}`
-        const cached = geminiCache.get(cacheKey)
+        const cached = aiCache.get(cacheKey)
         let nlpParams = null
 
         if (cached && (now - cached.timestamp < CACHE_TTL)) {
           nlpParams = cached.data
           logger.debug('[API] NLP Search (Memory Cache):', nlpParams)
         } else {
-          // 2. Check long-term Supabase database cache to heavily save Gemini tokens!
+          // 2. Check long-term Supabase database cache to heavily save model tokens!
           try {
             const { data: dbCache } = await supabase
               .from('search_cache')
@@ -179,18 +179,18 @@ export async function GET(request: Request) {
                 categories: dbCache.nlp_categories || []
               }
               logger.debug('[API] NLP Search (Database Cache):', nlpParams)
-              geminiCache.set(cacheKey, { data: nlpParams, timestamp: now })
+              aiCache.set(cacheKey, { data: nlpParams, timestamp: now })
             }
           } catch (e) {
             // Table doesn't exist yet or cache miss
           }
 
-          // 3. Fallback: Parse via Gemini API
+          // 3. Fallback: Parse via Claude
           if (!nlpParams) {
             nlpParams = await parseNaturalLanguageSearch(search)
             if (nlpParams) {
-              geminiCache.set(cacheKey, { data: nlpParams, timestamp: now })
-              logger.debug('[API] NLP Search Parsed (Gemini):', nlpParams)
+              aiCache.set(cacheKey, { data: nlpParams, timestamp: now })
+              logger.debug('[API] NLP Search Parsed (Claude):', nlpParams)
               // Update long-term database cache to avoid future API calls for this search
               try {
                 // Ignore await so we don't block the request
@@ -212,8 +212,8 @@ export async function GET(request: Request) {
       } catch (err: any) {
         // Handle both quota errors (429) and AI unavailable (503)
         if (err.status === 429 || err.status === 503 || err.isAIUnavailable) {
-          lastGeminiErrorTime = now
-          logger.warn('[API] Gemini NLP unavailable. Falling back to keyword search for 1 minute.')
+          lastAiErrorTime = now
+          logger.warn('[API] Claude NLP unavailable. Falling back to keyword search for 1 minute.')
           // Use the raw search terms as keywords for fallback
           effectiveSearch = search
         } else {
@@ -475,7 +475,7 @@ export async function GET(request: Request) {
           logger.info(`[API] Running ${filteredRaw.length} strong semantic results through ranking pipeline (max similarity: ${maxScore.toFixed(3)})`)
 
           try {
-            // Run through the Gemini-powered ranking pipeline
+            // Run through the Claude-powered ranking pipeline
             const ranked = await runSearchPipeline(originalSearch!, filteredRaw)
 
             // Re-order filteredSemantic according to the ranked result order
@@ -746,22 +746,22 @@ export async function GET(request: Request) {
     //  - require a minimum time budget so this never fires when we're already close to the deadline
     // NOTE: also consider requiring a minimum extracted-keyword count / category confidence here
     // once nlpParams carries a confidence score — that would filter out vague queries even further.
-    // Matches gemini.ts worst case: PRIMARY_TIMEOUT_MS (7s) + FALLBACK_TIMEOUT_MS (6s) + buffer
+    // Sized for the worst case in claude-nlp.ts: validate (8s) + discover (20s) + buffer
     const MIN_BUDGET_FOR_VALIDATION_MS = 15000
     if (
       originalSearch &&
-      canUseGemini &&
+      canUseAi &&
       isNaturalLanguage &&
       aiEntries.length < 5 &&
       timeRemaining() > MIN_BUDGET_FOR_VALIDATION_MS
     ) {
       const cacheKeyValid = `valid:${originalSearch.toLowerCase()}:${aiEntries.length}`
-      const cachedValid = geminiCache.get(cacheKeyValid)
+      const cachedValid = aiCache.get(cacheKeyValid)
 
       let validationResult = cachedValid?.data
       if (!validationResult) {
         validationResult = await validateSearchResults(originalSearch, aiEntries)
-        geminiCache.set(cacheKeyValid, { data: validationResult, timestamp: now })
+        aiCache.set(cacheKeyValid, { data: validationResult, timestamp: now })
       }
 
       const { isRelevant, feedback } = validationResult
@@ -769,7 +769,7 @@ export async function GET(request: Request) {
 
       if (!isRelevant || aiEntries.length === 0) {
         const cacheKeyDisc = `disc:${originalSearch.toLowerCase()}`
-        const cachedDisc = geminiCache.get(cacheKeyDisc)
+        const cachedDisc = aiCache.get(cacheKeyDisc)
 
         if (cachedDisc && (now - cachedDisc.timestamp < CACHE_TTL)) {
           logger.info('[API] Using cached discovery results')
@@ -777,7 +777,7 @@ export async function GET(request: Request) {
           const newEntries = dbTools.map(transformToAIEntry)
           aiEntries = [...newEntries, ...aiEntries].slice(0, limit)
         } else if (timeRemaining() < 16000) {
-          // Not enough budget left to safely run discovery (Gemini call + per-tool embedding
+          // Not enough budget left to safely run discovery (Claude call + per-tool embedding
           // generation + DB upsert can easily take 5-10s+). Queue it instead of blocking the
           // response — a background worker/cron can pick this up and populate the corpus for
           // future searches without making *this* user wait or risk a 504.
@@ -830,7 +830,7 @@ export async function GET(request: Request) {
                 })
               )
 
-              // Guard against Gemini inventing a near-duplicate of a tool that already
+              // Guard against the model inventing a near-duplicate of a tool that already
               // exists under a slightly different name (e.g. "ChatGPT" vs "Chat GPT").
               // A fuzzy name match above threshold skips that tool's insert entirely.
               const duplicateMatches = await Promise.all(
@@ -853,7 +853,7 @@ export async function GET(request: Request) {
               if (toolsWithEmbeddingsToInsert.length === 0) {
                 logger.info('[API] All discovered tools were duplicates of existing entries — nothing to insert')
               } else {
-                geminiCache.set(cacheKeyDisc, { data: dbToolsToInsert, timestamp: now })
+                aiCache.set(cacheKeyDisc, { data: dbToolsToInsert, timestamp: now })
 
                 const { error: insertError } = await supabase
                   .from('ai_tools')
@@ -870,8 +870,8 @@ export async function GET(request: Request) {
             }
           } catch (err: any) {
             if (err.status === 429 || err.status === 503 || err.isAIUnavailable) {
-              lastGeminiErrorTime = now
-              logger.warn('[API] Gemini unavailable during discovery. Using cached/external sources.')
+              lastAiErrorTime = now
+              logger.warn('[API] Claude unavailable during discovery. Using cached/external sources.')
             } else {
               logger.error('[API] Discovery error:', err)
             }

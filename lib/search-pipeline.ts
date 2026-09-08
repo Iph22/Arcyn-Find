@@ -1,32 +1,32 @@
 /**
- * ArcynFind Search Pipeline — Gemini-powered ranking layer
+ * ArcynFind Search Pipeline — Claude-powered ranking layer
  *
- * Takes raw hybrid search results and runs them through the Gemini AI
+ * Takes raw hybrid search results and runs them through Claude
  * for intent-aware re-ranking, filtering, and scoring.
  *
- * Falls back to deterministic local orchestrator if Gemini is unavailable.
+ * Falls back to deterministic local orchestrator if Claude is unavailable.
  */
 
-import { GoogleGenerativeAI } from "@google/generative-ai"
+import { z } from "zod"
+import { parseWithClaude, isClaudeConfigured } from "./claude"
 import { runSearchOrchestrator, type CandidateResult, type OrchestratorOutput } from "./search-orchestrator"
 import { logger } from "./logger"
 
-const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY || "")
+// Ranking runs inside the user-facing search request, so it gets a hard
+// deadline and exactly one attempt — on failure we fall through to the local
+// deterministic orchestrator, which is always available.
+const RANK_TIMEOUT_MS = 15_000
 
-// Tiered model system matching lib/gemini.ts
-const PRIMARY_MODEL = "gemini-3-flash-preview"
-const FALLBACK_MODEL = "gemini-flash-latest"
+const SYSTEM_PROMPT = `You are the ArcynFind Search Orchestrator. Your only job is to filter, score, and rank search results for maximum relevance and consistency. You are not a chatbot. Never invent results. Never randomize output — identical input must produce identical ranking.`
 
-const SYSTEM_PROMPT = `You are ArcynFind Search Orchestrator. Your ONLY job is to filter, score, rank, and return search results with maximum relevance and consistency. You are NOT a chatbot. You do NOT invent results. You do NOT randomize output. Return ONLY valid JSON — no extra text, no markdown fences.`
-
-// In-memory cache to avoid redundant Gemini calls for the same query+results
+// In-memory cache to avoid redundant Claude calls for the same query+results
 const pipelineCache = new Map<string, { data: OrchestratorOutput, timestamp: number }>()
 const PIPELINE_CACHE_TTL = 1000 * 60 * 30 // 30 minutes
 const PIPELINE_CACHE_MAX = 200
 
 /**
  * Run the full search pipeline:
- *   1. Try Gemini AI-powered ranking
+ *   1. Try Claude-powered ranking
  *   2. Falls back to local deterministic orchestrator on any failure
  *
  * @param query   The raw user search query
@@ -50,10 +50,10 @@ export async function runSearchPipeline(
         return cached.data
     }
 
-    // Try Gemini-powered ranking
-    if (process.env.GEMINI_API_KEY) {
+    // Try Claude-powered ranking
+    if (isClaudeConfigured()) {
         try {
-            const aiResult = await rankWithGemini(query, results)
+            const aiResult = await rankWithClaude(query, results)
             if (aiResult) {
                 // Cache the result
                 if (pipelineCache.size >= PIPELINE_CACHE_MAX) {
@@ -62,16 +62,16 @@ export async function runSearchPipeline(
                 }
                 pipelineCache.set(cacheKey, { data: aiResult, timestamp: Date.now() })
 
-                logger.info(`[SearchPipeline] Gemini ranking returned ${aiResult.results.length} results (intent: ${aiResult.query_intent}, confidence: ${aiResult.confidence_level})`)
+                logger.info(`[SearchPipeline] Claude ranking returned ${aiResult.results.length} results (intent: ${aiResult.query_intent}, confidence: ${aiResult.confidence_level})`)
                 return aiResult
             }
         } catch (error: any) {
-            logger.warn("[SearchPipeline] Gemini ranking failed, falling back to local orchestrator:", error?.message || error)
+            logger.warn("[SearchPipeline] Claude ranking failed, falling back to local orchestrator:", error?.message || error)
         }
     }
 
     // Fallback: local deterministic orchestrator
-    logger.info("[SearchPipeline] Using local deterministic orchestrator (Gemini unavailable or failed).")
+    logger.info("[SearchPipeline] Using local deterministic orchestrator (Claude unavailable or failed).")
     const candidates: CandidateResult[] = results.map((r: any) => ({
         id: r.id,
         title: r.title || r.name,
@@ -100,100 +100,73 @@ export async function runSearchPipeline(
     return localResult
 }
 
-// Hard per-call timeouts, matching lib/gemini.ts. This function runs inside the
-// same user-facing request (called from route.ts's search path) with a hard
-// Vercel maxDuration deadline — a hanging or slowly-retried call here can blow
-// that budget just as easily as an unbounded call in gemini.ts.
-const PRIMARY_TIMEOUT_MS = 7000
-const FALLBACK_TIMEOUT_MS = 6000
 
-function withTimeout<T>(promise: Promise<T>, ms: number, label: string): Promise<T> {
-    return new Promise<T>((resolve, reject) => {
-        const timer = setTimeout(() => {
-            reject(Object.assign(new Error(`${label} timed out after ${ms}ms`), { status: 503, isTimeout: true }))
-        }, ms)
-        promise.then(
-            (val) => { clearTimeout(timer); resolve(val) },
-            (err) => { clearTimeout(timer); reject(err) }
-        )
-    })
-}
+// ---------------------------------------------------------------------------
+// Claude-powered ranking
+// ---------------------------------------------------------------------------
+
+/** Mirrors OrchestratorOutput so the model's response is schema-validated on
+ *  arrival. Replaces the previous approach of stripping markdown fences,
+ *  slicing between the first and last brace, and JSON.parse-ing the remainder —
+ *  which could yield a wrong-shaped object that passed a couple of ad-hoc
+ *  field checks and then broke downstream. */
+const RankedResultSchema = z.object({
+    rank: z.number(),
+    id: z.string().optional(),
+    title: z.string(),
+    summary: z.string().describe("One sentence, in your own words"),
+    source: z.string(),
+    relevance_reason: z.string().describe("Why this result earns this rank"),
+    stability_tier: z.enum(["tier_A", "tier_B", "tier_C"]),
+    score: z.number(),
+})
+
+const OrchestratorOutputSchema = z.object({
+    query_intent: z.enum(["navigational", "informational", "transactional", "comparative", "exploratory"]),
+    confidence_level: z.enum(["high", "medium", "low"]),
+    results: z.array(RankedResultSchema),
+    pipeline_health: z.object({
+        input_pool_size: z.number(),
+        after_filter_size: z.number(),
+        weak_input_detected: z.boolean(),
+    }),
+    notes: z.string().describe("Any issues worth flagging"),
+})
 
 /**
- * Call Gemini to re-rank search results with intent-aware scoring.
- * Returns null on failure so caller can fall back gracefully.
+ * Re-rank candidates with intent-aware scoring.
  *
- * ONE bounded attempt per tier (primary, then fallback) — no retry-with-backoff.
- * A retry loop here just doubles latency for the same coin-flip outcome; the
- * local deterministic orchestrator is the correct fallback, not a slower retry.
+ * ONE bounded attempt, no retries — the local deterministic orchestrator is the
+ * correct fallback, not a slower retry. Returns null on any failure.
  */
-async function rankWithGemini(query: string, results: any[]): Promise<OrchestratorOutput | null> {
-    const userMessage = `User Query: ${query}\n\nCandidate Results:\n${JSON.stringify(results, null, 2)}`
+async function rankWithClaude(query: string, results: any[]): Promise<OrchestratorOutput | null> {
+    const parsed = await parseWithClaude(
+        OrchestratorOutputSchema,
+        `User query: ${query}
 
-    const fullPrompt = `${SYSTEM_PROMPT}\n\n${userMessage}\n\nRank and return the results as JSON matching this exact schema:\n{\n  "query_intent": "navigational | informational | transactional | comparative | exploratory",\n  "confidence_level": "high | medium | low",\n  "results": [\n    {\n      "rank": 1,\n      "title": "...",\n      "summary": "one sentence summary in your own words",\n      "source": "...",\n      "relevance_reason": "why this result wins this rank",\n      "stability_tier": "tier_A | tier_B | tier_C",\n      "score": 0.0\n    }\n  ],\n  "pipeline_health": {\n    "input_pool_size": 0,\n    "after_filter_size": 0,\n    "weak_input_detected": false\n  },\n  "notes": "any issues flagged"\n}\n\nRules:\n- Never invent results or URLs\n- Never exceed 10 results\n- Never score missing fields as anything other than 0\n- Never include tier_C results in the initial set\n- Sort by score descending, deterministic order\n- Return ONLY the JSON object, nothing else`
+Candidate results:
+${JSON.stringify(results, null, 2)}
 
-    try {
-        const model = genAI.getGenerativeModel({ model: PRIMARY_MODEL })
-        const result = await withTimeout(model.generateContent(fullPrompt), PRIMARY_TIMEOUT_MS, PRIMARY_MODEL)
-        return parseGeminiResponse(result.response.text())
-    } catch (error: any) {
-        const isRetryable = error?.status === 429 || error?.status === 503 || error?.isTimeout
-        if (!isRetryable) throw error
-
-        logger.warn(`[SearchPipeline] ${PRIMARY_MODEL} unavailable (${error.status || 'timeout'}). Trying ${FALLBACK_MODEL}...`)
-
-        try {
-            const model = genAI.getGenerativeModel({ model: FALLBACK_MODEL })
-            const result = await withTimeout(model.generateContent(fullPrompt), FALLBACK_TIMEOUT_MS, FALLBACK_MODEL)
-            return parseGeminiResponse(result.response.text())
-        } catch (fallbackError: any) {
-            logger.error(`[SearchPipeline] Both Gemini models failed. Returning null for local fallback.`, fallbackError?.message || fallbackError)
-            return null
+Rank these candidates. Rules:
+- Never invent results or URLs — rank only what is given above.
+- Return at most 10 results.
+- Score any missing field as 0, never as a guess.
+- Do not include tier_C results in the returned set.
+- Sort by score descending. Identical input must produce identical output.`,
+        {
+            timeoutMs: RANK_TIMEOUT_MS,
+            effort: "medium",
+            system: SYSTEM_PROMPT,
+            label: "rankWithClaude",
         }
-    }
-}
+    )
 
-/**
- * Parse Gemini's response text into OrchestratorOutput.
- * Handles markdown fences and extra whitespace gracefully.
- */
-function parseGeminiResponse(text: string): OrchestratorOutput | null {
-    try {
-        // Strip markdown code fences if present
-        let jsonStr = text
-            .replace(/```json\s*/gi, '')
-            .replace(/```\s*/g, '')
-            .trim()
+    if (!parsed) return null
 
-        // Find the first { and last } to extract the JSON object
-        const firstBrace = jsonStr.indexOf('{')
-        const lastBrace = jsonStr.lastIndexOf('}')
-        if (firstBrace === -1 || lastBrace === -1) {
-            logger.error("[SearchPipeline] Gemini response contains no JSON object.")
-            return null
-        }
-        jsonStr = jsonStr.substring(firstBrace, lastBrace + 1)
+    // Enforce the two invariants the prompt asks for but can't guarantee.
+    const filtered = parsed.results
+        .filter(r => r.stability_tier !== "tier_C")
+        .slice(0, 10)
 
-        const parsed = JSON.parse(jsonStr) as OrchestratorOutput
-
-        // Validate required fields
-        if (!parsed.query_intent || !parsed.results || !Array.isArray(parsed.results)) {
-            logger.error("[SearchPipeline] Gemini response missing required fields (query_intent, results).")
-            return null
-        }
-
-        // Ensure pipeline_health exists
-        if (!parsed.pipeline_health) {
-            parsed.pipeline_health = {
-                input_pool_size: 0,
-                after_filter_size: parsed.results.length,
-                weak_input_detected: false,
-            }
-        }
-
-        return parsed
-    } catch (error) {
-        logger.error("[SearchPipeline] Failed to parse Gemini response:", error)
-        return null
-    }
+    return { ...parsed, results: filtered } as OrchestratorOutput
 }

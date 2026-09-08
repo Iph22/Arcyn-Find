@@ -11,32 +11,15 @@
  * tool database.
  */
 
-import { GoogleGenerativeAI } from "@google/generative-ai"
+import { z } from "zod"
+import { parseWithClaude, isClaudeConfigured } from "./claude"
 import type { RankedResult } from "./search-orchestrator"
 import { logger } from "./logger"
 
-const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY || "")
-
-// Tiered model system + hard timeouts, matching lib/gemini.ts / lib/search-pipeline.ts.
-// ONE bounded attempt per tier, no retry-with-backoff — this runs in the same
-// user-facing request path with a hard deadline.
-const PRIMARY_MODEL = "gemini-3-flash-preview"
-const FALLBACK_MODEL = "gemini-flash-latest"
-const PRIMARY_TIMEOUT_MS = 7000
-const FALLBACK_TIMEOUT_MS = 6000
+// ONE bounded attempt, no retries — this runs in a user-facing request with a
+// hard deadline, and the deterministic template below is always available.
+const REASONING_TIMEOUT_MS = 15_000
 const MAX_CANDIDATES_FOR_REASONING = 6
-
-function withTimeout<T>(promise: Promise<T>, ms: number, label: string): Promise<T> {
-    return new Promise<T>((resolve, reject) => {
-        const timer = setTimeout(() => {
-            reject(Object.assign(new Error(`${label} timed out after ${ms}ms`), { status: 503, isTimeout: true }))
-        }, ms)
-        promise.then(
-            (val) => { clearTimeout(timer); resolve(val) },
-            (err) => { clearTimeout(timer); reject(err) }
-        )
-    })
-}
 
 export type RecommendationLabel =
     | 'best_match'
@@ -72,7 +55,7 @@ export interface Recommendation {
     query: string
     bestMatch: RecommendedTool | null
     alternatives: RecommendedTool[]
-    /** true when Gemini reasoning was unavailable and we fell back to the
+    /** true when Claude reasoning was unavailable and we fell back to the
      *  deterministic template — callers can surface this as a subtle signal
      *  ("recommendation" vs "top match") without ever blocking on it. */
     degraded: boolean
@@ -111,12 +94,12 @@ export async function generateRecommendation(
         return { query, bestMatch: null, alternatives: [], degraded: false }
     }
 
-    if (process.env.GEMINI_API_KEY) {
+    if (isClaudeConfigured()) {
         try {
-            const llmResult = await reasonWithGemini(query, candidates)
+            const llmResult = await reasonWithClaude(query, candidates)
             if (llmResult) return { query, ...llmResult, degraded: false }
         } catch (error: any) {
-            logger.warn("[Recommend] Gemini reasoning failed, using deterministic fallback:", error?.message || error)
+            logger.warn("[Recommend] Claude reasoning failed, using deterministic fallback:", error?.message || error)
         }
     }
 
@@ -127,22 +110,36 @@ export async function generateRecommendation(
 // LLM reasoning — bounded to MAX_CANDIDATES_FOR_REASONING, never the full DB.
 // ---------------------------------------------------------------------------
 
-const REASONING_SYSTEM_PROMPT = `You are ArcynFind's recommendation reasoner. You are given a user's goal and a
-SHORT list of pre-vetted candidate tools (already retrieved and scored — you are not searching, only explaining).
+
+const REASONING_SYSTEM_PROMPT = `You are ArcynFind's recommendation reasoner. You are given a user's goal and a SHORT list of pre-vetted candidate tools — already retrieved and scored. You are not searching, only explaining.
 
 ABSOLUTE RULES:
 - Choose bestMatch and alternatives ONLY from the provided candidate ids. Never invent a tool, id, name, or URL.
-- Never output a numeric confidence/match percentage — use the provided label enum instead.
-- Keep "reason" and "reasonToPick" to one sentence each, in plain language, about the user's actual goal.
-- "limitation" is optional — omit it if the tool has no notable downside for this goal, don't invent one.
-- Return ONLY valid JSON, no markdown fences, no extra text.`
+- Never state a numeric confidence or match percentage — the label enum carries that meaning instead.
+- Keep every reason to one plain-language sentence about the user's actual goal.
+- Omit limitation entirely if the tool has no notable downside for this goal. Never invent one.`
 
 interface LLMReasoningResult {
     bestMatch: RecommendedTool
     alternatives: RecommendedTool[]
 }
 
-async function reasonWithGemini(
+/** The model returns ids + prose only; we join the real tool records back
+ *  ourselves. That means it cannot fabricate pricing, URLs, or tags even if it
+ *  tries — the worst it can do is pick a bad id, which we validate below. */
+const ReasoningSchema = z.object({
+    bestMatchId: z.string().describe("One of the candidate ids, exactly"),
+    bestMatchReason: z.string().describe("One sentence on why this best fits the goal"),
+    bestMatchStrengths: z.array(z.string()).describe("Short capability phrases"),
+    bestMatchLimitation: z.string().nullable().describe("One sentence, or null if none"),
+    alternatives: z.array(z.object({
+        id: z.string().describe("One of the candidate ids, exactly"),
+        label: z.enum(["best_budget", "best_for_beginners", "best_for_professionals", "most_popular", "strong_alternative"]),
+        reasonToPick: z.string().describe("One sentence"),
+    })).describe("At most 3, never the bestMatchId"),
+})
+
+async function reasonWithClaude(
     query: string,
     candidates: { ranked: RankedResult; tool: RecommendableTool }[]
 ): Promise<LLMReasoningResult | null> {
@@ -158,86 +155,52 @@ async function reasonWithGemini(
         relevance_reason: ranked.relevance_reason,
     }))
 
-    const prompt = `${REASONING_SYSTEM_PROMPT}
+    const parsed = await parseWithClaude(
+        ReasoningSchema,
+        `User's goal: "${query}"
 
-User's goal: "${query}"
-
-Candidates (JSON):
+Candidates:
 ${JSON.stringify(candidateManifest, null, 2)}
 
-Return JSON matching exactly:
-{
-  "bestMatchId": "<one of the candidate ids>",
-  "bestMatchReason": "one sentence on why this best fits the user's goal",
-  "bestMatchStrengths": ["short capability phrase", "..."],
-  "bestMatchLimitation": "one sentence, or omit the field entirely if there is none",
-  "alternatives": [
-    { "id": "<candidate id>", "label": "best_budget | best_for_beginners | best_for_professionals | most_popular | strong_alternative", "reasonToPick": "one sentence" }
-  ]
-}
-Include at most 3 alternatives, never the same id as bestMatchId, never an id outside the candidate list.`
+Pick the single best match for this goal and up to 3 alternatives, each with a
+label explaining what makes it worth considering instead.`,
+        {
+            timeoutMs: REASONING_TIMEOUT_MS,
+            // No effort override: this is the text a user actually reads, so it
+            // gets the model's default (high).
+            system: REASONING_SYSTEM_PROMPT,
+            label: "reasonWithClaude",
+        }
+    )
+
+    if (!parsed) return null
 
     const byId = new Map(candidates.map(c => [c.tool.id, c.tool]))
-
-    const attempt = async (model: string, timeoutMs: number) => {
-        const gen = genAI.getGenerativeModel({ model })
-        const result = await withTimeout(gen.generateContent(prompt), timeoutMs, model)
-        return parseReasoningResponse(result.response.text(), byId)
-    }
-
-    try {
-        return await attempt(PRIMARY_MODEL, PRIMARY_TIMEOUT_MS)
-    } catch (error: any) {
-        const isRetryable = error?.status === 429 || error?.status === 503 || error?.isTimeout
-        if (!isRetryable) throw error
-        logger.warn(`[Recommend] ${PRIMARY_MODEL} unavailable (${error.status || 'timeout'}). Trying ${FALLBACK_MODEL}...`)
-        return await attempt(FALLBACK_MODEL, FALLBACK_TIMEOUT_MS)
-    }
-}
-
-function parseReasoningResponse(
-    text: string,
-    byId: Map<string, RecommendableTool>
-): LLMReasoningResult | null {
-    try {
-        let jsonStr = text.replace(/```json\s*/gi, '').replace(/```\s*/g, '').trim()
-        const firstBrace = jsonStr.indexOf('{')
-        const lastBrace = jsonStr.lastIndexOf('}')
-        if (firstBrace === -1 || lastBrace === -1) return null
-        jsonStr = jsonStr.substring(firstBrace, lastBrace + 1)
-
-        const parsed = JSON.parse(jsonStr)
-        const bestTool = byId.get(parsed.bestMatchId)
-        if (!bestTool) {
-            logger.warn("[Recommend] Gemini chose a bestMatchId outside the candidate set — discarding.")
-            return null
-        }
-
-        const bestMatch: RecommendedTool = {
-            ...bestTool,
-            label: 'best_match',
-            reason: typeof parsed.bestMatchReason === 'string' ? parsed.bestMatchReason : 'Strongest overall match for this goal.',
-            strengths: Array.isArray(parsed.bestMatchStrengths) ? parsed.bestMatchStrengths.slice(0, 5) : [],
-            limitation: typeof parsed.bestMatchLimitation === 'string' ? parsed.bestMatchLimitation : undefined,
-        }
-
-        const VALID_LABELS: RecommendationLabel[] = ['best_budget', 'best_for_beginners', 'best_for_professionals', 'most_popular', 'strong_alternative']
-        const rawAlts = Array.isArray(parsed.alternatives) ? parsed.alternatives : []
-        const alternatives: RecommendedTool[] = rawAlts
-            .filter((a: any) => a && a.id !== parsed.bestMatchId && byId.has(a.id))
-            .slice(0, 3)
-            .map((a: any): RecommendedTool => ({
-                ...byId.get(a.id)!,
-                label: VALID_LABELS.includes(a.label) ? a.label : 'strong_alternative',
-                reason: typeof a.reasonToPick === 'string' ? a.reasonToPick : 'A solid alternative worth considering.',
-                strengths: [],
-            }))
-
-        return { bestMatch, alternatives }
-    } catch (error) {
-        logger.warn("[Recommend] Failed to parse Gemini reasoning response:", error)
+    const bestTool = byId.get(parsed.bestMatchId)
+    if (!bestTool) {
+        logger.warn("[Recommend] Claude chose a bestMatchId outside the candidate set — discarding.")
         return null
     }
+
+    const bestMatch: RecommendedTool = {
+        ...bestTool,
+        label: 'best_match',
+        reason: parsed.bestMatchReason,
+        strengths: parsed.bestMatchStrengths.slice(0, 5),
+        limitation: parsed.bestMatchLimitation ?? undefined,
+    }
+
+    const alternatives: RecommendedTool[] = parsed.alternatives
+        .filter(a => a.id !== parsed.bestMatchId && byId.has(a.id))
+        .slice(0, 3)
+        .map((a): RecommendedTool => ({
+            ...byId.get(a.id)!,
+            label: a.label,
+            reason: a.reasonToPick,
+            strengths: [],
+        }))
+
+    return { bestMatch, alternatives }
 }
 
 // ---------------------------------------------------------------------------
