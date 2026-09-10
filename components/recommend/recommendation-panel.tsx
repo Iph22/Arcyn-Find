@@ -5,6 +5,9 @@ import { motion } from "framer-motion"
 import { Sparkles, Check, TriangleAlert, ArrowUpRight, ChevronDown, Loader2 } from "lucide-react"
 import { Card } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
+import { RecommendationFeedback } from "@/components/recommend/recommendation-feedback"
+import { PriceComparison } from "@/components/recommend/price-comparison"
+import { priceLabel } from "@/lib/pricing-display"
 import { cn } from "@/lib/utils"
 import type { Recommendation, RecommendedTool, RecommendationLabel } from "@/lib/recommend"
 
@@ -15,35 +18,6 @@ const LABEL_TEXT: Record<RecommendationLabel, string> = {
     best_for_professionals: "Best for professionals",
     most_popular: "Most popular",
     strong_alternative: "Strong alternative",
-}
-
-/**
- * Short price label from the structured pricing columns.
- *
- * Returns null when there's nothing trustworthy to show — roughly 1.4% of the
- * catalog is unclassified and most scraped rows carry no real price, so "no
- * badge" is a normal outcome, not an error state. Showing a fabricated or
- * empty price would be worse than showing none.
- */
-function priceLabel(tool: RecommendedTool): string | null {
-    const min = tool.priceMonthlyMinUsd
-    const hasMin = typeof min === "number" && Number.isFinite(min)
-
-    if (tool.pricingModel === "free" || min === 0) return "Free"
-    if (tool.pricingModel === "usage") return "Usage-based"
-    if (tool.pricingModel === "custom") return "Custom pricing"
-
-    if (hasMin && (min as number) > 0) {
-        const amount = (min as number) < 10
-            ? `$${(min as number).toFixed(2).replace(/\.00$/, "")}`
-            : `$${Math.round(min as number)}`
-        const prefix = tool.hasFreeTier ? "Free tier · from " : "from "
-        return `${prefix}${amount}/mo`
-    }
-
-    if (tool.hasFreeTier) return "Free tier available"
-    if (tool.hasFreeTrial) return "Free trial"
-    return null
 }
 
 interface RecommendationPanelProps {
@@ -134,8 +108,13 @@ export function RecommendationPanel({ query, recommendation, isLoading }: Recomm
                             </a>
                         </div>
 
-                        {/* Why it fits — capped at 3 so the panel stays short */}
-                        {bestMatch.strengths.length > 0 && (
+                        {/* Why it fits — capped at 3 so the panel stays short.
+                            Only rendered when strengths were actually reasoned
+                            about this goal. On the degraded path they're empty
+                            by design, because a checkmarked "Why it fits" list
+                            built from raw tags claims analysis that didn't
+                            happen. */}
+                        {bestMatch.strengths.length > 0 ? (
                             <ul className="mt-3 flex flex-wrap gap-x-4 gap-y-1.5">
                                 {bestMatch.strengths.slice(0, 3).map(strength => (
                                     <li
@@ -147,7 +126,20 @@ export function RecommendationPanel({ query, recommendation, isLoading }: Recomm
                                     </li>
                                 ))}
                             </ul>
-                        )}
+                        ) : bestMatch.tags.length > 0 ? (
+                            // Fallback: the tags themselves, presented as tags.
+                            // Same information, no implied fit analysis.
+                            <div className="mt-3 flex flex-wrap gap-1.5">
+                                {bestMatch.tags.slice(0, 5).map(tag => (
+                                    <span
+                                        key={tag}
+                                        className="rounded-md bg-muted/60 px-1.5 py-0.5 text-[11px] text-muted-foreground"
+                                    >
+                                        {tag}
+                                    </span>
+                                ))}
+                            </div>
+                        ) : null}
 
                         {bestMatch.limitation && (
                             <p className="mt-3 flex items-start gap-1.5 text-xs text-muted-foreground">
@@ -172,6 +164,22 @@ export function RecommendationPanel({ query, recommendation, isLoading }: Recomm
                                 </div>
                             </div>
                         )}
+
+                        {/* Cost side-by-side. Renders itself away unless the
+                            numbers actually differ — see the component. */}
+                        <PriceComparison bestMatch={bestMatch} alternatives={alternatives} />
+
+                        {/* Feedback on the best match. Attached to the pick
+                            rather than the panel, so a vote is unambiguous
+                            about which tool it judges. */}
+                        <div className="mt-4 border-t border-border/50 pt-3">
+                            <RecommendationFeedback
+                                key={`${query}:${bestMatch.id}`}
+                                query={query}
+                                toolId={bestMatch.id}
+                                slot="best_match"
+                            />
+                        </div>
                     </div>
                 )}
             </Card>

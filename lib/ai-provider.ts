@@ -7,6 +7,7 @@
  * is an env var. Switching is a config flip, not a migration.
  *
  * Set AI_PROVIDER=gemini | claude to pick explicitly. If unset, whichever
+ * Override the model per provider with GEMINI_MODEL / CLAUDE_MODEL.
  * API key is present wins (Gemini first, since that's the funded path today).
  *
  * NOT handled here: embeddings. Anthropic has no embeddings API, and the ~257k
@@ -59,11 +60,21 @@ export type AIProviderName = "gemini" | "claude"
  *     call in the app. `gemini-2.5-flash` answered the same prompt in 857ms.
  * Pin it, and re-measure before changing it.
  */
-const GEMINI_MODEL = "gemini-2.5-flash"
+const GEMINI_MODEL = process.env.GEMINI_MODEL || "gemini-2.5-flash"
 
 /** Claude: one model for every path. Effort is the per-task dial, not tier —
- *  which also keeps a single prompt-cache namespace. */
-const CLAUDE_MODEL = "claude-opus-5"
+ *  which also keeps a single prompt-cache namespace.
+ *
+ *  WORTH REVISITING: reasonWithAI is a short structured extraction that runs
+ *  per search and blocks the recommendation panel, and the Gemini side of
+ *  this abstraction is deliberately on the FAST tier (2.5-flash) for that
+ *  reason. Opus is the strongest but not the fastest or cheapest choice for
+ *  that shape of call; claude-sonnet-5 is the like-for-like counterpart to
+ *  gemini-2.5-flash. Left as Opus because it has never actually run here —
+ *  the account is unfunded, so both models return HTTP 400 "credit balance
+ *  is too low" — and picking a tier on latency grounds without being able
+ *  to measure it would be a guess. Override with CLAUDE_MODEL and measure. */
+const CLAUDE_MODEL = process.env.CLAUDE_MODEL || "claude-opus-5"
 
 const CLAUDE_MAX_TOKENS = 16000
 const GEMINI_MAX_OUTPUT_TOKENS = 8192

@@ -7,6 +7,10 @@ interface UseAIToolsOptions {
   category?: string
   region?: string
   accessType?: string
+  /** Cap on the cheapest paid tier, USD/month. Free tools (min = 0) pass any
+   *  cap; usage-based and unpriced tools are excluded, because an unknown
+   *  price cannot be asserted to fit a budget. */
+  maxPrice?: number
   searchQuery?: string
   limit?: number
   offset?: number
@@ -36,6 +40,7 @@ function getCacheKey(options: UseAIToolsOptions): string {
     c: options.category || '',
     r: options.region || '',
     a: options.accessType || '',
+    p: options.maxPrice ?? 0,
     q: options.searchQuery || '',
     l: options.limit || 50,
     o: options.offset || 0,
@@ -62,7 +67,7 @@ function getCache(key: string): AIEntry[] | null {
 }
 
 export function useAITools(options: UseAIToolsOptions = {}): UseAIToolsReturn {
-  const { category, region, accessType, searchQuery, limit = 50, offset = 0, enabled = true } = options
+  const { category, region, accessType, maxPrice, searchQuery, limit = 50, offset = 0, enabled = true } = options
   const [tools, setTools] = useState<AIEntry[]>([])
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -74,12 +79,12 @@ export function useAITools(options: UseAIToolsOptions = {}): UseAIToolsReturn {
   useEffect(() => {
     setTools([])
     setHasMore(true)
-  }, [category, region, accessType, searchQuery])
+  }, [category, region, accessType, maxPrice, searchQuery])
 
   const fetchTools = useCallback(async () => {
     if (!enabled) return
 
-    const cacheKey = getCacheKey({ category, region, accessType, searchQuery, limit, offset })
+    const cacheKey = getCacheKey({ category, region, accessType, maxPrice, searchQuery, limit, offset })
 
     // 1. Check client cache first — show immediately (stale-while-revalidate)
     const cached = getCache(cacheKey)
@@ -107,6 +112,7 @@ export function useAITools(options: UseAIToolsOptions = {}): UseAIToolsReturn {
       if (category) params.append("category", category)
       if (region) params.append("region", region)
       if (accessType) params.append("accessType", accessType)
+      if (maxPrice) params.append("maxPrice", maxPrice.toString())
       if (searchQuery) params.append("search", searchQuery)
       if (limit) params.append("limit", limit.toString())
       if (offset) params.append("offset", offset.toString())
@@ -158,7 +164,7 @@ export function useAITools(options: UseAIToolsOptions = {}): UseAIToolsReturn {
         setIsLoading(false)
       }
     }
-  }, [category, region, accessType, searchQuery, limit, offset, enabled])
+  }, [category, region, accessType, maxPrice, searchQuery, limit, offset, enabled])
 
   useEffect(() => {
     fetchTools()

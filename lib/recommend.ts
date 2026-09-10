@@ -236,7 +236,20 @@ function buildDeterministicRecommendation(
         ...top.tool,
         label: 'best_match',
         reason: top.ranked.relevance_reason || top.ranked.summary || 'Highest-ranked match for this goal.',
-        strengths: top.tool.tags.slice(0, 4),
+        // Deliberately EMPTY, not tags.
+        //
+        // This previously used `tool.tags.slice(0, 4)`, which the panel renders
+        // under a "Why it fits ✓" heading — implying we analysed how the tool
+        // serves this specific goal, when we had actually printed tag soup
+        // ("AI", "video", "content creation"). That is the false-precision
+        // failure the product brief calls out.
+        //
+        // Nothing reasoned about fit here, so nothing is claimed about fit. The
+        // panel hides the section when this is empty and shows the tags in a
+        // visually subdued row instead, so the information survives without the
+        // unearned framing. `reason` is still real — it comes from the
+        // orchestrator's own scoring.
+        strengths: [],
     }
 
     const remaining = rest.slice(0, 3)

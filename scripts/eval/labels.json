@@ -1,0 +1,229 @@
+{
+  "_readme": [
+    "Reviewed judgements for the recommendation eval. This file is the only real",
+    "quality signal in the eval: the `keywords` list in recommendation-eval.mjs is a",
+    "loose substring floor that scored 100% on a run that answered 'TLDR' for 'find",
+    "and fix bugs in my codebase'.",
+    "",
+    "IMPORTANT: every entry below is labeledBy 'assistant' — these are Claude's",
+    "judgements from reviewing one collected run, NOT human labels. The eval reports",
+    "the human-reviewed count separately for exactly that reason. Flip labeledBy to",
+    "'human' as you confirm each one; that number is the acceptance criterion for",
+    "'recommendations are genuinely useful', and it is currently 0.",
+    "",
+    "Fields (all optional):",
+    "  acceptTools  names that are a correct answer; non-empty means the best match",
+    "               MUST be one of them. Deliberately EMPTY in this seed except where",
+    "               one product really is the canonical answer — pinning accepts to",
+    "               whatever was returned today would make every future improvement",
+    "               register as a failure.",
+    "  rejectTools  answers judged wrong. A hit is reported as a REGRESSION, because",
+    "               it means something a reviewer already rejected came back.",
+    "  requireAll   every term must appear in the best match's name+description+tags.",
+    "  requireAny   at least one must appear. Tighter than the loose `keywords` list.",
+    "  notes        why the judgement went the way it did.",
+    "",
+    "Regenerate the review material with:",
+    "  node scripts/eval/recommendation-eval.mjs http://localhost:3000 --collect"
+  ],
+
+  "_policy": [
+    "DECIDED 2026-09-10 by the project owner: a GitHub repository or demo app IS an",
+    "acceptable answer. It does not have to be a hosted commercial product.",
+    "",
+    "Consequence for labelling: 'this is a repo, not a product' is NOT a reason to",
+    "reject on its own. Judge the repo on whether it does the job the goal asks for.",
+    "A repo can still be rejected for an ordinary reason — for instance requiring a",
+    "command line when the goal explicitly says 'without coding'.",
+    "",
+    "This decision resolves the open question that was flagged against",
+    "'build a chatbot trained on my own documents'."
+  ],
+
+  "labels": [
+    {
+      "query": "turn my podcast into short clips",
+      "requireAny": ["clip", "short", "repurpos", "reel", "highlight"],
+      "rejectTools": [],
+      "labeledBy": "assistant",
+      "notes": "Klipme fits the goal. Accepting on intent terms rather than pinning the name, since several clip tools would be equally right."
+    },
+    {
+      "query": "generate product photos for my online store",
+      "requireAny": ["product photo", "product image", "ecommerce", "e-commerce", "product shot", "product visual"],
+      "rejectTools": [],
+      "labeledBy": "assistant",
+      "notes": "Tightened from the loose list: bare 'image' or 'photo' would pass any image generator, which is not the same as product photography."
+    },
+    {
+      "query": "write blog posts for my company",
+      "requireAny": ["blog", "article", "content", "copywrit", "writ"],
+      "rejectTools": [],
+      "labeledBy": "assistant",
+      "notes": "Writepaw fits. Broad intent terms are acceptable here because the goal itself is broad."
+    },
+    {
+      "query": "transcribe interview recordings to text",
+      "requireAny": ["transcri", "speech to text", "speech-to-text", "stt", "dictat", "caption"],
+      "rejectTools": [],
+      "labeledBy": "assistant",
+      "notes": "Dropped bare 'audio' and 'text' from the loose list — both match tools that have nothing to do with transcription."
+    },
+    {
+      "query": "build a website without coding",
+      "requireAny": ["no-code", "nocode", "no code", "no coding", "without coding", "website builder", "site builder", "drag and drop", "landing page"],
+      "rejectTools": ["ai-website-cloner-template"],
+      "labeledBy": "assistant",
+      "notes": "THE LABEL WAS WRONG, not the system. It failed 'ai-website-builder', whose description literally says 'no coding required' — the term list had 'no code' but not 'no coding'. Added both phrasings; that answer is correct. ai-website-cloner-template stays rejected, but NOT for being a repo (see _policy): its own description is 'clone any website with one command using AI coding', which is disqualifying for a goal that says without coding."
+    },
+    {
+      "query": "remove the background from images",
+      "requireAny": ["background", "cutout", "cut-out", "transparent"],
+      "requireAll": [],
+      "rejectTools": [],
+      "labeledBy": "assistant",
+      "notes": "Background remover AI is a direct hit."
+    },
+    {
+      "query": "help me write code faster",
+      "requireAny": ["autocomplete", "copilot", "code completion", "coding assistant", "pair program", "ide", "developer productivity"],
+      "rejectTools": ["Screenshot Coder"],
+      "labeledBy": "assistant",
+      "notes": "REJECT: screenshot-to-code is one narrow task, not general coding speed. The right answers are inline-completion assistants. Note this same tool IS correct for the screenshot query below — the miss is intent matching, not the catalog."
+    },
+    {
+      "query": "create a logo for my brand",
+      "requireAny": ["logo", "brand identity", "branding"],
+      "rejectTools": [],
+      "labeledBy": "assistant",
+      "notes": "Logopony is a direct hit. Removed bare 'design' and 'graphic' from the loose list as too permissive."
+    },
+    {
+      "query": "summarize long research papers",
+      "requireAny": ["summar", "tldr", "abstract", "digest"],
+      "rejectTools": [],
+      "labeledBy": "assistant",
+      "notes": "Article Summarizer is acceptable but weak — the goal says research papers (PDFs, citations) and an article summarizer is a near neighbour, not the same thing. Worth revisiting if a paper-specific tool exists in the catalog."
+    },
+    {
+      "query": "make an explainer video from a script",
+      "requireAny": ["explainer", "script to video", "text to video", "text-to-video", "animat", "presentation video", "avatar"],
+      "rejectTools": [],
+      "labeledBy": "assistant",
+      "notes": "Luma AI passes on 'text to video' but is a generative clip model, not an explainer-video builder. Accepted weakly; a reviewer may well downgrade this."
+    },
+    {
+      "query": "answer customer support questions automatically",
+      "requireAny": ["support", "helpdesk", "help desk", "ticket", "customer service", "chatbot"],
+      "rejectTools": [],
+      "labeledBy": "assistant",
+      "notes": "Quickchat AI fits."
+    },
+    {
+      "query": "translate my documents into other languages",
+      "requireAny": ["translat", "localiz", "multilingual"],
+      "acceptTools": [],
+      "rejectTools": [],
+      "labeledBy": "assistant",
+      "notes": "DeepL Translate is the canonical answer, but acceptTools is left empty on purpose so other real translators still pass."
+    },
+    {
+      "query": "analyze my spreadsheet data",
+      "requireAny": ["spreadsheet", "excel", "csv", "data analy", "analytics", "chart", "pivot", "dashboard"],
+      "rejectTools": ["DATAGEN"],
+      "labeledBy": "assistant",
+      "notes": "REJECT: DATAGEN generates synthetic data; the goal is analyzing data the user already has. Opposite direction of the same noun."
+    },
+    {
+      "query": "schedule and post to social media",
+      "requireAny": ["social", "schedul", "post", "instagram", "twitter", "linkedin"],
+      "rejectTools": [],
+      "labeledBy": "assistant",
+      "notes": "Magicpost fits."
+    },
+    {
+      "query": "detect whether text was written by AI",
+      "requireAny": ["detect", "ai-generated", "ai generated", "plagiar", "authenticity", "checker"],
+      "rejectTools": [],
+      "labeledBy": "assistant",
+      "notes": "DetectGPT is a direct hit."
+    },
+    {
+      "query": "practice for a job interview",
+      "requireAny": ["interview", "mock interview", "career coach"],
+      "rejectTools": [],
+      "labeledBy": "assistant",
+      "notes": "InterviewBot fits. Dropped 'resume' from the loose list — a resume builder does not let you practise."
+    },
+    {
+      "query": "clean up and enhance old photos",
+      "requireAny": ["enhance", "upscal", "restor", "retouch", "denoise", "colorize"],
+      "rejectTools": [],
+      "labeledBy": "assistant",
+      "notes": "MediaChance's enhancer fits. Dropped bare 'photo'/'image', which match every image tool in the catalog."
+    },
+    {
+      "query": "build a chatbot trained on my own documents",
+      "requireAny": ["knowledge base", "your documents", "own data", "custom data", "rag", "retrieval", "train on", "upload", "chat with", "pdf", "csv"],
+      "rejectTools": [],
+      "labeledBy": "human",
+      "notes": "Repo policy resolved (see _policy): Robby-chatbot is acceptable. Its description — 'chat with CSV, PDF, TXT files using Langchain' — is genuinely document-grounded chat, and the term list simply missed that canonical phrasing, so pdf/csv/'chat with' are now included. THIS QUERY STILL FAILS, and correctly: the current best match is SiteGPT, which trains on 'the content of your website', not on documents you supply. The right answer was already in its own alternatives — Whismer, 'train these chatbots by uploading documents', tagged knowledge base + document upload. Retrieval found it; ranking put it third. That is a ranking bug, not a catalog gap."
+    },
+    {
+      "query": "generate music for my video project",
+      "requireAny": ["music", "soundtrack", "compos", "royalty-free", "background track", "audio"],
+      "rejectTools": [],
+      "labeledBy": "assistant",
+      "notes": "Music AI fits."
+    },
+    {
+      "query": "automate repetitive tasks between my apps",
+      "requireAny": ["integrat", "workflow", "zapier", "connect apps", "api", "no-code automation", "trigger"],
+      "rejectTools": ["Jotform AI Agents"],
+      "labeledBy": "assistant",
+      "notes": "REJECT: Jotform is form-building with agents bolted on; the goal is app-to-app integration (Zapier/Make/n8n territory). 'Automat' alone in the loose list is what let this through."
+    },
+    {
+      "query": "help me study for an exam",
+      "requireAny": ["flashcard", "quiz", "study", "revision", "practice question", "spaced repetition", "tutor"],
+      "rejectTools": ["Academic Help"],
+      "labeledBy": "assistant",
+      "notes": "REJECT: 'Academic Help' is a generic essay/homework service, not a study aid — and it was the one answer the loose keyword check also flagged, which is why it is worth encoding properly."
+    },
+    {
+      "query": "edit my video by typing instead of timelines",
+      "requireAny": ["text-based", "text based edit", "transcript", "edit by text", "docs-style", "script-based"],
+      "rejectTools": ["Videoleap"],
+      "labeledBy": "assistant",
+      "notes": "REJECT: Videoleap is a conventional timeline editor, which is precisely what the query asked to avoid. The loose list passed it on 'video' + 'edit'."
+    },
+    {
+      "query": "find and fix bugs in my codebase",
+      "requireAny": ["debug", "bug", "lint", "static analysis", "code review", "vulnerab", "error detection", "test generation"],
+      "rejectTools": ["TLDR"],
+      "labeledBy": "assistant",
+      "notes": "REJECT: TLDR is a summarizer. This is the case that motivated the whole labels file — the loose check passed it because 'code' appeared somewhere in the description."
+    },
+    {
+      "query": "turn a screenshot into working code",
+      "requireAny": ["screenshot", "image to code", "design to code", "ui to code", "html from image", "mockup"],
+      "rejectTools": [],
+      "labeledBy": "assistant",
+      "notes": "Screenshot Coder is a direct hit — the correct home for this tool, unlike the 'write code faster' query above."
+    },
+    {
+      "query": "write cold outreach emails that convert",
+      "requireAny": ["cold email", "outreach", "sales", "prospect", "sequence", "lead gen", "sdr"],
+      "rejectTools": [],
+      "labeledBy": "assistant",
+      "notes": "AllWrite is a general writing tool and fails these terms, which is the intended outcome: the goal is sales outreach, not prose. The 'maybe it is a catalog gap' caveat is now answered — it is not. ContentEdge, tagged 'sales copy' + 'email' + 'marketers', sits in the same result set as an alternative, so again retrieval found something better and ranking preferred the generic writer. Same shape as 'build a chatbot trained on my own documents'."
+    },
+    {
+      "query": "generate voiceovers for my videos",
+      "requireAny": ["voice", "voiceover", "tts", "text to speech", "text-to-speech", "narrat", "speech synthesis"],
+      "rejectTools": [],
+      "labeledBy": "assistant",
+      "notes": "Ankara AI could not be judged from its catalog entry alone — the name says nothing about voice. Left with intent terms so the check is meaningful, but this one genuinely needs a human to look at the product."
+    }
+  ]
+}

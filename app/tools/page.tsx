@@ -112,6 +112,8 @@ const displayCategories = [
   "Research",             // 3.5% - Research & Open Source
 ]
 
+const PRICE_CAPS: (number | null)[] = [null, 10, 25, 50, 100]
+
 // Inner component that uses search params
 function ToolsContent() {
   const searchParams = useSearchParams()
@@ -131,6 +133,8 @@ function ToolsContent() {
   // Filter states
   const [accessType, setAccessType] = useState('all')
   const [region, setRegion] = useState('all')
+  // Cap on the cheapest paid tier, USD/month. null = no cap.
+  const [maxPrice, setMaxPrice] = useState<number | null>(null)
 
   const { preferences } = usePreferences()
   const { user, isLoading: isAuthLoading, isAuthenticated } = useAuth()
@@ -178,6 +182,7 @@ function ToolsContent() {
     category: apiCategory,
     accessType: accessType === 'all' ? undefined : accessType,
     region: region === 'all' ? undefined : region,
+    maxPrice: maxPrice ?? undefined,
     limit: ITEMS_PER_PAGE,
     offset: (page - 1) * ITEMS_PER_PAGE,
   })
@@ -206,7 +211,7 @@ function ToolsContent() {
   useEffect(() => {
     setAllTools([])
     setPage(1)
-  }, [debouncedSearch, selectedCategory, accessType, region])
+  }, [debouncedSearch, selectedCategory, accessType, region, maxPrice])
 
   // Load favorited tools
   useEffect(() => {
@@ -439,7 +444,7 @@ function ToolsContent() {
                     <Button variant="outline" size="lg" className="h-11 md:h-14 gap-2 px-4 md:px-6 bg-transparent shrink-0">
                       <Filter className="h-4 w-4" />
                       <span className="hidden sm:inline">{t("search.filters")}</span>
-                      {(accessType !== 'all' || region !== 'all') && (
+                      {(accessType !== 'all' || region !== 'all' || maxPrice !== null) && (
                         <div className="absolute -right-1 -top-1 h-3 w-3 rounded-full bg-primary" />
                       )}
                     </Button>
@@ -448,7 +453,7 @@ function ToolsContent() {
                     <div className="space-y-4">
                       <div className="flex items-center justify-between">
                         <h4 className="font-semibold leading-none">{t("search.filters")}</h4>
-                        {(accessType !== 'all' || region !== 'all') && (
+                        {(accessType !== 'all' || region !== 'all' || maxPrice !== null) && (
                           <Button
                             variant="ghost"
                             size="sm"
@@ -456,6 +461,7 @@ function ToolsContent() {
                             onClick={() => {
                               setAccessType('all')
                               setRegion('all')
+                              setMaxPrice(null)
                             }}
                           >
                             {t("search.reset")}
@@ -475,6 +481,27 @@ function ToolsContent() {
                               onClick={() => setAccessType(type)}
                             >
                               {type === 'all' ? t("search.anyPrice") : type}
+                            </Button>
+                          ))}
+                        </div>
+                      </div>
+
+                      {/* Max monthly price. Runs against the parsed
+                          price_monthly_min_usd column, not the free-text
+                          pricing field. Free tools store 0 and so pass every
+                          cap; usage-based and unpriced tools have no monthly
+                          figure and are excluded rather than guessed at. */}
+                      <div className="space-y-2">
+                        <h5 className="text-sm font-medium text-muted-foreground">{t("search.maxPrice")}</h5>
+                        <div className="grid grid-cols-3 gap-2">
+                          {PRICE_CAPS.map(cap => (
+                            <Button
+                              key={cap ?? "any"}
+                              variant={maxPrice === cap ? "default" : "outline"}
+                              size="sm"
+                              onClick={() => setMaxPrice(cap)}
+                            >
+                              {cap === null ? t("search.noPriceCap") : `≤ $${cap}`}
                             </Button>
                           ))}
                         </div>

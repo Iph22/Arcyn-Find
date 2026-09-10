@@ -95,6 +95,25 @@ export async function GET(request: Request) {
   const accessType = searchParams.get('accessType')
   const search = searchParams.get('search')
 
+  // Max monthly price, in USD, against the DERIVED price_monthly_min_usd column
+  // (see lib/pricing.ts + add_structured_pricing.sql) rather than the free-text
+  // `pricing` field.
+  //
+  // Not merged with the existing accessType filter on purpose: measured on the
+  // 1,000 most-viewed tools, access_type and the parsed pricing_model agree on
+  // 986 of them, so accessType already answers "free vs freemium vs paid" well.
+  // What it cannot answer is "under $25/mo", which is what this adds.
+  //
+  // Clamped rather than rejected so a hand-edited URL degrades to a wide filter
+  // instead of a 400. NaN/<=0 means "no cap" — the same as omitting it, since
+  // "at most $0" is already expressible as accessType=Free.
+  const maxPriceRaw = searchParams.get('maxPrice')
+  const maxPriceParsed = maxPriceRaw !== null ? Number.parseFloat(maxPriceRaw) : NaN
+  const maxPrice =
+    Number.isFinite(maxPriceParsed) && maxPriceParsed > 0
+      ? Math.min(maxPriceParsed, 10_000)
+      : null
+
   // Validate and sanitize limit and offset
   const limitParam = searchParams.get('limit') || '500'
   const offsetParam = searchParams.get('offset') || '0'
@@ -102,8 +121,8 @@ export async function GET(request: Request) {
   const offset = Math.max(0, parseInt(offsetParam, 10) || 0)
 
   // Log filters for debugging (only in development)
-  if (process.env.NODE_ENV === 'development' && (category || region || accessType)) {
-    logger.debug('API filters (raw):', { category, region, accessType, limit, offset })
+  if (process.env.NODE_ENV === 'development' && (category || region || accessType || maxPrice !== null)) {
+    logger.debug('API filters (raw):', { category, region, accessType, maxPrice, limit, offset })
     if (category) {
       logger.debug('API filters (decoded category):', decodeURIComponent(category).trim())
     }
@@ -250,7 +269,7 @@ export async function GET(request: Request) {
     // Try semantic search first if available (best results)
     let semanticResults: (AIEntry & { _similarity?: number })[] = []
     let rawHybridResults: any[] = [] // Preserved for the ranking pipeline
-    if (originalSearch && !category && !region && !accessType) {
+    if (originalSearch && !category && !region && !accessType && maxPrice === null) {
       try {
         const isAvailable = await isSemanticSearchAvailable()
         if (isAvailable) {
@@ -323,7 +342,7 @@ export async function GET(request: Request) {
 
     // Build base query for filters
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const buildBaseQuery = (queryBuilder: any) => {
+    const buildBaseQuery = (queryBuilder: any, ftsMode: 'and' | 'or' = 'and') => {
       // Category filter - use case-insensitive matching
       if (effectiveCategory) {
         // URLSearchParams.get() automatically decodes + to spaces
@@ -402,6 +421,17 @@ export async function GET(request: Request) {
         queryBuilder = queryBuilder.ilike('access_type', decodedAccessType)
       }
 
+      // Price cap. Free tools carry price_monthly_min_usd = 0, so they pass
+      // every cap — correct, a free tool IS under $25.
+      //
+      // NULL mins are excluded by `lte`, which is the behaviour we want:
+      // usage-based, quote-based and the ~1.4% unclassified rows have no
+      // monthly figure, and we will not assert that an unknown price is under
+      // the user's budget.
+      if (maxPrice !== null) {
+        queryBuilder = queryBuilder.lte('price_monthly_min_usd', maxPrice)
+      }
+
       // Text search via full-text search, NOT ILIKE.
       //
       // This path used to build an OR-chain of `name.ilike.%word%`,
@@ -419,24 +449,42 @@ export async function GET(request: Request) {
       // category (B), description (C), so it already covers every column the
       // old ILIKE chain touched except `platform` (a URL — not useful to
       // free-text search anyway).
-      const ftsTerms = searchKeywords.length > 0
-        ? searchKeywords
-        : (effectiveSearch || '').trim().split(/\s+/).filter(Boolean)
+      // Two tsquery shapes, mirroring the precise/broad tiers that
+      // search_tools_advanced already uses:
+      //
+      //   'and'  every word the user actually typed must be present. That
+      //          is what the JS relevance filter further down enforces
+      //          anyway, so making the DB agree with it is free precision.
+      //   'or'   the expanded keyword set (synonyms, typo corrections),
+      //          ORed for breadth. Used for single-word queries and as the
+      //          fallback when the AND tier comes up empty.
+      //
+      // ORing the expanded set as the DEFAULT was a correctness bug, not
+      // just a slow path: it fills the candidate window with rows matching
+      // one common synonym, and the AND filter downstream then discards
+      // nearly all of them. Measured with a 180-row window, rows surviving
+      // that filter, OR vs AND: "video editing" 37 vs 155, "writing
+      // assistant" 12 vs 103, "project management" 18 vs 82, "logo maker"
+      // 9 vs 8-of-8 (AND matched the entire set) - at 350-970ms either way.
+      //
+      // Splitting each term on whitespace matters: expanded keywords can be
+      // phrases, and a bare space inside a to_tsquery argument is a syntax
+      // error rather than a match.
+      const toLexemes = (term: string) =>
+        term.replace(/[^\w\s-]/g, ' ').trim().split(/\s+/).filter(Boolean)
 
-      if (ftsTerms.length > 0) {
-        // OR the terms together so this stays a breadth-oriented fallback,
-        // matching the old ILIKE chain's semantics (any keyword may match).
-        // Strip tsquery operators so user input can't produce a syntax error.
-        const sanitized = ftsTerms
-          .map(term => term.replace(/[^\w\s-]/g, ' ').trim())
-          .filter(Boolean)
-          .join(' | ')
+      const typedWords = toLexemes(effectiveSearch || '')
+      const expandedWords = (searchKeywords.length > 0 ? searchKeywords : typedWords)
+        .flatMap(toLexemes)
 
-        if (sanitized) {
-          // config must match how fts_vector was built (to_tsvector('english', ...)),
-          // otherwise lexemes won't line up and matches silently disappear.
-          queryBuilder = queryBuilder.textSearch('fts_vector', sanitized, { config: 'english' })
-        }
+      const tsquery = ftsMode === 'and' && typedWords.length > 1
+        ? typedWords.join(' & ')
+        : Array.from(new Set(expandedWords)).join(' | ')
+
+      if (tsquery) {
+        // config must match how fts_vector was built (to_tsvector('english', ...)),
+        // otherwise lexemes won't line up and matches silently disappear.
+        queryBuilder = queryBuilder.textSearch('fts_vector', tsquery, { config: 'english' })
       }
       return queryBuilder
     }
@@ -457,7 +505,7 @@ export async function GET(request: Request) {
       image?: string | null
     }> = []
 
-    const hasFilters = effectiveCategory || region || accessType || effectiveSearch
+    const hasFilters = effectiveCategory || region || accessType || effectiveSearch || maxPrice !== null
 
     // If semantic search found good results, run them through the ranking pipeline
     if (semanticResults.length >= 1) {
@@ -533,6 +581,30 @@ export async function GET(request: Request) {
       }
     }
 
+    // Candidate pool for multi-word searches.
+    //
+    // The relevance block further down re-filters results with AND
+    // semantics — every search word must appear in name/description/
+    // platform/tags — while the DB predicate ORs the FTS terms together.
+    // Fetching exactly `limit` rows therefore hands that filter a window
+    // that has already been spent on single-word partial matches, and the
+    // survivors are whatever happens to be left.
+    //
+    // Measured on this table for "logo maker": a 12-row window left 0
+    // rows after the AND filter, a 60-row window left 5, and a 120-row
+    // window left 9 (the true total). So the endpoint has been reporting
+    // "no results" for queries that do have matches. It stayed hidden
+    // because semantic search serves most multi-word queries before this
+    // path is reached — it only surfaces when a filter disables semantic.
+    //
+    // 180 is where yield flattens against latency: 120 rows cost ~460ms,
+    // 180 ~630ms, while 300 costs up to 1.9s for the same survivors.
+    // Fast path only; the >1000-row branches below do their own paging.
+    const searchToRank = effectiveSearch || search
+    const searchWordCount = (searchToRank || '').trim().split(/\s+/).filter(Boolean).length
+    const usesCandidatePool = searchWordCount > 1 && limit <= SUPABASE_MAX_LIMIT
+    const CANDIDATE_POOL = 180
+
     // Fast path: single query for small requests
     if (limit <= SUPABASE_MAX_LIMIT) {
       let query = supabase
@@ -542,7 +614,13 @@ export async function GET(request: Request) {
         .order('popularity', { ascending: false })
 
       query = buildBaseQuery(query)
-      query = query.range(offset, offset + limit - 1)
+      // With a pool, page inside the ranked list instead of at the DB, so
+      // the AND filter sees candidates rather than one page of them.
+      const windowStart = usesCandidatePool ? 0 : offset
+      const windowSize = usesCandidatePool
+        ? Math.min(SUPABASE_MAX_LIMIT, Math.max(CANDIDATE_POOL, offset + limit))
+        : limit
+      query = query.range(windowStart, windowStart + windowSize - 1)
 
       const { data, error } = await query
 
@@ -553,6 +631,31 @@ export async function GET(request: Request) {
 
       if (data) {
         allData = data
+      }
+
+      // Broad tier. The AND query above is exact; when the user's precise
+      // word combination isn't in the corpus (a typo, or wording nobody
+      // uses) it returns almost nothing, and the expanded-synonym OR query
+      // is the right answer. Runs only when AND genuinely failed, so the
+      // normal case still pays for a single query.
+      if (usesCandidatePool && allData.length < 3) {
+        let broad = supabase
+          .from('ai_tools')
+          .select(AI_TOOLS_COLUMNS)
+          .order('priority', { ascending: false, nullsFirst: false })
+          .order('popularity', { ascending: false })
+
+        broad = buildBaseQuery(broad, 'or')
+        broad = broad.range(windowStart, windowStart + windowSize - 1)
+
+        const { data: broadData, error: broadError } = await broad
+        if (broadError) {
+          logger.warn('[API] Broad FTS retry failed:', broadError.message)
+        } else if (broadData && broadData.length > allData.length) {
+          logger.info(`[API] AND tier returned ${allData.length}; broad tier returned ${broadData.length}`)
+          allData = broadData
+          stagesRun.push('fts-broad-retry')
+        }
       }
     } else if (hasFilters) {
       let currentOffset = 0
@@ -654,7 +757,6 @@ export async function GET(request: Request) {
     let aiEntries: AIEntry[] = allData.map(transformToAIEntry)
 
     // For search queries, filter and sort by relevance
-    const searchToRank = effectiveSearch || search
     if (searchToRank && searchToRank.trim()) {
       const searchLower = searchToRank.toLowerCase().trim()
       const searchWords = searchLower.split(/\s+/).filter(w => w.length > 0)
@@ -737,6 +839,13 @@ export async function GET(request: Request) {
         const { _relevanceScore, ...rest } = entry as AIEntry & { _relevanceScore: number }
         return rest
       })
+
+      // The pool was fetched from row 0 regardless of `offset`, so paging
+      // happens here, after filtering and ranking. Deep pages are
+      // approximate by nature once results are re-ranked in memory.
+      if (usesCandidatePool) {
+        aiEntries = aiEntries.slice(offset, offset + limit)
+      }
     }
 
     // AI Validation and Discovery
@@ -883,7 +992,21 @@ export async function GET(request: Request) {
     // Real-time external fallback — if search returned few/no results, search GitHub + HuggingFace live
     // Guarded by remaining time budget: this chain makes multiple external API calls and should
     // never be the thing that pushes us over maxDuration.
-    if (originalSearch && aiEntries.length < 3 && timeRemaining() > 9000) {
+    //
+    // Skipped whenever a structural filter is active. Live GitHub and
+    // HuggingFace results carry no pricing, no access type and no region,
+    // so under any of those filters they are rows we cannot claim meet what
+    // the user asked for. Measured before this guard:
+    // `search=logo maker&maxPrice=25` returned 12 rows of which 12 had a
+    // NULL monthly price, and `accessType=Paid` returned 11 of 12 with no
+    // pricing data at all.
+    //
+    // The consequence is deliberate: a filtered search that finds nothing
+    // in our own catalog now reports honestly empty (X-Search-State: empty)
+    // instead of padding the list with rows that ignore the filter. This is
+    // the same rule the semantic path above already follows.
+    const filtersActive = Boolean(category || region || accessType) || maxPrice !== null
+    if (originalSearch && aiEntries.length < 3 && timeRemaining() > 9000 && !filtersActive) {
       logger.info(`[API] Only ${aiEntries.length} results for "${originalSearch}". Trying real-time external search...`)
       stagesRun.push('external-fallback')
       try {

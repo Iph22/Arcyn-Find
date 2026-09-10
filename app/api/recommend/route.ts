@@ -6,6 +6,7 @@ import { hybridSearch, isSemanticSearchAvailable } from '@/lib/embeddings'
 import { processSearchQuery } from '@/lib/search-utils'
 import { runSearchOrchestrator } from '@/lib/search-orchestrator'
 import { generateRecommendation, type RecommendableTool } from '@/lib/recommend'
+import { getCachedRecommendation, setCachedRecommendation } from '@/lib/recommendation-cache'
 
 // Same Vercel-duration reasoning as /api/ai-models: leave headroom for the
 // LLM reasoning call, which runs after retrieval + ranking, not instead of it.
@@ -96,6 +97,36 @@ export async function POST(request: Request) {
     }
     if (query.length > MAX_QUERY_LENGTH) {
         return NextResponse.json({ error: `query must be ${MAX_QUERY_LENGTH} characters or fewer.` }, { status: 400 })
+    }
+
+    // Cache bypass, for the eval. Without it the eval grades the cache rather
+    // than the system: a cached answer is returned unchanged for 7 days, so a
+    // retrieval or ranking change looks like it did nothing. Reads are skipped;
+    // WRITES still happen, so a bypassed run refreshes what it measured.
+    //
+    // Gated, because an open bypass is a way to force the expensive path on
+    // every request — it works in development, or in production only with the
+    // admin key.
+    const bypassCache =
+        new URL(request.url).searchParams.get('fresh') === '1' &&
+        (process.env.NODE_ENV !== 'production' ||
+            (Boolean(process.env.ADMIN_API_KEY) &&
+                request.headers.get('x-admin-key') === process.env.ADMIN_API_KEY))
+
+    // 0. Cache. Checked before any retrieval or model work, because a hit skips
+    // both. This is what keeps repeat queries off the Gemini quota — the eval
+    // measured 12 HTTP 429s across 26 back-to-back queries, and every one of
+    // those lost its real reasoning to the deterministic fallback.
+    const cached = bypassCache ? null : await getCachedRecommendation(query)
+    if (cached) {
+        return NextResponse.json(cached, {
+            headers: {
+                ...getRateLimitHeaders(rateLimit.remaining, rateLimit.resetTime),
+                'Cache-Control': 'private, no-store',
+                'X-Recommend-Cache': 'hit',
+                'X-Recommend-Elapsed-Ms': String(Date.now() - requestStart),
+            },
+        })
     }
 
     const supabase = getSupabaseAdmin()
@@ -256,9 +287,22 @@ export async function POST(request: Request) {
         toolsById.set(c.name.toLowerCase(), c)
     }
     const recommendation = await generateRecommendation(query, ranked.results, toolsById)
+    const payload = { ...recommendation, workflow: null }
+
+    // Cache ONLY non-degraded results with an actual match.
+    //
+    // Caching a degraded (deterministic-template) recommendation would pin the
+    // lower-quality version in place for the whole TTL — exactly backwards,
+    // since the reason for caching is that quota exhaustion produces those
+    // fallbacks in the first place. Better to retry next time and get real
+    // reasoning than to memoize the fallback.
+    if (!recommendation.degraded && recommendation.bestMatch) {
+        // Fire-and-forget: a cache write must never delay the response.
+        void setCachedRecommendation(query, payload)
+    }
 
     return NextResponse.json(
-        { ...recommendation, workflow: null },
+        payload,
         {
             headers: {
                 ...getRateLimitHeaders(rateLimit.remaining, rateLimit.resetTime),
@@ -266,6 +310,9 @@ export async function POST(request: Request) {
                 'X-Recommend-State': recommendation.bestMatch ? 'full' : 'empty',
                 'X-Recommend-Retrieval': retrievalSource,
                 'X-Recommend-Degraded': String(recommendation.degraded),
+                'X-Recommend-Cache': bypassCache
+                    ? (recommendation.degraded ? 'bypass-not-cached' : 'bypass-stored')
+                    : (recommendation.degraded ? 'miss-not-cached' : 'miss-stored'),
                 'X-Recommend-Elapsed-Ms': String(Date.now() - requestStart),
             },
         }
