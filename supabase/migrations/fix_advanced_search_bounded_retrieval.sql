@@ -314,47 +314,102 @@ BEGIN
       UNION ALL SELECT tool_id, 'text' FROM synonym_candidates
     ) u
     GROUP BY tool_id
+  ),
+  -- Score every surviving candidate. Column names are prefixed `o_` rather
+  -- than reusing the RETURNS TABLE names (id, name, popularity, ...), because
+  -- those are implicitly declared PL/pgSQL variables in this function body and
+  -- a bare reference to one from the CTEs below would be ambiguous — the exact
+  -- 42702 failure this file already hit once in production.
+  scored AS (
+    SELECT
+      t.id AS o_id,
+      t.name AS o_name,
+      t.category AS o_category,
+      t.description AS o_description,
+      t.platform AS o_platform,
+      t.region AS o_region,
+      t.access_type AS o_access_type,
+      t.pricing AS o_pricing,
+      t.tags AS o_tags,
+      t.popularity AS o_popularity,
+      t.last_updated AS o_last_updated,
+      t.is_trending AS o_is_trending,
+      t.image AS o_image,
+      t.priority AS o_priority,
+
+      COALESCE(vc.sim, 0.0::double precision) AS o_similarity,
+
+      LEAST(COALESCE(ts_rank(t.fts_vector, tsquery_val)::double precision, 0) * 4.0, 1.0) AS o_fts_score,
+      LEAST(COALESCE(t.priority, 50)::double precision / 100.0, 1.0) AS o_source_trust_score,
+
+      (
+        (COALESCE(vc.sim, 0.0::double precision) * 3.0)
+        + (LEAST(COALESCE(ts_rank(t.fts_vector, tsquery_val)::double precision, 0) * 4.0, 1.0) * 4.0)
+        + (LEAST(COALESCE(t.priority, 50)::double precision / 100.0, 1.0) * 3.0)
+        + (LEAST(COALESCE(t.popularity, 0)::double precision / 10000.0, 1.0) * 1.5)
+        + (CASE WHEN t.is_trending THEN 1.0::double precision ELSE 0.0::double precision END)
+      )::double precision AS o_combined_score,
+
+      -- Dedup key. Matches idx_ai_tools_name_normalized exactly, so this is an
+      -- indexed expression rather than a per-row computation.
+      lower(regexp_replace(t.name, '[^a-zA-Z0-9]', '', 'g')) AS o_norm_name
+
+    FROM candidate_ids ci
+    JOIN ai_tools t ON t.id = ci.tool_id
+    LEFT JOIN vector_candidates vc ON vc.tool_id = ci.tool_id
+    WHERE
+      ci.via_text
+      OR (ci.via_vector AND vc.sim > match_threshold)
+  ),
+  -- ==========================================================================
+  -- Collapse duplicate tools before the final LIMIT.
+  --
+  -- The corpus carries a lot of same-name-different-id rows (measured: ~250
+  -- duplicated names per 1000 sampled rows, largely GitHub-scraped entries
+  -- ingested more than once). candidate_ids groups by tool_id, which by
+  -- definition cannot catch those, so the top of the result set was collapsing
+  -- to a handful of distinct products — "chatbot for customer service" returned
+  -- 10 rows containing only 2 distinct names (venom x7, wppconnect x3).
+  --
+  -- That is fatal for the recommendation flow specifically, which asks for a
+  -- best match PLUS alternatives: with a degenerate candidate pool the
+  -- "alternatives" are copies of the winner and there is nothing to compare.
+  --
+  -- Keep the highest-scoring row per normalized name, and dedupe BEFORE the
+  -- LIMIT so we return match_count distinct products rather than match_count
+  -- rows that might be one product. DISTINCT ON requires its expression to
+  -- lead the ORDER BY, hence the re-sort in the outer query.
+  -- ==========================================================================
+  deduped AS (
+    SELECT DISTINCT ON (o_norm_name) *
+    FROM scored
+    ORDER BY o_norm_name, o_combined_score DESC, o_popularity DESC NULLS LAST
   )
   SELECT
-    t.id,
-    t.name,
-    t.category,
-    t.description,
-    t.platform,
-    t.region,
-    t.access_type,
-    t.pricing,
-    t.tags,
-    t.popularity,
-    t.last_updated,
-    t.is_trending,
-    t.image,
-    t.priority,
-
-    COALESCE(vc.sim, 0.0::double precision) AS similarity,
-
-    LEAST(COALESCE(ts_rank(t.fts_vector, tsquery_val)::double precision, 0) * 4.0, 1.0) AS fts_score,
-    LEAST(COALESCE(ts_rank(t.fts_vector, tsquery_val)::double precision, 0) * 4.0, 1.0) AS keyword_score,
-    LEAST(COALESCE(t.priority, 50)::double precision / 100.0, 1.0) AS source_trust_score,
-
-    (
-      (COALESCE(vc.sim, 0.0::double precision) * 3.0)
-      + (LEAST(COALESCE(ts_rank(t.fts_vector, tsquery_val)::double precision, 0) * 4.0, 1.0) * 4.0)
-      + (LEAST(COALESCE(t.priority, 50)::double precision / 100.0, 1.0) * 3.0)
-      + (LEAST(COALESCE(t.popularity, 0)::double precision / 10000.0, 1.0) * 1.5)
-      + (CASE WHEN t.is_trending THEN 1.0::double precision ELSE 0.0::double precision END)
-    )::double precision AS combined_score
-
-  FROM candidate_ids ci
-  JOIN ai_tools t ON t.id = ci.tool_id
-  LEFT JOIN vector_candidates vc ON vc.tool_id = ci.tool_id
-  WHERE
-    ci.via_text
-    OR (ci.via_vector AND vc.sim > match_threshold)
+    o_id,
+    o_name,
+    o_category,
+    o_description,
+    o_platform,
+    o_region,
+    o_access_type,
+    o_pricing,
+    o_tags,
+    o_popularity,
+    o_last_updated,
+    o_is_trending,
+    o_image,
+    o_priority,
+    o_similarity,
+    o_fts_score,
+    o_fts_score,             -- keyword_score: same signal, kept for API compatibility
+    o_source_trust_score,
+    o_combined_score
+  FROM deduped
   ORDER BY
-    combined_score DESC,
-    t.is_trending DESC,
-    t.popularity DESC NULLS LAST
+    o_combined_score DESC,
+    o_is_trending DESC,
+    o_popularity DESC NULLS LAST
   LIMIT match_count;
 END;
 $$;

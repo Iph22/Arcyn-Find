@@ -17,6 +17,35 @@ const LABEL_TEXT: Record<RecommendationLabel, string> = {
     strong_alternative: "Strong alternative",
 }
 
+/**
+ * Short price label from the structured pricing columns.
+ *
+ * Returns null when there's nothing trustworthy to show — roughly 1.4% of the
+ * catalog is unclassified and most scraped rows carry no real price, so "no
+ * badge" is a normal outcome, not an error state. Showing a fabricated or
+ * empty price would be worse than showing none.
+ */
+function priceLabel(tool: RecommendedTool): string | null {
+    const min = tool.priceMonthlyMinUsd
+    const hasMin = typeof min === "number" && Number.isFinite(min)
+
+    if (tool.pricingModel === "free" || min === 0) return "Free"
+    if (tool.pricingModel === "usage") return "Usage-based"
+    if (tool.pricingModel === "custom") return "Custom pricing"
+
+    if (hasMin && (min as number) > 0) {
+        const amount = (min as number) < 10
+            ? `$${(min as number).toFixed(2).replace(/\.00$/, "")}`
+            : `$${Math.round(min as number)}`
+        const prefix = tool.hasFreeTier ? "Free tier · from " : "from "
+        return `${prefix}${amount}/mo`
+    }
+
+    if (tool.hasFreeTier) return "Free tier available"
+    if (tool.hasFreeTrial) return "Free trial"
+    return null
+}
+
 interface RecommendationPanelProps {
     query: string
     recommendation: (Recommendation & { message?: string }) | null
@@ -84,6 +113,11 @@ export function RecommendationPanel({ query, recommendation, isLoading }: Recomm
                                     <Badge variant="secondary" className="text-xs">
                                         {bestMatch.category}
                                     </Badge>
+                                    {priceLabel(bestMatch) && (
+                                        <Badge variant="outline" className="text-xs font-normal">
+                                            {priceLabel(bestMatch)}
+                                        </Badge>
+                                    )}
                                 </div>
                                 <h3 className="text-lg font-bold leading-tight">{bestMatch.name}</h3>
                                 <p className="mt-1 text-sm text-muted-foreground">{bestMatch.reason}</p>
@@ -153,9 +187,14 @@ function AlternativeChip({ tool }: { tool: RecommendedTool }) {
             rel="noopener noreferrer"
             className="group rounded-lg border border-border/50 bg-card/50 p-2.5 transition-colors hover:border-primary/30 hover:bg-accent/40"
         >
-            <p className="text-[11px] font-medium uppercase tracking-wide text-muted-foreground">
-                {LABEL_TEXT[tool.label]}
-            </p>
+            <div className="flex items-baseline justify-between gap-2">
+                <p className="text-[11px] font-medium uppercase tracking-wide text-muted-foreground">
+                    {LABEL_TEXT[tool.label]}
+                </p>
+                {priceLabel(tool) && (
+                    <span className="shrink-0 text-[11px] text-muted-foreground">{priceLabel(tool)}</span>
+                )}
+            </div>
             <p className="mt-0.5 flex items-center gap-1 text-sm font-semibold">
                 <span className="truncate">{tool.name}</span>
                 <ArrowUpRight className="h-3 w-3 shrink-0 opacity-0 transition-opacity group-hover:opacity-70" />

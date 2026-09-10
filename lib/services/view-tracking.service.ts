@@ -11,6 +11,49 @@
 import { getSupabaseAdmin } from '@/lib/supabase'
 import { createHash } from 'crypto'
 
+/** How many row updates to have in flight at once. Bounded so a large batch
+ *  can't open hundreds of simultaneous connections. */
+const UPDATE_CONCURRENCY = 25
+
+/**
+ * Apply per-row partial updates with bounded concurrency.
+ *
+ * Why not `.upsert(rows, { onConflict: 'id' })`? Because PostgREST turns that
+ * into `INSERT ... ON CONFLICT (id) DO UPDATE`, and the INSERT half has to
+ * satisfy every NOT NULL column on the table. A payload carrying only the
+ * columns you want to change fails outright with
+ * `null value in column "name" of relation "ai_tools" violates not-null
+ * constraint` — it never reaches the ON CONFLICT clause. An earlier revision
+ * of this file used exactly that pattern and would have failed every batch.
+ *
+ * Real UPDATEs are the correct primitive here. They cost one round trip per
+ * row, so they run concurrently in bounded chunks rather than sequentially —
+ * the sequential version was the original problem this batching was meant to
+ * solve (it blew the cron's 60s maxDuration).
+ */
+async function applyPartialUpdates(
+    supabase: ReturnType<typeof getSupabaseAdmin>,
+    rows: Array<{ id: string; values: Record<string, unknown> }>
+): Promise<{ updated: number; errors: number }> {
+    let updated = 0
+    let errors = 0
+
+    for (let i = 0; i < rows.length; i += UPDATE_CONCURRENCY) {
+        const chunk = rows.slice(i, i + UPDATE_CONCURRENCY)
+        const results = await Promise.allSettled(
+            chunk.map(row =>
+                supabase.from('ai_tools').update(row.values).eq('id', row.id)
+            )
+        )
+        for (const r of results) {
+            if (r.status === 'fulfilled' && !r.value.error) updated++
+            else errors++
+        }
+    }
+
+    return { updated, errors }
+}
+
 export interface ViewStats {
     totalViews: number
     views24h: number
@@ -238,15 +281,15 @@ export async function updateAllTrendingStats(): Promise<{
             }
 
             if (batchUpdates.length > 0) {
-                const { error: upsertError } = await supabase
-                    .from('ai_tools')
-                    .upsert(batchUpdates, { onConflict: 'id' })
-
-                if (upsertError) {
-                    errors += batchUpdates.length
-                } else {
-                    updated += batchUpdates.length
-                }
+                const result = await applyPartialUpdates(
+                    supabase,
+                    batchUpdates.map(u => ({
+                        id: u.id,
+                        values: { trending_score: u.trending_score, is_trending: u.is_trending },
+                    }))
+                )
+                updated += result.updated
+                errors += result.errors
             }
 
             offset += batchSize
@@ -322,21 +365,18 @@ export async function updateViewCountCaches(): Promise<{
 
         for (let i = 0; i < allToolIds.length; i += UPSERT_BATCH_SIZE) {
             const batchIds = allToolIds.slice(i, i + UPSERT_BATCH_SIZE)
-            const batchRows = batchIds.map(toolId => ({
-                id: toolId,
-                view_count_24h: counts24h[toolId] || 0,
-                view_count_7d: counts7d[toolId] || 0,
-            }))
-
-            const { error: upsertError } = await supabase
-                .from('ai_tools')
-                .upsert(batchRows, { onConflict: 'id' })
-
-            if (upsertError) {
-                errors += batchRows.length
-            } else {
-                updated += batchRows.length
-            }
+            const result = await applyPartialUpdates(
+                supabase,
+                batchIds.map(toolId => ({
+                    id: toolId,
+                    values: {
+                        view_count_24h: counts24h[toolId] || 0,
+                        view_count_7d: counts7d[toolId] || 0,
+                    },
+                }))
+            )
+            updated += result.updated
+            errors += result.errors
         }
 
         // Reset counts for tools with no recent views (decay)

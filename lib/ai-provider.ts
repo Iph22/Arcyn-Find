@@ -25,7 +25,13 @@
  *      fail fast to a deterministic fallback instead.
  */
 
-import { GoogleGenerativeAI } from "@google/generative-ai"
+// Uses @google/genai (the current SDK), NOT @google/generative-ai. The older
+// package is still a dependency because lib/embeddings.ts deliberately stays on
+// it — the ~257k stored vectors were produced through that exact call path, and
+// changing it risks subtly different vectors that no longer compare against the
+// corpus. Only this reasoning path moved, because only the new SDK exposes
+// thinkingConfig (see GEMINI_THINKING_BUDGET below).
+import { GoogleGenAI } from "@google/genai"
 import Anthropic from "@anthropic-ai/sdk"
 import { zodOutputFormat } from "@anthropic-ai/sdk/helpers/zod"
 import { z } from "zod"
@@ -62,12 +68,30 @@ const CLAUDE_MODEL = "claude-opus-5"
 const CLAUDE_MAX_TOKENS = 16000
 const GEMINI_MAX_OUTPUT_TOKENS = 8192
 
+/**
+ * Gemini 2.5 runs "thinking" by default, and on these tasks it is pure latency
+ * with no measurable quality gain. Measured on the recommendation-reasoning
+ * prompt, same model, same schema:
+ *
+ *     thinking default   9945ms
+ *     thinkingBudget: 0  1676ms / 1272ms   <- same chosen tool, schema still valid
+ *
+ * That makes sense for what we actually ask of the model here: retrieval and
+ * the deterministic orchestrator have already done the selection work, so every
+ * call is "pick from this short list and write one sentence" — not a problem
+ * that benefits from extended reasoning.
+ *
+ * Callers that genuinely want deliberation can pass effort: "high", which omits
+ * thinkingConfig and restores the default behaviour.
+ */
+const GEMINI_THINKING_BUDGET_DISABLED = 0
+
 // ---------------------------------------------------------------------------
 // Clients
 // ---------------------------------------------------------------------------
 
 const geminiClient = process.env.GEMINI_API_KEY
-    ? new GoogleGenerativeAI(process.env.GEMINI_API_KEY)
+    ? new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY })
     : null
 
 // maxRetries: 0 — the SDK retries twice by default, which would silently
@@ -185,27 +209,32 @@ async function parseWithGemini<T extends z.ZodType>(
 ): Promise<z.infer<T> | null> {
     if (!geminiClient) return null
 
-    const model = geminiClient.getGenerativeModel({
-        model: GEMINI_MODEL,
-        ...(opts.system ? { systemInstruction: opts.system } : {}),
-        generationConfig: {
-            responseMimeType: "application/json",
-            responseSchema: toGeminiSchema(z.toJSONSchema(schema)) as any,
-            maxOutputTokens: GEMINI_MAX_OUTPUT_TOKENS,
-        },
-    })
+    // Thinking off unless a caller explicitly asks for deliberation — a ~7x
+    // latency difference on these prompts (see GEMINI_THINKING_BUDGET_DISABLED).
+    const wantsThinking = opts.effort === "high"
 
-    // The SDK has no per-call timeout option, so the deadline is enforced here.
-    // Losing the race abandons the response rather than cancelling the request —
-    // acceptable, because the alternative is blowing the whole request budget.
+    // The deadline is enforced here rather than by the SDK. Losing the race
+    // abandons the response instead of cancelling the upstream request, which
+    // is acceptable: the alternative is blowing the whole request budget.
     const result = await withDeadline(
-        model.generateContent(prompt),
+        geminiClient.models.generateContent({
+            model: GEMINI_MODEL,
+            contents: prompt,
+            config: {
+                responseMimeType: "application/json",
+                responseSchema: toGeminiSchema(z.toJSONSchema(schema)) as any,
+                maxOutputTokens: GEMINI_MAX_OUTPUT_TOKENS,
+                ...(opts.system ? { systemInstruction: opts.system } : {}),
+                ...(wantsThinking
+                    ? {}
+                    : { thinkingConfig: { thinkingBudget: GEMINI_THINKING_BUDGET_DISABLED } }),
+            },
+        }),
         opts.timeoutMs,
         opts.label
     )
 
-    const text = result.response.text()
-    return validate(schema, text, opts.label)
+    return validate(schema, result.text ?? "", opts.label)
 }
 
 function withDeadline<T>(promise: Promise<T>, ms: number, label: string): Promise<T> {

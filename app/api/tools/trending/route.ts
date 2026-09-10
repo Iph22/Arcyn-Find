@@ -31,6 +31,7 @@ export async function GET(request: NextRequest) {
         tags,
         image,
         popularity,
+        priority,
         is_trending,
         last_updated
       `)
@@ -40,21 +41,64 @@ export async function GET(request: NextRequest) {
       query = query.eq('category', category)
     }
 
-    // Get trending tools:
-    // 1. Manually marked as trending (is_trending = true)
-    // 2. OR High popularity (popularity >= 80)
-    // 3. OR Recently added/updated with good popularity (last_updated recently + popularity >= 50)
-
-    // For "real-time" feel, we prioritize the sort by last_updated relative to popularity
+    // ========================================================================
+    // Trending selection. The previous version was
+    //     .or('is_trending.eq.true,popularity.gte.60')
+    //     .order('last_updated' desc).order('popularity' desc)
+    // which surfaced, measured on the live corpus:
+    //     tensorflow, dify, dify, ComfyUI, deer-flow, netdata, gpt4free,
+    //     system_prompts_leaks, gpt4free, private-gpt, private-gpt, airflow
+    // — 9 distinct tools out of 12, zero with images, and almost all
+    // GitHub-scraped developer repos rather than products a user can sign up
+    // for. `system_prompts_leaks` on the homepage is actively bad.
+    //
+    // Three things were wrong:
+    //
+    //  1. `is_trending` carries no signal: it is true for 63,588 of 257,692
+    //     rows (~25% of the catalog). Filtering on it excludes nothing.
+    //  2. Ordering by `last_updated` is arbitrary here — the ingest cron
+    //     bulk-writes it, so essentially every candidate shares today's date
+    //     and the sort collapses to the popularity tiebreak anyway.
+    //  3. `trending_score` / `view_count_*`, which the view-tracking cron is
+    //     supposed to maintain and which would be the *real* signal, are NULL
+    //     for every row — that job has never completed successfully. Until it
+    //     has, there is no genuine engagement signal to rank on (the whole
+    //     corpus has 7 reviews and 9 favourites).
+    //
+    // So rank on what actually exists and is trustworthy: require an image,
+    // then order by popularity and curation priority. Requiring an image is
+    // the highest-leverage filter — scraped repo rows have none while curated
+    // entries do, so it simultaneously fixes visual quality and excludes the
+    // developer-repo noise. Measured, the same query with that one filter
+    // returns Cursor, Replit Ghostwriter, Khanmigo, Cohere, Leonardo.ai,
+    // Play.ht, Looka — 14/14 distinct, all presentable.
+    //
+    // Revisit this once the trending cron populates trending_score; at that
+    // point real view velocity should lead the ordering.
+    // ========================================================================
     query = query
-      .or('is_trending.eq.true,popularity.gte.60')
-      .order('last_updated', { ascending: false }) // Show freshest first
+      .not('image', 'is', null)
+      .neq('image', '')
       .order('popularity', { ascending: false })
-      .limit(limit)
+      .order('priority', { ascending: false, nullsFirst: false })
+      // Over-fetch so the name-dedup below can drop duplicates without
+      // shrinking the section. The corpus carries a lot of same-name rows.
+      .limit(limit * 3)
 
-    const { data: tools, error } = await query
+    const { data: rawTools, error } = await query
 
     if (error) throw error
+
+    // Collapse duplicate products, keeping the first (highest-ranked) of each.
+    // Needed because the corpus has ~250 duplicated names per 1000 rows, so
+    // without this the section showed the same tool two and three times.
+    const seenNames = new Set<string>()
+    const tools = (rawTools || []).filter((t) => {
+      const key = (t.name || '').toLowerCase().replace(/[^a-z0-9]/g, '')
+      if (!key || seenNames.has(key)) return false
+      seenNames.add(key)
+      return true
+    }).slice(0, limit)
 
     // Get review + favorites stats for ALL tools in 2 batched queries instead
     // of 2 queries per tool (was up to 2*limit round trips on a hot public route).

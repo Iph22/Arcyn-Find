@@ -38,10 +38,20 @@ export interface RecommendableTool {
     category: string
     description: string
     platform: string
+    /** Human-readable pricing text, for display. */
     pricing: string
     accessType: string
     tags: string[]
     popularity: number
+
+    // Structured pricing (see lib/pricing.ts). Optional because ~1.4% of the
+    // corpus is unclassified and because not every caller supplies it.
+    pricingModel?: string | null
+    /** USD/month for the cheapest paid tier. 0 = free, null = unpriced. */
+    priceMonthlyMinUsd?: number | null
+    priceMonthlyMaxUsd?: number | null
+    hasFreeTier?: boolean | null
+    hasFreeTrial?: boolean | null
 }
 
 export interface RecommendedTool extends RecommendableTool {
@@ -150,6 +160,14 @@ async function reasonWithAI(
         description: tool.description,
         pricing: tool.pricing,
         accessType: tool.accessType,
+        // Structured pricing alongside the prose, so cost comparisons in the
+        // generated reasoning rest on normalized monthly figures instead of the
+        // model having to interpret strings like "Free, $9.99/month, $99.99/year".
+        pricing_model: tool.pricingModel ?? undefined,
+        price_monthly_min_usd: tool.priceMonthlyMinUsd ?? undefined,
+        price_monthly_max_usd: tool.priceMonthlyMaxUsd ?? undefined,
+        has_free_tier: tool.hasFreeTier ?? undefined,
+        has_free_trial: tool.hasFreeTrial ?? undefined,
         tags: tool.tags,
         tier: ranked.stability_tier,
         relevance_reason: ranked.relevance_reason,
@@ -166,8 +184,9 @@ Pick the single best match for this goal and up to 3 alternatives, each with a
 label explaining what makes it worth considering instead.`,
         {
             timeoutMs: REASONING_TIMEOUT_MS,
-            // No effort override: this is the text a user actually reads, so it
-            // gets the model's default (high).
+            // Thinking deliberately left off (no `effort: "high"`): measured no
+            // quality difference on this task — same tool chosen, schema still
+            // valid — at roughly 7x the speed. See ai-provider.ts.
             system: REASONING_SYSTEM_PROMPT,
             label: "reasonWithAI",
         }
@@ -221,9 +240,13 @@ function buildDeterministicRecommendation(
     }
 
     const remaining = rest.slice(0, 3)
-    const cheapestIdx = remaining.length > 0
-        ? remaining.reduce((best, c, i) => isCheaper(c.tool.pricing, remaining[best].tool.pricing) ? i : best, 0)
-        : -1
+
+    // `best_budget` is now COMPUTED from structured pricing rather than guessed
+    // from prose. The old version ran a regex over the free-text pricing field
+    // — strip everything but digits and compare — which got "Free tier, Pro
+    // $20/mo" vs "$9.99/month, $99.99/year" wrong (it compared 20 against
+    // 999.99) and had no notion of billing period at all.
+    const cheapestIdx = indexOfCheapest(remaining.map(c => c.tool))
     const mostPopularIdx = remaining.length > 0
         ? remaining.reduce((best, c, i) => c.tool.popularity > remaining[best].tool.popularity ? i : best, 0)
         : -1
@@ -244,12 +267,39 @@ function buildDeterministicRecommendation(
     return { bestMatch, alternatives }
 }
 
-function isCheaper(a: string, b: string): boolean {
-    const isFree = (s: string) => /free/i.test(s)
-    if (isFree(a) && !isFree(b)) return true
-    if (!isFree(a) && isFree(b)) return false
-    const numA = parseFloat(a.replace(/[^0-9.]/g, ''))
-    const numB = parseFloat(b.replace(/[^0-9.]/g, ''))
-    if (isNaN(numA) || isNaN(numB)) return false
-    return numA < numB
+/**
+ * Index of the cheapest tool, or -1 when no tool has comparable price data.
+ *
+ * Ordering, cheapest first:
+ *   1. a permanently free tier      (nothing beats free)
+ *   2. lowest USD/month             (already period-normalized by lib/pricing.ts)
+ *   3. a free trial                 (better than paying up front, but expires)
+ *
+ * Returns -1 rather than defaulting to index 0 when nothing is comparable —
+ * labelling an arbitrary tool "best budget option" with no price data behind it
+ * is exactly the kind of false confidence the product brief warns against.
+ */
+export function indexOfCheapest(tools: RecommendableTool[]): number {
+    let bestIdx = -1
+    let bestRank: [number, number] | null = null
+
+    tools.forEach((tool, i) => {
+        const price = tool.priceMonthlyMinUsd
+        const hasPrice = typeof price === 'number' && Number.isFinite(price)
+
+        // Tier first, then price within the tier. Lower sorts cheaper.
+        const rank: [number, number] | null =
+            tool.hasFreeTier || price === 0 ? [0, 0]
+                : hasPrice ? [1, price as number]
+                    : tool.hasFreeTrial ? [2, 0]
+                        : null
+
+        if (!rank) return
+        if (!bestRank || rank[0] < bestRank[0] || (rank[0] === bestRank[0] && rank[1] < bestRank[1])) {
+            bestRank = rank
+            bestIdx = i
+        }
+    })
+
+    return bestIdx
 }

@@ -1,221 +1,168 @@
-import { supabase } from './supabase'
-import { getCurrentUser } from '@/lib/google-auth'
+/**
+ * Pricing normalization — Phase 2 foundation.
+ *
+ * WHY: `ai_tools.pricing` is free text ("Free tier, Pro $20/mo", "Free tier +
+ * $25-199/month", "$40/year, Free, $198/year"). That's fine for display and
+ * useless for anything else. Three Phase 2 features need pricing as DATA:
+ * pricing comparison, price filtering, and the "pricing fit" term in the
+ * recommendation scoring formula. A "best budget option" label is currently
+ * guessed by the model from prose; with this it becomes computable.
+ *
+ * DETERMINISTIC ON PURPOSE — no LLM. 257k rows makes per-row inference
+ * absurd on both cost and time, and measurement showed the text is regular
+ * enough to parse with rules. An LLM pass is only worth considering for the
+ * residue this can't classify.
+ *
+ * Everything is normalized to MONTHLY USD so values are comparable across
+ * rows that quote different billing periods.
+ */
 
-export interface PricingHistory {
-  id: string
-  tool_id: string
-  pricing_text: string
-  pricing_tier?: string
-  price_amount?: number
-  currency?: string
-  recorded_at: string
-  source?: string
-}
+export type PricingModel =
+    | "free"      // no paid tier at all
+    | "freemium"  // permanently free tier AND paid tiers
+    | "trial"     // time-limited free trial, then paid
+    | "paid"      // paid only
+    | "usage"     // metered / per-token / credits
+    | "custom"    // "contact us", enterprise quote
+    | "unknown"   // could not classify
 
-export interface PriceAlert {
-  id: string
-  tool_id: string
-  user_id: string
-  alert_type: 'price_drop' | 'price_increase' | 'any_change'
-  threshold_price?: number
-  is_active: boolean
-  created_at: string
+export interface ParsedPricing {
+    model: PricingModel
+    /** Cheapest paid tier, normalized to USD/month. Null when unpriced. */
+    monthlyMinUsd: number | null
+    /** Most expensive paid tier, normalized to USD/month. */
+    monthlyMaxUsd: number | null
+    /** A permanently free option exists (not merely a trial). */
+    hasFreeTier: boolean
+    /** A time-limited trial exists. Distinct from hasFreeTier — the
+     *  difference matters for "best budget option" and users care about it. */
+    hasFreeTrial: boolean
 }
 
 /**
- * Get pricing history for a tool
+ * Sanity ceilings. Without these the parser produced values like $161,270/mo
+ * (from the string "Free, $161270") and $49,900/mo — bare numbers with no
+ * billing period, which are almost certainly amounts in cents or scraped junk.
+ * A nonsense MINIMUM is much worse than a missing one: it breaks price sorting
+ * and would make "best budget option" pick the wrong tool.
+ *
+ * So: a bare price above BARE_PERIOD_CEILING is treated as "priced, period
+ * unknown" — it still marks the tool as paid, but contributes no monthly
+ * figure. And any computed monthly above MAX_PLAUSIBLE_MONTHLY is discarded
+ * outright, since no self-serve SaaS tier costs that much.
  */
-export async function getPricingHistory(
-  toolId: string,
-  limit: number = 30
-): Promise<PricingHistory[]> {
-  try {
-    const { data, error } = await supabase
-      .from('pricing_history')
-      .select('*')
-      .eq('tool_id', toolId)
-      .order('recorded_at', { ascending: false })
-      .limit(limit)
+const BARE_PERIOD_CEILING = 2_000
+const MAX_PLAUSIBLE_MONTHLY = 10_000
 
-    if (error) throw error
+const EMPTY: ParsedPricing = {
+    model: "unknown",
+    monthlyMinUsd: null,
+    monthlyMaxUsd: null,
+    hasFreeTier: false,
+    hasFreeTrial: false,
+}
 
-    return data || []
-  } catch (error) {
-    console.error('Error fetching pricing history:', error)
-    return []
-  }
+/** Matches `$20/mo`, `$19.99/month`, `$99/year`, `$25-199/month`, bare `$50`. */
+const PRICE_PATTERN =
+    /\$\s?(\d+(?:[.,]\d+)?)\s*(?:-|–|to)\s*\$?\s?(\d+(?:[.,]\d+)?)|\$\s?(\d+(?:[.,]\d+)?)/gi
+
+const num = (s: string | undefined): number | null => {
+    if (!s) return null
+    const n = parseFloat(s.replace(",", "."))
+    return Number.isFinite(n) ? n : null
 }
 
 /**
- * Record pricing change (typically called by admin/scraper)
+ * Billing period immediately following a price token.
+ *
+ * The window is cut at the first tier boundary — a comma, semicolon, slash-free
+ * separator, or the next `$`. Without that cut the period of a LATER tier leaks
+ * into this one: for "Free, $12/month, $144/year, $32/month" the raw window
+ * after `$144` is "/year, $32/month, ..." and, because month is tested first,
+ * $144 was read as monthly instead of yearly (producing $144/mo rather than
+ * $12/mo). Observed live on Writepaw.
  */
-export async function recordPricingChange(
-  toolId: string,
-  pricingText: string,
-  pricingTier?: string,
-  priceAmount?: number,
-  currency: string = 'USD',
-  source: string = 'manual'
-): Promise<{ success: boolean; error?: string }> {
-  try {
-    // Check if this is different from the last recorded price
-    const { data: lastPrice } = await supabase
-      .from('pricing_history')
-      .select('pricing_text, price_amount')
-      .eq('tool_id', toolId)
-      .order('recorded_at', { ascending: false })
-      .limit(1)
-      .single()
+function periodAfter(text: string, index: number): "month" | "year" | "once" | null {
+    const window = text.slice(index, index + 28)
+    const tail = window.split(/[,;]|\$/)[0].toLowerCase()
 
-    // Only record if price changed
-    if (lastPrice && lastPrice.pricing_text === pricingText && lastPrice.price_amount === priceAmount) {
-      return { success: true } // No change, but success
+    if (/\/\s?(yr|year)|per year|annually|annual/.test(tail)) return "year"
+    if (/\/\s?(mo|month)|per month|monthly/.test(tail)) return "month"
+    if (/one[- ]?time|lifetime|once/.test(tail)) return "once"
+    return null
+}
+
+export function parsePricing(raw: string | null | undefined, accessType?: string | null): ParsedPricing {
+    const text = String(raw ?? "").trim()
+    if (!text) {
+        return accessType === "Free"
+            ? { ...EMPTY, model: "free", monthlyMinUsd: 0, hasFreeTier: true }
+            : EMPTY
     }
 
-    const { error } = await supabase
-      .from('pricing_history')
-      .insert({
-        tool_id: toolId,
-        pricing_text: pricingText,
-        pricing_tier: pricingTier || null,
-        price_amount: priceAmount || null,
-        currency,
-        source,
-      })
+    const lower = text.toLowerCase()
 
-    if (error) throw error
+    // "free trial" must be tested before the generic free-tier check, so a
+    // trial-only product isn't mislabelled as having a permanent free tier.
+    const hasFreeTrial = /free\s+trial|trial\s+available|\d+[- ]day\s+trial/.test(lower)
+    const hasFreeTier =
+        /free\s+(tier|plan|forever|version)|freemium|open[\s-]?source|\bfree\b(?!\s*trial)/.test(lower)
 
-    // Update the tool's current pricing
-    await supabase
-      .from('ai_tools')
-      .update({ pricing: pricingText })
-      .eq('id', toolId)
+    const usageBased =
+        /per\s+(token|request|call|minute|image|credit|word|character|seat)|\/\s?(token|request|call|credit)|usage[\s-]based|pay[\s-]as[\s-]you[\s-]go|api pricing|\bcredits?\b/.test(lower)
+    const custom = /custom(\s+pricing)?|contact\s+(us|sales|for)|enterprise\s+only|request\s+a?\s?quote|on\s+request/.test(lower)
 
-    return { success: true }
-  } catch (error: any) {
-    console.error('Error recording pricing change:', error)
-    return { success: false, error: error.message || 'Failed to record pricing change' }
-  }
-}
+    // Collect priced tiers, normalizing each to monthly.
+    const monthly: number[] = []
+    let sawOneTime = false
 
-/**
- * Get user's price alerts
- */
-export async function getUserPriceAlerts(): Promise<PriceAlert[]> {
-  try {
-    const user = await getCurrentUser()
-    if (!user) return []
+    for (const m of text.matchAll(PRICE_PATTERN)) {
+        const period = periodAfter(text, (m.index ?? 0) + m[0].length)
+        const values = m[3] !== undefined ? [num(m[3])] : [num(m[1]), num(m[2])]
 
-    const { data, error } = await supabase
-      .from('price_alerts')
-      .select('*')
-      .eq('user_id', user.id)
-      .eq('is_active', true)
-      .order('created_at', { ascending: false })
+        for (const v of values) {
+            if (v === null || v <= 0) continue
 
-    if (error) throw error
-
-    return data || []
-  } catch (error) {
-    console.error('Error fetching price alerts:', error)
-    return []
-  }
-}
-
-/**
- * Create a price alert
- */
-export async function createPriceAlert(
-  toolId: string,
-  alertType: 'price_drop' | 'price_increase' | 'any_change',
-  thresholdPrice?: number
-): Promise<{ success: boolean; alert?: PriceAlert; error?: string }> {
-  try {
-    const user = await getCurrentUser()
-    if (!user) {
-      return { success: false, error: 'You must be logged in to create a price alert' }
+            if (period === "year") {
+                monthly.push(v / 12)
+            } else if (period === "once") {
+                sawOneTime = true
+            } else if (v > BARE_PERIOD_CEILING) {
+                // Bare number, implausibly large for a monthly price. Almost
+                // certainly cents, a one-off, or junk — count it as evidence
+                // the tool is paid, but don't invent a monthly figure from it.
+                sawOneTime = true
+            } else {
+                // Bare price within a plausible monthly range. Assumed monthly,
+                // which is the dominant convention in this data.
+                monthly.push(v)
+            }
+        }
     }
 
-    const { data, error } = await supabase
-      .from('price_alerts')
-      .insert({
-        tool_id: toolId,
-        user_id: user.id,
-        alert_type: alertType,
-        threshold_price: thresholdPrice || null,
-        is_active: true,
-      })
-      .select()
-      .single()
+    const hasPaid = monthly.length > 0 || sawOneTime
 
-    if (error) {
-      if (error.code === '23505') { // Unique constraint
-        return { success: false, error: 'You already have an alert for this tool' }
-      }
-      throw error
+    let model: PricingModel
+    if (usageBased) model = "usage"
+    else if (hasPaid && hasFreeTier) model = "freemium"
+    else if (hasPaid && hasFreeTrial) model = "trial"
+    else if (hasPaid) model = "paid"
+    else if (hasFreeTier) model = "free"
+    else if (custom) model = "custom"
+    else model = "unknown"
+
+    const round = (n: number) => Math.round(n * 100) / 100
+    const plausible = monthly.filter(n => n <= MAX_PLAUSIBLE_MONTHLY)
+
+    return {
+        model,
+        monthlyMinUsd: plausible.length
+            ? round(Math.min(...plausible))
+            : model === "free"
+                ? 0
+                : null,
+        monthlyMaxUsd: plausible.length ? round(Math.max(...plausible)) : null,
+        hasFreeTier,
+        hasFreeTrial,
     }
-
-    return { success: true, alert: data as PriceAlert }
-  } catch (error: any) {
-    console.error('Error creating price alert:', error)
-    return { success: false, error: error.message || 'Failed to create price alert' }
-  }
 }
-
-/**
- * Update a price alert
- */
-export async function updatePriceAlert(
-  alertId: string,
-  updates: {
-    alert_type?: 'price_drop' | 'price_increase' | 'any_change'
-    threshold_price?: number
-    is_active?: boolean
-  }
-): Promise<{ success: boolean; error?: string }> {
-  try {
-    const user = await getCurrentUser()
-    if (!user) {
-      return { success: false, error: 'You must be logged in' }
-    }
-
-    const { error } = await supabase
-      .from('price_alerts')
-      .update(updates)
-      .eq('id', alertId)
-      .eq('user_id', user.id)
-
-    if (error) throw error
-
-    return { success: true }
-  } catch (error: any) {
-    console.error('Error updating price alert:', error)
-    return { success: false, error: error.message || 'Failed to update price alert' }
-  }
-}
-
-/**
- * Delete a price alert
- */
-export async function deletePriceAlert(alertId: string): Promise<{ success: boolean; error?: string }> {
-  try {
-    const user = await getCurrentUser()
-    if (!user) {
-      return { success: false, error: 'You must be logged in' }
-    }
-
-    const { error } = await supabase
-      .from('price_alerts')
-      .delete()
-      .eq('id', alertId)
-      .eq('user_id', user.id)
-
-    if (error) throw error
-
-    return { success: true }
-  } catch (error: any) {
-    console.error('Error deleting price alert:', error)
-    return { success: false, error: error.message || 'Failed to delete price alert' }
-  }
-}
-

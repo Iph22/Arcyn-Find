@@ -6,12 +6,25 @@ export interface AIEntry {
   platform: string
   region: string
   accessType: "Free" | "Freemium" | "Paid"
+  /** Human-readable pricing text — authoritative for display. */
   pricing: string
   tags: string[]
   popularity: number
   lastUpdated: string
   isTrending?: boolean
   image?: string | null
+
+  // Structured pricing, derived from `pricing` by lib/pricing.ts and stored in
+  // dedicated columns (see supabase/migrations/add_structured_pricing.sql).
+  // Optional because ~1.4% of rows are still unclassified and because older
+  // callers construct AIEntry objects without them.
+  pricingModel?: "free" | "freemium" | "trial" | "paid" | "usage" | "custom" | "unknown" | null
+  /** Cheapest paid tier in USD/month. 0 for free tools, null when unpriced. */
+  priceMonthlyMinUsd?: number | null
+  priceMonthlyMaxUsd?: number | null
+  hasFreeTier?: boolean | null
+  /** Time-limited trial — deliberately distinct from hasFreeTier. */
+  hasFreeTrial?: boolean | null
 }
 
 export const aiEntries: AIEntry[] = [

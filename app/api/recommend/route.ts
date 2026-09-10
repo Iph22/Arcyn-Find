@@ -24,6 +24,19 @@ interface ToolRow {
     pricing: string | null
     tags: string[] | null
     popularity: number | null
+    pricing_model?: string | null
+    price_monthly_min_usd?: number | string | null
+    price_monthly_max_usd?: number | string | null
+    has_free_tier?: boolean | null
+    has_free_trial?: boolean | null
+}
+
+/** PostgREST returns numeric columns as strings; coerce so downstream
+ *  comparisons are numeric rather than lexicographic. */
+function toNum(value: number | string | null | undefined): number | null {
+    if (value === null || value === undefined) return null
+    const n = typeof value === 'number' ? value : parseFloat(value)
+    return Number.isFinite(n) ? n : null
 }
 
 function toRecommendable(row: ToolRow): RecommendableTool {
@@ -37,6 +50,11 @@ function toRecommendable(row: ToolRow): RecommendableTool {
         accessType: row.access_type || 'Freemium',
         tags: row.tags || [],
         popularity: row.popularity || 0,
+        pricingModel: row.pricing_model ?? null,
+        priceMonthlyMinUsd: toNum(row.price_monthly_min_usd),
+        priceMonthlyMaxUsd: toNum(row.price_monthly_max_usd),
+        hasFreeTier: row.has_free_tier ?? null,
+        hasFreeTrial: row.has_free_trial ?? null,
     }
 }
 
@@ -143,6 +161,44 @@ export async function POST(request: Request) {
             }
         } catch (error) {
             logger.error('[Recommend] Traditional retrieval failed:', error)
+        }
+    }
+
+    // Enrich hybrid results with structured pricing.
+    //
+    // search_tools_advanced's RETURNS TABLE predates these columns and doesn't
+    // return them, so rather than change that function (and re-run a migration
+    // that has already been through several revisions), fetch them by id for
+    // the ~30 candidates we actually have. One bounded primary-key lookup.
+    if (retrievalSource === 'hybrid' && candidates.length > 0) {
+        try {
+            const { data: pricingRows, error: pricingError } = await supabase
+                .from('ai_tools')
+                .select('id, pricing_model, price_monthly_min_usd, price_monthly_max_usd, has_free_tier, has_free_trial')
+                .in('id', candidates.map(c => c.id))
+
+            if (pricingError) {
+                // Non-fatal: recommendations still work, `best_budget` just
+                // falls back to having no comparable price data.
+                logger.warn('[Recommend] Pricing enrichment failed:', pricingError.message)
+            } else if (pricingRows) {
+                const byId = new Map(pricingRows.map(r => [r.id, r]))
+                candidates = candidates.map(c => {
+                    const p = byId.get(c.id)
+                    return p
+                        ? {
+                            ...c,
+                            pricingModel: p.pricing_model ?? null,
+                            priceMonthlyMinUsd: toNum(p.price_monthly_min_usd),
+                            priceMonthlyMaxUsd: toNum(p.price_monthly_max_usd),
+                            hasFreeTier: p.has_free_tier ?? null,
+                            hasFreeTrial: p.has_free_trial ?? null,
+                        }
+                        : c
+                })
+            }
+        } catch (error) {
+            logger.warn('[Recommend] Pricing enrichment threw:', error)
         }
     }
 

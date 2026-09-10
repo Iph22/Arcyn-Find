@@ -43,7 +43,7 @@ export function getSupabaseAdmin() {
 // consumer of AIEntry/transformToAIEntry, so `select('*')` was pulling several
 // KB of unused data over the wire on every list/filter/detail request.
 export const AI_TOOLS_COLUMNS =
-  'id, name, category, description, platform, region, access_type, pricing, tags, popularity, last_updated, is_trending, image, priority'
+  'id, name, category, description, platform, region, access_type, pricing, tags, popularity, last_updated, is_trending, image, priority, pricing_model, price_monthly_min_usd, price_monthly_max_usd, has_free_tier, has_free_trial'
 
 // Transform database row to AIEntry
 export function transformToAIEntry(row: {
@@ -60,6 +60,11 @@ export function transformToAIEntry(row: {
   last_updated?: string | null
   is_trending?: boolean | null
   image?: string | null
+  pricing_model?: string | null
+  price_monthly_min_usd?: number | string | null
+  price_monthly_max_usd?: number | string | null
+  has_free_tier?: boolean | null
+  has_free_trial?: boolean | null
 }): AIEntry {
   // Validate and cast accessType to the expected union type
   const validAccessTypes = ['Free', 'Freemium', 'Paid'] as const
@@ -81,7 +86,23 @@ export function transformToAIEntry(row: {
     lastUpdated: row.last_updated || new Date().toISOString().split('T')[0],
     isTrending: row.is_trending || false,
     image: row.image || null,
+
+    // Structured pricing. numeric(10,2) comes back from PostgREST as a STRING,
+    // so coerce rather than passing it through — otherwise downstream numeric
+    // comparisons silently become string comparisons ("9" > "100").
+    pricingModel: (row.pricing_model as AIEntry['pricingModel']) ?? null,
+    priceMonthlyMinUsd: toNumberOrNull(row.price_monthly_min_usd),
+    priceMonthlyMaxUsd: toNumberOrNull(row.price_monthly_max_usd),
+    hasFreeTier: row.has_free_tier ?? null,
+    hasFreeTrial: row.has_free_trial ?? null,
   }
+}
+
+/** PostgREST returns numeric columns as strings to preserve precision. */
+function toNumberOrNull(value: number | string | null | undefined): number | null {
+  if (value === null || value === undefined) return null
+  const n = typeof value === 'number' ? value : parseFloat(value)
+  return Number.isFinite(n) ? n : null
 }
 
 // Transform AIEntry to database row

@@ -138,12 +138,12 @@ export default function LandingPage() {
               className="space-y-3 sm:space-y-4"
             >
               <h1 className="text-3xl sm:text-4xl md:text-5xl lg:text-6xl xl:text-7xl font-serif font-medium tracking-tight leading-[1.1] flex flex-col">
-                <span className="text-muted-foreground">Can't Find It?</span>
+                <span className="text-muted-foreground">Need Help?</span>
                 <span className="text-foreground">Ask Arcyn.</span>
               </h1>
               <div className="flex flex-col gap-2">
                 <p className="text-sm sm:text-base md:text-lg lg:text-xl text-muted-foreground font-light max-w-lg leading-relaxed">
-                  Discover, compare, and master the tools of tomorrow.
+                  Discover, compare and master the right AI tools for your problems
                 </p>
                 {toolCount > 0 && (
                   <div className="inline-flex items-center gap-2 text-sm text-primary/80 font-medium animate-in fade-in slide-in-from-bottom-2 duration-500">
@@ -151,7 +151,7 @@ export default function LandingPage() {
                       <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-primary opacity-75"></span>
                       <span className="relative inline-flex rounded-full h-2 w-2 bg-primary"></span>
                     </span>
-                    Searching across {toolCount.toLocaleString()}+ AI tools
+                    Searching across {toolCount.toLocaleString()} AI tools
                   </div>
                 )}
               </div>
