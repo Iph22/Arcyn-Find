@@ -29,8 +29,45 @@ import type { RecommendableTool } from "./recommend"
 
 export type RetrievalSource = "hybrid" | "traditional" | "none"
 
+/**
+ * Relevance signals produced by retrieval itself.
+ *
+ * These were being DISCARDED, and it was the main reason recommendation quality
+ * was stuck. search_tools_advanced computes a hybrid relevance score (vector
+ * similarity + FTS rank + source trust + popularity), this module dropped all
+ * of it while mapping to RecommendableTool, and /api/recommend then handed the
+ * ranking orchestrator `keyword_score: 0.5, vector_score: 0.5,
+ * source_trust_score: 0.5` — identical constants for every candidate. Three of
+ * the orchestrator's six scoring terms therefore contributed the same amount to
+ * everything, leaving keyword overlap, intent heuristics and popularity to
+ * decide the winner.
+ *
+ * That is why a direct RPC probe ranked "Sweep" first for "find and fix bugs in
+ * my codebase" while the app returned "TLDR": the SQL got it right and the JS
+ * re-rank threw the answer away.
+ *
+ * Optional because the FTS tier cannot supply all of them — see the note where
+ * it builds them. Callers must treat a missing field as "unknown", never as 0.
+ */
+export interface RetrievalScores {
+    /** FTS rank, 0-1. Undefined on tiers that do not compute one. */
+    keyword_score?: number
+    /** Cosine similarity against the query embedding, 0-1. */
+    vector_score?: number
+    /** Derived from the row's `priority` column, 0-1. */
+    source_trust_score?: number
+    /** The SQL function's own blended score. Not on a 0-1 scale. */
+    combined_score?: number
+    freshness_date?: string | null
+    is_trending?: boolean
+}
+
+export interface RetrievedTool extends RecommendableTool {
+    scores?: RetrievalScores
+}
+
 export interface RetrievalResult {
-    candidates: RecommendableTool[]
+    candidates: RetrievedTool[]
     source: RetrievalSource
 }
 
@@ -49,6 +86,9 @@ interface ToolRow {
     pricing: string | null
     tags: string[] | null
     popularity: number | null
+    priority?: number | null
+    last_updated?: string | null
+    is_trending?: boolean | null
     pricing_model?: string | null
     price_monthly_min_usd?: number | string | null
     price_monthly_max_usd?: number | string | null
@@ -64,7 +104,7 @@ export function toNum(value: number | string | null | undefined): number | null 
     return Number.isFinite(n) ? n : null
 }
 
-function toRecommendable(row: ToolRow): RecommendableTool {
+function toRecommendable(row: ToolRow): RetrievedTool {
     return {
         id: row.id,
         name: row.name,
@@ -80,6 +120,16 @@ function toRecommendable(row: ToolRow): RecommendableTool {
         priceMonthlyMaxUsd: toNum(row.price_monthly_max_usd),
         hasFreeTier: row.has_free_tier ?? null,
         hasFreeTrial: row.has_free_trial ?? null,
+        // The FTS tier runs a plain SELECT, so it has no relevance rank and no
+        // embedding distance to report. Only the signals that genuinely exist
+        // on the row are set; keyword_score and vector_score are left undefined
+        // so callers substitute a neutral value rather than treating "unknown"
+        // as "zero relevance", which would rank every FTS result last.
+        scores: {
+            source_trust_score: Math.min((row.priority ?? 50) / 100, 1),
+            freshness_date: row.last_updated ?? null,
+            is_trending: row.is_trending ?? false,
+        },
     }
 }
 
@@ -94,7 +144,7 @@ function toRecommendable(row: ToolRow): RecommendableTool {
  * Non-fatal on failure: everything downstream treats missing pricing as
  * "unknown", which is already a case it must handle.
  */
-async function enrichPricing(candidates: RecommendableTool[]): Promise<RecommendableTool[]> {
+async function enrichPricing(candidates: RetrievedTool[]): Promise<RetrievedTool[]> {
     if (candidates.length === 0) return candidates
 
     try {
@@ -151,7 +201,7 @@ export async function retrieveCandidates(
             const hybridResponse = await hybridSearch(trimmed, limit, 0.20, processed.expanded)
 
             if (hybridResponse.status === "ok" && hybridResponse.results.length > 0) {
-                const candidates = hybridResponse.results.map(r => ({
+                const candidates: RetrievedTool[] = hybridResponse.results.map(r => ({
                     id: r.id,
                     name: r.title,
                     category: r.category,
@@ -161,6 +211,15 @@ export async function retrieveCandidates(
                     accessType: r.access_type || "Freemium",
                     tags: r.tags || [],
                     popularity: r.popularity || 0,
+                    // Carried through rather than dropped — see RetrievalScores.
+                    scores: {
+                        keyword_score: r.keyword_score,
+                        vector_score: r.vector_score,
+                        source_trust_score: r.source_trust_score,
+                        combined_score: r.combined_score,
+                        freshness_date: r.freshness_date,
+                        is_trending: r.is_trending,
+                    },
                 }))
                 return { candidates: await enrichPricing(candidates), source: "hybrid" }
             }

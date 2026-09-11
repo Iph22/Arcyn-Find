@@ -123,20 +123,63 @@ export async function POST(request: Request) {
     // trust, freshness, intent) and has ordered these candidates correctly
     // throughout testing. So ordering stays local and the latency budget goes to
     // the reasoning call.
+    // Real relevance signals, not constants.
+    //
+    // These were hardcoded to 0.5 for every candidate, which meant three of the
+    // orchestrator's six scoring terms (semantic, trust, freshness) contributed
+    // an identical amount to everything and only keyword overlap, intent
+    // heuristics and popularity could separate candidates. Retrieval had
+    // computed real vector-similarity and FTS-rank values and this route threw
+    // them away — see RetrievalScores in lib/retrieval.ts.
     const rankingCandidates = candidates.map(c => ({
         id: c.id,
         title: c.name,
         description: c.description,
         platform: c.platform,
         tags: c.tags,
-        keyword_score: 0.5,
-        vector_score: 0.5,
+        // 0.5 remains the fallback for tiers that genuinely cannot compute a
+        // value (FTS has no embedding distance). A missing signal must read as
+        // "unknown", not as "zero relevance".
+        keyword_score: c.scores?.keyword_score ?? 0.5,
+        vector_score: c.scores?.vector_score ?? 0.5,
         popularity_score: Math.min(c.popularity / 100, 1),
-        source_trust_score: 0.5,
-        freshness_date: null,
-        is_trending: false,
+        source_trust_score: c.scores?.source_trust_score ?? 0.5,
+        freshness_date: c.scores?.freshness_date ?? null,
+        is_trending: c.scores?.is_trending ?? false,
     }))
     const ranked = runSearchOrchestrator(query, rankingCandidates)
+
+    // FILTER with the orchestrator, ORDER by the SQL relevance score.
+    //
+    // Measured offline against the labeled set (scripts/eval/ranking-offline.mts,
+    // 26 queries, identical candidate pools, hybrid retrieval throughout):
+    //
+    //     constants + JS ranking (previous)            62%
+    //     real scores + JS ranking                     73%
+    //     SQL order alone, no filtering                77%
+    //     orchestrator filter + SQL order  (this)      81%
+    //
+    // The orchestrator's hard filter is worth keeping — it drops stubs and
+    // near-duplicates, which matters for the alternatives as much as the pick.
+    // Its SCORING formula is what was losing: it re-ranked a carefully blended
+    // hybrid relevance score using keyword overlap and popularity, which is how
+    // "TLDR" beat "Sweep" for "find and fix bugs in my codebase".
+    const sqlScoreById = new Map(candidates.map(c => [c.id, c.scores?.combined_score]))
+    const retrievalOrder = new Map(candidates.map((c, i) => [c.id, i]))
+    // `id` is optional on the orchestrator's result type, so a result without
+    // one simply has no SQL score to look up and keeps its incoming position.
+    const rankedResults = [...ranked.results].sort((a, b) => {
+        const aScore = a.id ? sqlScoreById.get(a.id) : undefined
+        const bScore = b.id ? sqlScoreById.get(b.id) : undefined
+        if (typeof aScore === 'number' && typeof bScore === 'number' && aScore !== bScore) {
+            return bScore - aScore
+        }
+        // No combined_score on the FTS tier; its rows arrive in SQL order
+        // already, so fall back to that rather than to an arbitrary order.
+        const aIndex = (a.id ? retrievalOrder.get(a.id) : undefined) ?? 0
+        const bIndex = (b.id ? retrievalOrder.get(b.id) : undefined) ?? 0
+        return aIndex - bIndex
+    })
 
     // 4. Reasoning — bounded to the top ~6 ranked candidates, never the full pool.
     const toolsById = new Map<string, RecommendableTool>()
@@ -144,7 +187,7 @@ export async function POST(request: Request) {
         toolsById.set(c.id, c)
         toolsById.set(c.name.toLowerCase(), c)
     }
-    const recommendation = await generateRecommendation(query, ranked.results, toolsById)
+    const recommendation = await generateRecommendation(query, rankedResults, toolsById)
     const payload = { ...recommendation, workflow: null }
 
     // Cache ONLY non-degraded results with an actual match.
