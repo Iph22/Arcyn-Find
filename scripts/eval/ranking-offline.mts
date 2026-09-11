@@ -176,11 +176,13 @@ const results = new Map<string, { pass: number; fails: string[] }>()
 for (const v of VARIANTS) results.set(v.name, { pass: 0, fails: [] })
 
 let hybridCount = 0
+let semanticCount = 0
 let graded = 0
 
 for (const label of labels) {
-    const { candidates, source } = await retrieveCandidates(label.query, 30)
+    const { candidates, source, usedEmbedding } = await retrieveCandidates(label.query, 30)
     if (source === "hybrid") hybridCount++
+    if (usedEmbedding) semanticCount++
     if (candidates.length === 0) {
         console.log(`  (no candidates) "${label.query}"`)
         continue
@@ -197,7 +199,13 @@ for (const label of labels) {
 }
 
 console.log(`\nGraded ${graded} labeled queries.`)
-console.log(`Retrieval mix: hybrid ${hybridCount}/${graded}, other ${graded - hybridCount}/${graded}\n`)
+// Both numbers, because they answer different questions: which code path ran,
+// and whether meaning was actually involved. `source` says "hybrid" even when no
+// embedding was available, since search_tools_advanced falls back to its
+// full-text tiers — so only the second figure makes precision comparable across
+// runs.
+console.log(`Retrieval path: hybrid ${hybridCount}/${graded}, other ${graded - hybridCount}/${graded}`)
+console.log(`Semantic actually used: ${semanticCount}/${graded}  <- compare precision only across runs with the same figure\n`)
 
 console.log("=".repeat(78))
 const ranking = [...results.entries()].sort((a, b) => b[1].pass - a[1].pass)

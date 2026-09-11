@@ -69,6 +69,15 @@ export interface RetrievedTool extends RecommendableTool {
 export interface RetrievalResult {
     candidates: RetrievedTool[]
     source: RetrievalSource
+    /**
+     * Whether the semantic tier actually contributed.
+     *
+     * `source` alone is misleading: it reports which code path served the
+     * request, and the "hybrid" path runs happily with no query embedding by
+     * leaning on its full-text tiers. Anything comparing results across runs
+     * needs THIS, not source — see usedEmbedding on HybridSearchResponse.
+     */
+    usedEmbedding: boolean
 }
 
 /** Default candidate count. 30 is what the recommendation path has always
@@ -242,7 +251,7 @@ export async function retrieveCandidates(
     limit: number = DEFAULT_CANDIDATE_LIMIT
 ): Promise<RetrievalResult> {
     const trimmed = query.trim()
-    if (!trimmed) return { candidates: [], source: "none" }
+    if (!trimmed) return { candidates: [], source: "none", usedEmbedding: false }
 
     // Tier 1: hybrid.
     try {
@@ -271,7 +280,11 @@ export async function retrieveCandidates(
                         is_trending: r.is_trending,
                     },
                 }))
-                return { candidates: await enrichPricing(candidates), source: "hybrid" }
+                return {
+                    candidates: await enrichPricing(candidates),
+                    source: "hybrid",
+                    usedEmbedding: hybridResponse.usedEmbedding,
+                }
             }
 
             if (hybridResponse.status === "error") {
@@ -312,11 +325,13 @@ export async function retrieveCandidates(
             return {
                 candidates: (data as unknown as ToolRow[]).map(toRecommendable),
                 source: "traditional",
+                // The FTS tier never uses an embedding by definition.
+                usedEmbedding: false,
             }
         }
     } catch (error) {
         logger.error("[Retrieval] FTS failed:", error)
     }
 
-    return { candidates: [], source: "none" }
+    return { candidates: [], source: "none", usedEmbedding: false }
 }

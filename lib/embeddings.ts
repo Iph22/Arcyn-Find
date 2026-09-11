@@ -301,7 +301,26 @@ export interface HybridSearchResult {
  * self-healing discovery exists for).
  */
 export type HybridSearchResponse =
-    | { status: 'ok'; results: HybridSearchResult[]; cachedEmbeddingAt?: string | null }
+    | {
+        status: 'ok'
+        results: HybridSearchResult[]
+        cachedEmbeddingAt?: string | null
+        /**
+         * Whether a query embedding was actually available — i.e. whether the
+         * SEMANTIC tier contributed at all.
+         *
+         * Distinct from `status`. This function returns 'ok' whenever the RPC
+         * succeeds, and the RPC runs perfectly well with a null embedding by
+         * leaning on its full-text tiers. So 'ok' means the path ran, not that
+         * meaning was involved. Conflating the two made an eval report
+         * "retrieval mix hybrid:26" for runs where semantic may have been
+         * absent — a measurement that quietly described the wrong thing.
+         *
+         * `cachedEmbeddingAt` cannot answer this: it is null both when no
+         * embedding existed AND when a fresh one was just generated.
+         */
+        usedEmbedding: boolean
+    }
     | { status: 'error'; results: []; errorReason: string }
 
 export async function hybridSearch(
@@ -317,39 +336,86 @@ export async function hybridSearch(
     let cachedEmbeddingAt: string | null = null;
     const cleanQuery = query.toLowerCase().trim();
 
+    // Has this query been seen before? Distinct from "does it have an
+    // embedding" — the difference is what makes the lazy path below possible.
+    let querySeenBefore = false;
+
     try {
         const { data: cached } = await supabase
             .from('search_cache')
             .select('semantic_embedding, created_at')
             .eq('query_text', cleanQuery)
-            .single()
+            // maybeSingle, not single: an absent row is the normal first-sighting
+            // case and must be distinguishable from a row that exists without an
+            // embedding, not collapsed into the same catch block.
+            .maybeSingle()
 
-        if (cached && cached.semantic_embedding) {
-            queryEmbedding = cached.semantic_embedding;
-            cachedEmbeddingAt = cached.created_at || null;
-            logger.info("[Embeddings] Using heavily cached query embedding for tokens!")
-            // Update last_used asynchronously
-            supabase.from('search_cache').update({
-                last_used_at: new Date().toISOString(),
-            }).eq('query_text', cleanQuery).then();
+        if (cached) {
+            querySeenBefore = true;
+            if (cached.semantic_embedding) {
+                queryEmbedding = cached.semantic_embedding;
+                cachedEmbeddingAt = cached.created_at || null;
+                logger.info("[Embeddings] Using heavily cached query embedding for tokens!")
+                // Update last_used asynchronously
+                supabase.from('search_cache').update({
+                    last_used_at: new Date().toISOString(),
+                }).eq('query_text', cleanQuery).then();
+            }
         }
     } catch (e) {
-        // Cache miss or table doesn't exist yet
+        // Table doesn't exist yet, or an unexpected read failure. Treating this
+        // as a first sighting is the safe default: it costs FTS-only results
+        // rather than an embedding call.
     }
 
-    // 2. Generate embedding and cache it
+    // 2. Embed on the SECOND sighting, not the first.
+    //
+    // Search runs as you type, so the server sees every intermediate string.
+    // Measured on the real search_cache (excluding this project's own test
+    // traffic): 321 of 444 rows are strict prefixes of another row — keystroke
+    // fragments like the chain "ai t", "ai tt", "ai too", "ai tool", "ai toold"
+    // — and 251 of those had spent an embedding call. 338 of 444 queries were
+    // never searched a second time. So roughly 70% of the embedding budget was
+    // going to strings nobody meant to submit, and semantic similarity for "ai
+    // t" is meaningless regardless.
+    //
+    // That budget is the binding constraint on the whole product: it is shared
+    // with the tool-embedding backfill (coverage was 11%) and with goal
+    // decomposition, which is the one unfinished piece of Phase 3.
+    //
+    // A LENGTH OR WORD-COUNT GATE WAS TRIED FIRST AND REJECTED on measurement:
+    // no threshold separates fragments from real queries. At ">= 3 words and
+    // >= 12 chars" it blocks 58% of fragments but also 61% of real queries,
+    // throwing away "magic slides" and "grok xai". Recurrence discriminates;
+    // length does not.
+    //
+    // THE TRADE, stated plainly: the first search of a genuinely new query gets
+    // FTS-only retrieval rather than hybrid, and the retrieval tier does change
+    // which tools come back. The second identical search gets full semantic
+    // search. This was a deliberate product decision, not an optimisation.
     if (!queryEmbedding) {
-        queryEmbedding = await generateQueryEmbedding(query)
-        if (queryEmbedding) {
+        if (querySeenBefore) {
+            queryEmbedding = await generateQueryEmbedding(query)
+            if (queryEmbedding) {
+                try {
+                    supabase.from('search_cache').update({
+                        semantic_embedding: queryEmbedding,
+                        last_used_at: new Date().toISOString(),
+                    }).eq('query_text', cleanQuery).then()
+                } catch (err) { }
+            } else {
+                logger.info("[Embeddings] No embedding available, using FTS-only advanced search fallback")
+            }
+        } else {
+            // Record the sighting so a repeat of this query earns an embedding.
+            // No embedding is generated or stored on this path.
             try {
-                // Try caching it async
                 supabase.from('search_cache').upsert({
                     query_text: cleanQuery,
-                    semantic_embedding: queryEmbedding
+                    last_used_at: new Date().toISOString(),
                 }, { onConflict: 'query_text' }).then()
             } catch (err) { }
-        } else {
-            logger.info("[Embeddings] No embedding available, using FTS-only advanced search fallback")
+            logger.info(`[Embeddings] First sighting of "${cleanQuery}" — FTS-only this time, embedding on repeat`)
         }
     }
 
@@ -372,7 +438,7 @@ export async function hybridSearch(
         }
 
         if (!data || data.length === 0) {
-            return { status: 'ok', results: [], cachedEmbeddingAt }
+            return { status: 'ok', results: [], cachedEmbeddingAt, usedEmbedding: Boolean(queryEmbedding) }
         }
 
         // Transform raw Supabase rows into the normalized ranking-ready shape
@@ -405,7 +471,7 @@ export async function hybridSearch(
             fts_score: parseFloat((item.fts_score || 0).toFixed(3)),
         }))
 
-        return { status: 'ok', results, cachedEmbeddingAt }
+        return { status: 'ok', results, cachedEmbeddingAt, usedEmbedding: Boolean(queryEmbedding) }
     } catch (error: any) {
         logger.error("[Embeddings] Hybrid search failed:", error)
         return { status: 'error', results: [], errorReason: error?.message || 'exception' }
