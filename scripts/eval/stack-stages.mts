@@ -19,7 +19,6 @@
  * stack-assembly.mts.
  */
 
-import { createClient } from "@supabase/supabase-js"
 import { assembleStack } from "../../lib/stack"
 import { STACK_TEMPLATES } from "../../lib/stack-templates"
 import { priceLabelCompact } from "../../lib/pricing-display"
@@ -29,45 +28,22 @@ if (!process.env.NEXT_PUBLIC_SUPABASE_URL || !process.env.SUPABASE_SERVICE_ROLE_
     process.exit(1)
 }
 
-const db = createClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL,
-    process.env.SUPABASE_SERVICE_ROLE_KEY
-)
-
 /**
- * A stage query is only usable if every one of its words co-occurs in at least
- * one row — i.e. it produces an AND-match.
+ * Whether retrieval produced any keyword relevance signal for this stage.
  *
- * search_tools_advanced computes relevance as ts_rank against the AND tsquery.
- * When there is no AND-match, that term is zero for every candidate and the
- * pick is settled by the popularity-driven breadth tier instead. This is not
- * theoretical: the stage "schedule social media posts" had no AND-match and
- * returned TweetAssist — a Chrome extension for composing tweets — in four
- * templates, and an attempt to fix it with longer, "more distinctive" wording
- * also had no AND-match and changed nothing.
+ * keyword_score is the RPC's own ts_rank against its AND tsquery, so reading
+ * it is the only correct way to ask this question.
  *
- * Asserting it here turns that from something you catch by reading descriptions
- * into something a test catches.
+ * AN EARLIER VERSION OF THIS CHECK WAS WRONG and reported 8 of 53 stages as
+ * having no AND-match. It built its own tsquery by joining words with "&",
+ * but the RPC uses websearch_to_tsquery, which stems and drops stopwords — so
+ * the hand-rolled query was strictly stricter and invented failures. Measured
+ * against the real retrieval output, every stage query has a keyword signal.
+ * A probe that does not reproduce the system's own query answers a different
+ * question than the one being asked.
  */
-async function hasAndMatch(searchQuery: string): Promise<boolean> {
-    const tsquery = searchQuery
-        .split(/\s+/)
-        .filter(w => w.length > 2)
-        .join(" & ")
-    if (!tsquery) return false
-
-    const { data, error } = await db
-        .from("ai_tools")
-        .select("id")
-        .textSearch("fts_vector", tsquery, { config: "english" })
-        .limit(1)
-
-    // A failed probe is not a failed assertion — say so rather than guess.
-    if (error) {
-        console.log(`     (AND-match probe errored: ${(error.message || "").slice(0, 60)})`)
-        return true
-    }
-    return (data ?? []).length > 0
+function hasKeywordSignal(candidates: { scores?: { keyword_score?: number } }[]): boolean {
+    return candidates.some(c => (c.scores?.keyword_score ?? 0) > 0)
 }
 
 let unfilled = 0
@@ -88,9 +64,9 @@ for (const template of STACK_TEMPLATES) {
         if (!step.tool) unfilled++
 
         console.log(`  ${step.order}. ${step.role.padEnd(15)} ${pick}`)
-        const andMatch = await hasAndMatch(step.searchQuery)
-        if (!andMatch) noAndMatch++
-        console.log(`     query: "${step.searchQuery}"${andMatch ? "" : "   *** NO AND-MATCH — pick is decided by popularity, not relevance ***"}`)
+        const signal = step.tool ? hasKeywordSignal([step.tool]) : true
+        if (!signal) noAndMatch++
+        console.log(`     query: "${step.searchQuery}"${signal ? "" : "   *** no keyword signal — pick is decided by popularity ***"}`)
         if (step.tool) {
             // The description is what decides whether the pick is right, and a
             // name alone hides a mismatch (see "Vidu AI Video Generator" filling
@@ -102,20 +78,18 @@ for (const template of STACK_TEMPLATES) {
 
 console.log("\n" + "=".repeat(72))
 console.log(`${total - unfilled}/${total} stages filled across ${STACK_TEMPLATES.length} templates`)
-console.log(`stage queries with no AND-match: ${noAndMatch}/${total}`)
+console.log(`stage picks with no keyword signal: ${noAndMatch}/${total}`)
 console.log("Read the desc lines — a plausible NAME on an unrelated product is the failure mode here.")
 console.log("=".repeat(72))
 
-// Reported, NOT failed. No AND-match correlates strongly with a bad pick but
-// does not determine one: "email marketing campaigns and subscriber lists" has
-// no AND-match and still returns Campaigner, a real email marketing tool, and
-// "video editor trim and cut footage" likewise returns Latte Social. A hard
-// gate here would reject queries that demonstrably work, so this is a signal to
-// investigate alongside the desc lines rather than a verdict.
+// Reported, NOT failed — and expected to be 0. Every stage query measured so
+// far does produce a keyword signal; a non-zero count here would mean a stage
+// whose pick was settled by popularity alone, which is worth looking at but is
+// not on its own proof the pick is wrong.
 if (noAndMatch > 0) {
     console.log(
-        `\n${noAndMatch} stage quer${noAndMatch === 1 ? "y has" : "ies have"} no AND-match — ` +
-        `their pick is settled by popularity rather than relevance, so check it above before trusting it.`
+        `\n${noAndMatch} stage pick${noAndMatch === 1 ? "" : "s"} had no keyword signal — ` +
+        `settled by popularity rather than relevance, so check them above before trusting them.`
     )
 }
 

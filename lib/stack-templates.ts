@@ -22,13 +22,16 @@
  * a free, instant fast path that spends no quota and adds no latency, so the
  * model call is reserved for goals nobody has pre-written.
  *
- * THE RULE FOR A searchQuery, learned the hard way: it MUST produce an
- * AND-match against fts_vector. search_tools_advanced scores relevance with
- * ts_rank against the AND tsquery, so a query where not every word co-occurs in
- * any row scores zero relevance for every candidate, and the pick is then
- * decided by the popularity-driven breadth tier. That is how the stage
- * "schedule social media posts" ended up returning TweetAssist, a Chrome
- * extension for composing tweets, in four different templates.
+ * WRITING A searchQuery: describe the CATEGORY of tool for the stage, in
+ * ordinary words, and avoid terms that match everything in an AI-tools corpus
+ * (see DOMAIN_STOPWORDS in lib/stack.ts — a relevance floor built on the word
+ * "tool" accepts every tool in the catalog). Then CHECK THE PICK with
+ * scripts/eval/stack-stages.mts, reading the description rather than the name:
+ * the failure mode is a plausible name on an unrelated product.
+ *
+ * Longer and more "distinctive" phrasing is not better. Measured: rewording
+ * the social stage to "social media publishing calendar for multiple accounts"
+ * changed nothing, and "social media scheduler" made it worse.
  *
  * KNOWN LIMIT, do not keep rewording: the social-scheduling stages return a
  * tweeting browser extension rather than a scheduler, and that is NOT fixable
@@ -37,15 +40,23 @@
  * through the real pipeline — "schedule social media posts" -> TweetAssist,
  * "social media scheduler" -> TwoSlash (a browser ChatGPT extension),
  * "social media content calendar" -> CurioAI. None reach the actual
- * schedulers. This is the retrieval-ranking problem measured at precision@1
- * 62% in scripts/eval/recommendation-eval.mjs, and it needs fixing there.
+ * schedulers.
  *
- * Counter-intuitively this means SHORTER, more ordinary phrasing beats longer
- * "more distinctive" phrasing: an attempt to fix that stage with "social media
- * publishing calendar for multiple accounts" AND-matched nothing and changed
- * nothing. scripts/eval/stack-stages.mts asserts this automatically — it fails
- * any stage whose query has no AND-match, so this class of bug cannot be
- * introduced silently again.
+ * CORRECTION. An earlier version of this comment claimed the cause was that
+ * these queries produce no AND-match, so ts_rank was zero for every candidate
+ * and popularity decided. That explanation was WRONG, and the evidence for it
+ * was an artifact of the probe that produced it: scripts/eval/stack-stages.mts
+ * built its own tsquery by joining words with "&", while the RPC builds one
+ * with websearch_to_tsquery, which stems and drops stopwords. The naive probe
+ * manufactured failures that do not exist. Measured against what retrieval
+ * actually returns, 0 of 32 stage queries and 0 of 26 recommendation queries
+ * have a pool where ts_rank is zero throughout.
+ *
+ * So these stages lose on genuine combined_score, not on a missing signal, and
+ * ordering such pools by a lexical-overlap score was measured to make ranking
+ * monotonically worse (see the dead-ends list in
+ * scripts/eval/ranking-offline.mts). The remaining lever is the SQL scoring
+ * itself, and it must be evaluated offline before another migration.
  */
 
 import type { PlannedStep } from "./stack"

@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server'
 import { checkRateLimit, getRateLimitHeaders } from '@/lib/rate-limit'
 import { logger } from '@/lib/logger'
-import { retrieveCandidates, type RetrievalSource } from '@/lib/retrieval'
+import { retrieveCandidates, coverageAdjustedScores, type RetrievalSource } from '@/lib/retrieval'
 import { runSearchOrchestrator } from '@/lib/search-orchestrator'
 import { generateRecommendation, type RecommendableTool } from '@/lib/recommend'
 import { getCachedRecommendation, setCachedRecommendation } from '@/lib/recommendation-cache'
@@ -164,7 +164,10 @@ export async function POST(request: Request) {
     // Its SCORING formula is what was losing: it re-ranked a carefully blended
     // hybrid relevance score using keyword overlap and popularity, which is how
     // "TLDR" beat "Sweep" for "find and fix bugs in my codebase".
-    const sqlScoreById = new Map(candidates.map(c => [c.id, c.scores?.combined_score]))
+    // Coverage-adjusted rather than the raw combined_score: while embedding
+    // coverage is partial, a missing embedding must not read as zero similarity.
+    // See coverageAdjustedScores — measured +4 points of precision@1.
+    const sqlScoreById = coverageAdjustedScores(candidates)
     const retrievalOrder = new Map(candidates.map((c, i) => [c.id, i]))
     // `id` is optional on the orchestrator's result type, so a result without
     // one simply has no SQL score to look up and keeps its incoming position.

@@ -76,6 +76,56 @@ export interface RetrievalResult {
  *  pricing lookup below stays a single bounded primary-key query. */
 export const DEFAULT_CANDIDATE_LIMIT = 30
 
+/** The weight search_tools_advanced gives vector similarity inside
+ *  combined_score. Must track the migration if that changes. */
+const SIM_WEIGHT = 3.0
+
+/**
+ * Ranking score per candidate id, correcting for PARTIAL EMBEDDING COVERAGE.
+ *
+ * The SQL computes `COALESCE(vc.sim, 0.0) * 3.0`, so a tool with no embedding is
+ * scored as if it were measured and found maximally dissimilar. It wasn't
+ * measured at all. While coverage is incomplete that hands every embedded row a
+ * systematic bonus of up to 3.0 that has nothing to do with relevance — the
+ * same "unknown is not zero" mistake RetrievalScores warns callers about above.
+ *
+ * It is not hypothetical. Backfilling embeddings for the most-viewed rows took
+ * coverage from 11% to 56% and precision@1 FELL from 88% to 81%, because the
+ * newly embedded rows displaced better answers purely by having a vector.
+ * Measured on the labeled set at 56% coverage
+ * (scripts/eval/ranking-offline.mts):
+ *
+ *     production, missing sim scored as 0        81%
+ *     vector term removed entirely               77%   <- similarity does help
+ *     missing sim scored as the pool mean        85%   <- this
+ *
+ * So the fix is neither "trust vectors more" nor "trust them less": it is to
+ * stop treating an absent measurement as a bad one. Substituting the mean
+ * similarity of the embedded rows in the same pool is the neutral choice.
+ *
+ * This becomes a no-op at full coverage, which is where the corpus should end
+ * up — it corrects a transitional distortion, and correctly does nothing once
+ * there is nothing to correct.
+ */
+export function coverageAdjustedScores(candidates: RetrievedTool[]): Map<string, number> {
+    const scores = new Map<string, number>()
+
+    const sims = candidates
+        .map(c => c.scores?.vector_score)
+        .filter((v): v is number => typeof v === "number" && v > 0)
+
+    // Nothing to correct when every row has an embedding, or none does.
+    const uniform = sims.length === 0 || sims.length === candidates.length
+    const meanSim = uniform ? 0 : sims.reduce((a, b) => a + b, 0) / sims.length
+
+    for (const c of candidates) {
+        const base = c.scores?.combined_score ?? 0
+        const sim = c.scores?.vector_score ?? 0
+        scores.set(c.id, uniform || sim > 0 ? base : base + SIM_WEIGHT * meanSim)
+    }
+    return scores
+}
+
 interface ToolRow {
     id: string
     name: string

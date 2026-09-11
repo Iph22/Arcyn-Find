@@ -46,7 +46,7 @@
       "requireAny": ["clip", "short", "repurpos", "reel", "highlight"],
       "rejectTools": [],
       "labeledBy": "assistant",
-      "notes": "Klipme fits the goal. Accepting on intent terms rather than pinning the name, since several clip tools would be equally right."
+      "notes": "Klipme fits the goal. Accepting on intent terms rather than pinning the name, since several clip tools would be equally right. CONFIRMED GENUINE MISS on the current answer: 'Osmo' does AI transcription and searchable insights for podcasters — it turns a podcast into TEXT, not into clips."
     },
     {
       "query": "generate product photos for my online store",
@@ -71,10 +71,10 @@
     },
     {
       "query": "build a website without coding",
-      "requireAny": ["no-code", "nocode", "no code", "no coding", "without coding", "website builder", "site builder", "drag and drop", "landing page"],
+      "requireAny": ["no-code", "nocode", "no code", "no coding", "without coding", "website builder", "website-builder", "website-building", "site builder", "drag and drop", "landing page"],
       "rejectTools": ["ai-website-cloner-template"],
       "labeledBy": "assistant",
-      "notes": "THE LABEL WAS WRONG, not the system. It failed 'ai-website-builder', whose description literally says 'no coding required' — the term list had 'no code' but not 'no coding'. Added both phrasings; that answer is correct. ai-website-cloner-template stays rejected, but NOT for being a repo (see _policy): its own description is 'clone any website with one command using AI coding', which is disqualifying for a goal that says without coding."
+      "notes": "THE LABEL WAS WRONG TWICE, not the system. First it failed 'ai-website-builder', whose description literally says 'no coding required' — the term list had 'no code' but not 'no coding'. Then it failed 'Unicody', which is tagged 'website-builder' and described as a 'comprehensive website-building platform' — the list had 'website builder' with a space and missed the hyphenated forms. Both phrasings added; both answers are correct. ai-website-cloner-template stays rejected, but NOT for being a repo (see _policy): its own description is 'clone any website with one command using AI coding', which is disqualifying for a goal that says without coding."
     },
     {
       "query": "remove the background from images",
@@ -103,14 +103,14 @@
       "requireAny": ["summar", "tldr", "abstract", "digest"],
       "rejectTools": [],
       "labeledBy": "assistant",
-      "notes": "Article Summarizer is acceptable but weak — the goal says research papers (PDFs, citations) and an article summarizer is a near neighbour, not the same thing. Worth revisiting if a paper-specific tool exists in the catalog."
+      "notes": "Article Summarizer is acceptable but weak — the goal says research papers (PDFs, citations) and an article summarizer is a near neighbour, not the same thing. CONFIRMED GENUINE MISS on the current answer: 'Epsilon' is an AI search engine over 200 million academic papers, i.e. paper DISCOVERY, which this project's own research template treats as a separate stage from Summarising. Finding papers is not summarising them."
     },
     {
       "query": "make an explainer video from a script",
-      "requireAny": ["explainer", "script to video", "text to video", "text-to-video", "animat", "presentation video", "avatar"],
+      "requireAny": ["explainer", "script to video", "text to video", "text-to-video", "script", "animat", "presentation video", "avatar"],
       "rejectTools": [],
       "labeledBy": "assistant",
-      "notes": "Luma AI passes on 'text to video' but is a generative clip model, not an explainer-video builder. Accepted weakly; a reviewer may well downgrade this."
+      "notes": "LABEL CORRECTED: 'script' added to the term list. The goal says 'from a script', and it was failing Vidnami Pro, whose description is 'users only need to provide a script, and Vidnami’s advanced AI will automatically...' and which is tagged 'script' — that is precisely script-to-video and a correct answer. Separately, Luma AI passes on 'text to video' but is a generative clip model rather than an explainer-video builder; accepted weakly, and a reviewer may downgrade it."
     },
     {
       "query": "answer customer support questions automatically",
