@@ -1,9 +1,7 @@
 import { NextResponse } from 'next/server'
-import { getSupabaseAdmin, AI_TOOLS_COLUMNS } from '@/lib/supabase'
 import { checkRateLimit, getRateLimitHeaders } from '@/lib/rate-limit'
 import { logger } from '@/lib/logger'
-import { hybridSearch, isSemanticSearchAvailable } from '@/lib/embeddings'
-import { processSearchQuery } from '@/lib/search-utils'
+import { retrieveCandidates, type RetrievalSource } from '@/lib/retrieval'
 import { runSearchOrchestrator } from '@/lib/search-orchestrator'
 import { generateRecommendation, type RecommendableTool } from '@/lib/recommend'
 import { getCachedRecommendation, setCachedRecommendation } from '@/lib/recommendation-cache'
@@ -14,50 +12,6 @@ export const maxDuration = 30
 export const runtime = 'nodejs'
 
 const MAX_QUERY_LENGTH = 500
-
-interface ToolRow {
-    id: string
-    name: string
-    category: string
-    description: string | null
-    platform: string
-    access_type: string
-    pricing: string | null
-    tags: string[] | null
-    popularity: number | null
-    pricing_model?: string | null
-    price_monthly_min_usd?: number | string | null
-    price_monthly_max_usd?: number | string | null
-    has_free_tier?: boolean | null
-    has_free_trial?: boolean | null
-}
-
-/** PostgREST returns numeric columns as strings; coerce so downstream
- *  comparisons are numeric rather than lexicographic. */
-function toNum(value: number | string | null | undefined): number | null {
-    if (value === null || value === undefined) return null
-    const n = typeof value === 'number' ? value : parseFloat(value)
-    return Number.isFinite(n) ? n : null
-}
-
-function toRecommendable(row: ToolRow): RecommendableTool {
-    return {
-        id: row.id,
-        name: row.name,
-        category: row.category,
-        description: row.description || '',
-        platform: row.platform,
-        pricing: row.pricing || '',
-        accessType: row.access_type || 'Freemium',
-        tags: row.tags || [],
-        popularity: row.popularity || 0,
-        pricingModel: row.pricing_model ?? null,
-        priceMonthlyMinUsd: toNum(row.price_monthly_min_usd),
-        priceMonthlyMaxUsd: toNum(row.price_monthly_max_usd),
-        hasFreeTier: row.has_free_tier ?? null,
-        hasFreeTrial: row.has_free_trial ?? null,
-    }
-}
 
 /**
  * POST /api/recommend
@@ -129,109 +83,13 @@ export async function POST(request: Request) {
         })
     }
 
-    const supabase = getSupabaseAdmin()
-    let candidates: RecommendableTool[] = []
-    let retrievalSource: 'hybrid' | 'traditional' | 'none' = 'none'
-
-    // 1. Retrieval — reuse the same hybridSearch used by /api/ai-models. It's
-    // already tagged (ok/error) from the earlier search-pipeline fixes, so a
-    // DB/RPC error here falls straight through to the traditional path below
-    // rather than surfacing as a 500.
-    try {
-        if (await isSemanticSearchAvailable()) {
-            const processed = processSearchQuery(query)
-            const hybridResponse = await hybridSearch(query, 30, 0.20, processed.expanded)
-            if (hybridResponse.status === 'ok' && hybridResponse.results.length > 0) {
-                candidates = hybridResponse.results.map(r => ({
-                    id: r.id,
-                    name: r.title,
-                    category: r.category,
-                    description: r.description || '',
-                    platform: r.platform,
-                    pricing: r.pricing || '',
-                    accessType: r.access_type || 'Freemium',
-                    tags: r.tags || [],
-                    popularity: r.popularity || 0,
-                }))
-                retrievalSource = 'hybrid'
-            } else if (hybridResponse.status === 'error') {
-                logger.warn(`[Recommend] hybridSearch degraded (${hybridResponse.errorReason}) — falling back to traditional retrieval`)
-            }
-        }
-    } catch (error) {
-        logger.warn('[Recommend] Semantic retrieval unavailable:', error)
-    }
-
-    // 2. Traditional fallback — full-text search, NOT ILIKE. An ILIKE OR-chain
-    // over name/description takes 8.5s-to-timeout on this table even with
-    // trigram indexes (see the note in
-    // supabase/migrations/fix_advanced_search_bounded_retrieval.sql); FTS over
-    // ai_tools_fts_idx does the same job in well under 2s.
-    if (candidates.length === 0) {
-        try {
-            const processed = processSearchQuery(query)
-            const terms = processed.expanded.length > 0 ? processed.expanded : [query]
-            const sanitized = terms
-                .map(term => term.replace(/[^\w\s-]/g, ' ').trim())
-                .filter(Boolean)
-                .join(' | ')
-
-            const { data, error } = await supabase
-                .from('ai_tools')
-                .select(AI_TOOLS_COLUMNS)
-                .textSearch('fts_vector', sanitized || query.replace(/[^\w\s-]/g, ' ').trim(), { config: 'english' })
-                .order('priority', { ascending: false, nullsFirst: false })
-                .order('popularity', { ascending: false })
-                .limit(30)
-
-            if (error) {
-                logger.error('[Recommend] Traditional retrieval error:', error)
-            } else if (data) {
-                candidates = (data as unknown as ToolRow[]).map(toRecommendable)
-                retrievalSource = 'traditional'
-            }
-        } catch (error) {
-            logger.error('[Recommend] Traditional retrieval failed:', error)
-        }
-    }
-
-    // Enrich hybrid results with structured pricing.
-    //
-    // search_tools_advanced's RETURNS TABLE predates these columns and doesn't
-    // return them, so rather than change that function (and re-run a migration
-    // that has already been through several revisions), fetch them by id for
-    // the ~30 candidates we actually have. One bounded primary-key lookup.
-    if (retrievalSource === 'hybrid' && candidates.length > 0) {
-        try {
-            const { data: pricingRows, error: pricingError } = await supabase
-                .from('ai_tools')
-                .select('id, pricing_model, price_monthly_min_usd, price_monthly_max_usd, has_free_tier, has_free_trial')
-                .in('id', candidates.map(c => c.id))
-
-            if (pricingError) {
-                // Non-fatal: recommendations still work, `best_budget` just
-                // falls back to having no comparable price data.
-                logger.warn('[Recommend] Pricing enrichment failed:', pricingError.message)
-            } else if (pricingRows) {
-                const byId = new Map(pricingRows.map(r => [r.id, r]))
-                candidates = candidates.map(c => {
-                    const p = byId.get(c.id)
-                    return p
-                        ? {
-                            ...c,
-                            pricingModel: p.pricing_model ?? null,
-                            priceMonthlyMinUsd: toNum(p.price_monthly_min_usd),
-                            priceMonthlyMaxUsd: toNum(p.price_monthly_max_usd),
-                            hasFreeTier: p.has_free_tier ?? null,
-                            hasFreeTrial: p.has_free_trial ?? null,
-                        }
-                        : c
-                })
-            }
-        } catch (error) {
-            logger.warn('[Recommend] Pricing enrichment threw:', error)
-        }
-    }
+    // 1. Retrieval. Shared with the stack builder — lib/retrieval.ts owns the
+    // tier order (hybrid -> FTS -> none) and the reasons behind it. The tier
+    // that served the request is reported on X-Recommend-Retrieval below,
+    // because hybrid needs a query embedding off the same Gemini quota as the
+    // reasoning call: when that quota is exhausted the tier silently changes
+    // and so do the answers.
+    const { candidates, source: retrievalSource } = await retrieveCandidates(query)
 
     if (candidates.length === 0) {
         return NextResponse.json(

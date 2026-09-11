@@ -171,6 +171,19 @@ function gradeAgainstLabel(query, best) {
     return { pass: true, regression: false, why: "" }
 }
 
+const sleep = ms => new Promise(r => setTimeout(r, ms))
+
+/**
+ * /api/recommend rate-limits at 30 requests/minute, and this eval sends 26 in
+ * a burst — so two runs back to back put the second one straight into 429s.
+ * That is exactly what happened once: a run reported "requests succeeded 4/26"
+ * and then printed "precision@1 75%" over a denominator of 4 with the same
+ * prominence as a real result. Retrying on 429 keeps a run complete and
+ * comparable; the alternative (counting them as failures) produces a
+ * confident-looking number computed from whatever slipped through.
+ */
+const RATE_LIMIT_RETRIES = 4
+
 async function runCase({ q, keywords }) {
     const started = Date.now()
     const controller = new AbortController()
@@ -182,13 +195,26 @@ async function runCase({ q, keywords }) {
         // change registers as no change at all. Pass --cached to measure the
         // cache path deliberately instead.
         const url = `${BASE_URL}/api/recommend${CACHED ? "" : "?fresh=1"}`
-        const res = await fetch(url, {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ query: q }),
-            signal: controller.signal,
-        })
-        const ms = Date.now() - started
+        let res
+        // Timed from the LAST attempt, so a rate-limit backoff is not reported
+        // as request latency. It was: one run showed p95 16727ms, which was a
+        // Retry-After sleep, not the server being slow.
+        let attemptStarted = Date.now()
+        for (let attempt = 0; ; attempt++) {
+            attemptStarted = Date.now()
+            res = await fetch(url, {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ query: q }),
+                signal: controller.signal,
+            })
+            if (res.status !== 429 || attempt >= RATE_LIMIT_RETRIES) break
+            // Honour Retry-After when the endpoint sends it; the route does.
+            const retryAfter = Number.parseInt(res.headers.get("retry-after") ?? "", 10)
+            const waitMs = Number.isFinite(retryAfter) ? (retryAfter + 1) * 1000 : 15_000
+            await sleep(waitMs)
+        }
+        const ms = Date.now() - attemptStarted
         const cacheState = res.headers.get("x-recommend-cache") ?? "-"
         // Which retrieval tier served this. NOT cosmetic: semantic/hybrid
         // retrieval needs a query embedding, and that embedding call shares the
@@ -315,7 +341,15 @@ async function main() {
     } else {
         const passed = gradedResults.filter(r => r.graded.pass).length
         console.log(`labeled coverage     ${gradedResults.length}/${CASES.length} queries labeled  (${humanLabeled} reviewed by a human)`)
-        console.log(`precision@1          ${pct(passed, gradedResults.length)}  ← THE quality number`)
+        // An incomplete run must not report a confident percentage. A
+        // rate-limited run once printed "precision@1 75%" computed from the
+        // 4 of 26 requests that got through.
+        const complete = ok.length === CASES.length
+        console.log(
+            complete
+                ? `precision@1          ${pct(passed, gradedResults.length)}  ← THE quality number`
+                : `precision@1          ${pct(passed, gradedResults.length)}  !! NOT COMPARABLE — only ${ok.length}/${CASES.length} requests succeeded`
+        )
         console.log(`regressions          ${gradedResults.filter(r => r.graded.regression).length}  (a rejected answer came back)`)
     }
     console.log("=".repeat(64))

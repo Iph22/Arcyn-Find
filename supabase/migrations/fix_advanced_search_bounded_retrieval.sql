@@ -233,6 +233,13 @@ BEGIN
     SELECT t.id AS tool_id, (1 - (t.embedding <=> query_embedding))::double precision AS sim
     FROM ai_tools t
     WHERE query_embedding IS NOT NULL AND t.embedding IS NOT NULL
+    -- NO secondary sort key here, unlike every other tier in this function.
+    -- `ORDER BY <=> LIMIT` on its own is the exact access pattern IVFFlat can
+    -- serve from the index; adding a tie-breaker column generally forces a
+    -- sort node and gives up that index scan. Exact float ties in cosine
+    -- distance across 260k rows are vanishingly rare, so the determinism this
+    -- would buy is not worth losing the vector index over. Do not "fix" this
+    -- for consistency with the tiers below.
     ORDER BY t.embedding <=> query_embedding
     LIMIT vector_pool_size
   ),
@@ -253,7 +260,7 @@ BEGIN
       FROM ai_tools t
       WHERE sort_is_safe
         AND tsquery_val IS NOT NULL AND tsquery_val @@ t.fts_vector
-      ORDER BY t.popularity DESC NULLS LAST
+      ORDER BY t.popularity DESC NULLS LAST, t.id ASC
       LIMIT text_pool_size
     )
     UNION ALL
@@ -262,28 +269,44 @@ BEGIN
       FROM ai_tools t
       WHERE NOT sort_is_safe
         AND tsquery_val IS NOT NULL AND tsquery_val @@ t.fts_vector
+      ORDER BY t.id ASC
       LIMIT text_pool_size
     )
   ),
-  -- IMPORTANT — no ORDER BY in the two OR tiers below, deliberately.
+  -- ORDER BY t.id in the two OR tiers below. This REPLACES an earlier
+  -- deliberate choice to leave them unordered, and the reason is correctness.
   --
-  -- Measured, isolating this exact tier:
-  --     "gauth | ai"  + ORDER BY popularity LIMIT 240   TIMEOUT (>9.1s)
-  --     "gauth | ai"    no ORDER BY,        LIMIT 240   1626ms
-  --     "image | generator" no ORDER BY,    LIMIT 240    291ms
+  -- The original note read: "these tiers now contribute an ARBITRARY bounded
+  -- slice of the match set rather than the most popular slice. That's
+  -- acceptable because they exist purely for recall." That reasoning was
+  -- wrong in one important way — an arbitrary slice is not a stable slice.
+  -- Postgres re-streams a different 240 rows on every execution, so the
+  -- recommendation for one goal changed on every request. Measured on
+  -- search_tools_advanced with a fixed query, six consecutive FTS-only calls
+  -- returned SIX COMPLETELY DISJOINT sets of 30 ids, and /api/recommend
+  -- returned three different best matches over six identical calls. For a
+  -- product whose job is to answer "which tool should I use", that is a
+  -- trust bug, and it also made the eval unable to attribute any change
+  -- (precision@1 moved 69% -> 65% between two runs of identical code).
   --
-  -- An OR of a common lexeme matches ~100k rows. With ORDER BY, Postgres must
-  -- fetch and sort that entire match set before applying LIMIT. Without it,
-  -- the bitmap heap scan streams and stops as soon as it has LIMIT rows.
+  -- ORDER BY t.id is affordable BECAUSE it is the primary key: Postgres walks
+  -- the PK index and stops once it has LIMIT rows, instead of fetching and
+  -- sorting the whole match set the way ORDER BY popularity requires.
+  -- Re-measured on this table, LIMIT 240:
+  --     "gauth | ai"          ORDER BY popularity   3598ms
+  --     "gauth | ai"          ORDER BY id            918ms
+  --     "image & generator"   ORDER BY popularity   5218ms
+  --     "image & generator"   ORDER BY id           1609ms
+  -- So the deterministic ordering is also the cheaper one, 3-4x. (The
+  -- historical "TIMEOUT >9.1s" figure for ORDER BY popularity predates
+  -- idx_ai_tools_popularity; it is 3598ms now, still 4x the id ordering.)
   --
-  -- The trade-off is real and intentional: these tiers now contribute an
-  -- ARBITRARY bounded slice of the match set rather than the most popular
-  -- slice. That's acceptable because they exist purely for recall — the
-  -- precise AND tier below keeps its popularity ordering, the vector tier is
-  -- ordered by similarity, and everything is re-ranked by combined_score in
-  -- the final SELECT anyway. The one case it degrades is a query where ONLY
-  -- the breadth tier matches, where results will be less popularity-weighted
-  -- than before.
+  -- Cost of the trade: ordering by id biases the recall slice toward
+  -- lexicographically smaller ids, which in this corpus means GitHub-scraped
+  -- rows ("github-cro-...") ahead of others ("ot-..."). That is a known bias,
+  -- accepted because these tiers exist only to widen recall and everything is
+  -- re-ranked by combined_score below. A quality-ordered slice would need the
+  -- popularity sort and its 4x cost.
   broad_candidates AS (
     -- Breadth tier: OR'd tokens over the same GIN index. This is what replaced
     -- the ILIKE safety net — same purpose (catch loose matches the strict AND
@@ -291,12 +314,14 @@ BEGIN
     SELECT t.id AS tool_id
     FROM ai_tools t
     WHERE tsquery_broad IS NOT NULL AND tsquery_broad @@ t.fts_vector
+    ORDER BY t.id ASC
     LIMIT text_pool_size
   ),
   synonym_candidates AS (
     SELECT t.id AS tool_id
     FROM ai_tools t
     WHERE tsquery_synonym IS NOT NULL AND tsquery_synonym @@ t.fts_vector
+    ORDER BY t.id ASC
     LIMIT text_pool_size
   ),
   candidate_ids AS (
@@ -339,11 +364,49 @@ BEGIN
 
       COALESCE(vc.sim, 0.0::double precision) AS o_similarity,
 
+      -- OUTPUT column stays capped to [0,1]. It is returned twice below, once
+      -- as fts_score and once as keyword_score, and lib/search-pipeline.ts
+      -- does `keyword_score * 10  // Scale 0–1 → 0–10`, so widening the range
+      -- here would silently corrupt the orchestrator's scoring.
       LEAST(COALESCE(ts_rank(t.fts_vector, tsquery_val)::double precision, 0) * 4.0, 1.0) AS o_fts_score,
       LEAST(COALESCE(t.priority, 50)::double precision / 100.0, 1.0) AS o_source_trust_score,
 
       (
         (COALESCE(vc.sim, 0.0::double precision) * 3.0)
+        -- The cap here is DELIBERATE, and it was tested. Read this before
+        -- removing it again.
+        --
+        -- The cap does saturate: `LEAST(ts_rank * 4.0, 1.0) * 4.0` contributes
+        -- a flat 4.0 to every row whose ts_rank reaches 0.25, and on one goal
+        -- query six of eight returned rows had o_fts_score of exactly 1.000 —
+        -- so the highest-weighted relevance term stopped discriminating and
+        -- priority/popularity/is_trending decided the winner among near-ties.
+        --
+        -- That reasoning is sound but the obvious fix is not. Uncapping it to
+        -- `ts_rank * 16.0` (identical below the old cap, rising above it) was
+        -- deployed and measured against the eval, at a fixed retrieval mix of
+        -- hybrid:26 with reasoning off, two runs each:
+        --
+        --                     capped      uncapped
+        --     precision@1     62%         62%        (no change)
+        --     keyword hit     92%         88%        (worse)
+        --     regressions     6           4          (misleading, see below)
+        --
+        -- Net: no gain, and one known-good answer regressed — "find and fix
+        -- bugs in my codebase" went from Sweep (a real bug-fixing tool) back
+        -- to TLDR (a summarizer). Two previously-passing queries also broke.
+        -- The lower regression count was not an improvement: those failures
+        -- had merely moved from "a rejected tool came back" to "no required
+        -- term matched".
+        --
+        -- WHY it backfired: ts_rank rewards term FREQUENCY and does not
+        -- normalize for document length, so a long scraped description that
+        -- repeats the query's stems outscores a short precise one. The cap was
+        -- crudely suppressing that keyword-stuffing signal. Anyone retrying
+        -- this should use ts_rank's length-normalization flags (1 or 2, divide
+        -- by document length) rather than raw uncapping, and must re-measure —
+        -- scripts/eval/recommendation-eval.mjs is repeatable now, and
+        -- scripts/eval/retrieval-determinism.js guards the latency side.
         + (LEAST(COALESCE(ts_rank(t.fts_vector, tsquery_val)::double precision, 0) * 4.0, 1.0) * 4.0)
         + (LEAST(COALESCE(t.priority, 50)::double precision / 100.0, 1.0) * 3.0)
         + (LEAST(COALESCE(t.popularity, 0)::double precision / 10000.0, 1.0) * 1.5)
@@ -383,7 +446,11 @@ BEGIN
   deduped AS (
     SELECT DISTINCT ON (o_norm_name) *
     FROM scored
-    ORDER BY o_norm_name, o_combined_score DESC, o_popularity DESC NULLS LAST
+    -- o_id last makes this a TOTAL order. Without it, two rows of the same
+    -- product with equal score and equal popularity (common here — they are
+    -- re-ingests of one GitHub project) leave DISTINCT ON free to keep either,
+    -- so which duplicate survives varied between executions.
+    ORDER BY o_norm_name, o_combined_score DESC, o_popularity DESC NULLS LAST, o_id ASC
   )
   SELECT
     o_id,
@@ -409,7 +476,12 @@ BEGIN
   ORDER BY
     o_combined_score DESC,
     o_is_trending DESC,
-    o_popularity DESC NULLS LAST
+    o_popularity DESC NULLS LAST,
+    -- Total order. Measured combined scores cluster tightly (6.51 / 5.51 /
+    -- 5.50 / 5.27 on one goal query), so ties at this point are the norm
+    -- rather than an edge case, and an untied ORDER BY let them resolve
+    -- differently per execution.
+    o_id ASC
   LIMIT match_count;
 END;
 $$;

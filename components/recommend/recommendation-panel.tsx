@@ -7,6 +7,7 @@ import { Card } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { RecommendationFeedback } from "@/components/recommend/recommendation-feedback"
 import { PriceComparison } from "@/components/recommend/price-comparison"
+import { StackBuilder } from "@/components/recommend/stack-panel"
 import { priceLabel } from "@/lib/pricing-display"
 import { cn } from "@/lib/utils"
 import type { Recommendation, RecommendedTool, RecommendationLabel } from "@/lib/recommend"
@@ -168,6 +169,11 @@ export function RecommendationPanel({ query, recommendation, isLoading }: Recomm
                         {/* Cost side-by-side. Renders itself away unless the
                             numbers actually differ — see the component. */}
                         <PriceComparison bestMatch={bestMatch} alternatives={alternatives} />
+
+                        {/* Phase 3 entry point. Opt-in — see the note in
+                            stack-panel.tsx on why this is a button rather
+                            than something every search triggers. */}
+                        <StackBuilder goal={query} />
 
                         {/* Feedback on the best match. Attached to the pick
                             rather than the panel, so a vote is unambiguous
