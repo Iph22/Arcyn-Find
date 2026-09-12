@@ -42,7 +42,14 @@ console.log(`Backfilling up to ${limit} embeddings${dryRun ? " (DRY RUN)" : ""}â
 
 const result = await backfillEmbeddings({ limit, dryRun })
 
-if (result.attempted === 0) {
+if (result.fetchFailed) {
+    // Distinct from "nothing to do". An earlier version conflated them and
+    // cheerfully reported a finished backfill three times in a row while the
+    // underlying query was timing out.
+    console.error(`Could not fetch rows needing an embedding: ${result.fetchError}`)
+    console.error("This is a failure, not a completed backfill.")
+    process.exitCode = 1
+} else if (result.attempted === 0) {
     console.log("Nothing to do â€” every row has an embedding.")
 } else if (dryRun) {
     console.log(`${result.attempted} rows are missing an embedding (nothing written).`)

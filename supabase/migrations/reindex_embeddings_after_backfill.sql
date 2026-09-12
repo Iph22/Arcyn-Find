@@ -39,6 +39,34 @@ REINDEX INDEX ai_tools_embedding_idx;
 ANALYZE ai_tools;
 
 -- ============================================================================
+-- ALSO WORTH RUNNING AFTER A LARGE BACKFILL: VACUUM.
+--
+-- Every embedding written is an UPDATE, and an UPDATE in Postgres writes a new
+-- row version and leaves the old one dead. A day of backfilling (~1,900 rows)
+-- was enough to visibly degrade unrelated queries: a plain
+--
+--     SELECT id FROM ai_tools ORDER BY popularity DESC LIMIT n
+--
+-- went from 2828ms to roughly 9s AT EVERY LIMIT, which is the signature of the
+-- planner giving up on the index and doing a full scan and sort. It did not
+-- recover when the writes stopped, so it is bloat and stale statistics rather
+-- than contention.
+--
+-- Worth being precise about the blast radius: user-facing search was NOT
+-- affected, because search_tools_advanced narrows with an FTS predicate before
+-- it sorts. The measured damage was to bare popularity scans, which is what the
+-- maintenance scripts use. Verified with scripts/eval/retrieval-determinism.js
+-- immediately afterwards: 0/6 unstable, 0/6 over budget, 300-400ms.
+--
+-- VACUUM cannot run inside a transaction block, so run it on its own:
+--
+--   VACUUM ANALYZE ai_tools;
+--
+-- Supabase also autovacuums, so this is about not waiting for it rather than
+-- something that will never happen otherwise.
+-- ============================================================================
+
+-- ============================================================================
 -- WORTH REVISITING, not done here: the `lists` parameter itself.
 --
 -- pgvector's guidance is roughly rows/1000 lists for tables up to ~1M rows,

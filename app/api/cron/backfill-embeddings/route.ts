@@ -12,10 +12,10 @@
  * is why a query like "schedule social media posts" returned a tweeting browser
  * extension while SocialBee (popularity 100) was unreachable by meaning.
  *
- * SAFE TO CALL REPEATEDLY AND OFTEN. It processes the most-popular rows that
- * still lack an embedding, so successive calls make progress with no cursor to
- * keep; and it stops early on both a time budget and a run of failures, so a
- * call during an exhausted quota is cheap rather than destructive.
+ * SAFE TO CALL REPEATEDLY AND OFTEN. It processes rows that still lack an
+ * embedding, so successive calls make progress with no cursor to keep; and it
+ * stops early on both a time budget and a run of failures, so a call during an
+ * exhausted quota is cheap rather than destructive.
  *
  * Suggested schedule: hourly. Each run is small by design — finishing sooner is
  * not possible while the quota is the constraint, and a large batch would
@@ -67,11 +67,27 @@ export async function GET(request: Request) {
             `${result.quotaExhausted ? ' (quota exhausted)' : ''}${result.timedOut ? ' (time budget reached)' : ''}`
         )
 
+        // A failed lookup must not read as a finished backfill. Reporting
+        // ok:false here matters more than usual: this endpoint is driven by a
+        // scheduler, so a false "complete" would stop anyone looking at it again.
+        if (result.fetchFailed) {
+            logger.error(`[Cron:BackfillEmbeddings] could not fetch work: ${result.fetchError}`)
+            return NextResponse.json(
+                {
+                    ok: false,
+                    ...result,
+                    complete: false,
+                    note: 'Could not query for rows needing an embedding — this is a failure, not a finished backfill.',
+                },
+                { status: 500 }
+            )
+        }
+
         return NextResponse.json({
             ok: true,
             ...result,
-            // Nothing left to do is a success, and worth saying plainly so a
-            // monitoring dashboard does not read "wrote 0" as a failure.
+            // Nothing left to do is a genuine success, and worth saying plainly
+            // so a monitoring dashboard does not read "wrote 0" as a failure.
             complete: result.attempted === 0,
             note:
                 result.attempted === 0

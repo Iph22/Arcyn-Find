@@ -1,5 +1,10 @@
 /**
- * Fills in missing tool embeddings, most-viewed first.
+ * Fills in missing tool embeddings.
+ *
+ * Prioritised by popularity BANDS, not by a global sort. Sorting to find the
+ * unembedded rows timed out once the popular ones were done; an indexed
+ * `popularity >= n` filter does the same job cheaply. Measurements are at the
+ * fetch below.
  *
  * WHY IT MATTERS: the semantic tier of search_tools_advanced requires
  * `embedding IS NOT NULL`, so a tool without one can never be found by meaning
@@ -45,6 +50,22 @@ const MAX_CONSECUTIVE_FAILURES = 8
 /** Pause between embedding calls. The free tier rate-limits aggressively. */
 const DELAY_MS = 120
 
+/**
+ * WRITE LOAD HAS A BLAST RADIUS — keep batches small on a live site.
+ *
+ * Every embedding written maintains the IVFFlat vector index, and a sustained
+ * run of those updates starves ordinary reads. Measured while a 300-row batch
+ * was in flight, a query that normally takes 2828ms:
+ *
+ *     SELECT id ... ORDER BY popularity LIMIT  200    TIMEOUT (9090ms)
+ *     SELECT id ... ORDER BY popularity LIMIT 1000    TIMEOUT (9081ms)
+ *
+ * So a large batch does not just take a long time, it degrades the site while
+ * it runs. The cron route's 25 rows per call is sized for that; the CLI's
+ * larger default is for when nobody is using the site. If searches start timing
+ * out during a backfill, this is why.
+ */
+
 const sleep = (ms: number) => new Promise(resolve => setTimeout(resolve, ms))
 
 export interface BackfillOptions {
@@ -66,6 +87,19 @@ export interface BackfillResult {
     quotaExhausted: boolean
     /** True when the run ended early because it ran out of time budget. */
     timedOut: boolean
+    /**
+     * True when the query for work FAILED, as opposed to finding nothing to do.
+     *
+     * These must not be conflated, and they were: an earlier version broke out
+     * of the fetch loop on error, leaving an empty worklist, and the caller then
+     * reported "Nothing to do — every row has an embedding." That is a failure
+     * announcing itself as completion, and it did happen in practice — three
+     * batches in a row claimed success while the underlying query was returning
+     * 57014 statement timeout.
+     */
+    fetchFailed: boolean
+    /** The fetch error, when there was one. */
+    fetchError?: string
     elapsedMs: number
 }
 
@@ -82,38 +116,65 @@ export async function backfillEmbeddings(options: BackfillOptions): Promise<Back
         failed: 0,
         quotaExhausted: false,
         timedOut: false,
+        fetchFailed: false,
         elapsedMs: 0,
     }
 
     const supabase = getSupabaseAdmin()
 
-    // Ask for exactly the rows that need work, most-popular first.
+    // Fetch rows that need an embedding.
     //
-    // Note it FILTERS on `embedding` rather than selecting it: 1000 rows x 768
-    // floats is a multi-megabyte payload, and an earlier version that selected
-    // the column got slower as coverage improved until the query timed out —
-    // the script broke the better it worked. Filtering is both cheaper and
-    // exact, and it means re-running needs no cursor: filled rows simply leave
-    // the result set.
+    // It FILTERS on `embedding` rather than selecting it: 1000 rows x 768 floats
+    // is a multi-megabyte payload, and an early version that selected the column
+    // got slower as coverage improved until the query timed out — the script
+    // broke the better it worked.
+    //
+    // Prioritisation is a FILTER rather than an ORDER BY: work
+    // through descending popularity bands, exhausting each before dropping to
+    // the next. `popularity >= n` is an indexed predicate Postgres can satisfy
+    // cheaply, whereas sorting by popularity to find the nulls is what timed
+    // out. Measured, fetching 300 rows with no embedding:
+    //
+    //     ORDER BY popularity                TIMEOUT at every page size
+    //     WHERE popularity >= 100            296ms, average popularity 100
+    //     WHERE popularity >= 60             308ms, average popularity 100
+    //     no filter at all                   620ms, average popularity  37
+    //
+    // This matters beyond tidiness: 55% of the corpus is duplicate re-ingests of
+    // a handful of repos (tensorflow appears 356 times), and those sit in the
+    // low-popularity tail. Without a floor the backfill spends its scarce daily
+    // quota embedding copies of the same project.
+    const POPULARITY_BANDS = [100, 80, 60, 40, 20, 0]
+
     const todo: { id: string; name: string; description: string | null; category: string | null; tags: string[] | null }[] = []
 
-    while (todo.length < limit) {
-        const want = Math.min(FETCH_PAGE, limit - todo.length)
-        const { data, error } = await supabase
-            .from("ai_tools")
-            .select("id, name, description, category, tags")
-            .is("embedding", null)
-            .order("popularity", { ascending: false, nullsFirst: false })
-            .range(todo.length, todo.length + want - 1)
+    for (const floor of POPULARITY_BANDS) {
+        while (todo.length < limit) {
+            const want = Math.min(FETCH_PAGE, limit - todo.length)
+            const { data, error } = await supabase
+                .from("ai_tools")
+                .select("id, name, description, category, tags")
+                .is("embedding", null)
+                .gte("popularity", floor)
+                .limit(want)
 
-        if (error) {
-            logger.warn(`[EmbeddingBackfill] fetch failed: ${error.message}`)
-            break
+            if (error) {
+                // Recorded, not swallowed: an empty worklist caused by a failed
+                // query must never be reported as "nothing left to do".
+                result.fetchFailed = true
+                result.fetchError = error.message
+                logger.warn(`[EmbeddingBackfill] fetch failed (popularity >= ${floor}): ${error.message}`)
+                break
+            }
+            // This band is exhausted — drop to the next one.
+            if (!data || data.length === 0) break
+
+            todo.push(...data)
+            // A short page means the band is drained, so move on rather than
+            // asking it for more.
+            if (data.length < want) break
         }
-        if (!data || data.length === 0) break
-
-        todo.push(...data)
-        if (data.length < want) break
+        if (result.fetchFailed || todo.length >= limit) break
     }
 
     result.attempted = todo.length

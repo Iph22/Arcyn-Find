@@ -1,0 +1,57 @@
+# GitHub Actions Cron - Backfill Tool Embeddings
+#
+# WHY THIS RUNS ON A SCHEDULE RATHER THAN BY HAND:
+# The semantic tier of search_tools_advanced requires `embedding IS NOT NULL`,
+# so a tool without one can only ever be found by keyword. Coverage was measured
+# at 11% of the 2000 most-viewed rows — which is why a search for "schedule
+# social media posts" returned a tweeting browser extension while SocialBee
+# (popularity 100) was unreachable by meaning.
+#
+# The free Gemini tier allows 1000 embedding requests per day
+# (EmbedContentRequestsPerDayPerUserPerProjectPerModel-FreeTier), and roughly
+# 130k rows still need one. That is months of daily runs — not something anyone
+# should be remembering to do manually, hence this.
+#
+# SAFE TO RUN OFTEN. Each call takes rows that still lack an embedding, so
+# successive runs make progress with no cursor to track, and it stops early on
+# both a time budget and a run of failures. A call during an
+# exhausted quota is cheap rather than harmful — it returns quotaExhausted and
+# does nothing.
+#
+# Hourly rather than in one big nightly batch, deliberately: embeddings share
+# the Gemini quota with the reasoning calls the recommendation feature depends
+# on, so draining it in one burst would take recommendations down with it.
+# Spreading the spend leaves headroom for real traffic.
+
+name: Backfill Tool Embeddings (hourly)
+
+on:
+  schedule:
+    # Every hour, on the hour.
+    - cron: '0 * * * *'
+  workflow_dispatch: # Allow manual trigger
+
+# Never let two backfills overlap: both would fetch the same "most popular rows
+# with no embedding" and spend quota embedding the same tools twice.
+concurrency:
+  group: backfill-embeddings
+  cancel-in-progress: false
+
+jobs:
+  backfill-embeddings:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Trigger Embedding Backfill Endpoint
+        run: |
+          curl -X GET \
+            -H "Authorization: Bearer ${{ secrets.CRON_SECRET }}" \
+            -H "Content-Type: application/json" \
+            "${{ secrets.SITE_URL }}/api/cron/backfill-embeddings" \
+            --fail --silent --show-error
+        env:
+          SITE_URL: ${{ secrets.SITE_URL }}
+          CRON_SECRET: ${{ secrets.CRON_SECRET }}
+
+      - name: Log Result
+        run: echo "✅ Embedding backfill batch completed at $(date)"
