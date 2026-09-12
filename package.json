@@ -28,7 +28,10 @@
     "fix:r-synth": "node scripts/images/fix-r-synth-images.js",
     "fix:r-synth:dry": "node scripts/images/fix-r-synth-images.js --dry-run",
     "fix:well-known": "node scripts/testing/fix-well-known-tools.js",
-    "fix:well-known:dry": "node scripts/testing/fix-well-known-tools.js --dry-run"
+    "fix:well-known:dry": "node scripts/testing/fix-well-known-tools.js --dry-run",
+    "seo:slugs": "node --env-file=.env.local scripts/seo/backfill-slugs.mjs",
+    "seo:slugs:dry": "node --env-file=.env.local scripts/seo/backfill-slugs.mjs --dry-run",
+    "seo:audit": "node --env-file=.env.local scripts/seo/audit.mjs"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.124.0",

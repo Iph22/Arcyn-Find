@@ -177,6 +177,7 @@ bugs in my codebase".
 | `corpus-health.js` | duplicates and miscategorisation |
 | `stack-stages.mts` | what every stack template stage retrieves |
 | `stack-decomposition.mjs` | model goal-decomposition quality (needs quota) |
+| `seo/audit.mjs` | publishable vs indexable page counts, per category |
 
 **Labels are `labeledBy: "assistant"` — only 1 of 26 is human-reviewed.** That
 count is the actual acceptance criterion for "recommendations are useful";
@@ -205,6 +206,53 @@ Read §1 first. The specific hazards:
   that a repo is an acceptable *recommendation*; whether it deserves an indexed
   page is a separate call.
 
+### 6.1 The public layer as built (2026-09-12)
+
+`docs/SEO_ARCHITECTURE.md` has the full design. The measurements that drove it,
+reproducible with `npm run seo:audit`:
+
+**The publishable set is ~2,900 rows, not 7,000 and not 260,000.** Popularity
+tops out just under 150, so the band that matters is `popularity >= 90`:
+
+| band | rows | distinct products |
+|---|---|---|
+| ≥ 150 | 0 | — |
+| ≥ 90 | 2,929 | 2,913 |
+| ≥ 60 | ~35,800 | not measured |
+
+Deduplication barely matters *inside this band* — 2,929 rows collapse to 2,913
+products, only 16 duplicates. The 55% duplication in §1 is concentrated in the
+low-popularity GitHub re-ingests, which this band excludes. Dedupe anyway: the
+band is a threshold, not a guarantee.
+
+**Descriptions are hard-capped at exactly 200 characters, cut mid-word.** Of
+1,000 sampled rows, 946 are exactly 200 chars long; the median is 200 and the
+max is 500. 2,644 of 2,929 fail a "ends on sentence punctuation" test.
+
+**Truncation is not a usable quality signal, and this cost a round trip.** The
+first indexability gate rejected truncated descriptions and admitted **66 of
+2,913 pages** — because the cap truncates the *good* descriptions too. What
+actually separates a real page from a stub is word count and tag richness, and
+on those the corpus is bimodal, so the gate is not balanced on a knife edge:
+
+| gate | pages |
+|---|---|
+| ≥120 chars, has tags, not an "AI tool mentioned in:" stub | 2,704 |
+| + ≥2 tags + has image | 2,701 |
+| + ≥25 words | **2,603** ← shipped |
+| + has outbound URL | 2,603 |
+| (rejected) + not truncated | 66 |
+
+So ~2,600 pages carry ~70 words, 9–15 tags, an image and an outbound link.
+That is modest but genuine content, not scraped filler.
+
+**Slugs do not collide.** Slugifying the 2,913 distinct names produced 0
+collisions and 0 empty slugs, so `slugify(name)` is safe as the URL key. The
+backfill still carries a `-2` suffix path for future rows.
+
+**`ILIKE` being non-viable (§2) is why `slug` is a real column** rather than a
+value matched against `name` at request time.
+
 ---
 
 ## 7. Environment notes
@@ -215,4 +263,11 @@ Read §1 first. The specific hazards:
   deleted in `git diff` but not `git status`; a `git commit -a` would drop it.
 - `npm run lint` is broken — neither `eslint` nor `@eslint/eslintrc` is
   installed, though `eslint.config.mjs` exists.
+- **`npx tsc --noEmit` dies with `out of memory` on this machine**, and so will
+  `next build`. The box has ~4 GB total and was measured with **38 MB free**;
+  the TypeScript 7 compiler (the Go port, per `"typescript": "^7"`) allocates
+  well past that. It is an environment limit, not a code error — the same
+  checkout typechecks on CI. For a fast local sanity check that a file parses,
+  `node_modules/.bin/esbuild <file> --jsx=preserve --outfile=/dev/null` costs
+  almost nothing, but it validates syntax only and will not catch type errors.
 - Some source files are CRLF (`lib/hooks/use-ai-tools.ts`), most are LF.

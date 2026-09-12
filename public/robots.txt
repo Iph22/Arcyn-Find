@@ -1,80 +1,88 @@
-# Arcyn Find - Robots.txt
+# Arcyn Find - robots.txt
 # https://arcynfind.com
+#
+# The public, indexable surface is:
+#   /                      homepage
+#   /tools                 directory
+#   /tools/category/*      category landing pages
+#   /tools/<slug>          individual tool pages
+#
+# /home and everything under it is the authenticated application. It is not a
+# crawl target and never was -- the bug was that the homepage linked to it.
 
-# Allow all search engines
 User-agent: *
 Allow: /
-Allow: /sitemap.xml
-Allow: /sitemap-index.xml
-Allow: /sitemap-*.xml
 Disallow: /api/
 Disallow: /admin
 Disallow: /_next/
 Disallow: /private
-# Block authentication pages
+
+# Authentication
 Disallow: /sign-in
 Disallow: /sign-up
 Disallow: /sign-in/*
 Disallow: /sign-up/*
-# Block user-specific pages that shouldn't be indexed
+
+# Authenticated application surfaces
+Disallow: /home
 Disallow: /profile
 Disallow: /settings
 Disallow: /onboarding
 Disallow: /instructions
-Disallow: /home
+Disallow: /collections
+Disallow: /followers
 
-# Google
-User-agent: Googlebot
-Allow: /
-Allow: /sitemap.xml
-Allow: /sitemap-index.xml
-Allow: /sitemap-*.xml
-Disallow: /api/
-Disallow: /sign-in
-Disallow: /sign-up
-Disallow: /sign-in/*
-Disallow: /sign-up/*
-Disallow: /profile
-Disallow: /settings
-Disallow: /onboarding
-Disallow: /instructions
-Disallow: /home
+# The interactive browser is crawlable at its bare URL so that its `noindex,
+# follow` tag can be read and its outbound links followed, but its filter
+# state lives in query parameters and that space is unbounded.
+Disallow: /browse?
 
-# Bing
-User-agent: Bingbot
-Allow: /
-Allow: /sitemap.xml
-Allow: /sitemap-index.xml
-Allow: /sitemap-*.xml
-Disallow: /api/
-Disallow: /sign-in
-Disallow: /sign-up
-Disallow: /sign-in/*
-Disallow: /sign-up/*
-Disallow: /profile
-Disallow: /settings
-Disallow: /onboarding
-Disallow: /instructions
-Disallow: /home
+# ---------------------------------------------------------------------------
+# AI crawlers
+#
+# Split by what the crawler is for, not by vendor:
+#
+#   Retrieval crawlers fetch a page to answer a question someone asked right
+#   now, and cite it. For a tool directory that is qualified referral traffic,
+#   so they are allowed.
+#
+#   Training crawlers bulk-copy the corpus into a model. Nothing links back,
+#   and this catalog is the product. Blocked.
+# ---------------------------------------------------------------------------
 
-# Block AI training bots
-User-agent: GPTBot
-Disallow: /
-
+# Retrieval / answer engines - allowed
 User-agent: ChatGPT-User
+Allow: /
+
+User-agent: OAI-SearchBot
+Allow: /
+
+User-agent: Claude-Web
+Allow: /
+
+User-agent: Claude-SearchBot
+Allow: /
+
+User-agent: PerplexityBot
+Allow: /
+
+# Training crawlers - blocked
+User-agent: GPTBot
 Disallow: /
 
 User-agent: CCBot
 Disallow: /
 
+User-agent: Google-Extended
+Disallow: /
+
 User-agent: anthropic-ai
 Disallow: /
 
-User-agent: Claude-Web
+User-agent: Bytespider
 Disallow: /
 
-# Sitemaps
-Sitemap: https://arcynfind.com/sitemap-index.xml
+User-agent: Omgilibot
+Disallow: /
 
-# Crawl delay (in seconds)
-Crawl-delay: 0
+Sitemap: https://arcynfind.com/sitemap-index.xml

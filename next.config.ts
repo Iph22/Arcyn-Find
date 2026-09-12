@@ -18,40 +18,21 @@ const nextConfig: NextConfig = {
     // Allow local images from public directory
     unoptimized: false,
   },
-  async headers() {
-    return [
-      {
-        // Apply headers to public routes that should be indexed
-        source: '/',
-        headers: [
-          {
-            key: 'X-Robots-Tag',
-            value: 'index, follow',
-          },
-        ],
-      },
-      {
-        // Apply headers to tools pages
-        source: '/tools/:path*',
-        headers: [
-          {
-            key: 'X-Robots-Tag',
-            value: 'index, follow',
-          },
-        ],
-      },
-      {
-        // Apply headers to about, privacy, terms, contact, community pages
-        source: '/:path(about|privacy|terms|contact|community)',
-        headers: [
-          {
-            key: 'X-Robots-Tag',
-            value: 'index, follow',
-          },
-        ],
-      },
-    ];
-  },
+  // No X-Robots-Tag headers here on purpose.
+  //
+  // These previously forced `index, follow` onto `/tools/:path*`, which would
+  // now silently override the per-page `noindex` that the SEO layer applies to
+  // tool pages whose only content is a truncated scraped blurb, and to the
+  // /browse filter UI. Indexability is decided in exactly one place: each
+  // page's `generateMetadata`.
+  //
+  // The old sitemap emitted `/tools?id=<id>` for every tool, so those URLs may
+  // be indexed. No redirect rule is needed for them: the new `/tools` ignores
+  // the query parameter and declares `<link rel="canonical" href="/tools">`,
+  // which is how Google consolidates them. (A redirect here would loop --
+  // Next preserves the query string, so `/tools?id=x` would target itself.)
+  // Legacy `/tools/<opaque-id>` links are resolved to the right slug and
+  // permanently redirected inside app/tools/[slug]/page.tsx.
 };
 
 export default nextConfig;

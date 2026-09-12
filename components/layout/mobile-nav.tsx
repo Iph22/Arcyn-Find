@@ -30,7 +30,7 @@ export function MobileNav() {
 
   const navItems = [
     { href: "/home", label: "Home", icon: Home, requiresAuth: true },
-    { href: "/tools", label: "Tools", icon: Sparkles, requiresAuth: false },
+    { href: "/browse", label: "Tools", icon: Sparkles, requiresAuth: false },
     { href: "/collections", label: "Saved", icon: Bookmark, requiresAuth: true },
     { href: "/profile", label: "Profile", icon: User, requiresAuth: true },
   ]
@@ -56,16 +56,16 @@ export function MobileNav() {
           <div className="flex items-center justify-around h-14 px-2 gap-2">
             {/* Tools Link */}
             <Link
-              href="/tools"
+              href="/browse"
               onClick={() => haptic("light")}
               className={cn(
                 "flex flex-col items-center justify-center gap-1 relative transition-colors flex-1 min-w-0 touch-manipulation active:scale-95",
-                pathname === "/tools"
+                pathname === "/browse"
                   ? "text-primary"
                   : "text-muted-foreground active:text-primary"
               )}
             >
-              {pathname === "/tools" && (
+              {pathname === "/browse" && (
                 <motion.div
                   layoutId="mobile-nav-indicator"
                   className="absolute top-0 left-0 right-0 h-1 bg-primary rounded-b-full"
@@ -74,7 +74,7 @@ export function MobileNav() {
                 />
               )}
               <motion.div whileTap={{ scale: 0.9 }}>
-                <Sparkles className={cn("w-5 h-5 shrink-0", pathname === "/tools" && "scale-110")} />
+                <Sparkles className={cn("w-5 h-5 shrink-0", pathname === "/browse" && "scale-110")} />
               </motion.div>
               <span className="text-[10px] font-medium leading-tight">Tools</span>
             </Link>

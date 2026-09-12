@@ -6,6 +6,7 @@ import { useEffect, useLayoutEffect, useRef, useState } from "react"
 import { motion, useScroll } from "framer-motion"
 import { CodesandboxIcon, ArrowRight, Zap, Shield, Globe, Instagram, Twitter, Heart, Linkedin, ExternalLink } from "lucide-react"
 import { useRouter } from "next/navigation"
+import Link from "next/link"
 import { Button } from "@/components/ui/button"
 import dynamic from "next/dynamic"
 
@@ -460,11 +461,11 @@ export default function LandingPage() {
                 <GoogleIcon className="w-5 h-5 mr-2" />
                 Get Started with Google
               </Button>
-              <Button size="lg" variant="outline" className="h-12 sm:h-14 px-6 sm:px-8 text-sm sm:text-base md:text-lg rounded-full bg-background/50 w-full sm:w-auto active:scale-[0.98]" onClick={() => {
-                // Navigate to tools page (public, no auth required for guests)
-                router.push("/tools")
-              }}>
-                Explore Tools
+              {/* A real anchor, not an onClick handler. This is the primary
+                  path from the homepage into the public directory, and a
+                  crawler cannot follow router.push(). */}
+              <Button asChild size="lg" variant="outline" className="h-12 sm:h-14 px-6 sm:px-8 text-sm sm:text-base md:text-lg rounded-full bg-background/50 w-full sm:w-auto active:scale-[0.98]">
+                <Link href="/tools">Explore Tools</Link>
               </Button>
             </div>
           </motion.div>
@@ -542,9 +543,17 @@ export default function LandingPage() {
                     Community
                   </a>
                 </li>
+                {/* Was /home, which is auth-gated and Disallow'd in
+                    robots.txt -- so the site's own "Browse Tools" link sent
+                    every crawler into a sign-in redirect. */}
                 <li>
-                  <a href="/home" className="hover:text-primary transition-colors min-h-[44px] flex items-center justify-center">
+                  <a href="/tools" className="hover:text-primary transition-colors min-h-[44px] flex items-center justify-center">
                     Browse Tools
+                  </a>
+                </li>
+                <li>
+                  <a href="/tools/category" className="hover:text-primary transition-colors min-h-[44px] flex items-center justify-center">
+                    Categories
                   </a>
                 </li>
               </ul>

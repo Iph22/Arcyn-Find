@@ -10,6 +10,7 @@ import { LanguageProvider } from "@/contexts/language-context"
 import { ThemeProvider } from "next-themes"
 import ClientLayout from "./client-layout"
 import { Analytics } from "@vercel/analytics/next"
+import { siteUrl } from "@/lib/seo/site"
 import { Toaster } from "@/components/ui/sonner"
 
 const geistSans = Geist({
@@ -30,7 +31,10 @@ const geistMono = Geist_Mono({
 
 // Advanced metadata for SEO and PWA
 export const metadata: Metadata = {
-  metadataBase: new URL(process.env.NEXT_PUBLIC_SITE_URL || "https://arcynfind.com"),
+  // Guarded: NEXT_PUBLIC_SITE_URL is http://localhost:3000 in .env.local, and
+  // reading it unguarded is how a deploy publishes localhost canonicals and OG
+  // image URLs. siteUrl() only accepts an absolute https origin.
+  metadataBase: new URL(siteUrl()),
   title: {
     default: "Arcyn Find - Discover AI Tools Worldwide",
     template: "%s | Arcyn Find",

@@ -94,11 +94,11 @@ export function Navbar({ className }: NavbarProps) {
                   {t("nav.home")}
                 </Link>
                 <Link
-                  href="/tools"
+                  href="/browse"
                   aria-label="Navigate to Tools"
                   className={cn(
                     "px-3 py-2 rounded-md text-sm font-medium transition-colors",
-                    pathname === "/tools"
+                    pathname === "/browse"
                       ? "bg-accent text-accent-foreground"
                       : "text-muted-foreground hover:text-foreground hover:bg-accent/50"
                   )}
@@ -120,10 +120,10 @@ export function Navbar({ className }: NavbarProps) {
               </>
             ) : (
               <Link
-                href="/tools"
+                href="/browse"
                 className={cn(
                   "px-3 py-2 rounded-md text-sm font-medium transition-colors",
-                  pathname === "/tools"
+                  pathname === "/browse"
                     ? "bg-accent text-accent-foreground"
                     : "text-muted-foreground hover:text-foreground hover:bg-accent/50"
                 )}

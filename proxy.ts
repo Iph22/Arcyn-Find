@@ -11,13 +11,17 @@ const publicRoutes = [
   '/api/check-url',
   '/api/reviews',
   '/api/webhooks',
+  // The public SEO layer. `/tools` covers /tools, /tools/<slug> and
+  // /tools/category/* via the prefix match below.
   '/tools',
+  '/browse',
   '/about',
   '/privacy',
   '/terms',
   '/contact',
   '/community',
   '/sitemap',
+  '/robots.txt',
 ]
 
 // Routes that require authentication
@@ -69,10 +73,10 @@ export function proxy(request: NextRequest) {
   // Create response
   const response = NextResponse.next()
 
-  // Explicitly allow indexing for public routes
-  if (isPublicRoute(pathname)) {
-    response.headers.set('X-Robots-Tag', 'index, follow')
-  }
+  // No blanket X-Robots-Tag here. It used to stamp `index, follow` on every
+  // public route, which would now override the per-page `noindex` that the
+  // SEO layer applies to thin tool pages and to the /browse filter UI.
+  // Indexability is decided in one place: each page's generateMetadata.
 
   // Check authentication for protected routes
   if (isProtectedRoute(pathname)) {
