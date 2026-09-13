@@ -11,7 +11,7 @@ import { siteUrl } from "@/lib/seo/site"
  * declared itself a duplicate of the homepage.
  */
 export const metadata: Metadata = {
-  title: "Arcyn Find Community",
+  title: { absolute: "Arcyn Find Community" },
   description:
     "See what the Arcyn Find community is building, reviewing and recommending across the AI tool directory.",
   alternates: { canonical: `${siteUrl()}/community` },
