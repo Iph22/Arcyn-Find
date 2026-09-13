@@ -41,8 +41,37 @@ computed its file count from a `count: 'exact'` over the whole table and listed
 `/tools?id=<id>` — a query parameter on a client-rendered page, so all ~1,000
 "tool pages" in the sitemap resolved to the same document with the same title.
 
+**Every page declared the homepage as its canonical.** The root layout set
+`alternates: { canonical: "/" }`, and root metadata is inherited — so `/about`,
+`/contact`, `/community`, `/privacy` and `/terms` each told Google "I am a
+duplicate of the homepage" while the sitemap simultaneously asked for them to
+be indexed. The canonical wins that argument. Those five pages are also client
+components and so cannot export `metadata` themselves, which is why they shared
+one title too; each now has a sibling server `layout.tsx` carrying its own.
+
 Additionally, `robots.txt` blocked `ChatGPT-User`, which is why the external
 audit's own crawler saw so little of the site.
+
+### Found after the first deploy
+
+**An empty sitemap was served with a 200 and cached for an hour.**
+`getPublishedTools()` swallowed query errors and returned `[]`, so when a
+crawler hit `/sitemap.xml` during a `VACUUM ANALYZE` and the query timed out,
+the route published the 8 static pages as though they were the whole site.
+That is the §2 trap — "a plausible-looking number is a truncation, not a
+measurement" — reappearing in the SEO layer. The read path now throws, the
+sitemap refuses to build with zero tools, and all three sitemap routes answer
+`503 / no-store / Retry-After` instead of a confident 200. Page chrome
+(`getRelatedTools`, `getCategoriesSafe`) stays deliberately tolerant: losing a
+"related tools" block is not worth losing the page.
+
+**A legacy-id redirect is a meta-refresh, not a 308.** Tool pages are
+statically generated, and a static page cannot emit a 308 from the CDN, so
+`permanentRedirect()` on `/tools/<legacy-id>` is prerendered as an interstitial
+with `<meta http-equiv="refresh">` and a 200. Browsers and Google both follow
+it, but its metadata *is* crawled — so the redirect branch of
+`generateMetadata` sets `noindex, follow` and a canonical pointing at the
+destination. Worth knowing before assuming a redirect is invisible.
 
 ---
 

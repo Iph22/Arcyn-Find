@@ -120,9 +120,17 @@ export const metadata: Metadata = {
   verification: {
     google: process.env.NEXT_PUBLIC_GOOGLE_VERIFICATION,
   },
-  alternates: {
-    canonical: "/",
-  },
+  // No `alternates.canonical` here.
+  //
+  // Root metadata is inherited, so a canonical of "/" was applied to every
+  // page that did not override it -- /about, /contact, /community, /privacy
+  // and /terms all told Google "I am a duplicate of the homepage", while the
+  // sitemap simultaneously asked for them to be indexed. The canonical wins
+  // that argument, so those pages were being dropped.
+  //
+  // With no tag, Google self-canonicalises each URL, which is correct for all
+  // of them including the homepage. Pages that need an explicit canonical
+  // (everything under /tools) set their own in generateMetadata.
   category: "technology",
 }
 

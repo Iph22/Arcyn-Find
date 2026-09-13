@@ -61,8 +61,21 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const route = await resolveToolRoute(slug)
 
   if (!route) return { title: 'Tool not found' }
-  // The page will redirect; metadata for it is never shown.
-  if (route.kind === 'redirect') return { title: 'Arcyn Find' }
+
+  // A legacy id that redirects. Because these pages are statically generated,
+  // Next cannot emit a 308 from the CDN and instead prerenders a meta-refresh
+  // interstitial served with a 200 -- so this metadata *is* shown to a crawler,
+  // contrary to what you would expect from a redirect.
+  //
+  // Point it at the destination and keep it out of the index: without the
+  // explicit canonical it inherits one, and previously that was the homepage.
+  if (route.kind === 'redirect') {
+    return {
+      title: 'Redirecting',
+      robots: { index: false, follow: true },
+      alternates: { canonical: `${siteUrl()}/tools/${route.slug}` },
+    }
+  }
 
   const { tool } = route
   const isPublished = route.kind === 'published'
