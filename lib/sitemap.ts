@@ -87,6 +87,20 @@ async function collectUrls(): Promise<SitemapUrl[]> {
 
   // One walk of the table, categories derived from the same array.
   const tools = await getPublishedTools()
+
+  // A successful query that returns nothing is still not a sitemap worth
+  // publishing. This site has ~2,900 published tools; zero means the slug
+  // backfill has not run, the wrong database is configured, or the walk was
+  // cut short -- and emitting the 8 static pages as if they were the whole
+  // site asks Google to drop everything else. Refuse, and let the route
+  // answer 503 so a crawler retries instead of acting on it.
+  if (tools.length === 0) {
+    throw new Error(
+      'refusing to build a sitemap with 0 published tools: run `npm run seo:slugs` ' +
+        'or check SUPABASE_SERVICE_ROLE_KEY'
+    )
+  }
+
   const categories = deriveCategories(tools)
 
   const categoryPages: SitemapUrl[] = categories.map((category) => ({

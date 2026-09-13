@@ -35,22 +35,22 @@ export async function GET(
             },
         })
     } catch (error) {
-        // Log error but return fallback sitemap
-        if (process.env.NODE_ENV === 'development') {
-          // eslint-disable-next-line no-console
-          console.error("Error generating sitemap:", error)
-        }
-        const fallbackSitemap = `<?xml version="1.0" encoding="UTF-8"?>
-<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
-</urlset>`
+        console.error("Error generating sitemap:", error)
 
-        return new Response(fallbackSitemap, {
-            status: 200,
-            headers: {
-                "Content-Type": "application/xml; charset=utf-8",
-                "Cache-Control": "public, s-maxage=60",
-            },
-        })
+        // 503 rather than an empty 200 urlset -- see app/sitemap.xml/route.ts.
+        // An empty sitemap is not a neutral answer: it asks Google to forget
+        // the pages it lists nothing for.
+        return new Response(
+            `<?xml version="1.0" encoding="UTF-8"?>\n<!-- sitemap temporarily unavailable -->`,
+            {
+                status: 503,
+                headers: {
+                    "Content-Type": "application/xml; charset=utf-8",
+                    "Cache-Control": "no-store",
+                    "Retry-After": "600",
+                },
+            }
+        )
     }
 }
 

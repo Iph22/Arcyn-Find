@@ -10,7 +10,7 @@ export async function GET(request: Request) {
     const url = new URL(request.url)
     const pageParam = url.searchParams.get("page")
     const page = pageParam ? parseInt(pageParam, 10) : 0
-    
+
     const sitemap = await generateSitemapXML(page)
 
     return new Response(sitemap, {
@@ -22,22 +22,27 @@ export async function GET(request: Request) {
     })
   } catch (error) {
     console.error("Error generating sitemap:", error)
-    // Return minimal valid sitemap on error
-    const fallbackSitemap = `<?xml version="1.0" encoding="UTF-8"?>
-<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
-  <url>
-    <loc>${process.env.NEXT_PUBLIC_SITE_URL || "https://arcynfind.com"}/</loc>
-    <changefreq>daily</changefreq>
-    <priority>1.0</priority>
-  </url>
-</urlset>`
-    
-    return new Response(fallbackSitemap, {
-      status: 200,
-      headers: {
-        "Content-Type": "application/xml; charset=utf-8",
-        "Cache-Control": "public, s-maxage=60",
-      },
-    })
+
+    // Deliberately a 503 with no cache, not a minimal 200 sitemap.
+    //
+    // This used to answer failures with a valid-looking sitemap containing
+    // only the static pages. Google reads that as "the site has 8 pages" and
+    // starts dropping everything else -- and Vercel cached the lie for an
+    // hour. It happened on 2026-09-13, when a crawler hit this route during a
+    // VACUUM ANALYZE and the query timed out.
+    //
+    // A 5xx makes a crawler retry later and change nothing in the meantime,
+    // which is the correct behaviour when we genuinely do not know the answer.
+    return new Response(
+      `<?xml version="1.0" encoding="UTF-8"?>\n<!-- sitemap temporarily unavailable -->`,
+      {
+        status: 503,
+        headers: {
+          "Content-Type": "application/xml; charset=utf-8",
+          "Cache-Control": "no-store",
+          "Retry-After": "600",
+        },
+      }
+    )
   }
 }

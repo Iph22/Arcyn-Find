@@ -119,7 +119,18 @@ export function isIndexable(tool: CatalogTool): boolean {
   return true
 }
 
-/** One page of published tools, keyed off `id` for keyset pagination. */
+/**
+ * One page of published tools, keyed off `id` for keyset pagination.
+ *
+ * Throws rather than returning `[]` on error, and that is the whole point.
+ * Swallowing the error here made a failed query indistinguishable from "there
+ * are no tools", and the sitemap then published that emptiness with a 200 and
+ * an hour of cache -- which tells Google the site has 8 pages. Observed in
+ * production on 2026-09-13, when a crawler hit /sitemap.xml during a
+ * `VACUUM ANALYZE` and the query timed out.
+ *
+ * Callers that can genuinely tolerate missing data catch this explicitly.
+ */
 async function fetchPublishedPage(afterId: string | null): Promise<CatalogTool[]> {
   const supabase = getSupabaseAdmin()
   let query = supabase
@@ -133,8 +144,7 @@ async function fetchPublishedPage(afterId: string | null): Promise<CatalogTool[]
 
   const { data, error } = await query
   if (error) {
-    console.error('[seo/catalog] fetchPublishedPage failed:', error.message)
-    return []
+    throw new Error(`fetchPublishedPage(after=${afterId ?? 'start'}): ${error.message}`)
   }
   return (data ?? []).map((row) => toTool(row as Row))
 }
@@ -269,6 +279,23 @@ export const getCategories = cache(async (): Promise<CatalogCategory[]> =>
 )
 
 /**
+ * Categories for page chrome (the public footer's link block).
+ *
+ * Tolerant, for the same reason as `getRelatedTools`: on a tool page the
+ * category list is navigation, not content, and losing it is better than
+ * losing the page. Pages where the categories *are* the content call
+ * `getCategories()` and are allowed to fail.
+ */
+export async function getCategoriesSafe(): Promise<CatalogCategory[]> {
+  try {
+    return await getCategories()
+  } catch (error) {
+    console.error('[seo/catalog] getCategoriesSafe degraded:', error)
+    return []
+  }
+}
+
+/**
  * The pure half of `getCategories`.
  *
  * Callers that already hold the full tool list use this directly rather than
@@ -317,7 +344,16 @@ export const getCategoryBySlug = cache(
  * is what turns ~2,700 orphan pages into a crawlable graph.
  */
 export async function getRelatedTools(tool: CatalogTool, limit = 8): Promise<CatalogTool[]> {
-  const all = await getPublishedTools()
+  // Deliberately tolerant: related tools enrich a tool page but are not what
+  // the visitor came for. A transient database error should cost the section,
+  // not the page. The sitemap makes the opposite trade.
+  let all: CatalogTool[]
+  try {
+    all = await getPublishedTools()
+  } catch (error) {
+    console.error('[seo/catalog] getRelatedTools degraded:', error)
+    return []
+  }
   const tags = new Set(tool.tags.map((t) => t.toLowerCase()))
 
   const scored = all

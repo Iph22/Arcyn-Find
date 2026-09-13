@@ -10,7 +10,7 @@ import { Badge } from '@/components/ui/badge'
 import { Separator } from '@/components/ui/separator'
 import {
   clampForMeta,
-  getCategories,
+  getCategoriesSafe,
   getPublishedTools,
   getRelatedTools,
   isIndexable,
@@ -113,7 +113,7 @@ export default async function ToolPage({ params }: Props) {
   const tool = route.tool
   const isPublished = route.kind === 'published'
 
-  const [related, categories] = await Promise.all([getRelatedTools(tool), getCategories()])
+  const [related, categories] = await Promise.all([getRelatedTools(tool), getCategoriesSafe()])
   const categorySlug = tool.category ? slugify(tool.category) : ''
   const categoryIsLinkable = categories.some((c) => c.slug === categorySlug)
   const origin = siteUrl()
