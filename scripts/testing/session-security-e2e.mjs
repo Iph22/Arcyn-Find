@@ -16,18 +16,35 @@ import { fileURLToPath } from 'node:url'
 const BASE = process.env.BASE_URL || 'http://localhost:3311'
 const PROJECT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..')
 
-const envPath = path.join(PROJECT, '.env.local')
-if (!fs.existsSync(envPath)) {
-    console.error(`No .env.local at ${envPath} -- cannot read SESSION_SECRET.`)
-    process.exit(1)
+/**
+ * Prefer the environment so this can gate a deployed environment in CI, where
+ * there is no .env.local; fall back to .env.local for local runs.
+ *
+ * The secret must be the one the target is running with, or the "properly
+ * signed cookie IS authenticated" check fails and the run reports a
+ * vulnerability that is really a config mismatch.
+ */
+function readSecret() {
+    if (process.env.SESSION_SECRET) return process.env.SESSION_SECRET.trim()
+
+    const envPath = path.join(PROJECT, '.env.local')
+    if (!fs.existsSync(envPath)) {
+        console.error(
+            'SESSION_SECRET is not in the environment and there is no .env.local ' +
+            `at ${envPath}. Set SESSION_SECRET to the value the target is running with.`
+        )
+        process.exit(1)
+    }
+
+    const match = fs.readFileSync(envPath, 'utf8').match(/^SESSION_SECRET=(.*)$/m)
+    if (!match) {
+        console.error('SESSION_SECRET is not set in .env.local. See .env.example.')
+        process.exit(1)
+    }
+    return match[1].trim()
 }
 
-const secretMatch = fs.readFileSync(envPath, 'utf8').match(/^SESSION_SECRET=(.*)$/m)
-if (!secretMatch) {
-    console.error('SESSION_SECRET is not set in .env.local. See .env.example.')
-    process.exit(1)
-}
-const SECRET = secretMatch[1].trim()
+const SECRET = readSecret()
 
 let failures = 0
 const check = (name, ok, detail = '') => {
