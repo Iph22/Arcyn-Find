@@ -127,12 +127,31 @@ export function isAIConfigured(): boolean {
 /** Applies to Claude only — Gemini has no equivalent knob on this surface. */
 export type AIEffort = "low" | "medium" | "high"
 
+/**
+ * Why a structured call failed, for callers that need to treat the cases
+ * differently. parseStructured returns null for all of them, which is the right
+ * default — but "the provider is briefly overloaded" and "you are out of quota
+ * for the day" call for opposite responses, and a caller that cannot tell them
+ * apart either retries into an exhausted quota or gives up on a blip.
+ */
+export type AIFailureKind =
+    /** 429 — no point trying again now. */
+    | "quota"
+    /** 503 — transient; the same call often succeeds moments later. */
+    | "unavailable"
+    /** Timed out against opts.timeoutMs. */
+    | "timeout"
+    /** Anything else, including a response that failed schema validation. */
+    | "other"
+
 interface ParseOptions {
     /** Hard deadline in milliseconds. Required — no implicit default. */
     timeoutMs: number
     effort?: AIEffort
     system?: string
     label: string
+    /** Called on failure, before parseStructured returns null. */
+    onFailure?: (kind: AIFailureKind) => void
 }
 
 /**
@@ -333,21 +352,29 @@ async function parseWithClaude<T extends z.ZodType>(
 
 function logCallFailure(provider: AIProviderName, opts: ParseOptions, error: unknown) {
     const e = error as any
+    // Report the kind alongside the log, so the two can never disagree about
+    // what went wrong.
+    const report = (kind: AIFailureKind) => opts.onFailure?.(kind)
 
     if (e?.isTimeout) {
         logger.warn(`[AI:${provider}] ${opts.label} timed out after ${opts.timeoutMs}ms`)
+        report("timeout")
         return
     }
 
     if (provider === "claude") {
         if (error instanceof Anthropic.RateLimitError) {
             logger.warn(`[AI:claude] ${opts.label} rate limited`)
+            report("quota")
         } else if (error instanceof Anthropic.AuthenticationError) {
             logger.error(`[AI:claude] ${opts.label} failed: invalid ANTHROPIC_API_KEY`)
+            report("other")
         } else if (error instanceof Anthropic.APIError) {
             logger.error(`[AI:claude] ${opts.label} API error ${error.status}:`, error.message)
+            report(error.status === 529 || error.status === 503 ? "unavailable" : "other")
         } else {
             logger.error(`[AI:claude] ${opts.label} unexpected error:`, error)
+            report("other")
         }
         return
     }
@@ -356,12 +383,16 @@ function logCallFailure(provider: AIProviderName, opts: ParseOptions, error: unk
     const status = e?.status ?? e?.response?.status
     if (status === 429) {
         logger.warn(`[AI:gemini] ${opts.label} rate limited / quota exhausted`)
+        report("quota")
     } else if (status === 503) {
         logger.warn(`[AI:gemini] ${opts.label} model unavailable`)
+        report("unavailable")
     } else if (status) {
         logger.error(`[AI:gemini] ${opts.label} API error ${status}:`, e?.message ?? error)
+        report("other")
     } else {
         logger.error(`[AI:gemini] ${opts.label} unexpected error:`, e?.message ?? error)
+        report("other")
     }
 }
 
