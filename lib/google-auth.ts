@@ -2,6 +2,12 @@
 
 import { cookies } from 'next/headers'
 import { supabase } from './supabase'
+import {
+    SESSION_COOKIE_NAME,
+    SESSION_MAX_AGE_SECONDS,
+    signSession,
+    verifySession,
+} from './session'
 
 export interface GoogleUser {
     id: string
@@ -28,26 +34,20 @@ export interface UserProfile {
     updated_at: string
 }
 
-const SESSION_COOKIE_NAME = 'arcyn_session'
-const SESSION_MAX_AGE = 60 * 60 * 24 * 30 // 30 days
-
 /**
  * Get current session from cookies
+ *
+ * The cookie is HMAC-verified in lib/session.ts. Anything this deployment did
+ * not sign -- including every cookie issued by the old unsigned scheme -- comes
+ * back as null and reads as signed out.
  */
 export async function getSession(): Promise<AuthSession> {
     try {
         const cookieStore = await cookies()
         const sessionCookie = cookieStore.get(SESSION_COOKIE_NAME)
 
-        if (!sessionCookie?.value) {
-            return { user: null, isAuthenticated: false }
-        }
-
-        // Parse and validate session
-        const session = JSON.parse(atob(sessionCookie.value))
-
-        // Check if session is expired
-        if (session.expiresAt && new Date(session.expiresAt) < new Date()) {
+        const session = await verifySession(sessionCookie?.value)
+        if (!session) {
             return { user: null, isAuthenticated: false }
         }
 
@@ -63,21 +63,32 @@ export async function getSession(): Promise<AuthSession> {
 
 /**
  * Create a new session
+ *
+ * Throws if SESSION_SECRET is unset, so a misconfigured deployment fails at
+ * sign-in instead of handing out cookies that nothing can verify.
  */
 export async function createSession(user: GoogleUser): Promise<void> {
     const cookieStore = await cookies()
 
-    const session = {
-        user,
+    const token = await signSession({
+        // The Google access token is deliberately not carried in the cookie.
+        // It was being stored there and never read back, which is a bearer
+        // credential sitting in the browser for no benefit.
+        user: {
+            id: user.id,
+            email: user.email,
+            name: user.name,
+            picture: user.picture,
+        },
         createdAt: new Date().toISOString(),
-        expiresAt: new Date(Date.now() + SESSION_MAX_AGE * 1000).toISOString()
-    }
+        expiresAt: new Date(Date.now() + SESSION_MAX_AGE_SECONDS * 1000).toISOString()
+    })
 
-    cookieStore.set(SESSION_COOKIE_NAME, btoa(JSON.stringify(session)), {
+    cookieStore.set(SESSION_COOKIE_NAME, token, {
         httpOnly: true,
         secure: process.env.NODE_ENV === 'production',
         sameSite: 'lax',
-        maxAge: SESSION_MAX_AGE,
+        maxAge: SESSION_MAX_AGE_SECONDS,
         path: '/'
     })
 }
@@ -176,8 +187,12 @@ export async function upsertUserProfile(profile: {
 
 /**
  * Generate Google OAuth URL
+ *
+ * `state` is supplied by the caller rather than built here: it has to be bound
+ * to a nonce cookie set on the same response as the redirect, which only the
+ * route handler can do. See app/api/auth/google/route.ts.
  */
-export async function getGoogleAuthUrl(redirectPath: string = '/home'): Promise<string> {
+export async function getGoogleAuthUrl(state: string): Promise<string> {
     const clientId = process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID
     const redirectUri = `${process.env.NEXT_PUBLIC_SITE_URL}/api/auth/callback/google`
 
@@ -188,7 +203,7 @@ export async function getGoogleAuthUrl(redirectPath: string = '/home'): Promise<
         scope: 'openid email profile',
         access_type: 'offline',
         prompt: 'consent',
-        state: btoa(JSON.stringify({ redirectPath }))
+        state
     })
 
     return `https://accounts.google.com/o/oauth2/v2/auth?${params.toString()}`

@@ -40,6 +40,7 @@ jobs:
           NEXT_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.NEXT_PUBLIC_SUPABASE_ANON_KEY }}
           SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
           NEXT_PUBLIC_SITE_URL: ${{ secrets.NEXT_PUBLIC_SITE_URL }}
+          SESSION_SECRET: ${{ secrets.SESSION_SECRET }}
 
       - name: Check build artifacts
         run: ls -la .next/
@@ -62,6 +63,11 @@ jobs:
 
       - name: Run TypeScript check
         run: npx tsc --noEmit
+
+      # No continue-on-error: these assert that a forged session cookie is
+      # rejected. If they fail, the build should not ship.
+      - name: Session security checks
+        run: npm run test:session
 
   deploy:
     needs: [build, type-check]
@@ -90,6 +96,7 @@ jobs:
           NEXT_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.NEXT_PUBLIC_SUPABASE_ANON_KEY }}
           SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
           NEXT_PUBLIC_SITE_URL: ${{ secrets.NEXT_PUBLIC_SITE_URL }}
+          SESSION_SECRET: ${{ secrets.SESSION_SECRET }}
 
       - name: Deploy to Vercel
         env:

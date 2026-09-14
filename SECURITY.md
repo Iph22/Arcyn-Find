@@ -6,6 +6,72 @@ This document describes the security hardening measures implemented in the Arcyn
 
 ## Security Features Implemented
 
+### 0. Session Integrity
+
+Sessions are a signed cookie, not an encoded one. `lib/session.ts` issues
+`<payload>.<signature>` where the signature is HMAC-SHA256 over the base64url
+payload, keyed by `SESSION_SECRET`. Both readers — `getSession()` in
+`lib/google-auth.ts` and the optimistic check in `proxy.ts` — verify it through
+`crypto.subtle.verify`, which is constant-time.
+
+> **This replaced a real vulnerability, not a theoretical one.** The cookie was
+> previously `btoa(JSON.stringify(session))`. Base64 is an encoding, so any
+> visitor could mint a cookie naming any `user.id`. Because the API routes
+> authenticate with `getCurrentUser()` and then query Supabase with the
+> service-role key — which bypasses RLS — a forged cookie was full account
+> takeover rather than a scoped read. Cookies issued by the old scheme no longer
+> verify, so the fix logs every existing session out; that is the intended
+> behaviour, since none of them can be distinguished from a forgery.
+
+Properties enforced at verification:
+
+| Property | Behaviour |
+|---|---|
+| Bad or absent signature | Rejected |
+| Payload edited under a valid signature | Rejected |
+| `expiresAt` in the past | Rejected |
+| `expiresAt` absent | Rejected (not treated as "never expires") |
+| `user.id` missing or empty | Rejected |
+| `SESSION_SECRET` unset | Signing throws; verification rejects everything |
+
+`SESSION_SECRET` has **no development fallback**. A fallback is a shared secret
+that anyone can read from the repository and forge sessions with, which is the
+original bug with extra steps. Generate one per environment:
+
+```bash
+openssl rand -base64 32
+```
+
+Rotating the value invalidates every live session.
+
+The Google access token is no longer stored in the session cookie. It was being
+written there and never read back — a bearer credential sitting in the browser
+for no benefit.
+
+#### OAuth handshake
+
+The `state` parameter is now a CSRF token rather than a place to stash a
+redirect. `/api/auth/google` generates a 256-bit nonce, puts it in both `state`
+and an httpOnly `arcyn_oauth_state` cookie, and the callback rejects the
+handshake unless the two match. Previously `state` held only a base64 redirect
+path and was never checked, so an attacker could walk a victim through a sign-in
+that landed them in the attacker's account.
+
+Redirect targets are passed through `safeRedirectPath()`, which rejects absolute
+(`https://evil.com`) and protocol-relative (`//evil.com`, `/\evil.com`) values.
+All three previously escaped the site via `new URL(path, request.url)`.
+
+#### Verifying
+
+```bash
+npm run test:session        # crypto/logic checks, no server or network needed
+npm run test:session:e2e    # same properties through a running dev server
+```
+
+`test:session` runs in CI on every push and is not `continue-on-error`.
+
+---
+
 ### 1. Rate Limiting
 
 All public and protected endpoints now implement rate limiting to prevent abuse and denial-of-service attacks.
@@ -240,6 +306,7 @@ node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"
 
 ```env
 # Required for security features
+SESSION_SECRET=<openssl rand -base64 32>   # sessions fail closed without this
 CRON_SECRET=<your-secure-random-string>
 SUPABASE_SERVICE_ROLE_KEY=<your-service-role-key>
 GOOGLE_CLIENT_SECRET=<your-client-secret>
