@@ -121,8 +121,18 @@ export async function trackToolView(
         return { success: false }
     }
 
-    // Insert view record (if tool_views table exists)
-    const viewData: Record<string, string> = {
+    // Insert view record (if tool_views table exists).
+    //
+    // Typed as a concrete row shape rather than Record<string, string>: an index
+    // signature does not satisfy supabase-js's RejectExcessProperties<> guard on
+    // .insert(), which is a compile error rather than a runtime one — it failed
+    // both the type-check and build jobs in CI.
+    const viewData: {
+        tool_id: string
+        source: string
+        ip_hash?: string
+        session_id?: string
+    } = {
         tool_id: toolId,
         source: options.source || 'web',
     }
