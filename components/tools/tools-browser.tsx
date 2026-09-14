@@ -7,7 +7,7 @@ import { useState, useEffect, useMemo, useCallback } from "react"
 import { ToolImage } from "@/components/tools/tool-image"
 import { useRouter, useSearchParams } from "next/navigation"
 import { motion, AnimatePresence } from "framer-motion"
-import { Search, Sparkles, Star, Bookmark, ExternalLink, Menu, X, Filter } from "lucide-react"
+import { Search, Star, Bookmark, ExternalLink, Menu, X, Filter } from "lucide-react"
 import { PremiumSearchInput } from "@/components/search/premium-search-input"
 import { SearchSkeleton } from "@/components/search/search-skeleton"
 import { RecommendationPanel } from "@/components/recommend/recommendation-panel"
@@ -297,7 +297,6 @@ function ToolsContent() {
       rating: (tool.popularity / 20).toFixed(1), // Convert popularity (0-100) to rating (0-5)
       saves: Math.floor(tool.popularity * 100), // Estimate saves from popularity
       image: tool.image || null, // Use database image URL
-      featured: tool.isTrending || false,
       platform: tool.platform,
       accessType: tool.accessType,
       pricing: tool.pricing,
@@ -329,9 +328,16 @@ function ToolsContent() {
       const bMatch = userPreferredCategories.includes(b.category)
       if (aMatch && !bMatch) return -1
       if (!aMatch && bMatch) return 1
-      // Sort by featured/trending, then by saves
-      if (a.featured && !b.featured) return -1
-      if (!a.featured && b.featured) return 1
+      // Then by saves.
+      //
+      // There used to be a `featured` tier above this, sourced from
+      // ai_tools.is_trending. That column is written by the ingest from source
+      // heuristics — GitHub stars > 500/3000, HuggingFace downloads > 100k —
+      // and is true for ~56,900 of 263,548 rows. Sorting a quarter of the
+      // catalog to the top on that basis floated scraped repositories above
+      // real products, which is the same failure documented in
+      // app/api/tools/trending/route.ts. Nothing here can substantiate
+      // "featured", so nothing here claims it.
       return b.saves - a.saves
     })
   }, [tools, preferences?.categories])
@@ -626,12 +632,6 @@ function ToolsContent() {
                               sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
                               fallbackText={tool.name}
                             />
-                            {tool.featured && (
-                              <Badge className="absolute right-3 top-3 bg-primary/90 text-primary-foreground backdrop-blur-sm">
-                                <Sparkles className="mr-1 h-3 w-3" />
-                                {t("tools.featured")}
-                              </Badge>
-                            )}
                           </div>
 
                           {/* Tool Info */}
