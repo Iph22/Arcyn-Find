@@ -11,11 +11,7 @@
  */
 
 import { NextResponse } from 'next/server'
-import {
-    updateViewCountCaches,
-    updateAllTrendingStats,
-    cleanupOldViews
-} from '@/lib/services/view-tracking.service'
+import { refreshTrendingStats } from '@/lib/services/view-tracking.service'
 import { logger } from '@/lib/logger'
 
 export const maxDuration = 60 // 60 seconds max
@@ -38,27 +34,33 @@ export async function GET(req: Request) {
     try {
         logger.info('[Cron:UpdateTrending] Starting trending stats update...')
 
-        // 1. Update view count caches
-        const viewCountResult = await updateViewCountCaches()
-        logger.info(`[Cron:UpdateTrending] View counts updated: ${viewCountResult.updated}`)
+        // Recounting views, rescoring, demoting stale flags and purging old
+        // rows are one set-based call now. The previous three-step version
+        // walked all 263k ai_tools rows and never once completed inside the
+        // 60s budget — 40 consecutive 504s.
+        const result = await refreshTrendingStats()
 
-        // 2. Update trending scores
-        const trendingResult = await updateAllTrendingStats()
-        logger.info(`[Cron:UpdateTrending] Trending scores updated: ${trendingResult.updated}`)
+        logger.info(
+            `[Cron:UpdateTrending] scored=${result.scored} demoted=${result.demoted} ` +
+            `purged=${result.purged} chunks=${result.iterations} in ${result.elapsedMs}ms`
+        )
 
-        // 3. Cleanup old views (every run)
-        const cleanedUp = await cleanupOldViews()
-        logger.info(`[Cron:UpdateTrending] Cleaned up ${cleanedUp} old view records`)
+        if (result.backlogRemaining) {
+            // Not an error: demotion is chunked to keep each UPDATE inside the
+            // statement timeout, so a large stale-flag backlog drains over
+            // several runs. Said out loud so a backlog that never shrinks is
+            // visible rather than silent.
+            logger.warn(
+                '[Cron:UpdateTrending] stopped on the time budget with stale ' +
+                'is_trending rows remaining; the next run continues from here.'
+            )
+        }
 
         const duration = Date.now() - startTime
 
         return NextResponse.json({
             success: true,
-            results: {
-                viewCounts: viewCountResult,
-                trending: trendingResult,
-                cleanedUp
-            },
+            results: result,
             duration: `${duration}ms`,
             timestamp: new Date().toISOString()
         })

@@ -17,7 +17,7 @@
  *
  *   npx tsx --env-file=.env.local scripts/testing/view-tracking-e2e.mts
  */
-import { trackToolView, updateViewCountCaches } from '../../lib/services/view-tracking.service.ts'
+import { trackToolView, refreshTrendingStats } from '../../lib/services/view-tracking.service.ts'
 import { getSupabaseAdmin } from '../../lib/supabase.ts'
 
 const supabase = getSupabaseAdmin()
@@ -79,8 +79,8 @@ try {
     check('last_view_at was set', !!after?.last_view_at)
 
     // The same call the 6-hourly cron makes.
-    const agg = await updateViewCountCaches()
-    console.log(`updateViewCountCaches: ${JSON.stringify(agg)}`)
+    const agg = await refreshTrendingStats()
+    console.log(`refreshTrendingStats: ${JSON.stringify(agg)}`)
 
     const { data: cached } = await supabase
         .from('ai_tools')

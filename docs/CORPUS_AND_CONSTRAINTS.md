@@ -255,7 +255,65 @@ value matched against `name` at request time.
 
 ---
 
-## 7. Environment notes
+## 7. Trending and view tracking (2026-09-14)
+
+`/api/cron/update-trending` had failed **40 scheduled runs out of 40**, every one
+`curl: (22) ... error: 504`, going back at least to 2026-09-04. It walked all of
+`ai_tools` in 500-row `.range()` batches — 528 of them — which is §6's deep-offset
+degradation:
+
+| offset | latency |
+|---|---|
+| 0 | 520ms |
+| 50,000 | 5.2s |
+| 100,000 | statement timeout |
+
+It could not read past ~100k rows, against a 60s budget. Replaced by
+`refresh_trending_stats()` (`supabase/migrations/add_refresh_trending_stats.sql`),
+which runs set-based: **733ms cold, 229ms warm**. Verify with `npm run test:trending`.
+
+**Nearly all the work was unnecessary.** With no views the score is
+`popularity * 0.2` — max ~20, threshold 60 — so a tool with no views can neither
+become trending nor change score between runs. Only rows with views, plus rows
+previously promoted, need touching.
+
+**Writes to `ai_tools` are superlinear in chunk size.** Every row maintains all
+indexes on the table, IVFFlat included:
+
+| rows per UPDATE | latency |
+|---|---|
+| 50 | 753ms |
+| 200 | 855ms |
+| 500 | 2.1s |
+| 1000 | statement timeout |
+
+Chunk at ~250 and loop in the caller against a wall clock. This is §2's blast
+radius at read scale, and it is easy to re-introduce.
+
+**A partial index only helps when the query predicate matches it textually.**
+`COALESCE(view_count_7d, 0) > 0` and `view_count_7d > 0` are equivalent here —
+`NULL > 0` filters out like false — but the planner cannot prove the first
+implies the second, so it skipped the index and scanned ~60k rows, taking 6.4s to
+prove zero matched. Returning *zero* rows slower than returning 250 is the
+signature. Prefer a single simple predicate, and `ANALYZE` after creating it.
+
+**`is_trending` is not a trending signal.** Two writers: the ingest sets it from
+source heuristics (GitHub stars > 500/3000, HuggingFace downloads > 100k, top-5
+index), making it true for ~56,900 of 263,548 rows (~25%); `refresh_trending_stats`
+sets it from real views. It has been removed from ranking in
+`app/api/tools/trending/route.ts` and from the "Featured" badge and sort in
+`components/tools/tools-browser.tsx` — a quarter of the catalog was displaying as
+featured and sorting first. The stale rows are deliberately left in place: nothing
+reads them, and rewriting 57k rows would churn every index for no benefit while
+the ingest re-set them anyway. **Rank on `trending_score`.**
+
+**`tool_views` was empty** until view tracking shipped, so `trending_score` and
+`view_count_*` were NULL for every row. Any ranking built on them before that was
+ranking on nothing.
+
+---
+
+## 8. Environment notes
 
 - This shell mangles `\\` and `$$` inside heredocs — both silently corrupted
   generated code here. Prefer the editing tools over heredoc-generated scripts.
