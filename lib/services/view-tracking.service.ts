@@ -15,6 +15,19 @@ import { createHash } from 'crypto'
  *  can't open hundreds of simultaneous connections. */
 const UPDATE_CONCURRENCY = 25
 
+/** PostgREST caps any single response at 1000 rows and does not say so
+ *  (docs/CORPUS_AND_CONSTRAINTS.md §2). An unpaginated `.select()` over the
+ *  view window therefore returns the first 1000 rows and every count derived
+ *  from it is silently wrong — no error, just numbers that stop growing. This
+ *  is the cap, so pages are requested at exactly that size. */
+const VIEW_PAGE_SIZE = 1000
+
+/** Ceiling on rows scanned per cron run, to stay inside the route's 60s
+ *  maxDuration. At ~1000 rows a round trip this is tens of seconds in the worst
+ *  case; reaching it is the signal to move this aggregation into SQL rather
+ *  than to raise the number. */
+const MAX_VIEW_ROWS_PER_RUN = 50_000
+
 /**
  * Apply per-row partial updates with bounded concurrency.
  *
@@ -70,6 +83,22 @@ function hashIP(ip: string): string {
 
 /**
  * Track a view for a tool
+ *
+ * This deliberately no longer nudges `popularity`. The previous version added
+ * 0.05 per view and wrote `Math.round(n * 10) / 10`, but `ai_tools.popularity`
+ * is an INTEGER column, so Postgres rejected the value outright:
+ *
+ *   22P02 invalid input syntax for type integer: "28.1"
+ *
+ * Because that travelled in the same UPDATE as `view_count` and
+ * `last_view_at`, the whole statement failed — and since the result was never
+ * checked, the function still returned `{ success: true }`. Every view ever
+ * recorded was lost this way. (Measured 2026-09-14 against the live table.)
+ *
+ * Restoring the boost would need a numeric column, and it is not worth one:
+ * `calculateTrendingScore` already folds views in directly (80% of the score)
+ * and treats `popularity` as the stable ingest-time prior contributing the
+ * other 20%. Feeding views into popularity as well would count them twice.
  */
 export async function trackToolView(
     toolId: string,
@@ -78,80 +107,69 @@ export async function trackToolView(
         sessionId?: string
         source?: string
     } = {}
-): Promise<{ success: boolean; newPopularity?: number }> {
+): Promise<{ success: boolean; viewCount?: number }> {
     const supabase = getSupabaseAdmin()
 
-    try {
-        // Check if tool exists
-        const { data: tool, error: toolError } = await supabase
-            .from('ai_tools')
-            .select('id, popularity, view_count')
-            .eq('id', toolId)
-            .single()
+    // Check if tool exists
+    const { data: tool, error: toolError } = await supabase
+        .from('ai_tools')
+        .select('id, view_count')
+        .eq('id', toolId)
+        .single()
 
-        if (toolError || !tool) {
-            return { success: false }
-        }
-
-        // Insert view record (if tool_views table exists)
-        const viewData: any = {
-            tool_id: toolId,
-            source: options.source || 'web',
-        }
-
-        if (options.ip) {
-            viewData.ip_hash = hashIP(options.ip)
-        }
-
-        if (options.sessionId) {
-            viewData.session_id = options.sessionId
-        }
-
-        // Try to insert view record
-        await supabase.from('tool_views').insert(viewData).select().single()
-
-        // Update cached view count on ai_tools
-        const currentViewCount = tool.view_count || 0
-        const currentPopularity = tool.popularity || 50
-
-        // Small popularity boost per view (max 100)
-        const newPopularity = Math.min(100, currentPopularity + 0.05)
-
-        await supabase
-            .from('ai_tools')
-            .update({
-                view_count: currentViewCount + 1,
-                last_view_at: new Date().toISOString(),
-                popularity: Math.round(newPopularity * 10) / 10
-            })
-            .eq('id', toolId)
-
-        return { success: true, newPopularity }
-    } catch (error) {
-        // If tool_views table doesn't exist, just update popularity
-        const supabase = getSupabaseAdmin()
-
-        const { data: tool } = await supabase
-            .from('ai_tools')
-            .select('popularity, view_count')
-            .eq('id', toolId)
-            .single()
-
-        if (tool) {
-            const newPopularity = Math.min(100, (tool.popularity || 50) + 0.05)
-            await supabase
-                .from('ai_tools')
-                .update({
-                    popularity: Math.round(newPopularity * 10) / 10,
-                    view_count: (tool.view_count || 0) + 1
-                })
-                .eq('id', toolId)
-
-            return { success: true, newPopularity }
-        }
-
+    if (toolError || !tool) {
         return { success: false }
     }
+
+    // Insert view record (if tool_views table exists)
+    const viewData: Record<string, string> = {
+        tool_id: toolId,
+        source: options.source || 'web',
+    }
+
+    if (options.ip) {
+        viewData.ip_hash = hashIP(options.ip)
+    }
+
+    if (options.sessionId) {
+        viewData.session_id = options.sessionId
+    }
+
+    const { error: insertError } = await supabase.from('tool_views').insert(viewData)
+
+    if (insertError) {
+        // Not fatal on its own — the counter below is what the UI reads, and the
+        // 24h/7d rebuild can survive one missing row. Logged rather than
+        // swallowed, because a *persistent* failure here silently starves the
+        // trending calculation of its only input.
+        if (insertError.message?.includes('does not exist') || insertError.code === '42P01') {
+            console.warn('[ViewTracking] tool_views table does not exist. Run the add_view_tracking.sql migration.')
+        } else {
+            console.error('[ViewTracking] Failed to insert view row:', insertError.message)
+        }
+    }
+
+    // Read-modify-write, so simultaneous views of the same tool can lose an
+    // increment. Tolerated deliberately: view_count is a display figure, while
+    // the numbers that drive trending (view_count_24h / view_count_7d) are
+    // recounted from tool_views by the cron and are not affected by this race.
+    // An atomic increment needs a Postgres function; see updateViewCountCaches.
+    const viewCount = (tool.view_count || 0) + 1
+
+    const { error: updateError } = await supabase
+        .from('ai_tools')
+        .update({
+            view_count: viewCount,
+            last_view_at: new Date().toISOString(),
+        })
+        .eq('id', toolId)
+
+    if (updateError) {
+        console.error('[ViewTracking] Failed to update view counters:', updateError.message)
+        return { success: false }
+    }
+
+    return { success: true, viewCount }
 }
 
 /**
@@ -319,44 +337,78 @@ export async function updateViewCountCaches(): Promise<{
     const yesterday = new Date(now.getTime() - 24 * 60 * 60 * 1000)
     const lastWeek = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000)
 
+    const counts24h: Record<string, number> = {}
+    const counts7d: Record<string, number> = {}
+
     try {
-        // Get view counts per tool for last 24h
-        const { data: views24h, error: error24h } = await supabase
-            .from('tool_views')
-            .select('tool_id')
-            .gte('viewed_at', yesterday.toISOString())
+        // One pass over the 7-day window, not two queries. The 24h window is a
+        // subset, so bucketing on the timestamp gives both counts from the same
+        // rows — half the round trips, and the two numbers can never disagree
+        // with each other the way two independently-truncated queries could.
+        //
+        // Ascending order matters: tool_views is append-only, so new rows
+        // arriving mid-pagination land after the cursor and cannot shift rows
+        // already read. (Rows sharing a timestamp may still straddle a page
+        // boundary; at one view either way that is below the noise floor of
+        // what these counters drive.)
+        let offset = 0
+        let scanned = 0
+        let truncated = false
 
-        // If tool_views table doesn't exist, skip gracefully
-        if (error24h) {
-            if (error24h.message?.includes('does not exist') || error24h.code === '42P01') {
-                console.warn('[ViewTracking] tool_views table does not exist. Run the add_view_tracking.sql migration.')
-                return { updated: 0, errors: 0 }
+        // Compared as epoch milliseconds, never as strings: PostgREST renders
+        // timestamptz as `2026-09-14T10:00:00+00:00` while `toISOString()`
+        // produces `2026-09-14T10:00:00.000Z`, and lexicographically `+` sorts
+        // before `.` — a string compare would drop every 24h view.
+        const yesterdayMs = yesterday.getTime()
+
+        while (true) {
+            const { data, error } = await supabase
+                .from('tool_views')
+                .select('tool_id, viewed_at')
+                .gte('viewed_at', lastWeek.toISOString())
+                .order('viewed_at', { ascending: true })
+                .range(offset, offset + VIEW_PAGE_SIZE - 1)
+
+            if (error) {
+                // If tool_views table doesn't exist, skip gracefully
+                if (error.message?.includes('does not exist') || error.code === '42P01') {
+                    console.warn('[ViewTracking] tool_views table does not exist. Run the add_view_tracking.sql migration.')
+                    return { updated: 0, errors: 0 }
+                }
+                // For other errors, log but don't fail completely — whatever
+                // pages already came back are still worth writing.
+                console.error('[ViewTracking] Error querying tool_views:', error)
+                break
             }
-            // For other errors, log but don't fail completely
-            console.error('[ViewTracking] Error querying views24h:', error24h)
+
+            if (!data || data.length === 0) break
+
+            for (const view of data) {
+                counts7d[view.tool_id] = (counts7d[view.tool_id] || 0) + 1
+                if (new Date(view.viewed_at).getTime() >= yesterdayMs) {
+                    counts24h[view.tool_id] = (counts24h[view.tool_id] || 0) + 1
+                }
+            }
+
+            scanned += data.length
+            offset += VIEW_PAGE_SIZE
+
+            if (data.length < VIEW_PAGE_SIZE) break
+            if (scanned >= MAX_VIEW_ROWS_PER_RUN) {
+                truncated = true
+                break
+            }
         }
 
-        // Get view counts per tool for last 7d
-        const { data: views7d, error: error7d } = await supabase
-            .from('tool_views')
-            .select('tool_id')
-            .gte('viewed_at', lastWeek.toISOString())
-
-        if (error7d && !error7d.message?.includes('does not exist')) {
-            console.error('[ViewTracking] Error querying views7d:', error7d)
+        if (truncated) {
+            // Said out loud rather than swallowed: past this point the counters
+            // understate reality, and the fix is an aggregate in SQL, not a
+            // bigger cap here.
+            console.warn(
+                `[ViewTracking] Hit the ${MAX_VIEW_ROWS_PER_RUN}-row scan cap. ` +
+                'View counts for this run are an undercount — move this aggregation into a Postgres RPC.'
+            )
         }
-
-        // Count views per tool
-        const counts24h: Record<string, number> = {}
-        const counts7d: Record<string, number> = {}
-
-        views24h?.forEach(v => {
-            counts24h[v.tool_id] = (counts24h[v.tool_id] || 0) + 1
-        })
-
-        views7d?.forEach(v => {
-            counts7d[v.tool_id] = (counts7d[v.tool_id] || 0) + 1
-        })
 
         // Update all tools with their counts — one batched upsert instead of
         // one .update() round trip per tool (could be thousands of tools).

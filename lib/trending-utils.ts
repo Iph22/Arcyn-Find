@@ -17,6 +17,12 @@ interface OnlineTrendingData {
 
 /**
  * Track a view/click on an AI tool and update popularity in real-time
+ *
+ * @deprecated Nothing calls this, and nothing should. View reporting now lives
+ * in `useTrackToolView` (lib/hooks/use-track-tool-view.ts), which dedupes per
+ * session and is wired into both view surfaces. Calling this as well would post
+ * to /api/track-view a second time for the same view. Kept only because the
+ * localStorage history below feeds `getTrendingAIs`.
  */
 export function trackAIView(aiId: string): void {
   if (typeof window === 'undefined') return

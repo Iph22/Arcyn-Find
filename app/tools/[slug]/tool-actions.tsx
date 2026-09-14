@@ -5,6 +5,7 @@ import { Bookmark, Check, ExternalLink, Share2 } from 'lucide-react'
 
 import { Button } from '@/components/ui/button'
 import { useFavorites } from '@/lib/hooks/use-favorites'
+import { useTrackToolView } from '@/lib/hooks/use-track-tool-view'
 
 /**
  * The only interactive part of a tool page.
@@ -12,6 +13,11 @@ import { useFavorites } from '@/lib/hooks/use-favorites'
  * Kept as a small client island so the page itself stays a server component:
  * everything a crawler needs is in the server-rendered HTML, and this adds
  * saving and sharing for people who are signed in.
+ *
+ * It also reports the page view. That has to happen from the client: this page
+ * sets `revalidate = 7200`, so the server component runs on regeneration, not
+ * per request, and counting views there would count cache misses instead of
+ * readers.
  */
 export function ToolActions({
   toolId,
@@ -26,6 +32,8 @@ export function ToolActions({
 }) {
   const { isFavorite, toggleFavorite } = useFavorites()
   const [copied, setCopied] = useState(false)
+
+  useTrackToolView(toolId)
 
   async function share() {
     // Native share where available, clipboard everywhere else.

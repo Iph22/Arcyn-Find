@@ -16,6 +16,7 @@ import { PricingBadge } from "./pricing-badge"
 import { toast } from "sonner"
 import type { ToolWithRating } from "@/lib/types"
 import { logger } from "@/lib/logger"
+import { useTrackToolView } from "@/lib/hooks/use-track-tool-view"
 
 interface Tool {
   id: string
@@ -73,6 +74,12 @@ export function ToolDetailModal({ tool, isOpen, onClose }: ToolDetailModalProps)
   const [reviewText, setReviewText] = useState("")
   const [copied, setCopied] = useState(false)
   const [similarTools, setSimilarTools] = useState<Tool[]>([])
+
+  // Opening this dialog is the in-app equivalent of landing on the tool's own
+  // page, and is the only view signal for tools reached from the browser and
+  // home grids. Null while closed: the parent keeps the last tool mounted so
+  // the close animation can play, and that must not read as a second view.
+  useTrackToolView(isOpen && tool ? tool.id : null)
 
   useEffect(() => {
     if (isOpen && tool) {
