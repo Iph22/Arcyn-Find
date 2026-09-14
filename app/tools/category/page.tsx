@@ -3,7 +3,7 @@ import Link from 'next/link'
 
 import { PublicFooter, PublicHeader } from '@/components/seo/public-chrome'
 import { CategoryCard } from '@/components/seo/tool-card'
-import { getCategories, siteUrl } from '@/lib/seo/catalog'
+import { getDirectoryData, siteUrl } from '@/lib/seo/catalog'
 
 export const revalidate = 7200 // 2 hours
 
@@ -26,7 +26,9 @@ export async function generateMetadata(): Promise<Metadata> {
 }
 
 export default async function CategoryIndexPage() {
-  const categories = await getCategories()
+  // Degrades to empty during `next build` rather than failing the build when
+  // the database is unreachable; strict at runtime. See getDirectoryData.
+  const { categories } = await getDirectoryData()
   const origin = siteUrl()
   const total = categories.reduce((sum, category) => sum + category.count, 0)
 

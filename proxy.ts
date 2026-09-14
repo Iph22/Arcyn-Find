@@ -1,5 +1,8 @@
 import { NextResponse } from 'next/server'
 import type { NextRequest } from 'next/server'
+// Relative rather than the `@/` alias: proxy.ts sits at the project root and is
+// bundled separately from the app, so this resolves identically everywhere.
+import { SESSION_COOKIE_NAME, verifySession } from './lib/session'
 
 // Define public routes that don't require authentication
 const publicRoutes = [
@@ -51,7 +54,7 @@ function isProtectedRoute(pathname: string): boolean {
   return protectedRoutes.some(route => pathname.startsWith(route + '/'))
 }
 
-export function proxy(request: NextRequest) {
+export async function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl
 
   // Check for maintenance mode
@@ -78,32 +81,34 @@ export function proxy(request: NextRequest) {
   // SEO layer applies to thin tool pages and to the /browse filter UI.
   // Indexability is decided in one place: each page's generateMetadata.
 
-  // Check authentication for protected routes
+  // Check authentication for protected routes.
+  //
+  // This is the optimistic check the Next.js docs describe -- it keeps signed-out
+  // visitors off protected pages without a database round trip. It is not the
+  // authorisation boundary: every route handler independently calls
+  // getCurrentUser(), which verifies the same cookie server-side.
+  //
+  // It used to `JSON.parse(atob(...))` the cookie, which authenticated anything
+  // shaped like a session. It now verifies the HMAC, so a forged or edited
+  // cookie fails here for the same reason it fails in the route handlers.
   if (isProtectedRoute(pathname)) {
-    const sessionCookie = request.cookies.get('arcyn_session')
+    const sessionCookie = request.cookies.get(SESSION_COOKIE_NAME)
+    const session = await verifySession(sessionCookie?.value)
 
-    if (!sessionCookie?.value) {
-      // Not authenticated - redirect to sign-in
+    if (!session) {
       const signInUrl = new URL('/sign-in', request.url)
       signInUrl.searchParams.set('redirect', pathname)
-      return NextResponse.redirect(signInUrl)
-    }
 
-    try {
-      // Parse session to validate it
-      const session = JSON.parse(atob(sessionCookie.value))
+      const redirect = NextResponse.redirect(signInUrl)
 
-      // Check if session is expired
-      if (session.expiresAt && new Date(session.expiresAt) < new Date()) {
-        const signInUrl = new URL('/sign-in', request.url)
-        signInUrl.searchParams.set('redirect', pathname)
-        return NextResponse.redirect(signInUrl)
+      // Clear the rejected cookie so the browser stops replaying it. Without
+      // this, every cookie minted by the old unsigned scheme is re-sent on each
+      // navigation and re-rejected until it expires 30 days later.
+      if (sessionCookie?.value) {
+        redirect.cookies.delete(SESSION_COOKIE_NAME)
       }
-    } catch (error) {
-      // Invalid session - redirect to sign-in
-      const signInUrl = new URL('/sign-in', request.url)
-      signInUrl.searchParams.set('redirect', pathname)
-      return NextResponse.redirect(signInUrl)
+
+      return redirect
     }
   }
 

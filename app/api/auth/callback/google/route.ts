@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server'
+import type { NextRequest } from 'next/server'
 import {
     exchangeCodeForTokens,
     getGoogleUserInfo,
@@ -6,8 +7,13 @@ import {
     upsertUserProfile,
     getUserProfile
 } from '@/lib/google-auth'
+import {
+    OAUTH_STATE_COOKIE_NAME,
+    decodeOAuthState,
+    nonceMatches,
+} from '@/lib/session'
 
-export async function GET(request: Request) {
+export async function GET(request: NextRequest) {
     try {
         const { searchParams } = new URL(request.url)
         const code = searchParams.get('code')
@@ -24,16 +30,23 @@ export async function GET(request: Request) {
             return NextResponse.redirect(new URL('/sign-in?error=no_code', request.url))
         }
 
-        // Parse redirect path from state
-        let redirectPath = '/home'
-        if (state) {
-            try {
-                const stateData = JSON.parse(atob(state))
-                redirectPath = stateData.redirectPath || '/home'
-            } catch (e) {
-                console.error('Error parsing state:', e)
-            }
+        // Verify the OAuth state before spending a token exchange on it.
+        //
+        // `state` previously carried only a base64 redirect path and was never
+        // checked, so it was decoration rather than a CSRF token -- an attacker
+        // could hand a victim a crafted callback URL and sign them into the
+        // attacker's Google account. The nonce inside it must now match the
+        // httpOnly cookie set when this flow started.
+        const oauthState = decodeOAuthState(state)
+        const expectedNonce = request.cookies.get(OAUTH_STATE_COOKIE_NAME)?.value
+
+        if (!oauthState || !nonceMatches(oauthState.nonce, expectedNonce)) {
+            console.error('OAuth state mismatch: rejecting callback')
+            return NextResponse.redirect(new URL('/sign-in?error=invalid_state', request.url))
         }
+
+        // decodeOAuthState re-sanitises this; it round-tripped through the browser.
+        const redirectPath = oauthState.redirectPath
 
         // Exchange code for tokens
         const tokens = await exchangeCodeForTokens(code)
@@ -74,8 +87,13 @@ export async function GET(request: Request) {
         // Use 302 redirect for better mobile compatibility
         const response = NextResponse.redirect(redirectUrl, 302)
 
+        // The nonce is single-use.
+        response.cookies.delete(OAUTH_STATE_COOKIE_NAME)
+
         return response
     } catch (error) {
+        // Reaches here if SESSION_SECRET is unset: createSession throws rather
+        // than issue a cookie nothing can verify.
         console.error('Error in Google OAuth callback:', error)
         return NextResponse.redirect(new URL('/sign-in?error=callback_error', request.url))
     }

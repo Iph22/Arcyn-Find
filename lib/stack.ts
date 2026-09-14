@@ -33,7 +33,7 @@
  */
 
 import { z } from "zod"
-import { parseStructured, isAIConfigured } from "./ai-provider"
+import { parseStructured, isAIConfigured, type AIFailureKind } from "./ai-provider"
 import { retrieveCandidates } from "./retrieval"
 import { comparableMonthly } from "./pricing-display"
 import { matchTemplate } from "./stack-templates"
@@ -182,17 +182,47 @@ async function decomposeGoal(goal: string) {
         return null
     }
 
-    const parsed = await parseStructured(
-        DecompositionSchema,
-        `User's goal: "${goal}"
+    let failureKind: AIFailureKind | null = null
+
+    const attempt = () => {
+        failureKind = null
+        return parseStructured(
+            DecompositionSchema,
+            `User's goal: "${goal}"
 
 Break this into the stages needed to accomplish it.`,
-        {
-            timeoutMs: DECOMPOSE_TIMEOUT_MS,
-            system: DECOMPOSE_SYSTEM_PROMPT,
-            label: "decomposeGoal",
-        }
-    )
+            {
+                timeoutMs: DECOMPOSE_TIMEOUT_MS,
+                system: DECOMPOSE_SYSTEM_PROMPT,
+                label: "decomposeGoal",
+                onFailure: kind => { failureKind = kind },
+            }
+        )
+    }
+
+    // ONE retry, and ONLY when the provider was briefly unavailable.
+    //
+    // parseStructured never retries, which is right for the search path: it
+    // fires as the user types, so a second bounded attempt just doubles the
+    // latency of a coin flip. Decomposition is different — it runs behind an
+    // explicit "Build my stack" click, where the user has already accepted a
+    // wait and the panel is showing a spinner.
+    //
+    // But the retry MUST be conditional, and an earlier version of this was
+    // not. It retried on any failure, which doubled consumption against the
+    // dominant failure mode. Gemini's free GENERATION quota is far smaller than
+    // its embedding quota — measured, roughly twenty-odd calls exhausted it for
+    // the day, against 1000/day for embeddings. Retrying a 429 spends a second
+    // request to be told the same thing, and brings the daily cutoff closer for
+    // every other feature sharing that budget.
+    //
+    // 503 is the opposite case: transient, and the same call frequently
+    // succeeds moments later.
+    let parsed = await attempt()
+    if (!parsed && failureKind === "unavailable") {
+        await new Promise(resolve => setTimeout(resolve, 600))
+        parsed = await attempt()
+    }
 
     if (!parsed) return null
 

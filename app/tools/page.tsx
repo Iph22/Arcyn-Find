@@ -4,7 +4,7 @@ import { ArrowRight } from 'lucide-react'
 
 import { PublicFooter, PublicHeader } from '@/components/seo/public-chrome'
 import { CategoryCard, SeoToolCard } from '@/components/seo/tool-card'
-import { deriveCategories, getPublishedTools, isIndexable, siteUrl } from '@/lib/seo/catalog'
+import { getDirectoryData, isIndexable, siteUrl } from '@/lib/seo/catalog'
 
 export const revalidate = 3600 // 1 hour
 
@@ -36,9 +36,10 @@ export async function generateMetadata(): Promise<Metadata> {
 }
 
 export default async function ToolsDirectoryPage() {
-  // One walk, categories derived from the same array.
-  const tools = await getPublishedTools()
-  const categories = deriveCategories(tools)
+  // One walk, categories derived from the same array. Strict at runtime, but
+  // degrades to empty during `next build` so a CI build without database
+  // secrets still succeeds -- see getDirectoryData.
+  const { tools, categories } = await getDirectoryData()
   const origin = siteUrl()
 
   // Lead with pages that are worth a click: the quality gate that decides
