@@ -279,6 +279,63 @@ export const getCategories = cache(async (): Promise<CatalogCategory[]> =>
 )
 
 /**
+ * True while `next build` is prerendering, matching the detection in
+ * lib/supabase.ts.
+ */
+function isBuildPhase(): boolean {
+  return (
+    process.env.NEXT_PHASE === 'phase-production-build' ||
+    process.env.NEXT_PHASE === 'phase-export' ||
+    process.env.npm_lifecycle_event === 'build'
+  )
+}
+
+/**
+ * Published tools for a page that Next prerenders at build time.
+ *
+ * Two different failures need two different answers, and conflating them broke
+ * CI:
+ *
+ *   At runtime, a failed read must throw. Returning [] would render an empty
+ *   directory and ISR would cache it -- the same mistake that served Google an
+ *   8-URL sitemap.
+ *
+ *   At build time it must not throw. `getSupabaseAdmin()` deliberately hands
+ *   back a placeholder client when the env vars are absent, on the stated
+ *   assumption that "the build process evaluates modules but doesn't actually
+ *   call APIs". That held while /tools was a client component; it stopped
+ *   holding when /tools became a server component that reads the database
+ *   during prerender. A CI build with no SUPABASE_SERVICE_ROLE_KEY secret then
+ *   fails outright.
+ *
+ * So: degrade during the build, be strict at runtime. The empty prerender is
+ * only ever produced by a build that had no database, and the first
+ * revalidation replaces it.
+ */
+async function getPublishedToolsForPrerender(): Promise<CatalogTool[]> {
+  try {
+    return await getPublishedTools()
+  } catch (error) {
+    if (!isBuildPhase()) throw error
+    console.warn(
+      '[seo/catalog] no database during build -- prerendering an empty directory. ' +
+        'Set SUPABASE_SERVICE_ROLE_KEY in the build environment to prerender it populated.',
+      error
+    )
+    return []
+  }
+}
+
+/** Directory page data: tools plus the categories derived from them. */
+export async function getDirectoryData(): Promise<{
+  tools: CatalogTool[]
+  categories: CatalogCategory[]
+}> {
+  const tools = await getPublishedToolsForPrerender()
+  return { tools, categories: deriveCategories(tools) }
+}
+
+/**
  * Categories for page chrome (the public footer's link block).
  *
  * Tolerant, for the same reason as `getRelatedTools`: on a tool page the

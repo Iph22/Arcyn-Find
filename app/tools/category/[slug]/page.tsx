@@ -6,6 +6,7 @@ import { PublicFooter, PublicHeader } from '@/components/seo/public-chrome'
 import { SeoToolCard } from '@/components/seo/tool-card'
 import {
   getCategories,
+  getCategoriesSafe,
   getCategoryBySlug,
   isIndexable,
   siteUrl,
@@ -63,7 +64,9 @@ export default async function CategoryPage({ params }: Props) {
   if (!result) notFound()
 
   const { category, tools } = result
-  const categories = await getCategories()
+  // Chrome (footer links + "other categories"), not this page's content, so a
+  // failure here should cost the nav rather than the whole render.
+  const categories = await getCategoriesSafe()
   const origin = siteUrl()
   const canonical = `${origin}/tools/category/${category.slug}`
 
