@@ -132,8 +132,10 @@ export async function PUT(request: NextRequest) {
       throw readError
     }
 
+    // No `?? {}` on the spread: spreading null or undefined in an object
+    // literal contributes no properties, so the fallback never did anything.
     updateData.preferences = {
-      ...((current?.preferences as Record<string, unknown> | null) ?? {}),
+      ...(current?.preferences as Record<string, unknown> | null),
       ...(body as Record<string, unknown>),
     }
 

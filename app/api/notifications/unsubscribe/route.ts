@@ -45,8 +45,10 @@ async function unsubscribe(token: string): Promise<'ok' | 'not-found' | 'error'>
   }
   if (!data) return 'not-found'
 
+  // No `?? {}` on the spread: spreading null or undefined in an object literal
+  // contributes no properties, so the fallback never did anything.
   const preferences = {
-    ...((data.preferences as Record<string, unknown> | null) ?? {}),
+    ...(data.preferences as Record<string, unknown> | null),
     notify_digest: false,
   }
 
