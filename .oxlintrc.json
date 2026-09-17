@@ -1,0 +1,18 @@
+{
+  "$schema": "./node_modules/oxlint/configuration_schema.json",
+  "categories": {
+    "correctness": "error"
+  },
+  "rules": {
+    "no-unused-vars": "warn",
+    "no-self-compare": "warn",
+    "no-eval": "warn",
+    "only-used-in-recursion": "warn"
+  },
+  "ignorePatterns": [
+    "node_modules/**",
+    ".next/**",
+    "public/**",
+    "lib/ai-data.ts"
+  ]
+}
