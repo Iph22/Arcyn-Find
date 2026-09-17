@@ -12,7 +12,10 @@ on:
 jobs:
   update-models:
     runs-on: ubuntu-latest
-    
+    permissions:
+      contents: read
+      issues: write
+
     steps:
       - name: Trigger Update Models Endpoint
         run: |
@@ -27,3 +30,26 @@ jobs:
 
       - name: Log Result
         run: echo "✅ Update models completed at $(date)"
+
+      # Same failure alert as cron-update-trending.yml; the rationale is there.
+      - name: Alert on failure
+        if: failure()
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TITLE: "cron failing: ${{ github.workflow }}"
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: |
+          existing=$(gh issue list --repo "$GITHUB_REPOSITORY" --state open \
+            --search "$TITLE in:title" --json number,title \
+            --jq '[.[] | select(.title == env.TITLE)] | .[0].number // empty' || true)
+
+          body="\`$TITLE\` failed.
+
+          Run: $RUN_URL
+          At:  $(date -u +'%Y-%m-%d %H:%M UTC')"
+
+          if [ -n "$existing" ]; then
+            gh issue comment "$existing" --repo "$GITHUB_REPOSITORY" --body "$body"
+          else
+            gh issue create --repo "$GITHUB_REPOSITORY" --title "$TITLE" --body "$body"
+          fi

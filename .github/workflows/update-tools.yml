@@ -9,8 +9,46 @@ on:
 jobs:
   update-tools:
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      issues: write
+
     steps:
       - name: Trigger Update API
+        env:
+          SITE_URL: ${{ secrets.SITE_URL }}
+          CRON_SECRET: ${{ secrets.CRON_SECRET }}
         run: |
-          curl -X GET "${{ secrets.SITE_URL }}/api/cron/update?key=${{ secrets.CRON_SECRET }}" \
-          -H "Authorization: Bearer ${{ secrets.CRON_SECRET }}"
+          # Two fixes here. Without --fail, curl exits 0 on an HTTP 500, so this
+          # job reported success no matter what the endpoint did -- it could not
+          # fail, which also meant the alert below could never fire.
+          #
+          # And the secret has moved out of the query string: it was sent as
+          # ?key=, which lands in server logs and any proxy in between. The
+          # endpoint accepts the Authorization header, which this already sent.
+          curl -X GET "$SITE_URL/api/cron/update" \
+            -H "Authorization: Bearer $CRON_SECRET" \
+            --fail --silent --show-error
+
+      # Same failure alert as cron-update-trending.yml; the rationale is there.
+      - name: Alert on failure
+        if: failure()
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TITLE: "cron failing: ${{ github.workflow }}"
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: |
+          existing=$(gh issue list --repo "$GITHUB_REPOSITORY" --state open \
+            --search "$TITLE in:title" --json number,title \
+            --jq '[.[] | select(.title == env.TITLE)] | .[0].number // empty' || true)
+
+          body="\`$TITLE\` failed.
+
+          Run: $RUN_URL
+          At:  $(date -u +'%Y-%m-%d %H:%M UTC')"
+
+          if [ -n "$existing" ]; then
+            gh issue comment "$existing" --repo "$GITHUB_REPOSITORY" --body "$body"
+          else
+            gh issue create --repo "$GITHUB_REPOSITORY" --title "$TITLE" --body "$body"
+          fi
