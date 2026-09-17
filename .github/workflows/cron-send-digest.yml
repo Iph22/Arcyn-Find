@@ -1,0 +1,73 @@
+# GitHub Actions Cron - Send Notification Digest
+# Runs weekly to mail the digest to opted-in users
+
+name: Send Notification Digest (weekly)
+
+on:
+  schedule:
+    # Tuesdays at 09:00 UTC. Deliberately not Monday: the endpoint claims
+    # recipients per ISO week, so a failed Tuesday run can be re-triggered any
+    # time before Sunday and will mail only the people it did not reach.
+    - cron: '0 9 * * 2'
+  workflow_dispatch: # Allow manual trigger
+
+jobs:
+  send-digest:
+    runs-on: ubuntu-latest
+    # Needed by the failure alert below; GITHUB_TOKEN is read-only by default.
+    permissions:
+      contents: read
+      issues: write
+
+    steps:
+      - name: Trigger Send Digest Endpoint
+        run: |
+          curl -X GET \
+            -H "Authorization: Bearer ${{ secrets.CRON_SECRET }}" \
+            -H "Content-Type: application/json" \
+            "${{ secrets.SITE_URL }}/api/cron/send-digest" \
+            --fail --silent --show-error
+        env:
+          SITE_URL: ${{ secrets.SITE_URL }}
+          CRON_SECRET: ${{ secrets.CRON_SECRET }}
+
+      - name: Log Result
+        run: echo "✅ Digest send triggered at $(date)"
+
+      # A red X on a schedule-triggered run notifies nobody by default. That is
+      # how cron-update-trending.yml failed 40 times in a row between
+      # 2026-09-04 and 2026-09-14 without anyone finding out. It matters more
+      # here -- a trending job that stops running degrades a ranking, but a
+      # digest that stops running is indistinguishable from a digest nobody
+      # opens, and nothing else in the product would show it.
+      #
+      # Deliberately dependency-free -- no checkout, no composite action, no
+      # third-party step. An alert is only worth having if it survives the
+      # failure it is reporting.
+      - name: Alert on failure
+        if: failure()
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TITLE: "cron failing: ${{ github.workflow }}"
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: |
+          # One open issue per workflow, commented on rather than duplicated, so
+          # a cron that breaks does not open an issue every run. Closing the
+          # issue is how you acknowledge it; the next failure opens a fresh one.
+          existing=$(gh issue list --repo "$GITHUB_REPOSITORY" --state open \
+            --search "$TITLE in:title" --json number,title \
+            --jq '[.[] | select(.title == env.TITLE)] | .[0].number // empty' || true)
+
+          body="\`$TITLE\` failed.
+
+          Run: $RUN_URL
+          At:  $(date -u +'%Y-%m-%d %H:%M UTC')
+
+          Recipients are claimed per ISO week, so re-running this workflow
+          before Sunday continues the same digest without re-mailing anyone."
+
+          if [ -n "$existing" ]; then
+            gh issue comment "$existing" --repo "$GITHUB_REPOSITORY" --body "$body"
+          else
+            gh issue create --repo "$GITHUB_REPOSITORY" --title "$TITLE" --body "$body"
+          fi

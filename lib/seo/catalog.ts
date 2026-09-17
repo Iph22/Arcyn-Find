@@ -436,3 +436,12 @@ export async function getRelatedTools(tool: CatalogTool, limit = 8): Promise<Cat
 
 export { siteUrl } from './site'
 export { clampForMeta, isTruncated, normalizeName, slugify, tidyDescription }
+
+/**
+ * Re-exported for the notification digest, which needs the same row shape and
+ * the same quality gate but not the same access pattern: `getPublishedTools()`
+ * walks the entire published set, and the digest cron runs a narrow query
+ * inside a 60s budget it shares with sending. Shared so the numeric-string
+ * coercion in `toTool` (§2) has exactly one implementation.
+ */
+export { PAGE_COLUMNS as CATALOG_COLUMNS, toTool as rowToCatalogTool }

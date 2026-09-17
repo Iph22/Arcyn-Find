@@ -34,6 +34,7 @@
     "test:views": "tsx --env-file=.env.local scripts/testing/view-tracking-e2e.mts",
     "test:session:e2e": "node scripts/testing/session-security-e2e.mjs",
     "test:trending": "node --env-file=.env.local scripts/testing/trending-refresh-e2e.mjs",
+    "test:digest": "tsx --env-file=.env.local scripts/testing/digest-e2e.mts",
     "seo:slugs": "node --env-file=.env.local scripts/seo/backfill-slugs.mjs",
     "seo:slugs:dry": "node --env-file=.env.local scripts/seo/backfill-slugs.mjs --dry-run",
     "seo:audit": "node --env-file=.env.local scripts/seo/audit.mjs"
