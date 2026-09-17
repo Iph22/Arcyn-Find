@@ -40,6 +40,9 @@ concurrency:
 jobs:
   backfill-embeddings:
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      issues: write
 
     steps:
       - name: Trigger Embedding Backfill Endpoint
@@ -55,3 +58,28 @@ jobs:
 
       - name: Log Result
         run: echo "✅ Embedding backfill batch completed at $(date)"
+
+      # Same failure alert as cron-update-trending.yml; the rationale is there.
+      # This one runs hourly, which is exactly why the alert dedupes onto a
+      # single open issue rather than opening one per failed run.
+      - name: Alert on failure
+        if: failure()
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TITLE: "cron failing: ${{ github.workflow }}"
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: |
+          existing=$(gh issue list --repo "$GITHUB_REPOSITORY" --state open \
+            --search "$TITLE in:title" --json number,title \
+            --jq '[.[] | select(.title == env.TITLE)] | .[0].number // empty' || true)
+
+          body="\`$TITLE\` failed.
+
+          Run: $RUN_URL
+          At:  $(date -u +'%Y-%m-%d %H:%M UTC')"
+
+          if [ -n "$existing" ]; then
+            gh issue comment "$existing" --repo "$GITHUB_REPOSITORY" --body "$body"
+          else
+            gh issue create --repo "$GITHUB_REPOSITORY" --title "$TITLE" --body "$body"
+          fi

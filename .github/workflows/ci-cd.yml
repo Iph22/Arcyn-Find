@@ -27,9 +27,21 @@ jobs:
       - name: Install dependencies
         run: npm ci --legacy-peer-deps
 
+      # A real gate now, not `continue-on-error: true`.
+      #
+      # This step used to run `eslint .` with failures ignored, which reported
+      # lint coverage the pipeline did not have -- eslint was never installed,
+      # so the command exited 127 every time. Installing it does not help:
+      # eslint-config-next pulls typescript-eslint, which refuses to load
+      # against this project's TypeScript 7. See the PARKED note in
+      # eslint.config.mjs and https://github.com/typescript-eslint/typescript-eslint/issues/10940
+      #
+      # `npm run lint` is oxlint as of bc3034f, which parses TS/TSX natively.
+      # Its config errors on the correctness category only and leaves style as
+      # warnings, so main sits at zero errors: a non-zero exit here is a real
+      # regression rather than a backlog to argue with.
       - name: Run linter
         run: npm run lint
-        continue-on-error: true
 
       - name: Build application
         run: npm run build
@@ -87,23 +99,52 @@ jobs:
       - name: Install dependencies
         run: npm ci --legacy-peer-deps
 
-      - name: Build application
-        run: npm run build
-        env:
-          NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY: ${{ secrets.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY }}
-          CLERK_SECRET_KEY: ${{ secrets.CLERK_SECRET_KEY }}
-          NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
-          NEXT_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.NEXT_PUBLIC_SUPABASE_ANON_KEY }}
-          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
-          NEXT_PUBLIC_SITE_URL: ${{ secrets.NEXT_PUBLIC_SITE_URL }}
-          SESSION_SECRET: ${{ secrets.SESSION_SECRET }}
+      # Blue-green, in three steps: publish a production build without pointing
+      # the domain at it, prove it works, then swap the domain over.
+      #
+      # This replaces a single `npx vercel --prod` that both built and went live
+      # in one motion -- and carried `continue-on-error: true`, so a failed
+      # deploy still printed "Deployment completed successfully!". Nothing here
+      # is allowed to fail silently; that is the point of the rewrite.
+      #
+      # The local `npm run build` that used to sit here is gone: `vercel deploy`
+      # builds on Vercel, so building twice only bought a second copy of the
+      # same failure. The Clerk secrets it passed went with it -- Clerk was
+      # replaced by Google OAuth and those two secrets are dead config.
 
-      - name: Deploy to Vercel
+      # CONFIRM ON FIRST RUN: `--skip-domain` (publish without aliasing) and
+      # `vercel promote` are the staged-production flow, but availability varies
+      # by CLI version and plan. If either is rejected, the run fails loudly
+      # here rather than half-deploying -- check `npx vercel deploy --help`.
+      - name: Deploy green
+        id: green
         env:
           VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
         run: |
-          npx vercel --prod --token $VERCEL_TOKEN
-        continue-on-error: true
+          set -euo pipefail
+          url=$(npx vercel deploy --prod --skip-domain --yes --token "$VERCEL_TOKEN")
+          echo "url=$url" >> "$GITHUB_OUTPUT"
+          echo "Green deployment: $url"
 
-      - name: Notify deployment
-        run: echo "Deployment completed successfully!"
+      # The gate. These assert that a forged session cookie is rejected AND that
+      # a properly signed one is still accepted -- a deployment that fails
+      # either never becomes production. SESSION_SECRET must be the value the
+      # deployment runs with, or the valid-cookie check fails and this blocks
+      # the promote, which is the correct outcome for a secret mismatch.
+      - name: Smoke test green
+        env:
+          SESSION_SECRET: ${{ secrets.SESSION_SECRET }}
+          BASE_URL: ${{ steps.green.outputs.url }}
+        run: npm run test:session:e2e
+
+      # The cutover: an alias swap, not a rebuild. Rolling back is promoting the
+      # previous deployment. Note that rollback is not a real option for a
+      # release that changes session signing -- going back reinstates cookies
+      # the current code cannot verify.
+      - name: Promote green to production
+        env:
+          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+        run: |
+          set -euo pipefail
+          npx vercel promote "${{ steps.green.outputs.url }}" --token "$VERCEL_TOKEN"
+          echo "Promoted ${{ steps.green.outputs.url }} to production"
