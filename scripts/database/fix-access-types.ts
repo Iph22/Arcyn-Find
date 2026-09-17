@@ -113,7 +113,7 @@ function determineCorrectAccessType(pricing: string | null, currentAccessType: s
                   pricingLower.includes('month') ||
                   pricingLower.includes('year') ||
                   pricingLower.includes('per') ||
-                  /^\$/.test(pricing.trim()) ||
+                  pricing.trim().startsWith('$') ||
                   /\d+\s*(month|year|day|hour)/i.test(pricing)
   
   // Check for explicit freemium indicators
