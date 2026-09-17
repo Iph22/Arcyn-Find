@@ -63,6 +63,13 @@ export default function SignInPage() {
         return 'Failed to complete sign-in. Please try again.'
       case 'user_info_failed':
         return 'Failed to get your information. Please try again.'
+      // Added because the callback can return this and the page showed nothing
+      // at all for it -- an empty error box, which reads as the app hanging.
+      // It fires when the nonce in the OAuth state does not match the cookie:
+      // usually a stale sign-in tab, a second sign-in started before the first
+      // finished, or a link that was already used.
+      case 'invalid_state':
+        return 'That sign-in link expired or was already used. Please try again.'
       case 'callback_error':
         return 'An error occurred. Please try again.'
       default:

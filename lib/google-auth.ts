@@ -233,7 +233,30 @@ export async function exchangeCodeForTokens(code: string): Promise<{
         })
 
         if (!response.ok) {
-            throw new Error('Failed to exchange code for tokens')
+            // Google puts the actual reason in the body, and this used to
+            // discard it and throw a generic message -- which is why a failing
+            // sign-in gave no clue why. The body names one of a small set of
+            // causes, and each has a different fix:
+            //
+            //   invalid_grant         code already used, or expired (~10 min),
+            //                         or the clock is skewed
+            //   redirect_uri_mismatch NEXT_PUBLIC_SITE_URL does not match the
+            //                         URI registered in Google Cloud Console
+            //   invalid_client        wrong GOOGLE_CLIENT_SECRET for this
+            //                         client_id
+            //
+            // No secrets are logged: the response body echoes the error code and
+            // description, not the credentials that were sent.
+            const detail = await response.text().catch(() => '<unreadable body>')
+            console.error(
+                `[auth] Google token exchange failed: HTTP ${response.status} ${response.statusText} -- ${detail}`
+            )
+            console.error(
+                `[auth] sent redirect_uri=${process.env.NEXT_PUBLIC_SITE_URL}/api/auth/callback/google ` +
+                `client_id=${(process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID || '<unset>').slice(0, 24)}… ` +
+                `client_secret=${process.env.GOOGLE_CLIENT_SECRET ? 'set' : '<UNSET>'}`
+            )
+            return null
         }
 
         return response.json()
