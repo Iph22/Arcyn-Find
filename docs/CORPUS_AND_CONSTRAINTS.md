@@ -376,8 +376,35 @@ ranking on nothing.
 
 - This shell mangles `\\` and `$$` inside heredocs — both silently corrupted
   generated code here. Prefer the editing tools over heredoc-generated scripts.
-- `scripts/setup/fix-npm-path.ps1` is unreadable (Windows Defender). It shows as
-  deleted in `git diff` but not `git status`; a `git commit -a` would drop it.
+- **Windows Defender can make a file in this repo unreadable, and git fails
+  badly when it does.** `scripts/setup/fix-npm-path.ps1` was blocked at the
+  filter-driver level — `Get-Item` reported the path absent while a read threw
+  *"the file contains a virus or potentially unwanted software"* (os error
+  225). The script was benign; it appended `C:\Program Files\nodejs` to the
+  machine PATH, which is also a malware persistence technique, so the
+  heuristic fired. It was **deleted on 2026-09-21**; `setup-npm.ps1` and
+  `quick-fix-npm.ps1` cover the session-scoped fix and the permanent one is
+  now manual steps in `setup-npm.ps1`'s header.
+
+  What it cost, so the next occurrence is recognised faster:
+
+  - **It 500'd every page route.** Tailwind v4 content detection read every
+    file in the project; the read error propagated through PostCSS and CSS
+    compilation failed. API routes kept working, which made it look like a
+    rendering bug. Fixed by `@source not` in `app/globals.css` — those
+    exclusions stay.
+  - **`git add -A` aborts and leaves the index untouched**, so a following
+    `git diff --cached` returns empty and reads as "no changes" when in fact
+    nothing staged. That false-clean result is the dangerous part. Checkout,
+    pull and rebase fail the same way, and `git worktree add` silently
+    produces an *incomplete* worktree.
+  - It shows as deleted in `git diff` but not `git status`; `git commit -a`
+    would drop it.
+
+  If it happens again: exclude the path explicitly
+  (`git add -A . ':!path/to/file'`), check exit codes rather than trusting an
+  empty diff, and read the committed content with `git cat-file -p` rather
+  than opening the file.
 - `npm run lint` is broken — neither `eslint` nor `@eslint/eslintrc` is
   installed, though `eslint.config.mjs` exists.
 - **`npx tsc --noEmit` may die with `out of memory` on this machine**, and so

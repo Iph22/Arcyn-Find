@@ -3,14 +3,18 @@
 
 /* Exclude non-source directories from Tailwind v4's automatic content
    detection. Without this, Tailwind walks the whole project looking for class
-   names and tries to read every file — including PowerShell scripts under
-   scripts/. On Windows that broke the dev server outright: Defender blocks
-   reads of scripts/setup/fix-npm-path.ps1 (os error 225, "file contains a
-   virus or potentially unwanted software"), the read failure propagates up
-   through PostCSS processing of this file, and CSS compilation fails, which
-   500s every page route while API routes (which don't import this file) keep
-   working. None of these directories contain Tailwind class names anyway, so
-   skipping them is also faster. */
+   names and tries to read every file — including the PowerShell scripts under
+   scripts/. On Windows that broke the dev server outright: Windows Defender
+   refuses reads of PowerShell that edits the machine PATH (os error 225,
+   "file contains a virus or potentially unwanted software"), the read failure
+   propagates up through PostCSS processing of this file, and CSS compilation
+   fails — which 500s every page route while API routes (which don't import
+   this file) keep working.
+
+   The script that triggered it is gone, but these exclusions stay: other
+   .ps1 files remain under scripts/setup/ and the next one Defender dislikes
+   would fail the same way. None of these directories contain Tailwind class
+   names anyway, so skipping them is also faster. */
 @source not "../scripts";
 @source not "../supabase";
 @source not "../reports";
