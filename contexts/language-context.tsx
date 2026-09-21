@@ -1,6 +1,8 @@
 "use client"
 
-import { createContext, useContext, useState, useEffect, useCallback, type ReactNode } from "react"
+import { createContext, useContext, useState, useEffect, useCallback, useRef, type ReactNode } from "react"
+import { useAuth } from "@/contexts/auth-context"
+import { usePreferences } from "@/contexts/preferences-context"
 
 // ---------------------------------------------------------------------------
 // Supported languages
@@ -554,24 +556,100 @@ const LanguageContext = createContext<LanguageContextValue | null>(null)
 
 const STORAGE_KEY = "arcynfind_language"
 
+/**
+ * Languages written right to left.
+ *
+ * Arabic has been in `LANGUAGES` from the start while `dir` was never set
+ * anywhere, so selecting it translated the text and then laid it out
+ * left to right — worse than not offering it.
+ */
+const RTL_LANGUAGES = new Set<SupportedLanguage>(["ar"])
+
+export function isRtl(lang: SupportedLanguage): boolean {
+  return RTL_LANGUAGES.has(lang)
+}
+
+function isSupported(value: unknown): value is SupportedLanguage {
+  return typeof value === "string" && LANGUAGES.some((l) => l.code === value)
+}
+
 export function LanguageProvider({ children }: { children: ReactNode }) {
+  const { isAuthenticated } = useAuth()
+  const { preferences } = usePreferences()
   const [language, setLanguageState] = useState<SupportedLanguage>("en")
 
-  // Restore from localStorage on mount
+  // Whether the account-level choice has been applied yet. Once it has, local
+  // changes win — otherwise a stale `preferences` object arriving late would
+  // silently undo the selection the user just made.
+  const adoptedFromProfile = useRef(false)
+
+  // Restore from localStorage on mount. This is the device-level answer and is
+  // available immediately, so it renders without a flash; the account-level one
+  // below arrives later and takes precedence when it differs.
   useEffect(() => {
-    const saved = localStorage.getItem(STORAGE_KEY) as SupportedLanguage | null
-    const valid = LANGUAGES.map(l => l.code)
-    if (saved && valid.includes(saved)) {
-      setLanguageState(saved)
-    }
+    const saved = localStorage.getItem(STORAGE_KEY)
+    if (isSupported(saved)) setLanguageState(saved)
   }, [])
 
-  const setLanguage = useCallback((lang: SupportedLanguage) => {
-    setLanguageState(lang)
-    localStorage.setItem(STORAGE_KEY, lang)
-    // Update <html lang=""> attribute for accessibility
-    document.documentElement.lang = lang
-  }, [])
+  /**
+   * Reflect the language on the document.
+   *
+   * Keyed on `language` rather than done inside `setLanguage`, and that is the
+   * whole fix: the restore-on-mount path called `setLanguageState` directly and
+   * so never ran the DOM update, leaving `<html lang>` stale after every
+   * reload. Anything that changes the language now updates the document,
+   * including paths that have not been written yet.
+   */
+  useEffect(() => {
+    document.documentElement.lang = language
+    document.documentElement.dir = isRtl(language) ? "rtl" : "ltr"
+  }, [language])
+
+  /**
+   * Adopt the account's saved language once, when preferences first load.
+   *
+   * This is what makes the choice follow the user to a new device: the browser
+   * there has nothing in localStorage, and the profile does.
+   */
+  useEffect(() => {
+    if (adoptedFromProfile.current || !preferences) return
+    const saved = (preferences as unknown as Record<string, unknown>).language
+    adoptedFromProfile.current = true
+    if (isSupported(saved) && saved !== language) {
+      setLanguageState(saved)
+      try {
+        localStorage.setItem(STORAGE_KEY, saved)
+      } catch {
+        // Blocked site data. The choice still applies for this session.
+      }
+    }
+  }, [preferences, language])
+
+  const setLanguage = useCallback(
+    (lang: SupportedLanguage) => {
+      setLanguageState(lang)
+      // Written even when signed in, so a reload is instant rather than waiting
+      // on the profile round trip, and so it survives signing out.
+      try {
+        localStorage.setItem(STORAGE_KEY, lang)
+      } catch {
+        // Private mode or blocked storage; the in-memory choice still holds.
+      }
+
+      // A signed-in user's language belongs to the account, not the browser.
+      // Fire-and-forget: a failed write costs cross-device sync, and blocking
+      // the UI on it — or surfacing an error toast for a language switch —
+      // would be worse. The server merges into the preferences blob, so this
+      // cannot clobber notification or privacy settings.
+      if (!isAuthenticated) return
+      void fetch("/api/user/preferences", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ language: lang }),
+      }).catch(() => {})
+    },
+    [isAuthenticated]
+  )
 
   const t = useCallback(
     (key: TranslationKey, vars?: Record<string, string | number>): string => {
