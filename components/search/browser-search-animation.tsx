@@ -64,12 +64,18 @@ export function BrowserSearchAnimation({ demo }: { demo: LandingSearchDemo }) {
 
   return (
     <div className="w-full h-full flex items-center justify-center p-2 sm:p-4">
+      {/* Height follows the content: deliberately no fixed aspect ratio. At
+          aspect-[16/10] this frame is about 397px tall in the hero's right
+          column, while the chrome, search box and three result cards need
+          roughly 500px — so the third result sat outside the box and was
+          clipped. The version before that hid the same overflow by being
+          overflow-visible, letting results spill past the browser frame. */}
       <motion.div
         initial={{ opacity: 0, y: 40, scale: 0.9 }}
         animate={{ opacity: 1, y: 0, scale: 1 }}
         transition={{ duration: 0.8, ease: "easeOut" }}
         aria-hidden="true"
-        className="w-full max-w-5xl aspect-[16/10] bg-card border-2 border-border rounded-xl shadow-2xl overflow-hidden flex flex-col backdrop-blur-sm"
+        className="w-full max-w-5xl bg-card border-2 border-border rounded-xl shadow-2xl overflow-hidden flex flex-col backdrop-blur-sm"
       >
         {/* Browser Toolbar */}
         <div className="h-10 sm:h-12 bg-muted/50 border-b border-border flex items-center px-3 sm:px-4 gap-2 flex-shrink-0">
@@ -118,20 +124,20 @@ export function BrowserSearchAnimation({ demo }: { demo: LandingSearchDemo }) {
             </div>
           </motion.div>
 
-          {/* Results */}
-          {showResults && results.length > 0 && (
-            <motion.div
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              transition={{ duration: 0.4 }}
-              className="mt-3 sm:mt-5 grid gap-2 sm:gap-2.5 max-w-2xl mx-auto w-full min-h-0"
-            >
+          {/* Results — always mounted, so the frame is its final height from the first
+              paint and revealing the results cannot resize or reflow it. Only
+              opacity animates. */}
+          {results.length > 0 && (
+            <div className="mt-3 sm:mt-5 grid gap-2 sm:gap-2.5 max-w-2xl mx-auto w-full">
               {results.map((tool, i) => (
                 <motion.div
-                  key={tool.name}
-                  initial={{ opacity: 0, y: 12 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ duration: 0.35, delay: i * 0.12 }}
+                  // Index included: the RPC dedupes on normalized name, but a
+                  // corpus this full of near-duplicates should not be able to
+                  // collapse two rows into one React key if that ever changes.
+                  key={`${tool.name}-${i}`}
+                  initial={false}
+                  animate={showResults ? { opacity: 1, y: 0 } : { opacity: 0, y: 12 }}
+                  transition={{ duration: 0.35, delay: showResults ? i * 0.12 : 0 }}
                   className="bg-card border border-border rounded-lg p-2.5 sm:p-3.5 flex items-start gap-2.5 sm:gap-3"
                 >
                   <div
@@ -159,7 +165,7 @@ export function BrowserSearchAnimation({ demo }: { demo: LandingSearchDemo }) {
                   <ArrowRight className="w-3.5 h-3.5 text-muted-foreground/60 flex-shrink-0 mt-1" />
                 </motion.div>
               ))}
-            </motion.div>
+            </div>
           )}
         </div>
       </motion.div>
