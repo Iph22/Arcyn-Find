@@ -5,53 +5,79 @@ import { logger } from '@/lib/logger'
 /**
  * GET /api/tools/count
  *
- * The catalog size, for the landing page headline.
+ * Catalog figures for the landing page.
  *
- * This exists so that number stops costing a full table count per visitor.
- * app/page.tsx ran `select('*', { count: 'exact', head: true })` from the
- * browser on every mount -- an exact count over ~263k rows, which
- * docs/CORPUS_AND_CONSTRAINTS.md §2 measured as a shape that times out on this
- * table, to render a figure that is displayed rounded to one decimal place.
+ * `count` is the number of DISTINCT PRODUCTS, not the number of rows. That
+ * distinction is the whole point of this route. It previously returned the
+ * planner's row estimate — 272,753 — and the landing page rendered it as
+ * "272.7K+ AI Tools". Measured on 2026-09-21 by walking the table:
  *
- * Two changes: it uses the planner's own row estimate (free, no table access),
- * and it is cached at the CDN for a day, so the database sees roughly one call
- * per day rather than one per visit.
+ *     rows in ai_tools     272,755
+ *     distinct products     15,210
+ *     duplicate rows       257,545   (94.4%)
+ *     with a public page     2,913
+ *
+ * So the old figure overstated the catalog roughly 18-fold, while a visitor
+ * browsing the public directory could only reach 2,913 tools. Claiming a
+ * number the site cannot show is what made it look like it was inflating.
+ *
+ * The heavy COUNT(DISTINCT ...) lives in catalog_stats_current(), which caches
+ * its result in a table and recomputes at most once a day. See
+ * supabase/migrations/add_catalog_stats.sql.
  */
 export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
 
+export interface CatalogCounts {
+  /** Distinct products. The honest headline figure. */
+  count: number
+  /** Distinct products with a public page at /tools/<slug>. */
+  published: number
+  /** Categories with public landing pages. */
+  categories: number
+}
+
+const EMPTY: CatalogCounts = { count: 0, published: 0, categories: 0 }
+
 export async function GET() {
   try {
     const supabase = getSupabaseAdmin()
-    const { data, error } = await supabase.rpc('ai_tools_estimated_count')
+    const { data, error } = await supabase.rpc('catalog_stats_current')
 
-    if (error) throw new Error(error.message)
-
-    // reltuples is -1 on a table that has never been analyzed, and the RPC
-    // returns null if the table is missing entirely. Either way there is no
-    // number to show, and the page already has a placeholder for that case.
-    const count = Number(data)
-    const value = Number.isFinite(count) && count > 0 ? count : 0
-
-    return NextResponse.json(
-      { count: value },
-      {
-        headers: {
-          // A day. The ingest cron adds rows daily at most, and the figure is
-          // rendered rounded -- so a fresher number would not change a pixel.
-          'Cache-Control': 'public, s-maxage=86400, stale-while-revalidate=604800',
-        },
+    if (error) {
+      if (error.message?.includes('Could not find the function')) {
+        throw new Error(
+          'catalog_stats_current() is missing. Apply ' +
+            'supabase/migrations/add_catalog_stats.sql.'
+        )
       }
-    )
-  } catch (error) {
-    logger.error('[ToolCount] failed:', error)
+      throw new Error(error.message)
+    }
 
-    // 200 with zero rather than an error status: this is decoration, and the
-    // page renders its own placeholder for a zero. A 500 here would put a
-    // failed request in the console of every visitor for no benefit.
-    return NextResponse.json(
-      { count: 0 },
-      { headers: { 'Cache-Control': 'public, s-maxage=300' } }
-    )
+    const row = Array.isArray(data) ? data[0] : data
+
+    const payload: CatalogCounts = {
+      count: Number(row?.distinct_products) || 0,
+      published: Number(row?.published) || 0,
+      categories: Number(row?.categories) || 0,
+    }
+
+    return NextResponse.json(payload, {
+      headers: {
+        // A day. The ingest adds rows daily at most, and these are displayed
+        // rounded, so a fresher number would not change a pixel.
+        'Cache-Control': 'public, s-maxage=86400, stale-while-revalidate=604800',
+      },
+    })
+  } catch (error) {
+    logger.error('[CatalogCounts] failed:', error)
+
+    // 200 with zeroes rather than an error status: these are decoration, and
+    // the page renders a placeholder for a zero. Critically it must NOT fall
+    // back to a made-up figure — showing an invented number is the exact
+    // problem this route was rewritten to fix.
+    return NextResponse.json(EMPTY, {
+      headers: { 'Cache-Control': 'public, s-maxage=300' },
+    })
   }
 }

@@ -32,6 +32,27 @@ of them.
 
 Measure with `node scripts/eval/corpus-health.js`.
 
+**Corrected 2026-09-21 by walking the whole table, not a sample.** The 55%
+above is what the top-5,000 rows show; across all of `ai_tools` it is far
+worse:
+
+| | |
+|---|---|
+| rows | 272,755 |
+| **distinct products** | **15,210** |
+| duplicate rows | 257,545 (**94.4%**) |
+| with a public page | 2,913 |
+
+So **15,210 is the only defensible public figure for catalog size.** The row
+count overstates it roughly 18-fold, and it had leaked into the product: the
+landing page rendered `/api/tools/count` (the planner's row estimate) as
+"272.7K+ AI Tools", while Google separately showed "Over 25,000" — a number
+matching nothing at all — against a directory a visitor could only see 2,913
+of. Anything stating a catalog size must read `catalog_stats_current()`
+(`supabase/migrations/add_catalog_stats.sql`), which counts distinct
+normalized names the same way `search_tools_advanced` de-duplicates. Verify
+with `npm run test:stats`.
+
 **Categories are unreliable.** Roughly 2% of sampled rows contradict their own
 category outright, and the errors are not subtle:
 
