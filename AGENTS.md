@@ -12,8 +12,14 @@ This block is written and re-added by `next dev` — verify at `node_modules/nex
 
 Read `docs/CORPUS_AND_CONSTRAINTS.md`.
 
-The table does not behave the way its size suggests. 55% of it is duplicate
-re-ingests of a few projects, `ILIKE` is non-viable at any indexing, several
-natural query shapes hit the statement timeout, and PostgREST silently caps
-responses at 1000 rows — so a plausible-looking number is often a truncation
-rather than a measurement. That document records what was measured, and how.
+The table does not behave the way its size suggests. `ILIKE` is non-viable at
+any indexing, several natural query shapes hit the statement timeout, and
+PostgREST silently caps responses at 1000 rows — so a plausible-looking number
+is often a truncation rather than a measurement. That document records what
+was measured, and how.
+
+It also held 94.4% duplicate re-ingests until 2026-09-21, caused by a `.limit()`
+on an existence check that capped rows where it meant to cap names. Those rows
+are deleted and the ingest now goes through `existing_tool_names`, but the
+failure rebuilds itself silently if that guard is removed — §1 has the detail.
+Never publish a row count as the catalog size; read `catalog_stats_current()`.
