@@ -151,7 +151,12 @@ const SCHEMA = {
       enum: ['beginner', 'intermediate', 'advanced'],
     },
     free_tier_details: {
-      type: ['string', 'null'],
+      // `anyOf`, not `type: ['string', 'null']`. Structured outputs does not
+      // support multi-type arrays -- `anyOf` is the documented way to express
+      // a nullable field, and this one has to stay nullable because rule 5
+      // above depends on "no free tier" being expressible. A schema the API
+      // rejects fails the whole batch, and a batch is 2,913 requests.
+      anyOf: [{ type: 'string' }, { type: 'null' }],
       description: 'What the free tier includes, or null if there is no evidence of one.',
     },
     categories: {
@@ -410,32 +415,57 @@ async function collect() {
         continue
       }
 
-      const { error } = await db
-        .from('ai_tools')
-        .update({
-          short_description: profile.short_description ?? null,
-          long_description: profile.long_description ?? null,
-          best_for: profile.best_for ?? [],
-          limitations: profile.limitations ?? [],
-          learning_curve: profile.learning_curve ?? null,
-          free_tier_details: profile.free_tier_details ?? null,
-          categories: profile.categories ?? [],
-        })
-        .eq('id', entry.custom_id)
+      // One row at a time, paced. §2 measured writes against this table as
+      // superlinear -- every write maintains every index, including IVFFlat --
+      // and this is 2,913 of them. Retry once on a transient failure: the
+      // results have already been paid for, so dropping one to a blip is the
+      // most expensive possible way to fail.
+      let error = null
+      for (let attempt = 0; attempt < 2; attempt++) {
+        ;({ error } = await db
+          .from('ai_tools')
+          .update({
+            short_description: profile.short_description ?? null,
+            long_description: profile.long_description ?? null,
+            best_for: profile.best_for ?? [],
+            limitations: profile.limitations ?? [],
+            learning_curve: profile.learning_curve ?? null,
+            free_tier_details: profile.free_tier_details ?? null,
+            categories: profile.categories ?? [],
+          })
+          .eq('id', entry.custom_id))
+        if (!error) break
+        await new Promise((r) => setTimeout(r, 500))
+      }
 
       if (error) {
         console.error(`  ${entry.custom_id}: ${error.message}`)
         failed++
       } else {
         written++
+        if (written % 250 === 0) console.log(`  ...${written} written`)
       }
+      await new Promise((r) => setTimeout(r, 20))
     }
 
     console.log(`  wrote ${written}, refused ${refused}, failed ${failed}`)
     if (written > 0) {
       console.log('  Run `VACUUM ANALYZE ai_tools;` after a large write (§2).')
     }
-    fs.unlinkSync(path.join(STATE_DIR, file))
+
+    // Keep the state file unless everything landed. Results stay retrievable
+    // from the Batches API for 29 days, but only if you still know the batch
+    // id -- deleting the one record of it after a partial write is how paid
+    // results become unrecoverable. Re-running `collect` is safe: the update
+    // is idempotent.
+    if (failed === 0) {
+      fs.unlinkSync(path.join(STATE_DIR, file))
+    } else {
+      console.log(
+        `  ${failed} row(s) did not write, so ${file} is kept.\n` +
+          '  Re-run `npm run enrich:collect` to retry them -- the update is idempotent.'
+      )
+    }
   }
 }
 
