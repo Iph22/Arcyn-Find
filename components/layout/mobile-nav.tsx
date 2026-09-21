@@ -5,9 +5,7 @@ import Link from "next/link"
 import { Home, Sparkles, Bookmark, User, Search, Lock } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { motion } from "framer-motion"
-import { useState, useEffect } from "react"
 import { UserSearch } from "@/components/search/user-search"
-import { usePreferences } from "@/contexts/preferences-context"
 import { useAuth } from "@/contexts/auth-context"
 import { Button } from "@/components/ui/button"
 import { useHaptic } from "@/lib/hooks/use-haptic"
@@ -15,7 +13,6 @@ import { useHaptic } from "@/lib/hooks/use-haptic"
 export function MobileNav() {
   const pathname = usePathname()
   const router = useRouter()
-  const { preferences } = usePreferences()
   const { isAuthenticated } = useAuth()
   const { trigger: haptic } = useHaptic()
 
@@ -48,7 +45,7 @@ export function MobileNav() {
         <motion.nav
           initial={{ y: 100 }}
           animate={{ y: 0 }}
-          className="fixed bottom-0 left-0 right-0 z-50 md:hidden bg-background/95 backdrop-blur-xl border-t border-border/50"
+          className="glass-nav fixed bottom-0 left-0 right-0 z-50 md:hidden"
           style={{
             paddingBottom: 'env(safe-area-inset-bottom, 0px)',
           }}
@@ -73,10 +70,16 @@ export function MobileNav() {
                   transition={{ type: "spring", stiffness: 500, damping: 30 }}
                 />
               )}
-              <motion.div whileTap={{ scale: 0.9 }}>
+              <motion.div
+                whileTap={{ scale: 0.9 }}
+                className={cn(
+                  "grid size-9 place-items-center rounded-full transition-colors",
+                  pathname === "/browse" && "bg-primary/10"
+                )}
+              >
                 <Sparkles className={cn("w-5 h-5 shrink-0", pathname === "/browse" && "scale-110")} />
               </motion.div>
-              <span className="text-[10px] font-medium leading-tight">Tools</span>
+              <span className="text-[11px] font-medium leading-tight">Tools</span>
             </Link>
 
             {/* Sign In Button */}
@@ -86,7 +89,7 @@ export function MobileNav() {
               variant="default"
             >
               <Lock className="w-4 h-4 shrink-0" />
-              <span className="text-[10px] font-medium leading-tight text-center px-1 line-clamp-2">
+              <span className="text-[11px] font-medium leading-tight text-center px-1 line-clamp-2">
                 Sign in to use more tools
               </span>
             </Button>
@@ -103,7 +106,7 @@ export function MobileNav() {
       <motion.nav
         initial={{ y: 100 }}
         animate={{ y: 0 }}
-        className="fixed bottom-0 left-0 right-0 z-50 md:hidden bg-background/95 backdrop-blur-xl border-t border-border/50"
+        className="glass-nav fixed bottom-0 left-0 right-0 z-50 md:hidden"
         style={{
           paddingBottom: 'env(safe-area-inset-bottom, 0px)',
         }}
@@ -132,10 +135,16 @@ export function MobileNav() {
                     transition={{ type: "spring", stiffness: 500, damping: 30 }}
                   />
                 )}
-                <motion.div whileTap={{ scale: 0.9 }}>
+                <motion.div
+                  whileTap={{ scale: 0.9 }}
+                  className={cn(
+                    "grid size-9 place-items-center rounded-full transition-colors",
+                    active && "bg-primary/10"
+                  )}
+                >
                   <Icon className={cn("w-5 h-5", active && "scale-110")} />
                 </motion.div>
-                <span className="text-[10px] font-medium leading-tight">{item.label}</span>
+                <span className="text-[11px] font-medium leading-tight">{item.label}</span>
               </Link>
             )
           })}
@@ -152,7 +161,7 @@ export function MobileNav() {
                 <motion.div whileTap={{ scale: 0.9 }}>
                   <Search className="w-5 h-5" />
                 </motion.div>
-                <span className="text-[10px] font-medium leading-tight">Search</span>
+                <span className="text-[11px] font-medium leading-tight">Search</span>
               </div>
             }
           />

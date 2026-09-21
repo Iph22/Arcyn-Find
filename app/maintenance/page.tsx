@@ -12,7 +12,7 @@ export default function MaintenancePage() {
         <meta name="viewport" content="width=device-width, initial-scale=1" />
         <meta name="robots" content="noindex, nofollow" />
       </head>
-      <body className="m-0 p-0 font-sans min-h-screen flex items-center justify-center text-white bg-gradient-to-br from-[#667eea] to-[#764ba2] relative overflow-hidden">
+      <body className="m-0 p-0 font-sans min-h-dvh flex items-center justify-center text-white bg-gradient-to-br from-[#667eea] to-[#764ba2] relative overflow-hidden">
         <MaintenanceScene />
         <div className="text-center p-8 max-w-2xl relative z-10">
           <h1 className="text-5xl mb-4">🔧</h1>

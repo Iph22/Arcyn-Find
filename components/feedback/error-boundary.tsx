@@ -45,7 +45,7 @@ export class ErrorBoundary extends React.Component<
       }
 
       return (
-        <div className="flex min-h-screen items-center justify-center p-4">
+        <div className="flex min-h-dvh items-center justify-center p-4">
           <Card className="max-w-md p-6">
             <div className="mb-4 flex items-center gap-3">
               <AlertTriangle className="h-6 w-6 text-destructive" />

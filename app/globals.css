@@ -20,22 +20,40 @@
 @source not "../reports";
 @source not "../docs";
 
-/* Mobile optimizations */
-@supports (-webkit-touch-callout: none) {
+/* ---------------------------------------------------------------------------
+   Mobile foundations
+   ---------------------------------------------------------------------------
+   Almost everything below lives inside `@layer base` on purpose.
 
-  /* iOS specific styles */
-  body {
-    -webkit-tap-highlight-color: transparent;
-    -webkit-touch-callout: none;
-  }
-}
+   Tailwind v4 emits its utilities into `@layer utilities`, and unlayered CSS
+   beats every layered rule regardless of specificity. These rules used to sit
+   at the top level of this file, so a bare `button { min-height: 44px }`
+   silently overrode every Tailwind sizing utility on touch devices: all six
+   Button size variants are under 44px, so `sm`, `default` and `lg` all
+   rendered at an identical 44px on phones and tablets, and no class could
+   override it. Inside `base`, a component that asks for a size gets it.
 
-/* Safe area insets for iOS notch */
+   Note that layering alone does not settle a `height` vs `min-height`
+   argument -- they are different properties, so `min-height` clamps `height`
+   whatever the layer. That is why the floor below is `min-height`, and why
+   Button opts out per variant with an explicit `min-h-*` utility rather than
+   by setting `h-*`.
+--------------------------------------------------------------------------- */
+
+/* Unlayered: custom property definitions, not declarations that can lose a
+   cascade fight. */
 :root {
   --safe-area-inset-top: env(safe-area-inset-top, 0px);
   --safe-area-inset-right: env(safe-area-inset-right, 0px);
   --safe-area-inset-bottom: env(safe-area-inset-bottom, 0px);
   --safe-area-inset-left: env(safe-area-inset-left, 0px);
+
+  /* The fixed mobile bottom nav is h-14 plus the home-indicator inset. Pages
+     reserve exactly this much with `pb-(--mobile-nav-clearance)` so nothing
+     ends up underneath it; hard-coded `pb-20` guesses were how the public
+     footer and /community ended up partly covered. */
+  --mobile-nav-height: 3.5rem;
+  --mobile-nav-clearance: calc(var(--mobile-nav-height) + env(safe-area-inset-bottom, 0px));
 }
 
 /* Mobile bottom navigation safe area */
@@ -43,55 +61,94 @@
   padding-bottom: env(safe-area-inset-bottom, 0px);
 }
 
-/* Mobile touch optimizations */
-@media (hover: none) and (pointer: coarse) {
-
-  /* Touch device styles */
+@layer base {
+  /* iOS tap flash. Scoped to interactive elements: the old rule applied
+     `-webkit-touch-callout: none` to `*`, which also disabled long-press to
+     select text and save images across the whole app. */
+  a,
   button,
-  a {
-    min-height: 44px;
-    min-width: 44px;
-  }
-
-  /* Prevent text selection on tap */
-  * {
+  [role="button"],
+  summary {
     -webkit-tap-highlight-color: transparent;
-    -webkit-touch-callout: none;
   }
 
-  /* Better spacing for mobile cards */
-  .card,
-  [class*="Card"] {
-    margin-bottom: 1rem;
+  /* Touch-target floor, for bare <button>s that don't go through the Button
+     component. `min-width` is deliberately not set: width should come from
+     content and padding, and forcing 44px widened every icon-only control,
+     which is what pushed tight button rows into wrapping. Links are left
+     alone too -- `min-height` does nothing to an inline box, so the rule only
+     ever hit the non-inline anchors it wasn't aimed at. */
+  @media (pointer: coarse) {
+    button,
+    [role="button"] {
+      min-height: 2.75rem;
+    }
   }
 
-  /* Larger touch targets for mobile */
-  input,
-  textarea,
-  select {
-    min-height: 44px;
-    font-size: 16px;
-    /* Prevents zoom on iOS */
-  }
-}
+  /* 16px is the threshold below which iOS Safari zooms the viewport on focus.
+     `max(1rem, 16px)` tracks the user's browser font-size setting instead of
+     pinning them to 16px. The old rule listed only text/search/textarea, so
+     the email fields on the contact and feedback forms still zoomed. */
+  @media (max-width: 48rem) {
+    input:not([type="checkbox"], [type="radio"], [type="range"], [type="file"], [type="color"]),
+    textarea,
+    select {
+      font-size: max(1rem, 16px);
+    }
 
-/* Responsive typography */
-@media (max-width: 640px) {
+    :is(input, textarea, select):focus {
+      scroll-margin-block: 1rem;
+    }
+  }
+
+  /* No `html { font-size: 14px }` under 640px.
+
+     That rescaled every rem in the framework by 0.875 on phones -- `text-xs`
+     landed at 10.5px -- while the touch-target rules stayed in px, so button
+     padding shrank against a fixed height and label text drifted off centre.
+     Type is sized per component instead (the landing page already ramps
+     `text-3xl sm:text-4xl md:text-5xl`), which is what Tailwind's
+     mobile-first scale expects. */
+
   html {
-    font-size: 14px;
+    -webkit-overflow-scrolling: touch;
   }
-}
 
-/* Smooth scrolling */
-html {
-  scroll-behavior: smooth;
-  -webkit-overflow-scrolling: touch;
-}
+  /* Smooth scroll was set on `*`, unconditionally. Scoped to the scroll root
+     and gated on the user's motion preference. */
+  @media (prefers-reduced-motion: no-preference) {
+    html {
+      scroll-behavior: smooth;
+    }
+  }
 
-/* Prevent horizontal scroll on mobile */
-body {
-  overflow-x: hidden;
-  position: relative;
+  @media (prefers-reduced-motion: reduce) {
+
+    *,
+    *::before,
+    *::after {
+      animation-duration: 0.01ms !important;
+      animation-iteration-count: 1 !important;
+      transition-duration: 0.01ms !important;
+      scroll-behavior: auto !important;
+    }
+  }
+
+  /* `overflow-x: hidden` on `body` is deliberately not here.
+
+     Two reasons. It was masking horizontal overflow rather than preventing
+     it, so no overflow bug could ever be noticed -- a static pass over the
+     markup found nothing that actually overflows (no tables, no fixed widths
+     wider than the viewport, five `whitespace-nowrap` in total), which is
+     what made removing it safe rather than brave.
+
+     The second reason is load-bearing: `overflow-x: hidden` makes `body` a
+     scroll container, and `position: sticky` resolves against the nearest
+     scrollport. The page headers are sticky now, so the guard and the headers
+     could not both stay.
+
+     If overflow does turn up, reach for `overflow-x: clip`, not `hidden` --
+     it clips without creating a scroll container, so sticky keeps working. */
 }
 
 /* Hide scrollbar but keep functionality */
@@ -102,25 +159,6 @@ body {
 
 .scrollbar-hide::-webkit-scrollbar {
   display: none;
-}
-
-/* Prevent mobile input auto-scroll and zoom issues */
-@media (max-width: 768px) {
-
-  /* Prevent iOS zoom on input focus - minimum 16px font size */
-  input[type="text"],
-  input[type="search"],
-  textarea {
-    font-size: 16px !important;
-  }
-
-  /* Better scroll behavior for focused inputs */
-  input[type="text"]:focus,
-  input[type="search"]:focus,
-  textarea:focus {
-    scroll-margin-top: 1rem;
-    scroll-margin-bottom: 1rem;
-  }
 }
 
 @custom-variant dark (&:is(.dark *));
@@ -160,6 +198,15 @@ body {
   --sidebar-accent-foreground: oklch(0.12 0.015 250);
   --sidebar-border: oklch(0.88 0.012 250);
   --sidebar-ring: oklch(0.5 0.2 250);
+
+  /* Glass material -- light. Opacity is retuned per theme on purpose: an
+     alpha that reads as frosted on the dark theme turns milky on the light
+     one, so one shared value cannot serve both. */
+  --glass-bg: color-mix(in oklab, var(--background) 72%, transparent);
+  --glass-border: color-mix(in oklab, var(--foreground) 10%, transparent);
+  --glass-highlight: color-mix(in oklab, white 85%, transparent);
+  --glass-blur: 20px;
+  --glass-saturate: 180%;
 }
 
 .dark {
@@ -196,6 +243,13 @@ body {
   --sidebar-accent-foreground: oklch(0.95 0.008 250);
   --sidebar-border: oklch(0.22 0.025 250);
   --sidebar-ring: oklch(0.65 0.22 250);
+
+  /* Glass material -- dark. Less background, and a white catch-light instead
+     of a dark border: on a dark surface an edge reads as a bevel only if it
+     is lighter than the fill. */
+  --glass-bg: color-mix(in oklab, var(--background) 58%, transparent);
+  --glass-border: color-mix(in oklab, white 12%, transparent);
+  --glass-highlight: color-mix(in oklab, white 16%, transparent);
 }
 
 @theme inline {
@@ -247,71 +301,218 @@ body {
   body {
     @apply bg-background text-foreground;
   }
+}
 
-  /* Enhanced smooth scroll-snap behavior for frame-by-frame scrolling */
-  html {
-    scroll-behavior: smooth;
+/* ---------------------------------------------------------------------------
+   Glass surfaces
+   ---------------------------------------------------------------------------
+   The mobile chrome -- bottom nav, sticky headers, the drawer and its
+   backdrop -- shares one material so it reads as a single pane of glass
+   sitting above the content rather than four separately-tuned panels. The
+   knobs are the `--glass-*` tokens above; change them there, not here.
+
+   Three things every rule has to survive, because this is the chrome and it
+   is always on screen:
+
+   1. No `backdrop-filter`. The @supports block swaps in an opaque surface --
+      without it the chrome is a translucent wash with page text showing
+      through, which is worse than no effect at all.
+   2. `prefers-reduced-transparency`. Both iOS and Android expose this, and
+      translucent chrome over scrolling content is a genuine legibility
+      problem, not a taste preference. Those users get opaque surfaces.
+   3. Forced colours / high contrast, where backdrop effects are discarded
+      and only the border carries the edge.
+--------------------------------------------------------------------------- */
+@layer components {
+
+  .glass-surface {
+    background-color: var(--glass-bg);
+    -webkit-backdrop-filter: blur(var(--glass-blur)) saturate(var(--glass-saturate));
+    backdrop-filter: blur(var(--glass-blur)) saturate(var(--glass-saturate));
   }
 
-  /* Scroll snap for main containers */
-  .snap-y {
-    scroll-snap-type: y mandatory;
+  /* Bottom navigation. The catch-light is a 1px gradient rather than a flat
+     border because a uniform line reads as a box edge, while one that fades
+     at the ends reads as light grazing a bevel -- the whole trick on the one
+     surface that is never scrolled away. */
+  .glass-nav {
+    position: relative;
+    background-color: var(--glass-bg);
+    -webkit-backdrop-filter: blur(var(--glass-blur)) saturate(var(--glass-saturate));
+    backdrop-filter: blur(var(--glass-blur)) saturate(var(--glass-saturate));
+    border-top: 1px solid var(--glass-border);
   }
 
-  /* Relax snapping on mobile to prevent content locking */
-  @media (max-width: 768px) {
-    .snap-y {
-      scroll-snap-type: y proximity;
+  .glass-nav::before {
+    content: "";
+    position: absolute;
+    inset-inline: 0;
+    top: 0;
+    height: 1px;
+    background: linear-gradient(90deg,
+        transparent,
+        var(--glass-highlight) 25%,
+        var(--glass-highlight) 75%,
+        transparent);
+    pointer-events: none;
+  }
+
+  /* Sticky page headers. Same material, edge on the other side. */
+  .glass-header {
+    background-color: var(--glass-bg);
+    -webkit-backdrop-filter: blur(var(--glass-blur)) saturate(var(--glass-saturate));
+    backdrop-filter: blur(var(--glass-blur)) saturate(var(--glass-saturate));
+    border-bottom: 1px solid var(--glass-border);
+  }
+
+  /* Slide-in drawer. Blurred harder than the nav: it sits directly over
+     content at full height, so it needs to separate from it more firmly. */
+  .glass-panel {
+    background-color: var(--glass-bg);
+    -webkit-backdrop-filter: blur(28px) saturate(var(--glass-saturate));
+    backdrop-filter: blur(28px) saturate(var(--glass-saturate));
+    border-inline-end: 1px solid var(--glass-border);
+  }
+
+  /* Backdrop behind the drawer. Deliberately the weakest blur of the set --
+     it should read as depth-of-field on the page below, not as another panel
+     competing with the drawer for attention. */
+  .glass-overlay {
+    background-color: color-mix(in oklab, var(--background) 45%, transparent);
+    -webkit-backdrop-filter: blur(8px) saturate(120%);
+    backdrop-filter: blur(8px) saturate(120%);
+  }
+
+  /* Raised pill / chip, for the active nav item and inline controls. */
+  .glass-chip {
+    background-color: color-mix(in oklab, var(--foreground) 6%, transparent);
+    -webkit-backdrop-filter: blur(12px) saturate(140%);
+    backdrop-filter: blur(12px) saturate(140%);
+    border: 1px solid var(--glass-border);
+  }
+
+  @supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
+
+    .glass-surface,
+    .glass-nav,
+    .glass-header,
+    .glass-panel {
+      background-color: var(--background);
     }
 
-    .snap-mandatory {
-      scroll-snap-type: y proximity;
+    .glass-chip {
+      background-color: var(--muted);
+    }
+
+    .glass-overlay {
+      background-color: color-mix(in oklab, var(--background) 88%, transparent);
     }
   }
 
-  .snap-mandatory {
-    scroll-snap-type: y mandatory;
+  @media (prefers-reduced-transparency: reduce) {
+
+    .glass-surface,
+    .glass-nav,
+    .glass-header,
+    .glass-panel,
+    .glass-chip,
+    .glass-overlay {
+      -webkit-backdrop-filter: none;
+      backdrop-filter: none;
+    }
+
+    .glass-surface,
+    .glass-nav,
+    .glass-header,
+    .glass-panel {
+      background-color: var(--background);
+    }
+
+    .glass-chip {
+      background-color: var(--muted);
+    }
+
+    .glass-overlay {
+      background-color: color-mix(in oklab, var(--background) 92%, transparent);
+    }
+
+    .glass-nav::before {
+      display: none;
+    }
   }
 
-  .snap-start {
-    scroll-snap-align: start;
-  }
+  @media (forced-colors: active) {
 
-  .snap-always {
-    scroll-snap-stop: always;
-  }
+    .glass-nav,
+    .glass-header,
+    .glass-panel,
+    .glass-chip {
+      border-color: CanvasText;
+    }
 
-  /* Smooth scrolling for all scrollable containers */
-  * {
-    scroll-behavior: smooth;
+    .glass-nav::before {
+      display: none;
+    }
   }
 }
 
-/* Custom Scrollbar Styling */
+
+/* Scroll snap.
+
+   Tailwind already ships `snap-y`, `snap-x`, `snap-mandatory`, `snap-start`
+   and `snap-always` as utilities. This file used to redeclare all of them in
+   `@layer base`, which is dead code -- utilities beat base -- and the copies
+   hard-coded the y axis, so `snap-x snap-mandatory` (the suggestion carousel)
+   would have become vertical snapping had it ever applied.
+
+   The mobile relaxation was worth keeping, but it has to live in `utilities`
+   to actually beat `snap-mandatory`, and it was additionally dead on its own
+   terms: the old `.snap-mandatory` declaration came *after* the media query in
+   source order, so it won. The net effect was that the landing page and
+   onboarding ran hard mandatory snapping on phones -- exactly the content
+   locking the comment said it was preventing.
+
+   Overriding the strictness custom property rather than `scroll-snap-type`
+   keeps whichever axis the element asked for. */
+@layer utilities {
+  @media (max-width: 48rem) {
+    .snap-mandatory {
+      --tw-scroll-snap-strictness: proximity;
+    }
+  }
+}
+
+/* Custom scrollbars.
+
+   These were hard-coded to a dark navy track and stayed dark in light mode.
+   Driven off the theme tokens now, so both themes get a scrollbar that
+   belongs to them. Desktop-only in practice -- mobile overlay scrollbars
+   ignore all of it. */
 ::-webkit-scrollbar {
   width: 10px;
   height: 10px;
 }
 
 ::-webkit-scrollbar-track {
-  background: rgba(10, 10, 20, 0.5);
-  backdrop-filter: blur(10px);
+  background: color-mix(in oklab, var(--muted) 60%, transparent);
 }
 
 ::-webkit-scrollbar-thumb {
-  background: rgba(59, 130, 246, 0.3);
+  background: color-mix(in oklab, var(--primary) 35%, transparent);
   border-radius: 5px;
-  border: 2px solid rgba(10, 10, 20, 0.5);
+  border: 2px solid transparent;
+  background-clip: padding-box;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background: rgba(59, 130, 246, 0.5);
+  background: color-mix(in oklab, var(--primary) 60%, transparent);
+  background-clip: padding-box;
 }
 
 /* Firefox */
 * {
   scrollbar-width: thin;
-  scrollbar-color: rgba(59, 130, 246, 0.3) rgba(10, 10, 20, 0.5);
+  scrollbar-color: color-mix(in oklab, var(--primary) 35%, transparent) transparent;
 }
 
 /* Skeleton shimmer animation for loading states */

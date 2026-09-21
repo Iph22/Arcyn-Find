@@ -358,7 +358,7 @@ function ToolsContent() {
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
               onClick={() => setSidebarOpen(false)}
-              className="fixed inset-0 bg-background/80 backdrop-blur-sm z-30"
+              className="fixed inset-0 glass-overlay z-30"
             />
             {/* Sidebar - Mobile drawer or desktop fixed */}
             <motion.div
@@ -375,10 +375,10 @@ function ToolsContent() {
       </AnimatePresence>
 
       {/* Main Content */}
-      <div className="flex flex-1 flex-col overflow-hidden pb-20 md:pb-0">
+      <div className="flex flex-1 flex-col overflow-hidden pb-[var(--mobile-nav-clearance)] md:pb-0">
         {/* Header */}
         <motion.header
-          className="border-b border-border/40 bg-card/50 backdrop-blur-xl sticky top-0 z-20"
+          className="glass-header sticky top-0 z-20"
           initial={{ y: -50, opacity: 0 }}
           animate={{ y: 0, opacity: 1 }}
           transition={{ duration: 0.5 }}
@@ -401,7 +401,7 @@ function ToolsContent() {
 
         {/* Tools Content */}
         <main className="flex-1 overflow-y-auto">
-          <div className="mx-auto max-w-7xl px-4 pt-[calc(env(safe-area-inset-top)+1rem)] pb-4 md:px-6 md:py-8 md:pb-8 mb-20 md:mb-0">
+          <div className="mx-auto max-w-7xl px-4 pt-[calc(env(safe-area-inset-top)+1rem)] pb-4 md:px-6 md:py-8 md:pb-8 mb-[var(--mobile-nav-clearance)] md:mb-0">
             {/* Personalized Welcome Message */}
             {preferences?.categories && preferences.categories.length > 0 && (
               <motion.div

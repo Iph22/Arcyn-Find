@@ -194,7 +194,7 @@ export default async function ToolPage({ params }: Props) {
   }
 
   return (
-    <div className="min-h-screen bg-background">
+    <div className="min-h-dvh bg-background">
       <script
         type="application/ld+json"
         dangerouslySetInnerHTML={{

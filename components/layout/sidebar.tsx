@@ -1,9 +1,9 @@
 "use client"
-import { useState } from "react"
+import { useLayoutEffect, useState } from "react"
 import Link from "next/link"
 import { usePathname, useRouter } from "next/navigation"
 import { motion } from "framer-motion"
-import { User, Bookmark, Star, Users, Sparkles, LogOut, Settings, ChevronLeft, ChevronRight, Home, Search, ArrowLeft, Lock } from "lucide-react"
+import { User, Bookmark, Star, Users, Sparkles, LogOut, Settings, ChevronLeft, ChevronRight, Home, Search, ArrowLeft, Lock, X } from "lucide-react"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Button } from "@/components/ui/button"
 import { cn } from "@/lib/utils"
@@ -23,12 +23,23 @@ export function Sidebar({ onClose }: SidebarProps) {
   const { logout, preferences } = usePreferences()
   const { avatarUrl, displayName, username } = useAvatar()
   const { signOut, isAuthenticated } = useAuth()
-  const [isCollapsed, setIsCollapsed] = useState(() => {
-    if (typeof window !== 'undefined') {
-      return localStorage.getItem('sidebar-collapsed') === 'true'
+  // Always `false` on the first render. Reading localStorage in the state
+  // initializer meant the server emitted `w-72` while a returning client
+  // rendered `w-20` -- a hydration mismatch, which makes React throw away the
+  // server HTML for this subtree and re-render it.
+  //
+  // useLayoutEffect runs before paint, so the stored width still applies
+  // without a visible flash. (Same approach as the scroll setup in
+  // app/onboarding/page.tsx.)
+  const [isCollapsed, setIsCollapsed] = useState(false)
+
+  useLayoutEffect(() => {
+    try {
+      setIsCollapsed(localStorage.getItem("sidebar-collapsed") === "true")
+    } catch {
+      // Private mode or blocked site data: keep the expanded default.
     }
-    return false
-  })
+  }, [])
 
   // Use isAuthenticated from useAuth as the source of truth for UI state
 
@@ -68,7 +79,10 @@ export function Sidebar({ onClose }: SidebarProps) {
 
   return (
     <motion.aside
-      className={`flex h-screen ${isCollapsed ? 'w-20' : 'w-72'} flex-col border-r border-border/40 bg-sidebar/50 backdrop-blur-xl transition-all duration-300`}
+      // h-dvh, not h-screen. 100vh on mobile Safari is taller than the visible
+      // viewport, so the footer actions (Sign Out / Back to Landing) sat below
+      // the browser chrome where they could not be reached.
+      className={`glass-panel flex h-dvh ${isCollapsed ? 'w-20' : 'w-72'} flex-col transition-all duration-300`}
       initial={{ x: -300 }}
       animate={{ x: 0 }}
       transition={{ type: "spring", damping: 25, stiffness: 200 }}
@@ -92,9 +106,26 @@ export function Sidebar({ onClose }: SidebarProps) {
               </div>
             )}
           </div>
+          {/* Dismiss the drawer. `onClose` was declared in SidebarProps and
+              threaded in from every page that renders the drawer, but never
+              called -- so on a phone the only way out was to hit the backdrop,
+              with nothing on screen to say so. */}
+          {onClose && (
+            <button
+              type="button"
+              onClick={onClose}
+              aria-label="Close menu"
+              className="md:hidden grid size-11 place-items-center rounded-lg text-sidebar-foreground/70 hover:bg-sidebar-accent transition-colors shrink-0"
+            >
+              <X className="h-5 w-5" />
+            </button>
+          )}
+          {/* Collapsing is a desktop affordance: a 5rem rail is not a useful
+              state for a drawer that is already full-height and modal. */}
           <button
+            type="button"
             onClick={toggleCollapse}
-            className="p-1.5 hover:bg-sidebar-accent rounded-lg transition-colors shrink-0"
+            className="hidden md:block p-1.5 hover:bg-sidebar-accent rounded-lg transition-colors shrink-0"
             title={isCollapsed ? "Expand sidebar" : "Collapse sidebar"}
           >
             {isCollapsed ? <ChevronRight className="h-4 w-4" /> : <ChevronLeft className="h-4 w-4" />}
@@ -155,6 +186,7 @@ export function Sidebar({ onClose }: SidebarProps) {
               >
                 <Link
                   href={item.href}
+                  onClick={onClose}
                   className={cn(
                     "flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-all",
                     isCollapsed ? "justify-center px-2" : "",
@@ -177,6 +209,7 @@ export function Sidebar({ onClose }: SidebarProps) {
           {isCollapsed ? (
             <Link
               href="/browse"
+              onClick={onClose}
               className="flex items-center justify-center rounded-lg px-2 py-2.5 text-sm font-medium text-sidebar-foreground/70 transition-all hover:bg-sidebar-accent/50 hover:text-sidebar-accent-foreground"
               title="AI Tools"
             >
@@ -189,6 +222,7 @@ export function Sidebar({ onClose }: SidebarProps) {
               </h4>
               <Link
                 href="/browse"
+                onClick={onClose}
                 className="flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium text-sidebar-foreground/70 transition-all hover:bg-sidebar-accent/50 hover:text-sidebar-accent-foreground"
               >
                 <Sparkles className="h-4 w-4 shrink-0" />
@@ -235,6 +269,7 @@ export function Sidebar({ onClose }: SidebarProps) {
         <div className="border-t border-sidebar-border/40 p-4 space-y-1">
           <Link
             href="/settings"
+            onClick={onClose}
             className={cn(
               "w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sidebar-foreground/70 hover:bg-sidebar-accent/50 hover:text-sidebar-accent-foreground transition-all text-sm font-medium",
               isCollapsed ? "justify-center px-2" : ""
