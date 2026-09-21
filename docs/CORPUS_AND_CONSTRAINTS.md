@@ -74,11 +74,13 @@ ILIKE on name (trigram indexed)   8.5s           not viable
 ILIKE on description (indexed)    TIMEOUT        not viable
 ```
 
-> **The trigram indexes behind that table were dropped on 2026-09-21**
-> (`supabase/migrations/drop_unused_trigram_indexes.sql`). They were storage
-> spent on a query shape this project had already stopped issuing — see §9.
-> The measurement above still stands: it is *why* ILIKE is not an option here,
-> and re-adding the index would not change it.
+> **Correction, 2026-09-21: `idx_ai_tools_name_trgm` and
+> `idx_ai_tools_description_trgm` do not exist on the live database.**
+> `update_advanced_search_v2.sql`, which creates them, was never applied — so
+> the measurements above were taken against *whatever indexing was actually
+> present*, which was not the trigram indexes their labels claim. ILIKE being
+> non-viable here still holds and is still the reason search uses FTS; but do
+> not cite those rows as evidence about trigram indexes specifically. See §9.3.
 
 The cost is driven by **trigram commonality, not selectivity** — `'%gauth%'`
 decomposes to `gau/aut/uth`, and `aut`/`uth` are pervasive in an AI-tools
@@ -426,13 +428,32 @@ a rate-limiter cleanup and a typing animation.
 
 ### 9.3 Storage
 
-- **The largest single item was two GIN trigram indexes** —
-  `idx_ai_tools_description_trgm` over ~260k rows of ~200-char prose, plus
-  `idx_ai_tools_name_trgm`. §2 measured the query shape they serve as *not
-  viable even with them present*, and every remaining caller was dead code
-  (`ToolsService`, `buildSearchConditions` — both deleted). Dropped.
-  `idx_ai_tools_platform_trgm` is **kept**: short URL column, and
-  `search_tools_advanced` actually uses it.
+- **Indexes are ~281 MB of the 631 MB database — about 45%.** Measured
+  2026-09-21; `supabase/migrations/drop_unused_indexes.sql` carries the full
+  table and the drop candidates.
+
+  **This entry originally claimed the biggest win was dropping two GIN trigram
+  indexes on `name` and `description`. That was wrong: those indexes do not
+  exist.** `update_advanced_search_v2.sql` was never applied. The prediction
+  came from reading the migrations directory and assuming it described the live
+  schema — **it does not.** Six of the 25 indexes on `ai_tools` appear in no
+  migration file at all (`idx_ai_tools_name_search`, `idx_ai_tools_fts_gin`,
+  `idx_ai_tools_embedding_hnsw`, `idx_ai_tools_category`,
+  `idx_ai_tools_priority_popularity`, `idx_ai_tools_access_type`,
+  `idx_ai_tools_region`, `idx_ai_tools_is_trending`).
+
+  **Query `pg_stat_user_indexes` before reasoning about indexes here.** The
+  same error also produced advice to *keep* `idx_ai_tools_platform_trgm` on the
+  grounds it was "small" — it is 46 MB, the largest index on the table, with 1
+  lifetime scan.
+
+  What the measurement actually found: `ai_tools_embedding_idx` (IVFFlat, 28 MB,
+  0 scans) is superseded by `idx_ai_tools_embedding_hnsw` (16 MB, 2168 scans) —
+  dropped, which also removes IVFFlat maintenance from every write (§7).
+  `idx_ai_tools_name_search` (28 MB) and `idx_ai_tools_tags_gin` (6.7 MB) are at
+  0 scans, and `ai_tools_fts_idx` + `idx_ai_tools_fts_gin` are 72 MB of
+  possibly-duplicate full-text index. Those four need their `indexdef` checked
+  before dropping and are left commented in the migration.
 - **`search_cache` had no eviction of any kind.** Every row holds a
   `vector(768)` (~3KB) plus `recommendation` and `stack` jsonb. §4 measured
   ~76% of rows as keystroke fragments never looked up twice. `prune_search_cache()`
@@ -458,14 +479,25 @@ free. Drop the indexes first and re-measure — that may be enough on its own.
 
 ### 9.4 Verify before assuming the fix landed
 
-The index drop and the retention job are the two changes whose payoff was
-inferred rather than measured. Both are cheap to check:
+Measure, do not infer. The index section of this document was written from the
+migrations directory rather than from the database and was wrong about which
+indexes exist, which was the largest, and which to keep (§9.3). Run these.
 
 ```sql
--- Index sizes and usage. Run BEFORE dropping: idx_scan should be ~0.
-SELECT indexrelname, pg_size_pretty(pg_relation_size(indexrelid)) AS size, idx_scan
-  FROM pg_stat_user_indexes WHERE relname = 'ai_tools'
- ORDER BY pg_relation_size(indexrelid) DESC;
+-- Index sizes, usage AND definitions. The definition is not optional: two
+-- indexes can have similar names and sizes and index different things, and
+-- "idx_scan = 0 so drop it" was how the wrong conclusion got reached.
+SELECT s.indexrelname,
+       pg_size_pretty(pg_relation_size(s.indexrelid)) AS size,
+       s.idx_scan,
+       i.indexdef
+  FROM pg_stat_user_indexes s
+  JOIN pg_indexes i ON i.indexname = s.indexrelname AND i.tablename = s.relname
+ WHERE s.relname = 'ai_tools'
+ ORDER BY pg_relation_size(s.indexrelid) DESC;
+
+-- A zero scan count means nothing if the stats were reset yesterday.
+SELECT stats_reset FROM pg_stat_database WHERE datname = current_database();
 
 -- Bloat, and whether autovacuum is keeping up.
 SELECT relname, n_live_tup, n_dead_tup, last_autovacuum, last_autoanalyze
