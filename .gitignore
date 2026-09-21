@@ -46,3 +46,9 @@ scripts/eval/collected-answers.json
 
 # Batch job state (contains only ids, but is machine-local)
 scripts/enrich/.state/
+
+# Deleted from the repo in #21 because Windows Defender blocks it at the
+# filter-driver level -- it cannot be read, renamed or deleted, so an existing
+# checkout keeps an undeletable copy on disk forever. Ignoring it keeps
+# `git status` clean and stops it being re-committed by a `git add -A`.
+scripts/setup/fix-npm-path.ps1
