@@ -36,6 +36,9 @@
     "test:stats": "node --env-file=.env.local scripts/testing/catalog-stats-e2e.mjs",
     "test:trending": "node --env-file=.env.local scripts/testing/trending-refresh-e2e.mjs",
     "test:digest": "tsx --env-file=.env.local scripts/testing/digest-e2e.mts",
+    "enrich:estimate": "node --env-file=.env.local scripts/enrich/enrich-tools.mjs estimate",
+    "enrich:submit": "node --env-file=.env.local scripts/enrich/enrich-tools.mjs submit",
+    "enrich:collect": "node --env-file=.env.local scripts/enrich/enrich-tools.mjs collect",
     "seo:slugs": "node --env-file=.env.local scripts/seo/backfill-slugs.mjs",
     "seo:slugs:dry": "node --env-file=.env.local scripts/seo/backfill-slugs.mjs --dry-run",
     "seo:audit": "node --env-file=.env.local scripts/seo/audit.mjs"
