@@ -83,13 +83,19 @@ export function MobileNav() {
             </Link>
 
             {/* Sign In Button */}
+            {/* Icon and label on one row, not stacked. Stacked, the content
+                (16px icon + 4px gap + a line of text) plus the size variant's
+                `py-2` came to ~50px inside a 48px box and spilled out of the
+                bottom of the nav -- and the nav sits flush against the bottom
+                of the viewport, so the overflow had nowhere to go and the
+                label was cut off. A row fits with room to spare. */}
             <Button
               onClick={() => router.push("/sign-in")}
-              className="flex-[2] h-12 mx-1 flex flex-col items-center justify-center gap-1 bg-primary hover:bg-primary/90 text-primary-foreground touch-manipulation active:scale-95"
+              className="flex-[2] h-12 mx-1 flex flex-row items-center justify-center gap-2 px-3 bg-primary hover:bg-primary/90 text-primary-foreground touch-manipulation active:scale-95"
               variant="default"
             >
               <Lock className="w-4 h-4 shrink-0" />
-              <span className="text-[11px] font-medium leading-tight text-center px-1 line-clamp-2">
+              <span className="text-[11px] font-medium leading-tight text-center line-clamp-2">
                 Sign in to use more tools
               </span>
             </Button>

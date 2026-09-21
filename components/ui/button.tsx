@@ -20,28 +20,35 @@ const buttonVariants = cva(
           "hover:bg-accent hover:text-accent-foreground dark:hover:bg-accent/50",
         link: "text-primary underline-offset-4 hover:underline",
       },
-      // Two heights per size: a compact one for mouse input and a taller one
-      // for touch. `pointer-coarse` is the real question -- viewport width
-      // says nothing about how the thing is being pointed at, and a tablet or
-      // a touchscreen laptop is wide and coarse at the same time.
+      // A compact height for mouse input, and a touch *floor* on top of it.
+      // `pointer-coarse` is the right question -- viewport width says nothing
+      // about how the thing is being pointed at, and a tablet or a touchscreen
+      // laptop is wide and coarse at once.
       //
-      // globals.css sets a 2.75rem `min-height` floor on `button` under
-      // `pointer: coarse` for bare buttons that never come through here. Only
-      // the sizes that land *under* that floor have to opt out of it with an
-      // explicit `min-h-*`; `h-11` and up clear it on their own, since
-      // `min-height` only ever clamps upward.
+      // These are `min-h-*`, not `h-*`, and that distinction is load-bearing.
+      // A caller passing an explicit `h-12` gets a *different* Tailwind
+      // modifier than `pointer-coarse:h-11`, so tailwind-merge keeps both and
+      // the media query wins -- which silently made such buttons *shorter* on
+      // touch than the caller asked for. It clipped the guest sign-in button
+      // in the mobile bottom nav from 48px to 44px. As `min-h-*` the rule can
+      // only ever raise a height, never lower one, so an explicit `h-*` stays
+      // in charge.
       //
-      // Height only. The old global rule also forced `min-width: 44px`, which
-      // is what actually broke layouts: every icon-only control inflated to
-      // 44px wide and tight button rows started wrapping. Width comes from
-      // content and padding.
+      // globals.css sets the same 2.75rem floor on bare `button` elements that
+      // never come through here; `min-h-10` below deliberately *lowers* it for
+      // the compact sizes, which works because utilities beat `@layer base`.
+      //
+      // Only the icon sizes get `min-w-*`. The old global rule put
+      // `min-width: 44px` on every button and link, which is what actually
+      // broke layouts -- text buttons inflated and tight rows wrapped. For a
+      // square icon target it is exactly right.
       size: {
-        default: "h-9 px-4 py-2 has-[>svg]:px-3 pointer-coarse:h-11",
-        sm: "h-8 rounded-md gap-1.5 px-3 has-[>svg]:px-2.5 pointer-coarse:h-10 pointer-coarse:min-h-10",
-        lg: "h-10 rounded-md px-6 has-[>svg]:px-4 pointer-coarse:h-12",
-        icon: "size-9 pointer-coarse:size-11",
-        "icon-sm": "size-8 pointer-coarse:size-10 pointer-coarse:min-h-10",
-        "icon-lg": "size-10 pointer-coarse:size-12",
+        default: "h-9 px-4 py-2 has-[>svg]:px-3 pointer-coarse:min-h-11",
+        sm: "h-8 rounded-md gap-1.5 px-3 has-[>svg]:px-2.5 pointer-coarse:min-h-10",
+        lg: "h-10 rounded-md px-6 has-[>svg]:px-4 pointer-coarse:min-h-12",
+        icon: "size-9 pointer-coarse:min-h-11 pointer-coarse:min-w-11",
+        "icon-sm": "size-8 pointer-coarse:min-h-10 pointer-coarse:min-w-10",
+        "icon-lg": "size-10 pointer-coarse:min-h-12 pointer-coarse:min-w-12",
       },
     },
     defaultVariants: {

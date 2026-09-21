@@ -63,7 +63,7 @@ export function PublicFooter({
                   href={`/tools/category/${category.slug}`}
                   className="inline-flex min-h-11 items-center text-muted-foreground transition-colors hover:text-foreground sm:min-h-0"
                 >
-
+                  {category.name}
                 </Link>
               ))}
             </div>
