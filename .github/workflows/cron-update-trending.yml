@@ -12,7 +12,11 @@ on:
 jobs:
   update-trending:
     runs-on: ubuntu-latest
-    
+    # Needed by the failure alert below; GITHUB_TOKEN is read-only by default.
+    permissions:
+      contents: read
+      issues: write
+
     steps:
       - name: Trigger Update Trending Endpoint
         run: |
@@ -27,3 +31,35 @@ jobs:
 
       - name: Log Result
         run: echo "✅ Trending stats updated at $(date)"
+
+      # This workflow failed 40 runs out of 40 between 2026-09-04 and
+      # 2026-09-14 and nobody found out until someone read the code. A red X on
+      # a schedule-triggered run notifies no one by default.
+      #
+      # Deliberately dependency-free -- no checkout, no composite action, no
+      # third-party step. An alert is only worth having if it survives the
+      # failure it is reporting.
+      - name: Alert on failure
+        if: failure()
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TITLE: "cron failing: ${{ github.workflow }}"
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: |
+          # One open issue per workflow, commented on rather than duplicated, so
+          # an hourly cron that breaks does not open 24 issues a day. Closing the
+          # issue is how you acknowledge it; the next failure opens a fresh one.
+          existing=$(gh issue list --repo "$GITHUB_REPOSITORY" --state open \
+            --search "$TITLE in:title" --json number,title \
+            --jq '[.[] | select(.title == env.TITLE)] | .[0].number // empty' || true)
+
+          body="\`$TITLE\` failed.
+
+          Run: $RUN_URL
+          At:  $(date -u +'%Y-%m-%d %H:%M UTC')"
+
+          if [ -n "$existing" ]; then
+            gh issue comment "$existing" --repo "$GITHUB_REPOSITORY" --body "$body"
+          else
+            gh issue create --repo "$GITHUB_REPOSITORY" --title "$TITLE" --body "$body"
+          fi
