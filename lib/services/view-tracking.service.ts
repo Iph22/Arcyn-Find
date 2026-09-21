@@ -294,3 +294,79 @@ export async function refreshTrendingStats(options: {
 
     return { ...total, iterations, backlogRemaining, elapsedMs: Date.now() - startedAt }
 }
+
+export interface SearchCachePruneResult {
+    deletedOneShot: number
+    deletedIdle: number
+    clearedPayloads: number
+    iterations: number
+    elapsedMs: number
+}
+
+/**
+ * Prune search_cache.
+ *
+ * search_cache had no eviction of any kind. Every row holds a vector(768)
+ * (~3KB) plus cached recommendation and stack payloads, and
+ * docs/CORPUS_AND_CONSTRAINTS.md §4 measured that ~76% of its rows are
+ * keystroke fragments ("ai t", "ai too", "ai tool") that were never looked up
+ * a second time. Those rows were permanent.
+ *
+ * Rides the trending cron rather than adding a schedule of its own: that
+ * workflow already runs every 6 hours, already holds CRON_SECRET, and already
+ * has failure alerting wired up (which it earned the hard way -- see the note
+ * in .github/workflows/cron-update-trending.yml).
+ *
+ * Chunked for the same reason refreshTrendingStats is: §7 measured writes to
+ * an indexed table as superlinear in chunk size, and this table carries four
+ * indexes plus a vector column. Many small statements inside one wall clock.
+ */
+export async function pruneSearchCache(options: {
+    deleteLimit?: number
+    budgetMs?: number
+} = {}): Promise<SearchCachePruneResult> {
+    const supabase = getSupabaseAdmin()
+    const deleteLimit = options.deleteLimit ?? 2000
+    const budgetMs = options.budgetMs ?? 10_000
+
+    const startedAt = Date.now()
+    const total = { deletedOneShot: 0, deletedIdle: 0, clearedPayloads: 0 }
+    let iterations = 0
+
+    for (;;) {
+        const { data, error } = await supabase.rpc('prune_search_cache', {
+            p_delete_limit: deleteLimit,
+        })
+
+        if (error) {
+            if (error.message?.includes('Could not find the function')) {
+                throw new Error(
+                    'prune_search_cache() is missing. Apply ' +
+                    'supabase/migrations/add_cache_retention.sql.'
+                )
+            }
+            // Partial progress is still progress, same as refreshTrendingStats.
+            if (iterations > 0) {
+                console.error(`[SearchCache] stopped after ${iterations} chunks: ${error.message}`)
+                break
+            }
+            throw new Error(`prune_search_cache failed: ${error.message}`)
+        }
+
+        const row = Array.isArray(data) ? data[0] : data
+        iterations++
+
+        const oneShot = row?.deleted_one_shot ?? 0
+        const idle = row?.deleted_idle ?? 0
+        total.deletedOneShot += oneShot
+        total.deletedIdle += idle
+        total.clearedPayloads += row?.cleared_payloads ?? 0
+
+        // Both deletes came back short: nothing left to remove this pass.
+        if (oneShot < deleteLimit && idle < deleteLimit) break
+
+        if (Date.now() - startedAt > budgetMs) break
+    }
+
+    return { ...total, iterations, elapsedMs: Date.now() - startedAt }
+}

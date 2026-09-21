@@ -35,6 +35,21 @@ const clientCache = new Map<string, { data: AIEntry[], timestamp: number }>()
 const CLIENT_CACHE_TTL = 1000 * 60 * 3 // 3 minutes
 const CLIENT_CACHE_MAX = 50
 
+/**
+ * Below this age a cache hit is served alone, with no network request.
+ *
+ * The cache previously saved no bandwidth at all: a hit was rendered and then
+ * the fetch ran anyway, so every filter toggle, page change and debounced
+ * keystroke was a round trip even when the exact answer was already in memory.
+ *
+ * Two thresholds rather than one, because the two halves of the old behaviour
+ * were both worth keeping: very recent results are served outright (the user
+ * is toggling filters back and forth, and the corpus has not changed in eight
+ * seconds), while older-but-valid results still revalidate in the background
+ * so a long-lived tab does not go stale.
+ */
+const CLIENT_CACHE_FRESH_MS = 1000 * 30 // 30 seconds
+
 function getCacheKey(options: UseAIToolsOptions): string {
   return JSON.stringify({
     c: options.category || '',
@@ -56,14 +71,15 @@ function setCache(key: string, data: AIEntry[]) {
   clientCache.set(key, { data, timestamp: Date.now() })
 }
 
-function getCache(key: string): AIEntry[] | null {
+function getCache(key: string): { data: AIEntry[]; isFresh: boolean } | null {
   const entry = clientCache.get(key)
   if (!entry) return null
-  if (Date.now() - entry.timestamp > CLIENT_CACHE_TTL) {
+  const age = Date.now() - entry.timestamp
+  if (age > CLIENT_CACHE_TTL) {
     clientCache.delete(key)
     return null
   }
-  return entry.data
+  return { data: entry.data, isFresh: age < CLIENT_CACHE_FRESH_MS }
 }
 
 export function useAITools(options: UseAIToolsOptions = {}): UseAIToolsReturn {
@@ -89,10 +105,19 @@ export function useAITools(options: UseAIToolsOptions = {}): UseAIToolsReturn {
     // 1. Check client cache first — show immediately (stale-while-revalidate)
     const cached = getCache(cacheKey)
     if (cached) {
-      setTools(cached)
+      setTools(cached.data)
       setIsCached(true)
-      setHasMore(cached.length === limit)
-      // Still fetch fresh data in background
+      setHasMore(cached.data.length === limit)
+
+      // A recent hit is the answer, not a placeholder for it. Returning here
+      // is the entire point of the cache — the previous version fell through
+      // to the fetch below on every hit, so it bought latency but no
+      // bandwidth. Older entries still fall through and revalidate.
+      if (cached.isFresh) {
+        setIsLoading(false)
+        setError(null)
+        return
+      }
     } else {
       setIsCached(false)
     }

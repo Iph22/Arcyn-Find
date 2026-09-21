@@ -1,4 +1,4 @@
-import { getSupabaseAdmin, supabase } from './supabase'
+import { getSupabaseAdmin, supabase, OWN_PROFILE_COLUMNS } from './supabase'
 import { getCurrentUser } from './auth'
 
 export interface UserProfile {
@@ -31,9 +31,13 @@ export async function getProfileFromDB(userId: string): Promise<UserProfile | nu
       ? getSupabaseAdmin() 
       : supabase
     
+    // Explicit list matching the UserProfile interface above. This ran
+    // `select('*')`, so adding any column to user_profiles silently widened
+    // every caller -- including the client-side branch below, which sends the
+    // row to the browser.
     const { data, error } = await client
       .from('user_profiles')
-      .select('*')
+      .select(OWN_PROFILE_COLUMNS)
       .eq('id', userId)
       .maybeSingle()
 
@@ -98,8 +102,21 @@ export async function ensureProfile(user: { id: string; user_metadata?: Record<s
       display_name?: string | null
       avatar_url?: string | null
       username?: string | null
+      email?: string | null
     } = {}
-    
+
+    // Persist the address itself, not just the name derived from it.
+    //
+    // `metadata.email` has always been available here and was only ever used to
+    // synthesise a display_name and a username below -- the column was declared
+    // on UserProfile but never written, so the product had no way to email
+    // anyone. The digest sender reads this column; without it there are no
+    // recipients. Refreshed on every sign-in so a changed provider address
+    // follows the account.
+    if (metadata.email && typeof metadata.email === 'string') {
+      updateData.email = metadata.email
+    }
+
     // Detect if this is an Apple user (Apple only provides name/email on first sign-up)
     const isAppleUser = metadata.is_apple_user === true
     const isApplePrivateEmail = metadata.is_apple_private_email === true
@@ -218,6 +235,10 @@ export async function ensureProfile(user: { id: string; user_metadata?: Record<s
       username: finalUsername || null,
       display_name: finalDisplayName || null,
       avatar_url: (avatarUrl && typeof avatarUrl === 'string' ? avatarUrl : null) || null,
+      // An Apple private-relay address is kept rather than filtered: it
+      // forwards to the real inbox and is genuinely deliverable. Dropping it
+      // would silently exclude every Apple sign-in from notifications.
+      email: (metadata.email && typeof metadata.email === 'string' ? metadata.email : null) || null,
       onboarding_completed: false,
       instructions_seen: false,
     })

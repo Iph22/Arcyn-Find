@@ -25,6 +25,54 @@ const MIN_CATEGORY_SIZE = 20
 
 const PAGE_SIZE = 1000
 
+/**
+ * How long a full-catalog read may be reused across requests.
+ *
+ * React's `cache()` memoises only within a single render. That is the right
+ * scope for correctness but the wrong one for cost: every ISR revalidation of
+ * every tool page was paying for its own full walk of ~2,929 rows (~3-4MB).
+ * This cache is module scope, so it is shared by every request a server
+ * instance handles until the TTL expires.
+ *
+ * Ten minutes is chosen against what actually changes the published set: the
+ * ingest cron (daily) and the slug backfill (manual). Ten minutes of staleness
+ * on a directory listing is invisible; the egress difference is not.
+ */
+const CATALOG_TTL_MS = 10 * 60 * 1000
+
+/**
+ * Memoise an async loader across requests, with a TTL and single-flight.
+ *
+ * Single-flight matters more than the TTL here. Without it, N concurrent cold
+ * requests each start their own full walk and the cache only helps the ones
+ * that arrive after the first finishes -- which is precisely the burst a
+ * crawler produces. With it, they share one.
+ *
+ * A rejected load is not cached: `value` is only assigned on success, so the
+ * next caller retries rather than being served a failure for ten minutes.
+ * That preserves the "throw, never return []" contract below.
+ */
+function sharedWithTtl<T>(ttlMs: number, load: () => Promise<T>): () => Promise<T> {
+  let cached: { at: number; data: T } | null = null
+  let inflight: Promise<T> | null = null
+
+  return () => {
+    if (cached && Date.now() - cached.at < ttlMs) return Promise.resolve(cached.data)
+    if (inflight) return inflight
+
+    inflight = load()
+      .then((data) => {
+        cached = { at: Date.now(), data }
+        return data
+      })
+      .finally(() => {
+        inflight = null
+      })
+
+    return inflight
+  }
+}
+
 export interface CatalogTool {
   id: string
   slug: string
@@ -155,10 +203,23 @@ async function fetchPublishedPage(afterId: string | null): Promise<CatalogTool[]
  * Walks with keyset pagination rather than offsets, and stops on a short page
  * -- a full 1000 is PostgREST's cap, not the end of the data.
  *
- * `cache()` memoises this for the lifetime of a single server render, so a
- * page that needs both metadata and body content pays for it once.
+ * THIS IS EXPENSIVE: ~2,929 rows over three round trips, roughly 3-4MB. Call
+ * it only when you genuinely need every published row -- which, after the
+ * egress pass, means the sitemap and nothing else. Everything that used to
+ * call it and then reduce the array in JavaScript now asks the database for
+ * the reduced answer instead:
+ *
+ *   getRelatedTools()    two bounded probes (category, tag overlap)
+ *   getCategories()      published_category_stats() aggregate
+ *   getCategoryBySlug()  one bounded query for that category
+ *   getDirectoryData()   categories + a bounded "featured" query
+ *
+ * Wrapped twice on purpose. `sharedWithTtl` is the one that matters -- it
+ * spans requests, so a crawler sweeping the sitemap pays once per instance per
+ * TTL. `cache()` still dedupes within a single render, which keeps the
+ * behaviour unchanged for anything that calls this more than once per request.
  */
-export const getPublishedTools = cache(async (): Promise<CatalogTool[]> => {
+const loadPublishedTools = sharedWithTtl(CATALOG_TTL_MS, async (): Promise<CatalogTool[]> => {
   const all: CatalogTool[] = []
   let cursor: string | null = null
 
@@ -172,6 +233,8 @@ export const getPublishedTools = cache(async (): Promise<CatalogTool[]> => {
 
   return all
 })
+
+export const getPublishedTools = cache(async (): Promise<CatalogTool[]> => loadPublishedTools())
 
 /**
  * Resolve one tool by its public slug.
@@ -216,10 +279,48 @@ export const getToolById = cache(async (id: string): Promise<CatalogTool | null>
   return data ? toTool(data as Row) : null
 })
 
-async function getToolByNormalizedName(normalized: string): Promise<CatalogTool | null> {
+/**
+ * The published slug for a product name, for resolving a duplicate re-ingest
+ * to the row that owns the public page (§1: 55% of the corpus is duplicates).
+ *
+ * This used to walk the entire published catalog and `.find()` through it --
+ * 3-4MB to answer a question about one name, on a path that only runs for
+ * legacy `/tools/<opaque-id>` URLs. It is now an indexed equality lookup via
+ * find_published_slug_by_name().
+ *
+ * Falls back to the old walk when the function is missing, so the route still
+ * resolves before supabase/migrations/add_seo_catalog_rpcs.sql is applied.
+ */
+async function findCanonicalSlug(name: string): Promise<string | null> {
+  const normalized = normalizeName(name)
   if (!normalized) return null
+
+  const supabase = getSupabaseAdmin()
+  const { data, error } = await supabase.rpc('find_published_slug_by_name', { p_name: name })
+
+  if (!error) return (data as string | null) || null
+
+  if (!isMissingFunction(error)) {
+    console.error('[seo/catalog] find_published_slug_by_name failed:', error.message)
+    return null
+  }
+
+  console.warn(
+    '[seo/catalog] find_published_slug_by_name() is missing -- falling back to a ' +
+      'full catalog walk. Apply supabase/migrations/add_seo_catalog_rpcs.sql.'
+  )
   const all = await getPublishedTools()
-  return all.find((tool) => normalizeName(tool.name) === normalized) ?? null
+  return all.find((tool) => normalizeName(tool.name) === normalized)?.slug ?? null
+}
+
+/** A PostgREST error meaning "that function does not exist on this database". */
+function isMissingFunction(error: { message?: string; code?: string }): boolean {
+  const message = error?.message ?? ''
+  return (
+    error?.code === 'PGRST202' ||
+    message.includes('Could not find the function') ||
+    message.includes('does not exist')
+  )
 }
 
 export type ToolRoute =
@@ -253,8 +354,8 @@ export const resolveToolRoute = cache(async (segment: string): Promise<ToolRoute
   if (byId.slug && byId.slug !== segment) return { kind: 'redirect', slug: byId.slug }
 
   // A duplicate re-ingest whose canonical sibling holds the slug (§1).
-  const canonical = await getToolByNormalizedName(normalizeName(byId.name))
-  if (canonical) return { kind: 'redirect', slug: canonical.slug }
+  const canonicalSlug = await findCanonicalSlug(byId.name)
+  if (canonicalSlug) return { kind: 'redirect', slug: canonicalSlug }
 
   return { kind: 'unpublished', tool: byId }
 })
@@ -273,9 +374,85 @@ export interface CatalogCategory {
  * sits under "Code & Development"). Nothing here can fix that -- these pages
  * inherit it. The size floor at least keeps a miscategorised row from being
  * most of a page.
+ *
+ * Counted in SQL by published_category_stats(). It used to be counted in
+ * JavaScript from the full catalog, which meant the footer's category links --
+ * present on every public page -- cost a 3-4MB read to produce ~30 names.
  */
-export const getCategories = cache(async (): Promise<CatalogCategory[]> =>
-  deriveCategories(await getPublishedTools())
+interface CategoryIndex {
+  categories: CatalogCategory[]
+  /**
+   * The raw `ai_tools.category` values behind each slug.
+   *
+   * Usually one, but slugify() is lossy -- "AI & Design" and "AI / Design"
+   * both become `ai-design` -- and the page routes on the slug. Keeping the
+   * originals is what lets getCategoryBySlug() query for every row the
+   * category page claims to list, rather than only the first spelling.
+   */
+  namesBySlug: Map<string, string[]>
+}
+
+const loadCategoryIndex = sharedWithTtl(CATALOG_TTL_MS, async (): Promise<CategoryIndex> => {
+  const supabase = getSupabaseAdmin()
+  const { data, error } = await supabase.rpc('published_category_stats')
+
+  if (error) {
+    if (!isMissingFunction(error)) throw new Error(`published_category_stats: ${error.message}`)
+
+    console.warn(
+      '[seo/catalog] published_category_stats() is missing -- falling back to a full ' +
+        'catalog walk. Apply supabase/migrations/add_seo_catalog_rpcs.sql.'
+    )
+    const tools = await getPublishedTools()
+    const namesBySlug = new Map<string, string[]>()
+    for (const tool of tools) {
+      if (!tool.category) continue
+      const slug = slugify(tool.category)
+      if (!slug) continue
+      const names = namesBySlug.get(slug) ?? []
+      if (!names.includes(tool.category)) names.push(tool.category)
+      namesBySlug.set(slug, names)
+    }
+    return { categories: deriveCategories(tools), namesBySlug }
+  }
+
+  type StatRow = { category: string; total_count: number | string; indexable_count: number | string }
+
+  // §2: PostgREST returns numeric columns as strings. count() is bigint, so
+  // these arrive as strings and would sort lexicographically if passed through.
+  const buckets = new Map<string, CatalogCategory>()
+  const namesBySlug = new Map<string, string[]>()
+
+  for (const row of (data ?? []) as StatRow[]) {
+    const name = String(row.category ?? '')
+    const slug = slugify(name)
+    if (!slug) continue
+
+    const names = namesBySlug.get(slug) ?? []
+    if (!names.includes(name)) names.push(name)
+    namesBySlug.set(slug, names)
+
+    const existing = buckets.get(slug)
+    const count = Number(row.total_count) || 0
+    const indexableCount = Number(row.indexable_count) || 0
+
+    if (existing) {
+      existing.count += count
+      existing.indexableCount += indexableCount
+    } else {
+      buckets.set(slug, { slug, name, count, indexableCount })
+    }
+  }
+
+  const categories = [...buckets.values()]
+    .filter((c) => c.count >= MIN_CATEGORY_SIZE)
+    .sort((a, b) => b.count - a.count)
+
+  return { categories, namesBySlug }
+})
+
+export const getCategories = cache(
+  async (): Promise<CatalogCategory[]> => (await loadCategoryIndex()).categories
 )
 
 /**
@@ -312,9 +489,9 @@ function isBuildPhase(): boolean {
  * only ever produced by a build that had no database, and the first
  * revalidation replaces it.
  */
-async function getPublishedToolsForPrerender(): Promise<CatalogTool[]> {
+async function forPrerender<T>(load: () => Promise<T>, empty: T): Promise<T> {
   try {
-    return await getPublishedTools()
+    return await load()
   } catch (error) {
     if (!isBuildPhase()) throw error
     console.warn(
@@ -322,17 +499,60 @@ async function getPublishedToolsForPrerender(): Promise<CatalogTool[]> {
         'Set SUPABASE_SERVICE_ROLE_KEY in the build environment to prerender it populated.',
       error
     )
-    return []
+    return empty
   }
 }
 
 /** Directory page data: tools plus the categories derived from them. */
+/**
+ * Directory page data: the categories, plus the handful of tools the page
+ * actually promotes.
+ *
+ * /tools renders exactly two things from the catalog -- the category grid, and
+ * 24 "popular" cards. It used to get both by reading all ~2,929 published rows
+ * and reducing them in JavaScript, which is 3-4MB to render ~30 links and 24
+ * cards, once an hour on the ISR revalidate.
+ *
+ * `featured` replaces the old `tools` array in the return shape deliberately:
+ * the page never wanted the whole catalog, and a name that says so stops the
+ * full read being reintroduced by someone reaching for `tools` later.
+ */
 export async function getDirectoryData(): Promise<{
-  tools: CatalogTool[]
+  featured: CatalogTool[]
   categories: CatalogCategory[]
 }> {
-  const tools = await getPublishedToolsForPrerender()
-  return { tools, categories: deriveCategories(tools) }
+  const [featured, categories] = await Promise.all([
+    forPrerender(() => getFeaturedTools(24), [] as CatalogTool[]),
+    forPrerender(async () => (await loadCategoryIndex()).categories, [] as CatalogCategory[]),
+  ])
+  return { featured, categories }
+}
+
+/**
+ * The most popular published tools that pass the quality gate.
+ *
+ * Over-fetches because `isIndexable` is applied in JavaScript -- it reads
+ * description word counts and tag richness, which the popularity ordering
+ * knows nothing about. Measured pass rate in this band is ~89% (2,603 of
+ * 2,929), so 4x the requested count leaves a wide margin without ever
+ * approaching the cost of the full walk this replaced.
+ */
+export async function getFeaturedTools(limit: number): Promise<CatalogTool[]> {
+  const supabase = getSupabaseAdmin()
+  const { data, error } = await supabase
+    .from('ai_tools')
+    .select(PAGE_COLUMNS)
+    .not('slug', 'is', null)
+    .order('popularity', { ascending: false })
+    .limit(limit * 4)
+
+  if (error) throw new Error(`getFeaturedTools: ${error.message}`)
+
+  return (data ?? [])
+    .map((row) => toTool(row as Row))
+    .filter(isIndexable)
+    .sort((a, b) => b.popularity - a.popularity || a.name.localeCompare(b.name))
+    .slice(0, limit)
 }
 
 /**
@@ -379,14 +599,49 @@ export function deriveCategories(tools: CatalogTool[]): CatalogCategory[] {
     .sort((a, b) => b.count - a.count)
 }
 
+/**
+ * How many tools a category page renders.
+ *
+ * The page used to render every member, which for the largest categories meant
+ * several hundred cards -- a large HTML document as well as a large read. With
+ * ~2,600 indexable tools across ~30 categories the average category is around
+ * 100, so this cap only bites on the few biggest ones.
+ *
+ * Capping costs some internal links on those pages. That is an acceptable
+ * trade because the sitemap lists every indexable tool independently
+ * (lib/sitemap.ts), so nothing becomes undiscoverable -- it just loses one
+ * path to being found. The heading still reports the true total from
+ * `category.count`, which is counted in SQL over the whole category.
+ */
+const CATEGORY_PAGE_MAX = 300
+
 export const getCategoryBySlug = cache(
   async (slug: string): Promise<{ category: CatalogCategory; tools: CatalogTool[] } | null> => {
-    const categories = await getCategories()
+    const { categories, namesBySlug } = await loadCategoryIndex()
     const category = categories.find((c) => c.slug === slug)
     if (!category) return null
 
-    const tools = (await getPublishedTools())
-      .filter((tool) => slugify(tool.category) === slug)
+    // Query by the raw category values rather than re-deriving the slug in
+    // SQL: `category` is an indexed plain column
+    // (ai_tools_published_category_popularity_idx) and slugify() is not
+    // expressible as an index-matching expression.
+    const names = namesBySlug.get(slug) ?? [category.name]
+
+    const supabase = getSupabaseAdmin()
+    const { data, error } = await supabase
+      .from('ai_tools')
+      .select(PAGE_COLUMNS)
+      .not('slug', 'is', null)
+      .in('category', names)
+      .order('popularity', { ascending: false })
+      .limit(CATEGORY_PAGE_MAX)
+
+    if (error) throw new Error(`getCategoryBySlug(${slug}): ${error.message}`)
+
+    const tools = (data ?? [])
+      .map((row) => toTool(row as Row))
+      // The DB orders by popularity alone; the name tiebreak is applied here
+      // so the page is stable between renders for equal-popularity rows.
       .sort((a, b) => b.popularity - a.popularity || a.name.localeCompare(b.name))
 
     return { category, tools }
@@ -400,39 +655,147 @@ export const getCategoryBySlug = cache(
  * is the main source of genuinely page-specific content on a tool page, and it
  * is what turns ~2,700 orphan pages into a crawlable graph.
  */
+/**
+ * Candidates pulled per probe in getRelatedTools.
+ *
+ * 60 per probe against an 8-item result leaves room for the popularity
+ * ordering to differ from the score ordering.
+ *
+ * Note this does NOT capture the whole of the old candidate set. The scoring
+ * below awards 3 for a category match and 1 per shared tag, but it also awards
+ * 0.5 for `isIndexable` *unconditionally* -- so under the previous
+ * full-catalog implementation every indexable published tool scored 0.5, clear
+ * of the `score > 0` filter. In effect the section was padded with arbitrary
+ * popular tools whenever genuine matches ran short. `topUpRelated` below
+ * reproduces that, so the rendered page is unchanged.
+ */
+const RELATED_CANDIDATES = 60
+
 export async function getRelatedTools(tool: CatalogTool, limit = 8): Promise<CatalogTool[]> {
   // Deliberately tolerant: related tools enrich a tool page but are not what
   // the visitor came for. A transient database error should cost the section,
   // not the page. The sitemap makes the opposite trade.
-  let all: CatalogTool[]
   try {
-    all = await getPublishedTools()
+    const supabase = getSupabaseAdmin()
+
+    // Tag overlap is capped because the array goes into the query string as an
+    // `ov.{...}` filter; the corpus carries 9-15 tags per row and the most
+    // significant ones come first.
+    const probeTags = tool.tags.slice(0, 12)
+
+    const [sameCategory, sharedTags] = await Promise.all([
+      tool.category
+        ? supabase
+            .from('ai_tools')
+            .select(PAGE_COLUMNS)
+            .not('slug', 'is', null)
+            .eq('category', tool.category)
+            .order('popularity', { ascending: false })
+            .limit(RELATED_CANDIDATES)
+        : Promise.resolve({ data: [] as unknown[], error: null }),
+      probeTags.length > 0
+        ? supabase
+            .from('ai_tools')
+            .select(PAGE_COLUMNS)
+            .not('slug', 'is', null)
+            .overlaps('tags', probeTags)
+            .order('popularity', { ascending: false })
+            .limit(RELATED_CANDIDATES)
+        : Promise.resolve({ data: [] as unknown[], error: null }),
+    ])
+
+    if (sameCategory.error) throw new Error(sameCategory.error.message)
+    if (sharedTags.error) throw new Error(sharedTags.error.message)
+
+    // The two probes overlap heavily -- same-category tools usually share tags
+    // too -- so dedupe on id before scoring or a row counts twice.
+    const byId = new Map<string, CatalogTool>()
+    for (const row of [...(sameCategory.data ?? []), ...(sharedTags.data ?? [])]) {
+      const candidate = toTool(row as Row)
+      if (candidate.id === tool.id || candidate.slug === tool.slug) continue
+      byId.set(candidate.id, candidate)
+    }
+
+    const tags = new Set(tool.tags.map((t) => t.toLowerCase()))
+
+    const scored = [...byId.values()]
+      .map((candidate) => {
+        let score = 0
+        if (candidate.category === tool.category) score += 3
+        for (const tag of candidate.tags) if (tags.has(tag.toLowerCase())) score += 1
+        // Nudge toward tools that will render a useful card.
+        if (isIndexable(candidate)) score += 0.5
+        return { candidate, score }
+      })
+      .filter((entry) => entry.score > 0)
+      .sort(
+        (a, b) =>
+          b.score - a.score ||
+          b.candidate.popularity - a.candidate.popularity ||
+          a.candidate.name.localeCompare(b.candidate.name)
+      )
+
+    const related = scored.slice(0, limit).map((entry) => entry.candidate)
+
+    // Genuine matches come first; only a shortfall costs a third query, which
+    // for a tool with 9-15 tags in a populated category is rare.
+    if (related.length < limit) {
+      return topUpRelated(related, tool, limit)
+    }
+
+    return related
   } catch (error) {
     console.error('[seo/catalog] getRelatedTools degraded:', error)
     return []
   }
-  const tags = new Set(tool.tags.map((t) => t.toLowerCase()))
+}
 
-  const scored = all
-    .filter((candidate) => candidate.slug !== tool.slug)
-    .map((candidate) => {
-      let score = 0
-      if (candidate.category === tool.category) score += 3
-      for (const tag of candidate.tags) if (tags.has(tag.toLowerCase())) score += 1
-      // Nudge toward tools that will render a useful card.
-      if (isIndexable(candidate)) score += 0.5
-      return { candidate, score }
-    })
-    .filter((entry) => entry.score > 0)
-    .sort(
-      (a, b) =>
-        b.score - a.score ||
-        b.candidate.popularity - a.candidate.popularity ||
-        a.candidate.name.localeCompare(b.candidate.name)
-    )
+/**
+ * Pad a short related-tools list with popular indexable tools.
+ *
+ * This looks arbitrary because it is -- but it is what the previous
+ * implementation did (see the note on RELATED_CANDIDATES), and changing what
+ * the "alternatives" section renders is a product decision, not an egress one.
+ * Reproduced here so this change is purely about how the data is fetched.
+ *
+ * Worth revisiting separately: a section headed "<tool> alternatives" that
+ * falls back to unrelated tools is the kind of padding §6 warns gets a
+ * directory classified as thin content. Returning four real alternatives
+ * instead of eight padded ones is probably the better page. That is a
+ * deliberate call for someone to make, not a side effect of this pass.
+ */
+async function topUpRelated(
+  related: CatalogTool[],
+  tool: CatalogTool,
+  limit: number
+): Promise<CatalogTool[]> {
+  try {
+    const have = new Set(related.map((t) => t.id))
+    have.add(tool.id)
 
-  return scored.slice(0, limit).map((entry) => entry.candidate)
+    const filler = await getFeaturedTools(limit * 2)
+    for (const candidate of filler) {
+      if (related.length >= limit) break
+      if (have.has(candidate.id) || candidate.slug === tool.slug) continue
+      have.add(candidate.id)
+      related.push(candidate)
+    }
+  } catch (error) {
+    // A short list is a fine outcome; this is padding, not content.
+    console.error('[seo/catalog] topUpRelated degraded:', error)
+  }
+
+  return related
 }
 
 export { siteUrl } from './site'
 export { clampForMeta, isTruncated, normalizeName, slugify, tidyDescription }
+
+/**
+ * Re-exported for the notification digest, which needs the same row shape and
+ * the same quality gate but not the same access pattern: `getPublishedTools()`
+ * walks the entire published set, and the digest cron runs a narrow query
+ * inside a 60s budget it shares with sending. Shared so the numeric-string
+ * coercion in `toTool` (§2) has exactly one implementation.
+ */
+export { PAGE_COLUMNS as CATALOG_COLUMNS, toTool as rowToCatalogTool }

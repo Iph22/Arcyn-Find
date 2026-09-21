@@ -74,6 +74,12 @@ ILIKE on name (trigram indexed)   8.5s           not viable
 ILIKE on description (indexed)    TIMEOUT        not viable
 ```
 
+> **The trigram indexes behind that table were dropped on 2026-09-21**
+> (`supabase/migrations/drop_unused_trigram_indexes.sql`). They were storage
+> spent on a query shape this project had already stopped issuing — see §9.
+> The measurement above still stands: it is *why* ILIKE is not an option here,
+> and re-adding the index would not change it.
+
 The cost is driven by **trigram commonality, not selectivity** — `'%gauth%'`
 decomposes to `gau/aut/uth`, and `aut`/`uth` are pervasive in an AI-tools
 corpus. A *rarer* term can be dramatically slower than a common one, so latency
@@ -321,11 +327,152 @@ ranking on nothing.
   deleted in `git diff` but not `git status`; a `git commit -a` would drop it.
 - `npm run lint` is broken — neither `eslint` nor `@eslint/eslintrc` is
   installed, though `eslint.config.mjs` exists.
-- **`npx tsc --noEmit` dies with `out of memory` on this machine**, and so will
-  `next build`. The box has ~4 GB total and was measured with **38 MB free**;
-  the TypeScript 7 compiler (the Go port, per `"typescript": "^7"`) allocates
-  well past that. It is an environment limit, not a code error — the same
-  checkout typechecks on CI. For a fast local sanity check that a file parses,
+- **`npx tsc --noEmit` may die with `out of memory` on this machine**, and so
+  may `next build`. The box has ~4 GB total and was once measured with **38 MB
+  free**; the TypeScript 7 compiler (the Go port, per `"typescript": "^7"`)
+  allocates well past that. It is an environment limit, not a code error — the
+  same checkout typechecks on CI.
+  **It is worth trying before assuming it will fail**: it completed in under a
+  minute on 2026-09-21 with more memory free, and caught a real type error that
+  esbuild and oxlint both missed (a non-literal `select()` string widening to
+  `GenericStringError`). Close other applications and try.
+  For a fast sanity check that a file parses,
   `node_modules/.bin/esbuild <file> --jsx=preserve --outfile=/dev/null` costs
   almost nothing, but it validates syntax only and will not catch type errors.
+  `npx oxlint <paths>` does catch unused and undefined identifiers.
 - Some source files are CRLF (`lib/hooks/use-ai-tools.ts`), most are LF.
+
+---
+
+## 9. Quota is the other binding constraint (2026-09-21)
+
+§4 covers the Gemini quota. This section covers Supabase's, which bit harder:
+the free tier was at **216% of egress (10.8GB/5GB)** and **123% of database
+size (0.616GB/0.5GB)**, with restriction (402s) due 2026-10-18.
+
+The figures below are estimates from the row shape in §6.1 unless a
+measurement is given. Re-measure before trusting anything load-bearing.
+
+### 9.1 The egress was one pattern, not many
+
+**Every public tool page downloaded the entire published catalog.**
+`app/tools/[slug]/page.tsx` called `getRelatedTools()` and
+`getCategoriesSafe()`; both called `getPublishedTools()`, which keyset-walks
+all ~2,929 published rows across 17 columns — roughly **3-4MB to render an
+8-item sidebar and ~30 footer links**. React's `cache()` deduped that within
+one render but not across requests, so every ISR revalidation of every one of
+~2,600 tool pages paid for it again.
+
+The same walk sat behind `/tools`, `/tools/category/[slug]`, both sitemap
+routes, and `generateStaticParams`.
+
+**The rule that replaced it: reduce in SQL, not in JavaScript.** If you find
+yourself calling `getPublishedTools()` and then `.filter()`, `.find()` or
+counting the result, that is the bug. `getPublishedTools()` is now called by
+the sitemap and nothing else, and it carries a comment saying so.
+
+| caller | was | is |
+|---|---|---|
+| `getRelatedTools` | walk 2,929, score all, return 8 | two bounded probes (category, tag overlap), 60 each |
+| `getCategories` | walk 2,929, count in JS | `published_category_stats()` aggregate, ~30 rows |
+| `getCategoryBySlug` | walk 2,929, filter to one category | one query, `.in('category', names)`, capped at 300 |
+| `getDirectoryData` | walk 2,929, take top 24 | bounded query, `limit(96)`, gate applied in JS |
+| `findCanonicalSlug` | walk 2,929, `.find()` by normalized name | `find_published_slug_by_name()`, indexed equality |
+
+`getPublishedTools()` additionally has a **10-minute process-level TTL cache
+with single-flight** (`sharedWithTtl` in `lib/seo/catalog.ts`). React `cache()`
+is request-scoped and was never going to help a crawler sweeping the sitemap;
+this does. Single-flight matters as much as the TTL — without it, N concurrent
+cold requests each start their own walk, which is exactly the burst a crawler
+produces.
+
+**`published_category_stats()` duplicates `isIndexable()` in SQL.** That is a
+real drift risk and it is deliberate: the JS version decides `robots: noindex`
+from a row already in memory, and the SQL version exists so counting does not
+cost 3-4MB. **If you change one, change the other**, and re-run
+`npm run seo:audit`.
+
+### 9.2 The other egress items, in order of size
+
+- **`<link rel="prefetch" href="/api/ai-models">` in the root layout.** On
+  every page of the site, crawler hits included. Unparameterized, that endpoint
+  defaulted to `limit=500`, so it pulled ~500 full tool rows that nothing
+  consumed — the grid asks for 24. `s-maxage=300` capped it at one 500-row read
+  per 5 minutes, which is still ~5GB/month. **Removed.**
+- **`/api/ai-models` default limit was 500**, now 24. This is what made the
+  above expensive rather than merely pointless.
+- **Supabase Storage images were re-pulled every 4 hours per variant.** Next 16
+  defaults `minimumCacheTTL` to 14400, and the effective max-age is the *larger*
+  of that and the upstream `Cache-Control` — so `lib/storage.ts` uploading with
+  `cacheControl: '3600'` was silently capping what `next.config.ts` could do.
+  Now 31 days and 1 year respectively. Safe because upload paths are
+  timestamped (`${userId}-${Date.now()}.${ext}`), so a new image is a new URL.
+  **There is no cache invalidation** — a changed image needs a changed `src`.
+- **`getCollection()` fetched `/api/ai-models` (500 rows) to resolve a handful
+  of tool ids.** Now `.in('id', toolIds)`. That relative `fetch()` also meant
+  the function only ever worked in the browser.
+- **The client cache in `use-ai-tools.ts` saved no bandwidth.** It rendered the
+  hit and then fetched anyway. Now returns early under 30s; older-but-valid
+  entries still revalidate.
+- **`getActivityFeed()` was an N+1** — up to 2 queries per activity inside the
+  loop, 41 round trips for a 20-item feed. Now two `.in()` lookups.
+  `app/api/user/activity/route.ts` already did this correctly; the two had
+  diverged.
+
+`app/api/tools/trending/route.ts` and `app/api/user/collections/route.ts` were
+checked and were already correct. **There are no polling loops and no realtime
+subscriptions anywhere in this codebase** — the only two `setInterval` calls are
+a rate-limiter cleanup and a typing animation.
+
+### 9.3 Storage
+
+- **The largest single item was two GIN trigram indexes** —
+  `idx_ai_tools_description_trgm` over ~260k rows of ~200-char prose, plus
+  `idx_ai_tools_name_trgm`. §2 measured the query shape they serve as *not
+  viable even with them present*, and every remaining caller was dead code
+  (`ToolsService`, `buildSearchConditions` — both deleted). Dropped.
+  `idx_ai_tools_platform_trgm` is **kept**: short URL column, and
+  `search_tools_advanced` actually uses it.
+- **`search_cache` had no eviction of any kind.** Every row holds a
+  `vector(768)` (~3KB) plus `recommendation` and `stack` jsonb. §4 measured
+  ~76% of rows as keystroke fragments never looked up twice. `prune_search_cache()`
+  now runs on the 6-hourly trending cron.
+- **`discovery_queue` was insert-only.** Nothing in the repository ever read
+  it. Write removed, table dropped. **If you rebuild this, write the consumer
+  first** — the schema is in `add_cache_retention.sql`.
+- **The landing page ran an exact count over ~263k rows per visitor** to render
+  a figure it displays rounded. Now `ai_tools_estimated_count()` (reltuples, no
+  table access) behind `/api/tools/count`, CDN-cached for a day.
+
+**Not done, deliberately:** the 55% duplicate re-ingests (§1) are the bulk of
+the table, but deleting them is a bulk write against an indexed table, which §7
+measured as superlinear and capable of degrading unrelated queries for hours.
+The safe subset is rows below the publish band with no slug, no views, no
+favourites and no reviews — measure it before acting, chunk at ~250, and
+`VACUUM ANALYZE` after.
+
+**Also not done:** `VACUUM FULL`. A plain `VACUUM` reclaims space for reuse but
+does not return it to the OS, so it will not move the quota number; `VACUUM
+FULL` will, but it takes an ACCESS EXCLUSIVE lock and needs ~2x the table size
+free. Drop the indexes first and re-measure — that may be enough on its own.
+
+### 9.4 Verify before assuming the fix landed
+
+The index drop and the retention job are the two changes whose payoff was
+inferred rather than measured. Both are cheap to check:
+
+```sql
+-- Index sizes and usage. Run BEFORE dropping: idx_scan should be ~0.
+SELECT indexrelname, pg_size_pretty(pg_relation_size(indexrelid)) AS size, idx_scan
+  FROM pg_stat_user_indexes WHERE relname = 'ai_tools'
+ ORDER BY pg_relation_size(indexrelid) DESC;
+
+-- Bloat, and whether autovacuum is keeping up.
+SELECT relname, n_live_tup, n_dead_tup, last_autovacuum, last_autoanalyze
+  FROM pg_stat_user_tables ORDER BY n_dead_tup DESC;
+
+-- Has tool_views retention ever actually run? §7 records 40 failed runs out
+-- of 40 before the RPC rewrite. If min(viewed_at) predates the retention
+-- window, it has not.
+SELECT min(viewed_at), count(*) FROM tool_views;
+```

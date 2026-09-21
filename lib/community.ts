@@ -140,44 +140,48 @@ export async function getActivityFeed(limit: number = 20): Promise<UserActivity[
 
     if (error) throw error
 
-    // Fetch tool/collection details for activities
-    const activities: UserActivity[] = []
-    for (const activity of data || []) {
-      const activityData: UserActivity = {
+    const rows = data || []
+
+    // Resolve every referenced tool and collection in two queries.
+    //
+    // This loop used to issue one query per tool_id AND one per collection_id
+    // while iterating -- up to 41 sequential round trips for a 20-item feed,
+    // each one fetching a single `name`. Collecting the ids first turns that
+    // into two `.in()` lookups that run concurrently.
+    const toolIds = [...new Set(rows.map(a => a.tool_id).filter(Boolean))]
+    const collectionIds = [...new Set(rows.map(a => a.collection_id).filter(Boolean))]
+
+    const [toolRows, collectionRows] = await Promise.all([
+      toolIds.length > 0
+        ? supabase.from('ai_tools').select('id, name').in('id', toolIds)
+        : Promise.resolve({ data: [] as { id: string; name: string }[] }),
+      collectionIds.length > 0
+        ? supabase.from('collections').select('id, name').in('id', collectionIds)
+        : Promise.resolve({ data: [] as { id: string; name: string }[] }),
+    ])
+
+    const toolNames = new Map((toolRows.data || []).map(t => [t.id, t.name]))
+    const collectionNames = new Map((collectionRows.data || []).map(c => [c.id, c.name]))
+
+    const activities: UserActivity[] = rows.map(activity => {
+      const toolName = activity.tool_id ? toolNames.get(activity.tool_id) : undefined
+      const collectionName = activity.collection_id
+        ? collectionNames.get(activity.collection_id)
+        : undefined
+
+      return {
         ...activity,
         user: activity.user_profiles ? {
           username: activity.user_profiles.username,
           display_name: activity.user_profiles.display_name,
           avatar_url: activity.user_profiles.avatar_url,
         } : undefined,
+        // Left undefined when the referenced row is gone, matching the
+        // previous behaviour of skipping the assignment on a failed lookup.
+        tool: toolName ? { name: toolName } : undefined,
+        collection: collectionName ? { name: collectionName } : undefined,
       }
-
-      // Fetch tool name if tool_id exists
-      if (activity.tool_id) {
-        const { data: tool } = await supabase
-          .from('ai_tools')
-          .select('name')
-          .eq('id', activity.tool_id)
-          .single()
-        if (tool) {
-          activityData.tool = { name: tool.name }
-        }
-      }
-
-      // Fetch collection name if collection_id exists
-      if (activity.collection_id) {
-        const { data: collection } = await supabase
-          .from('collections')
-          .select('name')
-          .eq('id', activity.collection_id)
-          .single()
-        if (collection) {
-          activityData.collection = { name: collection.name }
-        }
-      }
-
-      activities.push(activityData)
-    }
+    })
 
     return activities
   } catch (error) {
@@ -187,13 +191,30 @@ export async function getActivityFeed(limit: number = 20): Promise<UserActivity[
 }
 
 /**
+ * The columns of the `user_stats` view, which is defined in
+ * 001_clerk_compatible_schema.sql and matches the UserStats interface exactly.
+ *
+ * Listing them rather than `select('*')` saves nothing today -- all ten are
+ * used. It is here so that adding a column to the view does not silently widen
+ * every response that reads it, which is how the `select('*')` on ai_tools
+ * ended up shipping a 768-float embedding to clients.
+ *
+ * Worth knowing if this ever gets slow: `user_stats` is a view with four LEFT
+ * JOINs and COUNT(DISTINCT ...) grouped over all of user_profiles, so an
+ * ORDER BY over it aggregates every user before applying LIMIT. Fine at the
+ * current scale; it will not stay fine.
+ */
+const USER_STATS_COLUMNS =
+  'id, username, display_name, avatar_url, total_reviews, total_collections, followers_count, following_count, total_helpful_votes, last_review_date'
+
+/**
  * Get user stats for leaderboard
  */
 export async function getLeaderboard(limit: number = 10): Promise<UserStats[]> {
   try {
     const { data, error } = await supabase
       .from('user_stats')
-      .select('*')
+      .select(USER_STATS_COLUMNS)
       .order('total_helpful_votes', { ascending: false })
       .order('total_reviews', { ascending: false })
       .limit(limit)
@@ -214,7 +235,7 @@ export async function getUserStats(userId: string): Promise<UserStats | null> {
   try {
     const { data, error } = await supabase
       .from('user_stats')
-      .select('*')
+      .select(USER_STATS_COLUMNS)
       .eq('id', userId)
       .single()
 

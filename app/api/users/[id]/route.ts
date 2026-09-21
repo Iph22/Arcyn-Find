@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server"
-import { getSupabaseAdmin } from "@/lib/supabase"
+import { getSupabaseAdmin, PUBLIC_PROFILE_COLUMNS } from "@/lib/supabase"
 import { createErrorResponse, createSuccessResponse, ErrorCodes } from "@/lib/api-errors"
 import { logger } from "@/lib/logger"
 
@@ -10,9 +10,12 @@ export async function GET(
   try {
     const { id } = await params
     const supabase = getSupabaseAdmin()
+    // A public endpoint: anyone can read any user's row by id, so it returns
+    // the public column set only. `select("*")` here was also shipping
+    // `email`, `preferences` and the onboarding fields to every caller.
     const { data, error } = await supabase
       .from("user_profiles")
-      .select("*")
+      .select(PUBLIC_PROFILE_COLUMNS)
       .eq("id", id)
       .single()
 

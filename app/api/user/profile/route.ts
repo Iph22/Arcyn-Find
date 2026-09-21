@@ -12,7 +12,7 @@
 import { NextRequest } from 'next/server'
 import { getCurrentUser } from '@/lib/google-auth'
 import { createErrorResponse, createSuccessResponse, ErrorCodes } from '@/lib/api-errors'
-import { getSupabaseAdmin } from '@/lib/supabase'
+import { getSupabaseAdmin, OWN_PROFILE_COLUMNS } from '@/lib/supabase'
 import { logger } from '@/lib/logger'
 import {
   checkRateLimit,
@@ -51,9 +51,12 @@ export async function GET(request: NextRequest) {
     // FETCH PROFILE
     // =========================================================================
     const supabase = getSupabaseAdmin()
+    // The caller's own profile, so the wider column set is appropriate -- but
+    // still an explicit list, so adding a column to the table does not
+    // silently widen every response that reads it.
     const { data, error } = await supabase
       .from('user_profiles')
-      .select('*')
+      .select(OWN_PROFILE_COLUMNS)
       .eq('id', user.id)
       .single()
 

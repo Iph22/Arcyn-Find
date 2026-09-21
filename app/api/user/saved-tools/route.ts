@@ -36,6 +36,12 @@ export async function GET(request: NextRequest) {
       `)
       .eq('user_id', user.id)
       .order('created_at', { ascending: false })
+      // Bounded, matching the sibling route at app/api/users/[id]/saved-tools.
+      // This was unbounded: every favourite with its full joined tool row, so
+      // the response grew without limit as a user saved more. PostgREST would
+      // have silently capped it at 1000 anyway (§2), which is worse than a cap
+      // we chose, because it looks like a complete answer.
+      .limit(50)
 
     if (error) {
       throw error
