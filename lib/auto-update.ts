@@ -119,6 +119,22 @@ function cleanDescription(description: string, maxLength = 500): string {
 
 // --- Discovery Logic ---
 
+/**
+ * Product identity, identical to `ai_tools.normalized_name` (a generated
+ * column) and to normalizeName() in lib/seo/slug.ts.
+ *
+ * All three must agree. If they drift, the ingest stops recognising what the
+ * database already holds and starts duplicating again.
+ */
+function normalizeToolName(name: string): string {
+    return (name || '')
+        .toLowerCase()
+        .normalize('NFKD')
+        .replace(/[\u0300-\u036f]/g, '')
+        .replace(/[^a-z0-9]+/g, ' ')
+        .trim()
+}
+
 export async function discoverNewTools() {
     const tools: Tool[] = []
     // Search ALL topics every run — not just 1 random one
@@ -187,40 +203,67 @@ export async function discoverNewTools() {
         }
     }
 
-    // Deduplicate tools against each other first (by name)
+    // Deduplicate tools against each other first, on the same normalized form
+    // the database stores, so this pass and the next agree on what "the same
+    // product" means.
     const uniqueTools = new Map<string, Tool>()
     for (const tool of tools) {
-        const key = tool.name.toLowerCase().trim()
-        if (!uniqueTools.has(key)) {
+        const key = normalizeToolName(tool.name)
+        if (key && !uniqueTools.has(key)) {
             uniqueTools.set(key, tool)
         }
     }
 
-    // Now deduplicate against DB
-    const toolNames = [...uniqueTools.keys()]
+    const candidateKeys = [...uniqueTools.keys()]
 
-    if (toolNames.length === 0) {
+    if (candidateKeys.length === 0) {
         return { topics: searchedTopics, count: 0 }
     }
 
-    // Check DB in batches of 50 (Supabase IN clause limit)
-    const existingNames = new Set<string>()
-    for (let i = 0; i < toolNames.length; i += 50) {
-        const batch = toolNames.slice(i, i + 50)
-        const { data: existing } = await supabase
-            .from('ai_tools')
-            .select('name')
-            .in('name', [...uniqueTools.values()].slice(i, i + 50).map(t => t.name))
-            .limit(50)
+    // Now against the database.
+    //
+    // THIS CHECK USED TO BE THE BIGGEST BUG IN THE PROJECT. It was:
+    //
+    //     .select('name').in('name', <50 names>).limit(50)
+    //
+    // and it asked "which of these 50 names exist?" while capping the answer
+    // at 50 ROWS. One name can occupy hundreds of rows -- 'AgenticX' had 665 --
+    // so those 50 slots were consumed by copies of a single name, every other
+    // name in the batch came back "not found", and all of them were inserted
+    // again with fresh timestamped ids.
+    //
+    // It was self-reinforcing: more duplicates meant a worse check, which
+    // produced more duplicates. Measured outcome -- 273,187 rows holding
+    // 15,218 products, and between 2026-09-21 and 2026-09-23 the ingest added
+    // 432 rows to gain 8 tools.
+    //
+    // The RPC returns DISTINCT normalized names, so the result is bounded by
+    // the number of names asked about and cannot truncate. It also matches
+    // case-insensitively, which `.in('name', ...)` did not -- the keys here
+    // were lowercased while the values sent were not.
+    const existingKeys = new Set<string>()
+    const LOOKUP_BATCH = 200
 
-        if (existing) {
-            existing.forEach(t => existingNames.add(t.name.toLowerCase()))
+    for (let i = 0; i < candidateKeys.length; i += LOOKUP_BATCH) {
+        const slice = candidateKeys.slice(i, i + LOOKUP_BATCH)
+        const { data: existing, error } = await supabase
+            .rpc('existing_tool_names', { p_names: slice })
+
+        if (error) {
+            // Insert nothing rather than guess. Treating a failed lookup as
+            // "none of these exist" is precisely how the duplicates got here.
+            console.error('[AutoUpdate] existence check failed, skipping insert:', error.message)
+            return { topics: searchedTopics, count: 0 }
+        }
+
+        for (const row of existing ?? []) {
+            if (row?.normalized_name) existingKeys.add(row.normalized_name)
         }
     }
 
-    const newTools = [...uniqueTools.values()].filter(t =>
-        !existingNames.has(t.name.toLowerCase())
-    )
+    const newTools = [...uniqueTools.entries()]
+        .filter(([key]) => !existingKeys.has(key))
+        .map(([, tool]) => tool)
 
     if (newTools.length > 0) {
         // Insert in batches
