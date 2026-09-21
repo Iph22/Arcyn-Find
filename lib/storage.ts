@@ -54,7 +54,14 @@ export async function uploadImage(
     const { data, error } = await supabase.storage
       .from(bucket)
       .upload(path, file, {
-        cacheControl: '3600',
+        // One year, because these objects are immutable: uploadAvatar and
+        // uploadBanner both mint a fresh `${userId}-${Date.now()}.${ext}`
+        // path per upload rather than overwriting, so a new image is a new
+        // URL. At the previous 3600 the Supabase CDN re-pulled every avatar
+        // from origin hourly, and Next's optimizer takes the LARGER of this
+        // and images.minimumCacheTTL -- so this value was silently capping
+        // what next.config.ts could achieve.
+        cacheControl: '31536000',
         upsert: true,
         contentType: file.type,
       })

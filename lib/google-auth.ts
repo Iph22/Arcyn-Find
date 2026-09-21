@@ -1,7 +1,7 @@
 "use server"
 
 import { cookies } from 'next/headers'
-import { supabase } from './supabase'
+import { supabase, OWN_PROFILE_COLUMNS } from './supabase'
 import {
     SESSION_COOKIE_NAME,
     SESSION_MAX_AGE_SECONDS,
@@ -131,9 +131,13 @@ export async function getUserProfile(userId?: string): Promise<UserProfile | nul
         const targetUserId = userId || (await getCurrentUser())?.id
         if (!targetUserId) return null
 
+        // Explicit list rather than `select('*')`. This is reached both for
+        // the caller's own profile and for other users' (the userId argument
+        // is optional), so it uses the wider set -- but an explicit one, so a
+        // new column is a deliberate decision rather than an automatic leak.
         const { data, error } = await supabase
             .from('user_profiles')
-            .select('*')
+            .select(OWN_PROFILE_COLUMNS)
             .eq('id', targetUserId)
             .single()
 

@@ -114,10 +114,21 @@ export async function GET(request: Request) {
       ? Math.min(maxPriceParsed, 10_000)
       : null
 
-  // Validate and sanitize limit and offset
-  const limitParam = searchParams.get('limit') || '500'
+  // Validate and sanitize limit and offset.
+  //
+  // DEFAULT_LIMIT was 500, which meant every caller that forgot `?limit=`
+  // pulled 500 full tool rows (~600KB) it had not asked for. Nothing in the
+  // app wants that page size -- the grid requests ITEMS_PER_PAGE=24
+  // (components/tools/tools-browser.tsx) and the related-tools strip requests
+  // 4 -- so the default was serving only the callers that had forgotten to
+  // pass one, at roughly 20x the cost of the ones that remembered.
+  //
+  // Callers that genuinely want more still pass it explicitly and are capped
+  // at PostgREST's 1000-row ceiling as before.
+  const DEFAULT_LIMIT = 24
+  const limitParam = searchParams.get('limit') || String(DEFAULT_LIMIT)
   const offsetParam = searchParams.get('offset') || '0'
-  const limit = Math.max(1, Math.min(1000, parseInt(limitParam, 10) || 500))
+  const limit = Math.max(1, Math.min(1000, parseInt(limitParam, 10) || DEFAULT_LIMIT))
   const offset = Math.max(0, parseInt(offsetParam, 10) || 0)
 
   // Log filters for debugging (only in development)
@@ -887,20 +898,19 @@ export async function GET(request: Request) {
           aiEntries = [...newEntries, ...aiEntries].slice(0, limit)
         } else if (timeRemaining() < 16000) {
           // Not enough budget left to safely run discovery (AI call + per-tool embedding
-          // generation + DB upsert can easily take 5-10s+). Queue it instead of blocking the
-          // response — a background worker/cron can pick this up and populate the corpus for
-          // future searches without making *this* user wait or risk a 504.
-          logger.info('[API] Skipping inline discovery (low time budget), queueing for background:', originalSearch)
-          try {
-            await supabase.from('discovery_queue').insert({
-              query_text: originalSearch,
-              status: 'pending',
-              created_at: new Date().toISOString(),
-            })
-          } catch (e) {
-            // Table may not exist yet — this queue is a TODO, see note below
-            logger.debug('[API] discovery_queue insert failed (table may not exist yet):', e)
-          }
+          // generation + DB upsert can easily take 5-10s+), so skip it and answer with what
+          // we have rather than risking a 504.
+          //
+          // This used to INSERT into a `discovery_queue` table here, described in its own
+          // comment as a TODO. Nothing ever read that table — no route, script, migration or
+          // workflow — so it was a write-only log that grew on every budget-constrained
+          // search and cost storage on a database that is over its quota. The write is gone
+          // and the table is dropped in supabase/migrations/add_cache_retention.sql.
+          //
+          // To build the deferred-discovery feature properly: write the consumer first, then
+          // recreate the table (the schema is in that migration) and restore the insert.
+          // The log line below is what you would replay from in the meantime.
+          logger.info('[API] Skipping inline discovery (low time budget):', originalSearch)
         } else {
           logger.info('[API] Triggering AI Discovery for:', originalSearch)
           stagesRun.push('ai-discovery')

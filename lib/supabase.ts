@@ -45,6 +45,29 @@ export function getSupabaseAdmin() {
 export const AI_TOOLS_COLUMNS =
   'id, name, category, description, platform, region, access_type, pricing, tags, popularity, last_updated, is_trending, image, priority, pricing_model, price_monthly_min_usd, price_monthly_max_usd, has_free_tier, has_free_trial'
 
+/**
+ * Explicit column lists for `user_profiles`, for the same reason as
+ * AI_TOOLS_COLUMNS: `select('*')` pulled the whole row -- including the
+ * `preferences` jsonb blob and the onboarding bookkeeping -- on paths that
+ * wanted three fields. AvatarProvider does this on every page load for every
+ * signed-in user.
+ *
+ * Split in two because the two audiences are genuinely different, and that
+ * distinction is worth having in the type system rather than in a reviewer's
+ * memory. PUBLIC is what any visitor may see about another user; OWN adds the
+ * fields a user may see about themselves.
+ */
+// Both are written out in full rather than composed from one another.
+// supabase-js infers the row type by parsing the select string at the type
+// level, which only works on a string LITERAL -- building one by concatenation
+// widens it to `string` and the client falls back to `GenericStringError`,
+// making every `data as Profile` cast a type error. Worth the duplication.
+export const PUBLIC_PROFILE_COLUMNS =
+  'id, username, display_name, avatar_url, banner_url, bio, created_at, updated_at'
+
+export const OWN_PROFILE_COLUMNS =
+  'id, username, display_name, avatar_url, banner_url, bio, created_at, updated_at, email, user_role, purpose, experience_level, categories, features, onboarding_completed, instructions_seen, onboarding_completed_at, preferences'
+
 // Transform database row to AIEntry
 export function transformToAIEntry(row: {
   id: string

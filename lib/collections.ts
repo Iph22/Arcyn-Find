@@ -1,4 +1,4 @@
-import { supabase } from './supabase'
+import { supabase, transformToAIEntry, AI_TOOLS_COLUMNS } from './supabase'
 import type { AIEntry } from './ai-data'
 import { getCurrentUser } from '@/lib/google-auth'
 
@@ -116,22 +116,30 @@ export async function getCollection(collectionId: string): Promise<CollectionWit
 
     if (itemsError) throw itemsError
 
-    // Fetch tool details from API
+    // Fetch exactly the tools this collection holds.
+    //
+    // This used to `fetch('/api/ai-models')` with no parameters -- 500 tool
+    // rows over HTTP -- and then filter that list down to the handful of ids
+    // below. A direct `.in()` asks for the rows we actually want, and drops a
+    // second bug on the way: a relative fetch() has no origin to resolve
+    // against on the server, so this function only ever worked in the browser.
     const toolIds = (items || []).map(item => item.tool_id)
-    const tools: AIEntry[] = []
+    let tools: AIEntry[] = []
 
     if (toolIds.length > 0) {
-      const response = await fetch('/api/ai-models')
-      if (response.ok) {
-        const allTools = await response.json() as AIEntry[]
-        tools.push(...allTools.filter(t => toolIds.includes(t.id)))
-        // Sort to match collection_items order
-        tools.sort((a, b) => {
-          const aIdx = toolIds.indexOf(a.id)
-          const bIdx = toolIds.indexOf(b.id)
-          return aIdx - bIdx
-        })
-      }
+      const { data: toolRows, error: toolsError } = await supabase
+        .from('ai_tools')
+        .select(AI_TOOLS_COLUMNS)
+        .in('id', toolIds)
+
+      if (toolsError) throw toolsError
+
+      // PostgREST returns `.in()` results in its own order, so restore the
+      // collection's ordering (added_at DESC) from the ids we asked for.
+      const position = new Map(toolIds.map((id, index) => [id, index]))
+      tools = (toolRows || [])
+        .map(transformToAIEntry)
+        .sort((a, b) => (position.get(a.id) ?? 0) - (position.get(b.id) ?? 0))
     }
 
     return {

@@ -13,7 +13,6 @@ import dynamic from "next/dynamic"
 const ThemeToggle = dynamic(() => import("@/components/layout/theme-toggle").then(mod => mod.ThemeToggle), { ssr: false })
 const LanguagePicker = dynamic(() => import("@/components/layout/language-picker").then(mod => mod.LanguagePicker), { ssr: false })
 const BrowserSearchAnimation = dynamic(() => import("@/components/search/browser-search-animation").then(mod => mod.BrowserSearchAnimation), { ssr: false })
-import { supabase } from "@/lib/supabase"
 import { usePreferences } from "@/contexts/preferences-context"
 import { useAuth } from "@/contexts/auth-context"
 
@@ -56,15 +55,22 @@ export default function LandingPage() {
     }
   }, [])
 
-  // Fetch tool count on mount
+  // Fetch tool count on mount.
+  //
+  // Via /api/tools/count rather than a direct `count: 'exact'` from the
+  // browser. That query was an exact count over ~263k rows on every visit --
+  // the shape docs/CORPUS_AND_CONSTRAINTS.md §2 measured as timing out on this
+  // table -- to render a number that is displayed rounded. The route uses the
+  // planner's estimate and is CDN-cached for a day.
   useEffect(() => {
+    let cancelled = false
+
     async function fetchCount() {
       try {
-        const { count } = await supabase
-          .from('ai_tools')
-          .select('*', { count: 'exact', head: true })
-
-        if (count) {
+        const response = await fetch('/api/tools/count')
+        if (!response.ok) return
+        const { count } = await response.json()
+        if (!cancelled && typeof count === 'number' && count > 0) {
           setToolCount(count)
         }
       } catch (error) {
@@ -73,6 +79,9 @@ export default function LandingPage() {
     }
 
     fetchCount()
+    return () => {
+      cancelled = true
+    }
   }, [])
 
   // Use useScroll with proper hydration handling
@@ -502,8 +511,8 @@ export default function LandingPage() {
                   </a>
                 </li>
                 <li>
-                  <a href="mailto:arcynflow@gmail.com" className="hover:text-primary transition-colors min-h-[44px] flex items-center justify-center break-all">
-                    arcynflow@gmail.com
+                  <a href="mailto:hello@arcynfind.com" className="hover:text-primary transition-colors min-h-[44px] flex items-center justify-center break-all">
+                    hello@arcynfind.com
                   </a>
                 </li>
               </ul>

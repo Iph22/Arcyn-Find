@@ -178,8 +178,14 @@ export default function RootLayout({
         <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
         <meta name="apple-mobile-web-app-title" content="Arcyn Find" />
 
-        {/* Performance hints */}
-        <link rel="prefetch" href="/api/ai-models" as="fetch" crossOrigin="anonymous" />
+        {/* No <link rel="prefetch" href="/api/ai-models"> here on purpose.
+            Unparameterized, that endpoint defaults to limit=500 (see the
+            DEFAULT_LIMIT note in app/api/ai-models/route.ts) and returns ~500
+            full tool rows that nothing consumes -- the grid that actually
+            renders asks for ITEMS_PER_PAGE=24. It fired on every page of the
+            site, crawler hits included, and the s-maxage=300 CDN cache only
+            capped it at one 500-row Supabase read per 5 minutes: roughly
+            5 GB/month of egress for a payload that was always discarded. */}
       </head>
       <body
         className={`font-sans antialiased ${geistSans.variable} ${geistMono.variable}`}

@@ -1,4 +1,4 @@
-import { getSupabaseAdmin, supabase } from './supabase'
+import { getSupabaseAdmin, supabase, OWN_PROFILE_COLUMNS } from './supabase'
 import { getCurrentUser } from './auth'
 
 export interface UserProfile {
@@ -31,9 +31,13 @@ export async function getProfileFromDB(userId: string): Promise<UserProfile | nu
       ? getSupabaseAdmin() 
       : supabase
     
+    // Explicit list matching the UserProfile interface above. This ran
+    // `select('*')`, so adding any column to user_profiles silently widened
+    // every caller -- including the client-side branch below, which sends the
+    // row to the browser.
     const { data, error } = await client
       .from('user_profiles')
-      .select('*')
+      .select(OWN_PROFILE_COLUMNS)
       .eq('id', userId)
       .maybeSingle()
 

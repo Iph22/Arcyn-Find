@@ -230,17 +230,21 @@ export function buildTsQuery(keywords: string[]): string {
     .join(' | ')
 }
 
-/**
- * Build Supabase OR conditions for search
+/*
+ * buildSearchConditions() was removed here.
+ *
+ * It built an OR-chain of `name.ilike.%word%` / `description.ilike.%word%`
+ * against ai_tools. docs/CORPUS_AND_CONSTRAINTS.md §2 measured that shape on
+ * this table at 8.5s for name and a hard timeout for description, WITH trigram
+ * indexes in place -- the cost is driven by trigram commonality rather than
+ * selectivity, so it is not fixable by indexing. Search moved to full-text
+ * over ai_tools_fts_idx and this function had no callers left.
+ *
+ * It is deleted rather than left in place because its existence was the only
+ * remaining argument for keeping two large GIN trigram indexes alive; see
+ * supabase/migrations/drop_unused_trigram_indexes.sql.
+ *
+ * If you need to match text against ai_tools, use
+ * `.textSearch('fts_vector', ..., { config: 'english' })` -- the trigger in
+ * add_advanced_search.sql keeps that column current.
  */
-export function buildSearchConditions(expanded: string[]): string {
-  const conditions: string[] = []
-
-  for (const word of expanded) {
-    conditions.push(`name.ilike.%${word}%`)
-    conditions.push(`description.ilike.%${word}%`)
-    conditions.push(`tags.cs.{${word}}`)
-  }
-
-  return conditions.join(',')
-}

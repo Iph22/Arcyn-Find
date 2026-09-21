@@ -11,7 +11,7 @@ import { Separator } from '@/components/ui/separator'
 import {
   clampForMeta,
   getCategoriesSafe,
-  getPublishedTools,
+  getFeaturedTools,
   getRelatedTools,
   isIndexable,
   resolveToolRoute,
@@ -37,12 +37,12 @@ type Props = { params: Promise<{ slug: string }> }
 /** Prerender the pages most likely to be hit cold from search. */
 export async function generateStaticParams() {
   try {
-    const tools = await getPublishedTools()
-    return tools
-      .filter(isIndexable)
-      .sort((a, b) => b.popularity - a.popularity)
-      .slice(0, 300)
-      .map((tool) => ({ slug: tool.slug }))
+    // A bounded query, not a full catalog walk. This runs on every CI build,
+    // and picking the top 300 never needed all ~2,929 published rows --
+    // getFeaturedTools applies the same popularity ordering and quality gate
+    // against a query the database can answer from an index.
+    const tools = await getFeaturedTools(300)
+    return tools.map((tool) => ({ slug: tool.slug }))
   } catch {
     // A build must not fail because the database was briefly unreachable;
     // every page is still reachable via dynamicParams.

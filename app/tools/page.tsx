@@ -4,7 +4,7 @@ import { ArrowRight } from 'lucide-react'
 
 import { PublicFooter, PublicHeader } from '@/components/seo/public-chrome'
 import { CategoryCard, SeoToolCard } from '@/components/seo/tool-card'
-import { getDirectoryData, isIndexable, siteUrl } from '@/lib/seo/catalog'
+import { getDirectoryData, siteUrl } from '@/lib/seo/catalog'
 
 export const revalidate = 3600 // 1 hour
 
@@ -36,18 +36,15 @@ export async function generateMetadata(): Promise<Metadata> {
 }
 
 export default async function ToolsDirectoryPage() {
-  // One walk, categories derived from the same array. Strict at runtime, but
+  // Categories counted in SQL, plus a bounded query for the cards this page
+  // promotes -- it never needed the whole catalog. Strict at runtime, but
   // degrades to empty during `next build` so a CI build without database
   // secrets still succeeds -- see getDirectoryData.
-  const { tools, categories } = await getDirectoryData()
+  //
+  // `featured` already has the quality gate applied (the same one that decides
+  // indexability) and is sorted by popularity.
+  const { featured, categories } = await getDirectoryData()
   const origin = siteUrl()
-
-  // Lead with pages that are worth a click: the quality gate that decides
-  // indexability also decides what gets promoted here.
-  const featured = tools
-    .filter(isIndexable)
-    .sort((a, b) => b.popularity - a.popularity || a.name.localeCompare(b.name))
-    .slice(0, 24)
 
   const jsonLd = {
     '@context': 'https://schema.org',
