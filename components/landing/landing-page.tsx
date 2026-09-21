@@ -13,6 +13,7 @@ import dynamic from "next/dynamic"
 const ThemeToggle = dynamic(() => import("@/components/layout/theme-toggle").then(mod => mod.ThemeToggle), { ssr: false })
 const LanguagePicker = dynamic(() => import("@/components/layout/language-picker").then(mod => mod.LanguagePicker), { ssr: false })
 const BrowserSearchAnimation = dynamic(() => import("@/components/search/browser-search-animation").then(mod => mod.BrowserSearchAnimation), { ssr: false })
+import type { LandingSearchDemo } from "@/lib/landing/search-demo"
 import { usePreferences } from "@/contexts/preferences-context"
 import { useAuth } from "@/contexts/auth-context"
 
@@ -60,7 +61,13 @@ export interface LandingStats {
  * "50K+ Active Users", "150K+ Daily Searches" and "120+ Countries", none of
  * which were measured, on a site recording roughly one tool view per day.
  */
-export function LandingPage({ stats }: { stats: LandingStats }) {
+export function LandingPage({
+  stats,
+  searchDemo,
+}: {
+  stats: LandingStats
+  searchDemo: LandingSearchDemo
+}) {
   const router = useRouter()
   const { preferences } = usePreferences()
   const { isAuthenticated, isLoading, signIn } = useAuth()
@@ -237,7 +244,7 @@ export function LandingPage({ stats }: { stats: LandingStats }) {
         <div className="flex-1 relative min-h-[40vh] sm:min-h-[50vh] lg:min-h-dvh bg-gradient-to-br from-muted/20 via-muted/10 to-transparent flex items-center justify-center overflow-visible lg:border-l border-border/30">
           <div className="absolute inset-0 bg-gradient-to-br from-blue-500/5 via-purple-500/5 to-transparent" />
           <div className="relative z-10 w-full h-full flex items-center justify-center p-4 sm:p-6 lg:p-8">
-            <BrowserSearchAnimation />
+            <BrowserSearchAnimation demo={searchDemo} />
           </div>
         </div>
       </section>
@@ -395,103 +402,81 @@ export function LandingPage({ stats }: { stats: LandingStats }) {
             <div className="inline-flex items-center justify-center w-12 h-12 sm:w-16 sm:h-16 rounded-full bg-primary/20 mb-4 sm:mb-6">
               <Heart className="w-6 h-6 sm:w-8 sm:h-8 text-primary fill-primary" />
             </div>
-            <h2 className="text-3xl sm:text-4xl md:text-5xl lg:text-6xl font-bold mb-3 sm:mb-4">With Gratitude</h2>
+            <h2 className="text-3xl sm:text-4xl md:text-5xl lg:text-6xl font-bold mb-3 sm:mb-4">Behind Arcyn Find</h2>
             <p className="text-base sm:text-lg md:text-xl text-muted-foreground max-w-2xl mx-auto px-4">
-              Built with passion and dedication by an amazing team
+              Designed, built and maintained by one person
             </p>
           </motion.div>
 
-          <div className="grid md:grid-cols-2 gap-4 sm:gap-6 md:gap-8 mb-8 sm:mb-12">
-            {/* Creator & Designer */}
-            <motion.div
-              initial={{ opacity: 0, x: -40 }}
-              whileInView={{ opacity: 1, x: 0 }}
-              transition={{ duration: 0.6, delay: 0.2 }}
-              className="bg-card/80 backdrop-blur-sm border border-border/50 rounded-xl sm:rounded-2xl p-5 sm:p-6 md:p-8 shadow-xl"
-            >
-              <div className="text-center mb-4 sm:mb-6">
-                <h3 className="text-xl sm:text-2xl font-bold mb-2">Creator & Designer</h3>
-                <p className="text-base sm:text-lg text-primary font-semibold">David Iphy</p>
-              </div>
-              <p className="text-sm sm:text-base text-muted-foreground text-center mb-4 sm:mb-6">
-                The visionary behind Arcyn Find, bringing together design excellence and technical innovation.
-              </p>
-              <div className="flex flex-wrap items-center justify-center gap-2 sm:gap-3 md:gap-4">
-                <a
-                  href="https://22-bio.vercel.app/"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="flex items-center gap-2 px-3 sm:px-4 py-2 rounded-lg bg-muted hover:bg-muted/80 active:scale-[0.98] transition-colors text-xs sm:text-sm font-medium min-h-[44px]"
-                >
-                  <ExternalLink className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
-                  Blog
-                </a>
-                <a
-                  href="https://instagram.com/iphy._"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="flex items-center gap-2 px-3 sm:px-4 py-2 rounded-lg bg-muted hover:bg-muted/80 active:scale-[0.98] transition-colors text-xs sm:text-sm font-medium min-h-[44px]"
-                >
-                  <Instagram className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
-                  Instagram
-                </a>
-                <a
-                  href="https://linkedin.com/in/david-iphy-613189381/"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="flex items-center gap-2 px-3 sm:px-4 py-2 rounded-lg bg-muted hover:bg-muted/80 active:scale-[0.98] transition-colors text-xs sm:text-sm font-medium min-h-[44px]"
-                >
-                  <Linkedin className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
-                  LinkedIn
-                </a>
-              </div>
-            </motion.div>
+          <motion.div
+            initial={{ opacity: 0, y: 30 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.6, delay: 0.15 }}
+            className="max-w-xl mx-auto"
+          >
+            <div className="relative bg-card/80 backdrop-blur-sm border border-border/50 rounded-2xl sm:rounded-3xl p-6 sm:p-8 md:p-10 shadow-xl text-center overflow-hidden">
+              {/* Soft accent so a single centred card still reads as designed
+                  rather than as the leftover half of the two-column grid this
+                  replaced. */}
+              <div
+                aria-hidden="true"
+                className="pointer-events-none absolute inset-x-0 -top-20 h-40 bg-gradient-to-b from-primary/20 to-transparent blur-2xl"
+              />
 
-            {/* Special Thanks */}
-            <motion.div
-              initial={{ opacity: 0, x: 40 }}
-              whileInView={{ opacity: 1, x: 0 }}
-              transition={{ duration: 0.6, delay: 0.3 }}
-              className="bg-card/80 backdrop-blur-sm border border-border/50 rounded-xl sm:rounded-2xl p-5 sm:p-6 md:p-8 shadow-xl"
-            >
-              <div className="text-center mb-4 sm:mb-6">
-                <h3 className="text-xl sm:text-2xl font-bold mb-2">Special Thanks</h3>
-                <p className="text-xs sm:text-sm text-muted-foreground mb-4 sm:mb-6">For Marketing & Creative Thought</p>
-              </div>
-              <div className="space-y-4 sm:space-y-6">
-                <div className="text-center">
-                  <p className="font-semibold text-base sm:text-lg mb-2">Christian Tetteh</p>
+              <div className="relative">
+                <div className="mx-auto mb-4 sm:mb-5 w-16 h-16 sm:w-20 sm:h-20 rounded-full bg-primary/15 ring-2 ring-primary/30 flex items-center justify-center">
+                  <span className="text-xl sm:text-2xl font-bold text-primary tracking-tight">DI</span>
+                </div>
+
+                <h3 className="text-2xl sm:text-3xl font-bold tracking-tight">David Iphy</h3>
+
+                <p className="mt-2 inline-flex items-center rounded-full bg-muted px-3 py-1 text-xs sm:text-sm font-medium text-muted-foreground">
+                  Creator &amp; Designer
+                </p>
+
+                <p className="mt-4 sm:mt-5 text-sm sm:text-base text-muted-foreground leading-relaxed max-w-md mx-auto">
+                  The visionary behind Arcyn Find, bringing together design excellence and technical
+                  innovation.
+                </p>
+
+                <div className="mt-6 sm:mt-7 flex flex-wrap items-center justify-center gap-2 sm:gap-3">
                   <a
-                    href="https://instagram.com/chriso_lega"
+                    href="https://22-bio.vercel.app/"
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="inline-flex items-center gap-2 px-3 sm:px-4 py-2 rounded-lg bg-muted hover:bg-muted/80 active:scale-[0.98] transition-colors text-xs sm:text-sm font-medium min-h-[44px]"
+                    className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-muted hover:bg-muted/80 active:scale-[0.98] transition-colors text-xs sm:text-sm font-medium min-h-[44px]"
                   >
-                    <Instagram className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
-                    @chriso_lega
+                    <ExternalLink className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
+                    Blog
                   </a>
-                </div>
-                <div className="border-t border-border/50 pt-4 sm:pt-6 text-center">
-                  <p className="font-semibold text-base sm:text-lg mb-2">Fadila Abubakar</p>
                   <a
-                    href="https://www.instagram.com/girllike_.dilah/"
+                    href="https://instagram.com/iphy._"
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="inline-flex items-center gap-2 px-3 sm:px-4 py-2 rounded-lg bg-muted hover:bg-muted/80 active:scale-[0.98] transition-colors text-xs sm:text-sm font-medium min-h-[44px]"
+                    className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-muted hover:bg-muted/80 active:scale-[0.98] transition-colors text-xs sm:text-sm font-medium min-h-[44px]"
                   >
                     <Instagram className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
-                    @girllike_.dilah
+                    Instagram
+                  </a>
+                  <a
+                    href="https://linkedin.com/in/david-iphy-613189381/"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-muted hover:bg-muted/80 active:scale-[0.98] transition-colors text-xs sm:text-sm font-medium min-h-[44px]"
+                  >
+                    <Linkedin className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
+                    LinkedIn
                   </a>
                 </div>
               </div>
-            </motion.div>
-          </div>
+            </div>
+          </motion.div>
 
           <motion.div
             initial={{ opacity: 0 }}
             whileInView={{ opacity: 1 }}
             transition={{ duration: 0.6, delay: 0.5 }}
-            className="text-center"
+            className="text-center mt-8 sm:mt-10"
           >
             <p className="text-muted-foreground italic">
               "Peace fuels my rhythm. Precision builds my dream."

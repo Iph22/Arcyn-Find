@@ -2,6 +2,7 @@ import type { Metadata } from 'next'
 
 import { LandingPage, type LandingStats } from '@/components/landing/landing-page'
 import { getCatalogStats } from '@/lib/seo/catalog-stats'
+import { getLandingSearchDemo } from '@/lib/landing/search-demo'
 import { siteUrl } from '@/lib/seo/site'
 
 /**
@@ -59,7 +60,12 @@ export async function generateMetadata(): Promise<Metadata> {
 }
 
 export default async function HomePage() {
-  const stats: LandingStats = await getCatalogStats()
+  // Both are catalog reads and independent of each other. The search demo is
+  // the hero animation's content — real tools for a real query, fetched here
+  // for the same reason the figures are: so the page never shows anything the
+  // product would not.
+  const [stats, searchDemo] = await Promise.all([getCatalogStats(), getLandingSearchDemo()])
+  const landingStats: LandingStats = stats
 
   const origin = siteUrl()
   const jsonLd = {
@@ -103,7 +109,7 @@ export default async function HomePage() {
           __html: JSON.stringify(jsonLd).replace(/</g, '\\u003c'),
         }}
       />
-      <LandingPage stats={stats} />
+      <LandingPage stats={landingStats} searchDemo={searchDemo} />
     </>
   )
 }
