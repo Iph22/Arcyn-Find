@@ -140,7 +140,12 @@ function toTool(row: Row): CatalogTool {
  * Pages that fail this still render, still carry internal links, and still get
  * crawled -- they are `noindex, follow`. Enriching a description flips it.
  */
-export function isIndexable(tool: CatalogTool): boolean {
+export function isIndexable(
+  // A structural subset rather than the full CatalogTool, so callers holding
+  // raw search-RPC rows can apply the identical gate instead of copying it.
+  // Every existing caller passes a whole CatalogTool and is unaffected.
+  tool: Pick<CatalogTool, 'rawDescription' | 'tags' | 'image' | 'platform'>
+): boolean {
   const description = tool.rawDescription.trim()
 
   // Measured 2026-09-12 over the 2,913 distinct products in the band:
