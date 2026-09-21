@@ -80,7 +80,7 @@ export async function POST(request: NextRequest) {
       }
 
       return createErrorResponse(
-        new Error("Email service is not configured. Please contact us directly at arcynflow@gmail.com"),
+        new Error("Email service is not configured. Please contact us directly at hello@arcynfind.com"),
         500,
         ErrorCodes.INTERNAL_ERROR
       )
@@ -100,7 +100,7 @@ export async function POST(request: NextRequest) {
 
     const { data, error } = await resend.emails.send({
       from: `Arcyn Find <${fromEmail}>`,
-      to: ["arcynflow@gmail.com"],
+      to: ["hello@arcynfind.com"],
       replyTo: email, // Original email for reply
       subject: `Contact Form: ${safeSubject}`,
       html: `
@@ -143,7 +143,7 @@ ${message}
         ? error.message
         : typeof error === 'string'
           ? error
-          : "Failed to send email. Please try again or contact us directly at arcynflow@gmail.com"
+          : "Failed to send email. Please try again or contact us directly at hello@arcynfind.com"
       return createErrorResponse(
         new Error(errorMessage),
         500,

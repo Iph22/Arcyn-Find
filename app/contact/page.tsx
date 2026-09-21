@@ -38,7 +38,7 @@ export default function ContactPage() {
       if (!contentType || !contentType.includes("application/json")) {
         const text = await response.text()
         console.error("Non-JSON response:", text.substring(0, 200))
-        throw new Error("Server returned an invalid response. Please try again or contact us directly at arcynflow@gmail.com")
+        throw new Error("Server returned an invalid response. Please try again or contact us directly at hello@arcynfind.com")
       }
 
       const data = await response.json()
@@ -100,8 +100,8 @@ export default function ContactPage() {
                   <Mail className="w-5 h-5 text-primary mt-1" />
                   <div>
                     <h3 className="font-semibold mb-1">Email</h3>
-                    <a href="mailto:arcynflow@gmail.com" className="text-primary hover:underline">
-                      arcynflow@gmail.com
+                    <a href="mailto:hello@arcynfind.com" className="text-primary hover:underline">
+                      hello@arcynfind.com
                     </a>
                   </div>
                 </div>
