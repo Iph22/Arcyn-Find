@@ -132,9 +132,14 @@ export function FeedbackWidget() {
 
   return (
     <>
+      {/* Sits above the mobile bottom nav rather than on top of it. Both are
+          `z-50` and the nav occupies the last 56px + safe-area inset of the
+          viewport, so at `bottom-5` this button landed squarely over the nav's
+          right-hand item -- Search for signed-in users, which is how you open
+          search on a phone. Desktop is unchanged: the nav is `md:hidden`. */}
       <Button
         onClick={() => setOpen(true)}
-        className="fixed bottom-5 right-5 z-50 h-12 rounded-full shadow-lg gap-2 px-5"
+        className="fixed bottom-[calc(1.25rem_+_var(--mobile-nav-clearance))] right-5 z-50 h-12 rounded-full shadow-lg gap-2 px-5 md:bottom-5"
         aria-label="Send feedback about this page"
       >
         <MessageSquarePlus className="w-5 h-5" />
