@@ -205,8 +205,26 @@ export async function getGoogleAuthUrl(state: string): Promise<string> {
         redirect_uri: redirectUri,
         response_type: 'code',
         scope: 'openid email profile',
-        access_type: 'offline',
-        prompt: 'consent',
+        // `select_account`, not `consent`.
+        //
+        // This was `access_type=offline` + `prompt=consent`, which is the pair
+        // you send when you need a refresh token. Nothing here needs one:
+        // `refresh_token` occurs exactly once in the codebase, as a field on
+        // the return type of exchangeCodeForTokens that no caller reads. The
+        // callback uses the access token once to fetch userinfo and then mints
+        // its own signed cookie.
+        //
+        // The cost of asking anyway was the sign-in experience. `consent` does
+        // not imply `select_account`, so Google never offers the "choose an
+        // account" screen — someone with a Google session gets the consent
+        // page for whichever account happens to be active, and someone without
+        // one is dropped on the bare identifier page, which leads with an
+        // email box and a "Create account" button. That is what people were
+        // reporting as being told to make a new Google account.
+        //
+        // `select_account` shows the accounts the browser already knows about,
+        // which is the point when the complaint is "I already have one".
+        prompt: 'select_account',
         state
     })
 
