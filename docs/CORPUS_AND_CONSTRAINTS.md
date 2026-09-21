@@ -11,9 +11,12 @@ load-bearing; the scripts named below will do it.
 
 ## 1. The corpus is not what it looks like
 
-**~260,000 rows, but far fewer products.** Of the 5,000 most-viewed rows, only
-2,232 are distinct products — **55% are duplicate re-ingests**, mostly
-GitHub-scraped:
+**15,219 rows, 15,218 products — as of 2026-09-21. It used to be 273,175
+rows for the same products.** The gap was duplicate re-ingests, and it is gone;
+this section is kept because the cause is still live if the guard is removed.
+
+**What it was.** The first measurement sampled the 5,000 most-viewed rows and
+found 55% duplicates, mostly GitHub-scraped:
 
 | product | rows |
 |---|---|
@@ -23,32 +26,52 @@ GitHub-scraped:
 | AutoGPT | 264 |
 | transformers | 254 |
 
-`search_tools_advanced` hides this at query time with
-`DISTINCT ON (normalized name)` applied *before* its final `LIMIT`, so results
-look clean — measured 780/780 distinct across 26 queries. **The duplicates are
-invisible in search output but still consume the candidate pool**, and anything
-that walks the table directly (sitemaps, exports, page generation) will see all
-of them.
+Walking the whole table rather than a sample showed the real figure was far
+worse — 94.4%:
 
-Measure with `node scripts/eval/corpus-health.js`.
+| | before (2026-09-21) | after |
+|---|---|---|
+| rows | 273,175 | **15,219** |
+| distinct products | 15,218 | **15,218** |
+| duplicate rows | 257,957 (94.4%) | **1 (0.0%)** |
+| with a public page | 2,913 | **2,913** |
 
-**Corrected 2026-09-21 by walking the whole table, not a sample.** The 55%
-above is what the top-5,000 rows show; across all of `ai_tools` it is far
-worse:
+**Why it happened.** `lib/auto-update.ts` asked "which of these names do I
+already have?" with `.select('name').in('name', <50 names>).limit(50)`. The
+limit caps *rows*, not names, and one name could occupy hundreds — `AgenticX`
+had 665. The 50 slots filled with copies of a single name, every other name
+came back "not found", and all were re-inserted. Self-reinforcing: the more
+duplicates, the fewer names the check could see. Over two days it added 432
+rows for 8 new products, a 98% waste rate.
 
-| | |
-|---|---|
-| rows | 272,755 |
-| **distinct products** | **15,210** |
-| duplicate rows | 257,545 (**94.4%**) |
-| with a public page | 2,913 |
+**How it was fixed.** Three parts, all required together:
 
-So **15,210 is the only defensible public figure for catalog size.** The row
-count overstates it roughly 18-fold, and it had leaked into the product: the
-landing page rendered `/api/tools/count` (the planner's row estimate) as
-"272.7K+ AI Tools", while Google separately showed "Over 25,000" — a number
-matching nothing at all — against a directory a visitor could only see 2,913
-of. Anything stating a catalog size must read `catalog_stats_current()`
+1. `ai_tools.normalized_name` — a STORED generated column, indexed, so product
+   identity is computed once instead of by regex over every row.
+2. `existing_tool_names(text[])` — an RPC returning `DISTINCT`, so the answer
+   is bounded by the *input* size and cannot truncate against PostgREST's
+   1000-row cap. Both in `supabase/migrations/add_normalized_name.sql`.
+3. `scripts/database/dedupe-tools.mjs` — deleted the 257,956 backlog rows
+   (0 failures), keeping every row with a slug, every row referenced from
+   another table, and the richest row of each remaining group.
+
+Verify the chain with `npm run test:dedup`; measure the corpus with
+`node scripts/eval/corpus-health.js`.
+
+**If you touch the ingest, keep the guard.** Removing any of the three
+rebuilds the backlog at roughly 200 rows/day, invisibly —
+`search_tools_advanced` applies `DISTINCT ON (normalized name)` *before* its
+final `LIMIT`, so search output stays clean (measured 780/780 distinct across
+26 queries) while the duplicates quietly eat the candidate pool. Only code
+that walks the table directly — sitemaps, exports, page generation — ever sees
+them.
+
+**Never publish a row count as the catalog size.** The row count once
+overstated the catalog 18-fold and had leaked into the product: the landing
+page rendered `/api/tools/count` (the planner's row estimate) as "272.7K+ AI
+Tools", while Google separately showed "Over 25,000" — a number matching
+nothing at all — against a directory a visitor could only see 2,913 of.
+Anything stating a catalog size must read `catalog_stats_current()`
 (`supabase/migrations/add_catalog_stats.sql`), which counts distinct
 normalized names the same way `search_tools_advanced` de-duplicates. Verify
 with `npm run test:stats`.
@@ -78,6 +101,12 @@ wrong if presented as a monthly bill. See `lib/pricing-display.ts`.
 | popularity ≥ 100 | 2,777 | 75% |
 | popularity ≥ 80 | 3,062 | 69% |
 | popularity ≥ 20 | 263,610 | 1% |
+
+Those row counts are **pre-dedupe (2026-09-12)** and count duplicate rows, not
+products — the `popularity ≥ 20` band is now ~15k rows, not 263,610. The
+*percentages* still hold: coverage is concentrated in the popular head, and the
+long tail is keyword-only. Re-measure before relying on the absolute
+numbers — the command is directly below.
 
 Measure with `npx tsx --env-file=.env.local scripts/eval/embedding-coverage.mts`.
 
@@ -240,7 +269,8 @@ Read §1 first. The specific hazards:
 `docs/SEO_ARCHITECTURE.md` has the full design. The measurements that drove it,
 reproducible with `npm run seo:audit`:
 
-**The publishable set is ~2,900 rows, not 7,000 and not 260,000.** Popularity
+**The publishable set is ~2,900 rows** — out of 7,000 that looked eligible,
+and out of the 260,000 rows the table then held (§1). Popularity
 tops out just under 150, so the band that matters is `popularity >= 90`:
 
 | band | rows | distinct products |

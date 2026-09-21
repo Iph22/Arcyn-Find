@@ -41,6 +41,8 @@
     "enrich:estimate": "node --env-file=.env.local scripts/enrich/enrich-tools.mjs estimate",
     "enrich:submit": "node --env-file=.env.local scripts/enrich/enrich-tools.mjs submit",
     "enrich:collect": "node --env-file=.env.local scripts/enrich/enrich-tools.mjs collect",
+    "dedupe:dry": "node --env-file=.env.local scripts/database/dedupe-tools.mjs",
+    "dedupe": "node --env-file=.env.local scripts/database/dedupe-tools.mjs --execute",
     "seo:slugs": "node --env-file=.env.local scripts/seo/backfill-slugs.mjs",
     "seo:slugs:dry": "node --env-file=.env.local scripts/seo/backfill-slugs.mjs --dry-run",
     "seo:audit": "node --env-file=.env.local scripts/seo/audit.mjs"
