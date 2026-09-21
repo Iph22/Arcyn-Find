@@ -9,8 +9,8 @@ const STATIC_ASSETS = [
   '/home',
   '/tools',
   '/manifest.json',
-  '/icon-192.png',
-  '/icon-512.png',
+  '/android-chrome-192x192.png',
+  '/android-chrome-512x512.png',
   '/apple-touch-icon.png',
 ]
 
@@ -164,8 +164,8 @@ self.addEventListener('push', (event) => {
   const title = data.title || 'Arcyn Find'
   const options = {
     body: data.body || 'New update available',
-    icon: '/icon-192.png',
-    badge: '/icon-192.png',
+    icon: '/android-chrome-192x192.png',
+    badge: '/android-chrome-192x192.png',
     tag: 'arcyn-find-notification',
     data: data.url || '/',
   }
