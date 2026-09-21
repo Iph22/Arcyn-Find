@@ -85,131 +85,36 @@ jobs:
       - name: Session security checks
         run: npm run test:session
 
-  deploy:
-    needs: [build, type-check]
-    runs-on: ubuntu-latest
-    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
-
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
-
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: '20.x'
-          cache: 'npm'
-
-      - name: Install dependencies
-        run: npm ci --legacy-peer-deps
-
-      # Blue-green, in three steps: publish a production build without pointing
-      # the domain at it, prove it works, then swap the domain over.
-      #
-      # This replaces a single `npx vercel --prod` that both built and went live
-      # in one motion -- and carried `continue-on-error: true`, so a failed
-      # deploy still printed "Deployment completed successfully!". Nothing here
-      # is allowed to fail silently; that is the point of the rewrite.
-      #
-      # The local `npm run build` that used to sit here is gone: `vercel deploy`
-      # builds on Vercel, so building twice only bought a second copy of the
-      # same failure. The Clerk secrets it passed went with it -- Clerk was
-      # replaced by Google OAuth and those two secrets are dead config.
-
-      # CONFIRM ON FIRST RUN: `--skip-domain` (publish without aliasing) and
-      # `vercel promote` are the staged-production flow, but availability varies
-      # by CLI version and plan. If either is rejected, the run fails loudly
-      # here rather than half-deploying -- check `npx vercel deploy --help`.
-      #
-      # VERCEL_ORG_ID/VERCEL_PROJECT_ID are not optional here. `.vercel/` is
-      # gitignored, so a CI checkout carries no project link, and `--yes` would
-      # answer the resulting "set up and deploy?" prompt by creating a NEW
-      # project named after the checkout directory. The deploy would succeed,
-      # the smoke test would pass against that stranger, and `promote` would
-      # promote it -- inside the wrong project, leaving the real domain
-      # untouched while every step reported green. These two vars are what make
-      # the whole job address the intended project.
-      #
-      # The CLI is pinned: `npx vercel` resolves to whatever is newest at run
-      # time, and a flag change in `deploy`/`promote` would land mid-release.
-      - name: Deploy green
-        id: green
-        env:
-          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
-          VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
-          VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
-        run: |
-          set -euo pipefail
-          test -n "$VERCEL_ORG_ID"     || { echo "VERCEL_ORG_ID secret is unset"; exit 1; }
-          test -n "$VERCEL_PROJECT_ID" || { echo "VERCEL_PROJECT_ID secret is unset"; exit 1; }
-
-          # `vercel pull` first, and it is not optional. Setting VERCEL_ORG_ID
-          # and VERCEL_PROJECT_ID is necessary but NOT sufficient: CLI 48 still
-          # looks for a linked project on disk, and a CI checkout has no
-          # `.vercel/` (it is gitignored). Without this the deploy fails with
-          #   Error: Could not retrieve Project Settings.
-          # which reads like a permissions problem and is not one -- observed
-          # on run 35597151139 with all three secrets correctly set.
-          npx --yes vercel@48 pull --yes --environment=production --token "$VERCEL_TOKEN"
-
-          url=$(npx --yes vercel@48 deploy --prod --skip-domain --yes --token "$VERCEL_TOKEN")
-          echo "url=$url" >> "$GITHUB_OUTPUT"
-          echo "Green deployment: $url"
-
-      # The gate: does the green deployment actually serve the site?
-      #
-      # This replaced `npm run test:session:e2e`, which needed SESSION_SECRET
-      # to match the deployment's own signing key. That meant copying the
-      # production signing secret into GitHub as well as Vercel -- widening
-      # the blast radius of the one credential that forges sessions -- to
-      # re-test something the `type-check` job already covers: `test:session`
-      # exercises the same sign/verify/reject logic and self-provisions a key,
-      # so it needs no secret and gates every PR, not just deploys.
-      #
-      # What a deploy gate should catch is the deployment coming up wrong, and
-      # the failures this project has actually had were exactly that shape: a
-      # homepage rendering an em dash instead of the tool count, and a sitemap
-      # served with 8 URLs instead of 2,628. Both are visible without
-      # authenticating, so this checks for them directly.
-      - name: Smoke test green
-        env:
-          BASE_URL: ${{ steps.green.outputs.url }}
-        run: |
-          set -euo pipefail
-          test -n "$BASE_URL" || { echo "green deployment URL is empty"; exit 1; }
-
-          for path in "" "/tools" "/tools/category" "/sitemap.xml"; do
-            code=$(curl -s -o /dev/null -w '%{http_code}' -m 60 "${BASE_URL}${path}")
-            echo "  ${path:-/} -> $code"
-            test "$code" = "200" || { echo "FAIL: ${path:-/} returned $code"; exit 1; }
-          done
-
-          # The homepage must state a real catalog size. An em dash is the
-          # placeholder it renders when the database is unreachable, and
-          # shipping that is the regression this step exists to stop.
-          if ! curl -s -m 60 "$BASE_URL" | grep -qE '[0-9]{1,3},[0-9]{3} AI tools'; then
-            echo "FAIL: homepage is not showing a catalog count"
-            exit 1
-          fi
-
-          # A sitemap that lost its tool pages still returns 200. Eight URLs is
-          # the static-pages-only shape that told Google the site had 8 pages.
-          locs=$(curl -s -m 90 "$BASE_URL/sitemap.xml" | grep -c '<loc>')
-          echo "  sitemap URLs: $locs"
-          test "$locs" -gt 100 || { echo "FAIL: sitemap has only $locs URLs"; exit 1; }
-
-          echo "Green deployment looks healthy.
-
-      # The cutover: an alias swap, not a rebuild. Rolling back is promoting the
-      # previous deployment. Note that rollback is not a real option for a
-      # release that changes session signing -- going back reinstates cookies
-      # the current code cannot verify.
-      - name: Promote green to production
-        env:
-          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
-          VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
-          VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
-        run: |
-          set -euo pipefail
-          npx --yes vercel@48 promote "${{ steps.green.outputs.url }}" --token "$VERCEL_TOKEN"
-          echo "Promoted ${{ steps.green.outputs.url }} to production"
+  # No deploy job, and this is deliberate.
+  #
+  # Vercel's Git integration already builds and deploys this project on every
+  # push, and has done so reliably throughout. A second deploy path driven from
+  # CI was attempted and does not work: the Vercel CLI authenticates as an
+  # account, and the tokens available here are project-scoped. Measured against
+  # the live API with two separate tokens:
+  #
+  #     /v2/user                  404      <- the CLI needs this
+  #     /v2/teams                 403      <- and this
+  #     /v2/teams/{ourTeam}       403
+  #     /v9/projects              200      <- only project endpoints work
+  #
+  #     $ vercel whoami --token ...
+  #     Error: User not found.
+  #
+  # So `vercel pull` / `deploy` / `promote` cannot run here regardless of flags,
+  # and every variation was tried: env vars alone, `--scope <teamId>`, and
+  # `vercel pull` first. A project-scoped token is the wrong credential class,
+  # not a wrong value.
+  #
+  # BLUE-GREEN IS STILL IN PLACE -- it moved to branch configuration, which
+  # needs no token:
+  #
+  #     merge to main      -> Vercel builds a PREVIEW deployment (the green)
+  #     verify that URL    -> it is a real, complete build of the merge
+  #     merge main->release-> Vercel promotes it to production
+  #
+  # That requires Vercel > Project > Settings > Git > Production Branch to be
+  # `release` rather than `main`. See docs/DEPLOYMENT.md.
+  #
+  # The verification this job was going to add lives in `npm run smoke` and can
+  # be pointed at any URL, including a preview.

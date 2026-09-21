@@ -30,6 +30,7 @@
     "fix:r-synth:dry": "node scripts/images/fix-r-synth-images.js --dry-run",
     "fix:well-known": "node scripts/testing/fix-well-known-tools.js",
     "fix:well-known:dry": "node scripts/testing/fix-well-known-tools.js --dry-run",
+    "smoke": "node scripts/testing/smoke.mjs",
     "test:session": "tsx scripts/testing/session-security.mts",
     "test:views": "tsx --env-file=.env.local scripts/testing/view-tracking-e2e.mts",
     "test:session:e2e": "node scripts/testing/session-security-e2e.mjs",
