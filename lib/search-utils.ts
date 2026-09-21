@@ -240,9 +240,10 @@ export function buildTsQuery(keywords: string[]): string {
  * selectivity, so it is not fixable by indexing. Search moved to full-text
  * over ai_tools_fts_idx and this function had no callers left.
  *
- * It is deleted rather than left in place because its existence was the only
- * remaining argument for keeping two large GIN trigram indexes alive; see
- * supabase/migrations/drop_unused_trigram_indexes.sql.
+ * It is deleted rather than left in place because it was the last caller of an
+ * ILIKE path this table cannot serve. (The trigram indexes it would have used
+ * turned out not to exist on the live database at all -- see
+ * supabase/migrations/drop_unused_indexes.sql.)
  *
  * If you need to match text against ai_tools, use
  * `.textSearch('fts_vector', ..., { config: 'english' })` -- the trigger in

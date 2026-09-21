@@ -1,0 +1,160 @@
+-- ============================================================================
+-- Reclaim storage by dropping indexes that are measurably unused.
+--
+-- READ THIS FIRST: an earlier version of this file was WRONG.
+--
+-- It dropped idx_ai_tools_description_trgm and idx_ai_tools_name_trgm, on the
+-- reasoning that CORPUS_AND_CONSTRAINTS.md §2 measured ILIKE as non-viable and
+-- that every caller was dead code. The reasoning was sound; the premise was
+-- not. **Those two indexes do not exist on this database.**
+-- update_advanced_search_v2.sql, which creates them, was evidently never
+-- applied. The file was a no-op that also advised KEEPING
+-- idx_ai_tools_platform_trgm as "small" -- it is 46 MB, the largest index on
+-- the table, with 1 lifetime scan.
+--
+-- The lesson, recorded because it will happen again: this project's
+-- supabase/migrations/ directory DOES NOT describe the live database. Six of
+-- the 25 indexes on ai_tools appear in no migration file
+-- (idx_ai_tools_name_search, idx_ai_tools_fts_gin, idx_ai_tools_embedding_hnsw,
+-- idx_ai_tools_category, idx_ai_tools_priority_popularity,
+-- idx_ai_tools_access_type, idx_ai_tools_region, idx_ai_tools_is_trending),
+-- and at least one migration was never run. **Measure the live schema before
+-- reasoning about it.**
+--
+-- ----------------------------------------------------------------------------
+-- MEASURED 2026-09-21. ai_tools carries ~281 MB of indexes against a 631 MB
+-- database, so indexes are ~45% of the total.
+--
+--   index                              size     idx_scan
+--   idx_ai_tools_platform_trgm         46 MB           1
+--   ai_tools_fts_idx                   38 MB        2177
+--   idx_ai_tools_fts_gin               34 MB        3647
+--   idx_ai_tools_name_search           28 MB           0
+--   ai_tools_embedding_idx             28 MB           0
+--   ai_tools_pkey                      26 MB     1802965
+--   idx_ai_tools_embedding_hnsw        16 MB        2168
+--   idx_ai_tools_trending_score        11 MB           4
+--   idx_ai_tools_tags_gin            6728 kB           0
+--   idx_ai_tools_tags                6704 kB         599
+--   (18 smaller indexes omitted)
+-- ----------------------------------------------------------------------------
+--
+-- This file now contains ONLY the drop I am confident in from that data.
+-- The other candidates need their definitions checked first -- see the block
+-- at the bottom. I am not writing DROP statements for indexes whose
+-- definitions I have not seen, which is the mistake that produced the
+-- earlier version of this file.
+-- ============================================================================
+
+-- ----------------------------------------------------------------------------
+-- ai_tools_embedding_idx -- the IVFFlat vector index. 28 MB, 0 scans.
+--
+-- Superseded by idx_ai_tools_embedding_hnsw (16 MB, 2168 scans), which indexes
+-- the same column for the same operator class and is what the planner actually
+-- picks. Two vector indexes on one column, and only one earns its keep.
+--
+-- Dropping it reclaims 28 MB AND speeds up writes. §2 and §7 both record that
+-- bulk writes to this table are superlinear because "every row maintains all
+-- indexes on the table, IVFFlat included" -- writing 300 embeddings pushed an
+-- unrelated query from 2828ms to a timeout. IVFFlat maintenance was a
+-- measurable share of that, paid on every upsert by the daily ingest cron, for
+-- an index nothing reads.
+--
+-- Verify before running (expect ivfflat and hnsw over the same column):
+--     SELECT indexname, indexdef FROM pg_indexes
+--      WHERE tablename = 'ai_tools'
+--        AND indexname IN ('ai_tools_embedding_idx', 'idx_ai_tools_embedding_hnsw');
+--
+-- Rollback (slow -- rebuilding IVFFlat over 263k rows is write-heavy):
+--     CREATE INDEX ai_tools_embedding_idx ON ai_tools
+--       USING ivfflat (embedding vector_cosine_ops) WITH (lists = 100);
+-- ----------------------------------------------------------------------------
+
+DROP INDEX IF EXISTS ai_tools_embedding_idx;
+
+ANALYZE ai_tools;
+
+-- ============================================================================
+-- STILL TO DECIDE -- do not uncomment without running the checks first.
+--
+-- Together these are ~115 MB, which is the difference between being over the
+-- 500 MB quota and under it. Each needs one fact confirmed first.
+--
+-- Run this, and match each index to its case below:
+--
+--     SELECT s.indexrelname,
+--            pg_size_pretty(pg_relation_size(s.indexrelid)) AS size,
+--            s.idx_scan,
+--            i.indexdef
+--       FROM pg_stat_user_indexes s
+--       JOIN pg_indexes i ON i.indexname = s.indexrelname
+--                        AND i.tablename = s.relname
+--      WHERE s.relname = 'ai_tools'
+--        AND s.indexrelname IN ('idx_ai_tools_platform_trgm',
+--                               'idx_ai_tools_name_search',
+--                               'idx_ai_tools_tags_gin',
+--                               'idx_ai_tools_tags',
+--                               'ai_tools_fts_idx',
+--                               'idx_ai_tools_fts_gin')
+--      ORDER BY pg_relation_size(s.indexrelid) DESC;
+--
+-- And confirm the zero counts are real rather than a recent stats reset:
+--
+--     SELECT stats_reset FROM pg_stat_database WHERE datname = current_database();
+--
+-- ----------------------------------------------------------------------------
+-- 1. idx_ai_tools_platform_trgm -- 46 MB, 1 scan. Largest index on the table.
+--
+--    fix_advanced_search_bounded_retrieval.sql created it for platform
+--    matching inside search_tools_advanced. If that were live, its scan count
+--    would track the FTS index (2177) rather than sitting at 1.
+--
+--    CHECK: does the function actually use a trigram/ILIKE match on platform?
+--        SELECT prosrc FROM pg_proc WHERE proname = 'search_tools_advanced';
+--    If platform is matched with = or @@ rather than ILIKE/%, this index is
+--    doing nothing and is the single biggest win available.
+--
+-- DROP INDEX IF EXISTS idx_ai_tools_platform_trgm;
+--
+-- ----------------------------------------------------------------------------
+-- 2. idx_ai_tools_name_search -- 28 MB, 0 scans, in no migration file.
+--
+--    CHECK: its indexdef. If it is a trigram or FTS index over `name`, it is
+--    the same non-viable ILIKE path §2 measured and nothing in the codebase
+--    issues it any more. If it is a plain btree on name, confirm nothing
+--    resolves a tool by exact name -- lib/seo/catalog.ts uses `slug`, and
+--    find_published_slug_by_name() uses idx_ai_tools_name_normalized.
+--
+-- DROP INDEX IF EXISTS idx_ai_tools_name_search;
+--
+-- ----------------------------------------------------------------------------
+-- 3. idx_ai_tools_tags_gin -- 6.7 MB, 0 scans.
+--
+--    Near-identical in size to idx_ai_tools_tags (6.7 MB, 599 scans); the pair
+--    look like duplicate GIN indexes over `tags`, with the planner using one.
+--
+--    CHECK: both indexdefs are GIN over tags. Keep idx_ai_tools_tags -- it is
+--    the one being used, and it serves the `.overlaps('tags', ...)` probe in
+--    getRelatedTools until ai_tools_published_tags_idx exists.
+--
+-- DROP INDEX IF EXISTS idx_ai_tools_tags_gin;
+--
+-- ----------------------------------------------------------------------------
+-- 4. ai_tools_fts_idx (38 MB, 2177) + idx_ai_tools_fts_gin (34 MB, 3647)
+--
+--    72 MB of full-text index. BOTH are being scanned, so neither is dead --
+--    but if they are duplicate GIN indexes over fts_vector, the planner is
+--    just splitting arbitrarily between them and one is pure overhead.
+--
+--    CHECK: if both indexdefs are `USING gin (fts_vector)`, drop ONE (keep
+--    ai_tools_fts_idx -- it is the one add_advanced_search.sql declares and
+--    the one the code comments name). If they differ -- e.g. one is over a
+--    different column or has a WHERE clause -- keep both.
+--
+--    This is the only entry here where the index is demonstrably in use, so
+--    it is the one to be most careful with. Drop it in a low-traffic window
+--    and watch search latency; re-creating a GIN index over 263k rows is slow
+--    but not destructive.
+--
+-- DROP INDEX IF EXISTS idx_ai_tools_fts_gin;
+-- ============================================================================

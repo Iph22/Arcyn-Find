@@ -13,9 +13,9 @@
 --    "this queue is a TODO"; nothing in the repository -- no route, script,
 --    migration or workflow -- ever read or drained it.
 --
--- Neither is the biggest storage item in this database (see
--- drop_unused_trigram_indexes.sql for that), but both grow without bound, so
--- fixing them is what stops the problem coming back.
+-- Neither is the biggest storage item in this database -- indexes are ~281 MB
+-- of a 631 MB total, see drop_unused_indexes.sql -- but both grow without
+-- bound, so fixing them is what stops the problem coming back.
 -- ============================================================================
 
 -- ----------------------------------------------------------------------------
