@@ -112,6 +112,25 @@ export function AuthProvider({ children }: { children: ReactNode }) {
                 method: 'POST',
                 credentials: 'include',
             })
+
+            // Clearing the session cookie does not clear Cache Storage, which is
+            // per-origin rather than per-user. The service worker no longer
+            // caches anything behind a session, but a browser that ran an older
+            // version still holds those entries, and this is the moment to drop
+            // them -- on a shared machine the next person is about to use it.
+            //
+            // Best effort by design: a failure here must not block signing out.
+            try {
+                if ('caches' in window) {
+                    const names = await caches.keys()
+                    await Promise.all(names.map((n) => caches.delete(n)))
+                }
+                navigator.serviceWorker?.controller?.postMessage({ type: 'CLEAR_CACHES' })
+            } catch {
+                // Storage unavailable (private mode, blocked site data). Nothing
+                // to clear, and nothing worth failing the sign-out over.
+            }
+
             setUser(null)
             router.push('/')
         } catch (error) {
