@@ -90,7 +90,12 @@ export default function SignUpPage() {
               <div className="inline-flex items-center justify-center w-16 h-16 bg-gradient-to-br from-primary/20 to-chart-1/20 rounded-2xl mb-4">
                 <Sparkles className="w-8 h-8 text-primary" />
               </div>
-              <h1 className="text-2xl sm:text-3xl font-bold mb-2">Create Account</h1>
+              {/* "Arcyn Find account", not just "Create Account". People were
+                  arriving at Google's page in create-an-account frame of mind
+                  and tapping its "Create account" button, which starts a
+                  GOOGLE signup and then rejects their existing address as
+                  already taken. Naming whose account this is costs a word. */}
+              <h1 className="text-2xl sm:text-3xl font-bold mb-2">Create your Arcyn Find account</h1>
               <p className="text-muted-foreground">
                 Join Arcyn Find and discover AI tools worldwide
               </p>
@@ -127,15 +132,25 @@ export default function SignUpPage() {
               {isSigningUp ? (
                 <>
                   <Loader2 className="w-5 h-5 mr-3 animate-spin" />
-                  Creating account...
+                  Redirecting to Google…
                 </>
               ) : (
                 <>
                   <GoogleIcon className="w-5 h-5 mr-3" />
-                  Sign up with Google
+                  Continue with Google
                 </>
               )}
             </Button>
+
+            {/* The next screen is Google's own sign-in page. If the browser has
+                no Google session — the common case on a phone, where the
+                account belongs to the device rather than to the browser — it
+                shows an empty email box with "Create account" underneath, and
+                nothing on it indicates you already qualify. Say so here, while
+                we still control the screen. */}
+            <p className="mt-3 text-center text-xs text-muted-foreground">
+              Sign in with your existing Google account. You don&apos;t need to create a new one.
+            </p>
 
             {/* Terms */}
             <p className="mt-6 text-center text-xs text-muted-foreground">
