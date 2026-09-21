@@ -86,11 +86,11 @@ export default function EditCollectionPage() {
 
   if (isLoading) {
     return (
-      <div className="flex h-screen overflow-hidden bg-background">
+      <div className="flex h-dvh overflow-hidden bg-background">
         <div className="hidden md:block">
           <Sidebar />
         </div>
-        <div className="flex-1 flex items-center justify-center pb-20 md:pb-0">
+        <div className="flex-1 flex items-center justify-center pb-[var(--mobile-nav-clearance)] md:pb-0">
           <Loader2 className="h-8 w-8 animate-spin" />
         </div>
       </div>
@@ -98,15 +98,15 @@ export default function EditCollectionPage() {
   }
 
   return (
-    <div className="flex h-screen overflow-hidden bg-background">
+    <div className="flex h-dvh overflow-hidden bg-background">
       <div className="hidden md:block">
         <Sidebar />
       </div>
       
-      <div className="flex flex-1 flex-col overflow-hidden pb-20 md:pb-0">
+      <div className="flex flex-1 flex-col overflow-hidden pb-[var(--mobile-nav-clearance)] md:pb-0">
         {/* Header */}
         <motion.header
-          className="border-b border-border/40 bg-card/50 backdrop-blur-xl"
+          className="glass-header sticky top-0 z-20 pt-[env(safe-area-inset-top)]"
           initial={{ y: -50, opacity: 0 }}
           animate={{ y: 0, opacity: 1 }}
         >

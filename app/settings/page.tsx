@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useRef } from "react"
 import { useRouter } from "next/navigation"
+import { AnimatePresence, motion } from "framer-motion"
 import Image from "next/image"
 import { Menu, X, Camera, Upload, Bell, Shield, Palette, User, Plus } from "lucide-react"
 import { Button } from "@/components/ui/button"
@@ -42,6 +43,7 @@ export default function SettingsPage() {
   const { user, isLoading: isAuthLoading, isAuthenticated } = useAuth()
   const { setTheme: setNextTheme } = useTheme()
   const [userProfile, setUserProfile] = useState<UserProfile | null>(null)
+  const [sidebarOpen, setSidebarOpen] = useState(false)
   const [isLoading, setIsLoading] = useState(true)
   const [isSaving, setIsSaving] = useState(false)
 
@@ -403,7 +405,7 @@ export default function SettingsPage() {
 
   if (isLoading) {
     return (
-      <div className="flex h-screen items-center justify-center">
+      <div className="flex h-dvh items-center justify-center">
         <div className="text-center">
           <div className="mb-4 inline-block h-8 w-8 animate-spin rounded-full border-4 border-primary border-t-transparent" />
           <p className="text-muted-foreground">Loading settings...</p>
@@ -413,13 +415,53 @@ export default function SettingsPage() {
   }
 
   return (
-    <div className="flex h-screen overflow-hidden bg-background">
+    <div className="flex h-dvh overflow-hidden bg-background">
       <div className="hidden md:block">
         <Sidebar />
       </div>
-      <div className="flex-1 overflow-y-auto p-4 md:p-6 pb-24 md:pb-6">
+
+      {/* Mobile drawer. Settings was the one Sidebar page that never had one:
+          the sidebar was `hidden md:block` with no toggle, so on a phone
+          Reviews, Followers and Sign Out could not be reached from here at all
+          without typing a URL. `md:hidden` on the drawer so it cannot appear
+          alongside the persistent desktop sidebar above. */}
+      <AnimatePresence mode="wait">
+        {sidebarOpen && (
+          <>
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              onClick={() => setSidebarOpen(false)}
+              className="fixed inset-0 glass-overlay z-30 md:hidden"
+            />
+            <motion.div
+              initial={{ x: -300, opacity: 0 }}
+              animate={{ x: 0, opacity: 1 }}
+              exit={{ x: -300, opacity: 0 }}
+              transition={{ type: "spring", damping: 25, stiffness: 200 }}
+              className="fixed inset-y-0 left-0 z-40 h-full w-72 md:hidden"
+            >
+              <Sidebar onClose={() => setSidebarOpen(false)} />
+            </motion.div>
+          </>
+        )}
+      </AnimatePresence>
+
+      <div className="flex-1 overflow-y-auto p-4 md:p-6 pb-[calc(1rem_+_var(--mobile-nav-clearance))] md:pb-6">
         <div className="container mx-auto max-w-4xl">
-          <h1 className="mb-4 md:mb-6 text-2xl md:text-3xl font-bold">Settings</h1>
+          <div className="mb-4 md:mb-6 flex items-center gap-3">
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={() => setSidebarOpen(!sidebarOpen)}
+              className="h-10 w-10 md:hidden"
+              aria-label="Open menu"
+            >
+              <Menu className="h-5 w-5" />
+            </Button>
+            <h1 className="text-2xl md:text-3xl font-bold">Settings</h1>
+          </div>
 
           <Tabs defaultValue="profile" className="w-full">
             <TabsList className="flex w-full overflow-x-auto md:grid md:grid-cols-4 h-auto p-1 gap-1">

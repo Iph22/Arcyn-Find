@@ -265,7 +265,7 @@ export default function UserProfilePage() {
 
   if (isLoading) {
     return (
-      <div className="flex h-screen items-center justify-center">
+      <div className="flex h-dvh items-center justify-center">
         <div className="text-center">
           <div className="mb-4 inline-block h-8 w-8 animate-spin rounded-full border-4 border-primary border-t-transparent" />
           <p className="text-muted-foreground">Loading profile...</p>
@@ -276,7 +276,7 @@ export default function UserProfilePage() {
 
   if (!userProfile) {
     return (
-      <div className="flex h-screen items-center justify-center">
+      <div className="flex h-dvh items-center justify-center">
         <div className="text-center">
           <p className="mb-4 text-destructive">User not found</p>
           <Button onClick={() => router.push("/")}>Go Home</Button>
@@ -316,7 +316,7 @@ export default function UserProfilePage() {
   }
 
   return (
-    <div className="flex h-screen overflow-hidden bg-background">
+    <div className="flex h-dvh overflow-hidden bg-background">
       {/* Sidebar - Hidden on mobile */}
       <AnimatePresence mode="wait">
         {sidebarOpen && (
@@ -327,7 +327,7 @@ export default function UserProfilePage() {
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
               onClick={() => setSidebarOpen(false)}
-              className="fixed inset-0 bg-background/80 backdrop-blur-sm z-30"
+              className="fixed inset-0 glass-overlay z-30"
             />
             <motion.div
               initial={{ x: -300, opacity: 0 }}
@@ -343,10 +343,10 @@ export default function UserProfilePage() {
       </AnimatePresence>
 
       {/* Main Content */}
-      <div className="flex flex-1 flex-col overflow-hidden pb-20 md:pb-0">
+      <div className="flex flex-1 flex-col overflow-hidden pb-[var(--mobile-nav-clearance)] md:pb-0">
         {/* Header */}
         <motion.header
-          className="border-b border-border/40 bg-card/50 backdrop-blur-xl"
+          className="glass-header sticky top-0 z-20 pt-[env(safe-area-inset-top)]"
           initial={{ y: -50, opacity: 0 }}
           animate={{ y: 0, opacity: 1 }}
           transition={{ duration: 0.5 }}

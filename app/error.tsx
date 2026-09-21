@@ -19,7 +19,7 @@ export default function Error({
   }, [error])
 
   return (
-    <div className="min-h-screen flex items-center justify-center p-4">
+    <div className="min-h-dvh flex items-center justify-center p-4">
       <div className="max-w-lg w-full p-8 text-center border border-border rounded-lg">
         <h1 className="text-2xl font-bold mb-2">Something went wrong</h1>
         <p className="text-muted-foreground mb-6">
