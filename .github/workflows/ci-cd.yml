@@ -116,13 +116,29 @@ jobs:
       # `vercel promote` are the staged-production flow, but availability varies
       # by CLI version and plan. If either is rejected, the run fails loudly
       # here rather than half-deploying -- check `npx vercel deploy --help`.
+      #
+      # VERCEL_ORG_ID/VERCEL_PROJECT_ID are not optional here. `.vercel/` is
+      # gitignored, so a CI checkout carries no project link, and `--yes` would
+      # answer the resulting "set up and deploy?" prompt by creating a NEW
+      # project named after the checkout directory. The deploy would succeed,
+      # the smoke test would pass against that stranger, and `promote` would
+      # promote it -- inside the wrong project, leaving the real domain
+      # untouched while every step reported green. These two vars are what make
+      # the whole job address the intended project.
+      #
+      # The CLI is pinned: `npx vercel` resolves to whatever is newest at run
+      # time, and a flag change in `deploy`/`promote` would land mid-release.
       - name: Deploy green
         id: green
         env:
           VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+          VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
+          VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
         run: |
           set -euo pipefail
-          url=$(npx vercel deploy --prod --skip-domain --yes --token "$VERCEL_TOKEN")
+          test -n "$VERCEL_ORG_ID"     || { echo "VERCEL_ORG_ID secret is unset"; exit 1; }
+          test -n "$VERCEL_PROJECT_ID" || { echo "VERCEL_PROJECT_ID secret is unset"; exit 1; }
+          url=$(npx --yes vercel@48 deploy --prod --skip-domain --yes --token "$VERCEL_TOKEN")
           echo "url=$url" >> "$GITHUB_OUTPUT"
           echo "Green deployment: $url"
 
@@ -144,7 +160,9 @@ jobs:
       - name: Promote green to production
         env:
           VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+          VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
+          VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
         run: |
           set -euo pipefail
-          npx vercel promote "${{ steps.green.outputs.url }}" --token "$VERCEL_TOKEN"
+          npx --yes vercel@48 promote "${{ steps.green.outputs.url }}" --token "$VERCEL_TOKEN"
           echo "Promoted ${{ steps.green.outputs.url }} to production"
