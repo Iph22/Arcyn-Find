@@ -5,6 +5,10 @@ on:
     branches: [ main, develop ]
   pull_request:
     branches: [ main, develop ]
+  # Manual redeploy. Once Vercel's Git integration is switched off this
+  # workflow is the only deploy path, and a path you cannot trigger without
+  # inventing a commit is not one you can rely on in an incident.
+  workflow_dispatch:
 
 jobs:
   build:
@@ -138,20 +142,63 @@ jobs:
           set -euo pipefail
           test -n "$VERCEL_ORG_ID"     || { echo "VERCEL_ORG_ID secret is unset"; exit 1; }
           test -n "$VERCEL_PROJECT_ID" || { echo "VERCEL_PROJECT_ID secret is unset"; exit 1; }
+
+          # `vercel pull` first, and it is not optional. Setting VERCEL_ORG_ID
+          # and VERCEL_PROJECT_ID is necessary but NOT sufficient: CLI 48 still
+          # looks for a linked project on disk, and a CI checkout has no
+          # `.vercel/` (it is gitignored). Without this the deploy fails with
+          #   Error: Could not retrieve Project Settings.
+          # which reads like a permissions problem and is not one -- observed
+          # on run 35597151139 with all three secrets correctly set.
+          npx --yes vercel@48 pull --yes --environment=production --token "$VERCEL_TOKEN"
+
           url=$(npx --yes vercel@48 deploy --prod --skip-domain --yes --token "$VERCEL_TOKEN")
           echo "url=$url" >> "$GITHUB_OUTPUT"
           echo "Green deployment: $url"
 
-      # The gate. These assert that a forged session cookie is rejected AND that
-      # a properly signed one is still accepted -- a deployment that fails
-      # either never becomes production. SESSION_SECRET must be the value the
-      # deployment runs with, or the valid-cookie check fails and this blocks
-      # the promote, which is the correct outcome for a secret mismatch.
+      # The gate: does the green deployment actually serve the site?
+      #
+      # This replaced `npm run test:session:e2e`, which needed SESSION_SECRET
+      # to match the deployment's own signing key. That meant copying the
+      # production signing secret into GitHub as well as Vercel -- widening
+      # the blast radius of the one credential that forges sessions -- to
+      # re-test something the `type-check` job already covers: `test:session`
+      # exercises the same sign/verify/reject logic and self-provisions a key,
+      # so it needs no secret and gates every PR, not just deploys.
+      #
+      # What a deploy gate should catch is the deployment coming up wrong, and
+      # the failures this project has actually had were exactly that shape: a
+      # homepage rendering an em dash instead of the tool count, and a sitemap
+      # served with 8 URLs instead of 2,628. Both are visible without
+      # authenticating, so this checks for them directly.
       - name: Smoke test green
         env:
-          SESSION_SECRET: ${{ secrets.SESSION_SECRET }}
           BASE_URL: ${{ steps.green.outputs.url }}
-        run: npm run test:session:e2e
+        run: |
+          set -euo pipefail
+          test -n "$BASE_URL" || { echo "green deployment URL is empty"; exit 1; }
+
+          for path in "" "/tools" "/tools/category" "/sitemap.xml"; do
+            code=$(curl -s -o /dev/null -w '%{http_code}' -m 60 "${BASE_URL}${path}")
+            echo "  ${path:-/} -> $code"
+            test "$code" = "200" || { echo "FAIL: ${path:-/} returned $code"; exit 1; }
+          done
+
+          # The homepage must state a real catalog size. An em dash is the
+          # placeholder it renders when the database is unreachable, and
+          # shipping that is the regression this step exists to stop.
+          if ! curl -s -m 60 "$BASE_URL" | grep -qE '[0-9]{1,3},[0-9]{3} AI tools'; then
+            echo "FAIL: homepage is not showing a catalog count"
+            exit 1
+          fi
+
+          # A sitemap that lost its tool pages still returns 200. Eight URLs is
+          # the static-pages-only shape that told Google the site had 8 pages.
+          locs=$(curl -s -m 90 "$BASE_URL/sitemap.xml" | grep -c '<loc>')
+          echo "  sitemap URLs: $locs"
+          test "$locs" -gt 100 || { echo "FAIL: sitemap has only $locs URLs"; exit 1; }
+
+          echo "Green deployment looks healthy.
 
       # The cutover: an alias swap, not a rebuild. Rolling back is promoting the
       # previous deployment. Note that rollback is not a real option for a
