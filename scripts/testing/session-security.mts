@@ -63,7 +63,18 @@ async function main() {
     })()
     check('payload swap with a stolen signature is rejected', (await verifySession(swapped)) === null)
 
-    const flipped = `${body}.${sig.slice(0, -1)}${sig.slice(-1) === 'A' ? 'B' : 'A'}`
+    // The FIRST character, not the last. A 32-byte HMAC is 43 base64url
+    // characters: 258 bits carrying 256, so the final character's low 2 bits
+    // are padding and only 16 of the 64 alphabet characters can ever appear
+    // there (048AEIMQUYcgkosw). Altering the last character therefore often
+    // decodes to the very same bytes -- when the signature ended in 'A' this
+    // swapped in 'B', which is byte-identical, so verifySession rightly
+    // accepted it and the check failed. Measured at 6.7% of runs, which is
+    // exactly the 1-in-16 that theory predicts.
+    //
+    // Every bit of the first character is significant, so this always changes
+    // the signature. Do not "simplify" it back to slice(-1).
+    const flipped = `${body}.${sig[0] === 'A' ? 'B' : 'A'}${sig.slice(1)}`
     check('signature bit-flip is rejected', (await verifySession(flipped)) === null)
 
     // --- shape and expiry -----------------------------------------------------
