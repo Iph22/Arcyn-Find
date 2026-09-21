@@ -1,5 +1,20 @@
 # Quick setup script to add Node.js to PATH for current session
 # Run this in PowerShell: . .\setup-npm.ps1
+#
+# This only affects the current session, on purpose.
+#
+# There used to be a fix-npm-path.ps1 here that made it permanent by writing
+# the Machine PATH. Windows Defender blocks that file from being read at all
+# (os error 225) -- editing the machine-wide PATH is a persistence technique,
+# so the heuristic fires on a benign script -- and because Tailwind reads every
+# file in the project, an unreadable one took the dev server down with it. It
+# was deleted rather than worked around.
+#
+# To make it permanent, do it by hand instead:
+#   1. Win + X -> System -> Advanced system settings
+#   2. Environment Variables -> System variables -> Path -> Edit
+#   3. New -> C:\Program Files\nodejs
+#   4. OK on all dialogs, then restart PowerShell
 
 Write-Host "Adding Node.js to PATH for this session..." -ForegroundColor Cyan
 
