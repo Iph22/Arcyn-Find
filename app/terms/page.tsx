@@ -139,7 +139,7 @@ export default function TermsPage() {
                 If you have any questions about these Terms of Service, please contact us at:
               </p>
               <p>
-                <strong>Email:</strong> <a href="mailto:arcynflow@gmail.com" className="text-primary hover:underline">arcynflow@gmail.com</a>
+                <strong>Email:</strong> <a href="mailto:hello@arcynfind.com" className="text-primary hover:underline">hello@arcynfind.com</a>
               </p>
             </section>
           </div>
