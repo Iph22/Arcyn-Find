@@ -12,8 +12,10 @@ import { siteUrl } from "@/lib/seo/site"
  */
 export const metadata: Metadata = {
   title: { absolute: "Arcyn Find Community" },
+  // Describes what the page offers, not a community size. The previous
+  // description implied activity the numbers on the page were inventing.
   description:
-    "See what the Arcyn Find community is building, reviewing and recommending across the AI tool directory.",
+    "Ways to take part in Arcyn Find: review tools you have used, save the ones that work, and build collections around a job.",
   alternates: { canonical: `${siteUrl()}/community` },
 }
 

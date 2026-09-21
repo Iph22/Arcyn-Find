@@ -1,17 +1,60 @@
 "use client"
 
 import { motion } from "framer-motion"
-import { ArrowLeft, Users, MessageSquare, TrendingUp, Heart } from "lucide-react"
+import { ArrowLeft, Star, Bookmark, Layers } from "lucide-react"
 import Link from "next/link"
 import { Button } from "@/components/ui/button"
 import { Card } from "@/components/ui/card"
 
+/**
+ * /community.
+ *
+ * This page used to claim "50K+ Active Members", "12K+ Discussions" and
+ * "150K+ Likes & Reviews". Measured on 2026-09-21, the real figures were 73
+ * registered profiles, 7 reviews and 19 recorded tool views. The page is
+ * public, indexable and self-canonical, so those numbers were the first thing
+ * a visitor and a crawler saw.
+ *
+ * They were the same invented figures the landing page carried until it was
+ * rewritten to read the database -- the fix was applied there and this page
+ * was missed, which is the argument for not hard-coding a number anywhere.
+ *
+ * It also promised features that do not exist. "Go to Discussions" linked to
+ * /home, the signed-in dashboard; there is no discussion surface. "Share Your
+ * Tools" invited a submission and then rendered a button labelled "Browse
+ * Tools". Both are gone rather than restyled.
+ *
+ * There are no counts on this page on purpose. The honest ones are too small
+ * to publish and the flattering ones are not ours to claim -- so it describes
+ * what a visitor can actually do instead. Add real figures here when they are
+ * worth showing, and read them from the database the way app/page.tsx does.
+ */
 export default function CommunityPage() {
-  const stats = [
-    { label: "Active Members", value: "50K+", icon: Users },
-    { label: "Discussions", value: "12K+", icon: MessageSquare },
-    { label: "Tools Shared", value: "2,000+", icon: TrendingUp },
-    { label: "Likes & Reviews", value: "150K+", icon: Heart },
+  const ways = [
+    {
+      icon: Star,
+      title: "Review a tool you use",
+      body:
+        "Ratings and written reviews sit on the tool's page. Reviewing something you have actually used is the most useful thing you can add here.",
+      href: "/tools",
+      cta: "Find a tool to review",
+    },
+    {
+      icon: Bookmark,
+      title: "Save what works",
+      body:
+        "Favourite the tools you keep coming back to, so you can find them again without searching twice.",
+      href: "/browse",
+      cta: "Browse and filter",
+    },
+    {
+      icon: Layers,
+      title: "Build a collection",
+      body:
+        "Group tools around a job -- a podcast workflow, a design stack -- and keep it private or make it public.",
+      href: "/collections",
+      cta: "Start a collection",
+    },
   ]
 
   return (
@@ -29,62 +72,51 @@ export default function CommunityPage() {
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.6 }}
         >
-          <div className="flex items-center gap-3 mb-8">
-            <Users className="w-8 h-8 text-primary" />
+          <div className="flex items-center gap-3 mb-6">
             <h1 className="text-4xl md:text-5xl font-bold">Community</h1>
           </div>
 
-          <p className="text-xl text-muted-foreground mb-12 max-w-3xl">
-            Join thousands of AI enthusiasts, developers, and innovators sharing knowledge, tools, and insights.
+          <p className="text-xl text-muted-foreground mb-4 max-w-3xl">
+            Arcyn Find is early. The directory is large, the community around it
+            is not yet — and we would rather say so than invent a number.
+          </p>
+          <p className="text-muted-foreground mb-2 max-w-3xl">
+            Everything below is a thing you can do today. Each one makes the
+            directory more useful to the next person who searches it.
+          </p>
+          <p className="text-sm text-muted-foreground mb-12 max-w-3xl">
+            All three need an account — reading and searching the directory
+            never does.
           </p>
 
-          <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-6 mb-12">
-            {stats.map((stat, i) => (
+          <div className="grid md:grid-cols-3 gap-6 mb-12">
+            {ways.map((way, i) => (
               <motion.div
-                key={i}
+                key={way.title}
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ duration: 0.5, delay: i * 0.1 }}
               >
-                <Card className="p-6 text-center">
-                  <stat.icon className="w-8 h-8 text-primary mx-auto mb-3" />
-                  <div className="text-3xl font-bold mb-1">{stat.value}</div>
-                  <div className="text-sm text-muted-foreground">{stat.label}</div>
+                <Card className="p-6 h-full flex flex-col">
+                  <way.icon className="w-7 h-7 text-primary mb-3" />
+                  <h2 className="text-lg font-semibold mb-2">{way.title}</h2>
+                  <p className="text-sm text-muted-foreground mb-6 flex-1">{way.body}</p>
+                  <Link href={way.href}>
+                    <Button variant="outline" className="w-full">
+                      {way.cta}
+                    </Button>
+                  </Link>
                 </Card>
               </motion.div>
             ))}
           </div>
 
-          <div className="grid md:grid-cols-2 gap-8">
-            <Card className="p-8">
-              <h2 className="text-2xl font-semibold mb-4">Join the Discussion</h2>
-              <p className="text-muted-foreground mb-6">
-                Connect with other members, share your favorite AI tools, ask questions, and help others discover
-                the best solutions for their needs.
-              </p>
-              <Button className="w-full" onClick={() => window.location.href = "/home"}>
-                Go to Discussions
-              </Button>
-            </Card>
-
-            <Card className="p-8">
-              <h2 className="text-2xl font-semibold mb-4">Share Your Tools</h2>
-              <p className="text-muted-foreground mb-6">
-                Found an amazing AI tool? Share it with the community! Help others discover tools that can
-                transform their workflow.
-              </p>
-              <Button variant="outline" className="w-full" onClick={() => window.location.href = "/tools"}>
-                Browse Tools
-              </Button>
-            </Card>
-          </div>
-
-          <div className="mt-12 p-8 bg-muted/30 rounded-xl">
-            <h2 className="text-2xl font-semibold mb-4">Community Guidelines</h2>
+          <div className="p-8 bg-muted/30 rounded-xl">
+            <h2 className="text-2xl font-semibold mb-4">Community guidelines</h2>
             <ul className="space-y-2 text-muted-foreground">
               <li>• Be respectful and constructive in all interactions</li>
+              <li>• Review tools you have used, and say what you used them for</li>
               <li>• Share accurate information and verify sources</li>
-              <li>• Help others by answering questions and providing feedback</li>
               <li>• Follow our code of conduct and terms of service</li>
             </ul>
           </div>
@@ -93,4 +125,3 @@ export default function CommunityPage() {
     </div>
   )
 }
-
