@@ -108,8 +108,34 @@ export async function PUT(request: NextRequest) {
       updateData.onboarding_completed_at = completed ? new Date().toISOString() : null
     }
 
-    // Always update preferences JSON with all provided fields
-    updateData.preferences = body as Record<string, unknown>
+    // Merge into the existing preferences rather than replacing them.
+    //
+    // This column is one JSONB blob shared by onboarding answers, the
+    // notification toggles, the privacy settings and the cached userEmail /
+    // userName. Assigning `body` wholesale meant every partial save destroyed
+    // every key the caller had not sent: the settings page's "Save Notification
+    // Preferences" button posts only its four switches, so it wiped the privacy
+    // settings, and "Save Privacy Settings" wiped the notification ones
+    // straight back.
+    //
+    // It matters more now that the digest sender reads `notify_digest` from
+    // here: an unsubscribe could be silently undone by the user saving an
+    // unrelated tab, and we would resume emailing someone who had opted out.
+    const { data: current, error: readError } = await supabase
+      .from('user_profiles')
+      .select('preferences')
+      .eq('id', user.id)
+      .maybeSingle()
+
+    // PGRST116 is "no row", which is normal for a first save and merges onto {}.
+    if (readError && readError.code !== 'PGRST116') {
+      throw readError
+    }
+
+    updateData.preferences = {
+      ...(current?.preferences as Record<string, unknown> | null),
+      ...(body as Record<string, unknown>),
+    }
 
     const { error } = await supabase
       .from('user_profiles')

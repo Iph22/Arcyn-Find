@@ -65,6 +65,7 @@ export default function SettingsPage() {
   const [notifyNewFollowers, setNotifyNewFollowers] = useState(true)
   const [notifyReviews, setNotifyReviews] = useState(true)
   const [notifyMarketing, setNotifyMarketing] = useState(false)
+  const [notifyDigest, setNotifyDigest] = useState(true)
 
   // Privacy settings
   const [profileVisibility, setProfileVisibility] = useState("public")
@@ -147,6 +148,41 @@ export default function SettingsPage() {
       setPushEnabled(Notification.permission === "granted")
     }
   }, [])
+
+  // Hydrate the notification and privacy switches from what was actually saved.
+  //
+  // These were previously display-only on load: every switch reset to its
+  // hardcoded default on each visit, so the page showed "Email Notifications:
+  // on" to someone who had turned it off. Harmless while nothing read the
+  // flags; not harmless now that the digest sender does -- a user who
+  // unsubscribed would open this page, see the toggle on, save an unrelated
+  // tab and quietly re-subscribe themselves.
+  //
+  // Runs once, on the first load that produces preferences. Re-running would
+  // overwrite edits the user has made but not yet saved.
+  const hydratedRef = useRef(false)
+  useEffect(() => {
+    if (hydratedRef.current || !preferences) return
+    hydratedRef.current = true
+
+    // The context spreads the stored JSONB over its own typed fields, so these
+    // keys are present at runtime but absent from OnboardingData.
+    const saved = preferences as unknown as Record<string, unknown>
+    const bool = (key: string, fallback: boolean) =>
+      typeof saved[key] === "boolean" ? (saved[key] as boolean) : fallback
+
+    setEmailNotifications(bool("email_notifications", true))
+    setNotifyNewFollowers(bool("notify_new_followers", true))
+    setNotifyReviews(bool("notify_reviews", true))
+    setNotifyMarketing(bool("notify_marketing", false))
+    setNotifyDigest(bool("notify_digest", true))
+    setShowActivityStatus(bool("show_activity_status", true))
+    setAllowSearchIndexing(bool("allow_search_indexing", true))
+    setShowInSuggestions(bool("show_in_suggestions", true))
+    if (typeof saved.profile_visibility === "string") {
+      setProfileVisibility(saved.profile_visibility)
+    }
+  }, [preferences])
 
   const requestNotificationPermission = async () => {
     if ("Notification" in window) {
@@ -308,6 +344,7 @@ export default function SettingsPage() {
           notify_new_followers: notifyNewFollowers,
           notify_reviews: notifyReviews,
           notify_marketing: notifyMarketing,
+          notify_digest: notifyDigest,
         }),
       })
 
@@ -697,6 +734,18 @@ export default function SettingsPage() {
                         onCheckedChange={setEmailNotifications}
                       />
                     </div>
+                    {/*
+                      Weekly Digest switch is withheld until something sends the
+                      digest. There is no sender, no cron and no template in the
+                      tree yet, so the control would have collected opt-ins for
+                      mail that never arrives -- and the first people to find
+                      that would be the reviewers this build went out to.
+
+                      Everything behind it stays wired on purpose:
+                      `notify_digest` is still hydrated and still saved, so the
+                      preference survives, and restoring this block is the whole
+                      of the UI work once the sender lands.
+                    */}
                     <div className="flex items-center justify-between">
                       <div>
                         <p className="font-medium">New Followers</p>
