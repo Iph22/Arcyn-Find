@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useState } from "react"
+import { useEffect } from "react"
 import { useRouter, useSearchParams } from "next/navigation"
 import { motion } from "framer-motion"
 import { CodesandboxIcon, ArrowLeft, Loader2 } from "lucide-react"
@@ -36,9 +36,8 @@ function GoogleIcon({ className }: { className?: string }) {
 export default function SignInPage() {
   const router = useRouter()
   const searchParams = useSearchParams()
-  const { isAuthenticated, isLoading, signIn } = useAuth()
-  const [isSigningIn, setIsSigningIn] = useState(false)
-
+  const { isAuthenticated, isLoading, signIn, isRedirectingToGoogle } = useAuth()
+  
   const error = searchParams.get('error')
 
   // Redirect if already authenticated
@@ -49,7 +48,6 @@ export default function SignInPage() {
   }, [isAuthenticated, isLoading, router])
 
   const handleGoogleSignIn = () => {
-    setIsSigningIn(true)
     signIn()
   }
 
@@ -136,11 +134,11 @@ export default function SignInPage() {
             {/* Google Sign In Button */}
             <Button
               onClick={handleGoogleSignIn}
-              disabled={isSigningIn}
+              disabled={isRedirectingToGoogle}
               className="w-full h-12 text-base font-medium bg-white hover:bg-gray-50 text-gray-900 border border-gray-200 shadow-sm transition-all duration-300"
               variant="outline"
             >
-              {isSigningIn ? (
+              {isRedirectingToGoogle ? (
                 <>
                   <Loader2 className="w-5 h-5 mr-3 animate-spin" />
                   Signing in...
