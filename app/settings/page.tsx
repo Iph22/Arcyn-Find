@@ -44,11 +44,17 @@ interface UserProfile {
  * Passing the string through unconverted fails at subscribe time with an
  * opaque `InvalidAccessError`, which is a miserable thing to debug.
  */
-function urlBase64ToUint8Array(base64String: string): Uint8Array {
+function urlBase64ToUint8Array(base64String: string): Uint8Array<ArrayBuffer> {
   const padding = "=".repeat((4 - (base64String.length % 4)) % 4)
   const base64 = (base64String + padding).replace(/-/g, "+").replace(/_/g, "/")
   const raw = window.atob(base64)
-  const output = new Uint8Array(raw.length)
+
+  // The ArrayBuffer is allocated explicitly rather than via
+  // `new Uint8Array(length)`. Since TypeScript 5.7 the typed arrays are
+  // generic over their buffer, and that shorthand widens to
+  // `Uint8Array<ArrayBufferLike>` -- which admits SharedArrayBuffer and so is
+  // not assignable to `BufferSource`, the type `applicationServerKey` wants.
+  const output = new Uint8Array(new ArrayBuffer(raw.length))
   for (let i = 0; i < raw.length; i++) output[i] = raw.charCodeAt(i)
   return output
 }
