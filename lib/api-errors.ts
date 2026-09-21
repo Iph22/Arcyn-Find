@@ -11,7 +11,22 @@ export function createErrorResponse(
   code?: string
 ): NextResponse<APIError> {
   const apiError: APIError = {
-    error: error instanceof Error ? error.message : 'Internal server error',
+    // A string argument is deliberate, caller-authored copy meant for the
+    // client -- 'Unauthorized', 'Collection not found', and the field-level
+    // text `parseAndValidateBody` builds out of the Zod issue. Around 55 call
+    // sites pass one, and every one of them used to be flattened into
+    // 'Internal server error': a 400 that read like a 500, with the real
+    // reason surviving only in `details`, which is development-only. A user
+    // who mistyped their email was told the server had broken.
+    //
+    // Anything that is not a string or an Error is still masked, so an
+    // unexpected throw cannot leak its internals through this path.
+    error:
+      error instanceof Error
+        ? error.message
+        : typeof error === 'string'
+          ? error
+          : 'Internal server error',
     code,
     ...(process.env.NODE_ENV === 'development' && { details: error }),
   }
