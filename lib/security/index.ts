@@ -21,6 +21,7 @@ export {
 export {
     // Sanitization utilities
     sanitizeHtml,
+    unescapeHtml,
     sanitizeForQuery,
     sanitizePath,
     stripUnexpectedFields,

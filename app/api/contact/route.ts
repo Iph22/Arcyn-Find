@@ -1,17 +1,25 @@
 /**
  * Contact Form API Route - Security Hardened
- * 
+ *
  * Security Features:
  * - Strict rate limiting (IP-based, 3/min)
  * - Schema-based input validation
  * - XSS sanitization on all inputs
  * - Length limits on all fields
  * - Rejects unexpected fields
+ *
+ * Durability: the submission is written to `contact_submissions` BEFORE the
+ * email is attempted, and the send outcome is recorded against that row. Mail
+ * is a notification, not the system of record. This route used to email and
+ * nothing else, to a hardcoded address that is an ImprovMX forwarding alias
+ * rather than a mailbox — when a message was accepted by Resend but never
+ * arrived, there was no trace of it anywhere. See add_contact_submissions.sql.
  */
 
 import { NextRequest } from "next/server"
 import { Resend } from "resend"
 import { createErrorResponse, createSuccessResponse, ErrorCodes } from "@/lib/api-errors"
+import { recordEmailOutcome, storeSubmission } from "@/lib/services/contact.service"
 import { logger } from "@/lib/logger"
 import {
   checkRateLimit,
@@ -53,43 +61,57 @@ export async function POST(request: NextRequest) {
       return parseResult.error
     }
 
+    // Exactly what the sender typed: validation no longer escapes on input,
+    // so these are safe for the database, the subject header and the text
+    // part, and get escaped once below where they enter HTML.
     const { name, email, subject, message } = parseResult.data
 
     // =========================================================================
-    // EMAIL SENDING
+    // PERSIST FIRST — before anything that can fail outside this process
+    // =========================================================================
+    const forwarded = request.headers.get("x-forwarded-for")
+    const clientIp = forwarded ? forwarded.split(",")[0].trim() : null
+
+    // The service hashes the address; the raw value never reaches the table.
+    const submissionId = await storeSubmission({ name, email, subject, message, ip: clientIp })
+
+    // =========================================================================
+    // EMAIL SENDING — a notification about the row above, not the record itself
     // =========================================================================
     const resendApiKey = process.env.RESEND_API_KEY
 
     if (!resendApiKey) {
       logger.error("[Contact] RESEND_API_KEY is not configured")
 
-      // For development, log the email instead of failing
-      if (process.env.NODE_ENV === "development") {
-        logger.log("=== Contact Form Submission (Resend not configured) ===")
-        logger.log("Name:", name)
-        logger.log("Email:", email)
-        logger.log("Subject:", subject)
-        logger.log("Message:", message)
-        logger.log("=======================================================")
-
-        return createSuccessResponse({
-          success: true,
-          message: "Email logged (Resend not configured in development)",
-          messageId: "dev-log",
-        })
+      if (submissionId) {
+        await recordEmailOutcome(submissionId, { status: "not_configured" })
       }
 
-      return createErrorResponse(
-        new Error("Email service is not configured. Please contact us directly at hello@arcynfind.com"),
-        500,
-        ErrorCodes.INTERNAL_ERROR
-      )
+      // Stored but not sent is a success for the person submitting: their
+      // message is safe and readable in the table. Only a total loss — no row
+      // AND no mail — is worth failing the request over.
+      if (!submissionId) {
+        return createErrorResponse(
+          new Error("Email service is not configured. Please contact us directly at hello@arcynfind.com"),
+          500,
+          ErrorCodes.INTERNAL_ERROR
+        )
+      }
+
+      return createSuccessResponse({
+        success: true,
+        stored: true,
+        emailed: false,
+        submissionId,
+      })
     }
 
     // Initialize Resend inside the handler
     const resend = new Resend(resendApiKey)
 
-    // Double-sanitize for HTML email (already sanitized by schema, but extra safety)
+    // Escaped exactly once, for the HTML body only. Deliberately not reused in
+    // the subject header or the text part below: neither decodes entities, so
+    // they take the raw values and would otherwise show `&#x2F;` per slash.
     const safeName = sanitizeHtml(name)
     const safeEmail = sanitizeHtml(email)
     const safeSubject = sanitizeHtml(subject)
@@ -102,7 +124,9 @@ export async function POST(request: NextRequest) {
       from: `Arcyn Find <${fromEmail}>`,
       to: ["hello@arcynfind.com"],
       replyTo: email, // Original email for reply
-      subject: `Contact Form: ${safeSubject}`,
+      // A subject header is not HTML and decodes no entities, so it takes the
+      // recovered text. The widget puts the page path here, which is slashes.
+      subject: `Contact Form: ${subject}`,
       html: `
         <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
           <h2 style="color: #333; border-bottom: 2px solid #0070f3; padding-bottom: 10px;">
@@ -144,6 +168,21 @@ ${message}
         : typeof error === 'string'
           ? error
           : "Failed to send email. Please try again or contact us directly at hello@arcynfind.com"
+
+      if (submissionId) {
+        await recordEmailOutcome(submissionId, { status: "failed", error: errorMessage })
+        // The message is on disk and queryable, so this is not a failure from
+        // the sender's point of view — telling them to retry would only
+        // duplicate a submission that was never lost.
+        return createSuccessResponse({
+          success: true,
+          stored: true,
+          emailed: false,
+          submissionId,
+        })
+      }
+
+      // Nothing stored and nothing sent: this one really did evaporate.
       return createErrorResponse(
         new Error(errorMessage),
         500,
@@ -151,9 +190,15 @@ ${message}
       )
     }
 
+    if (submissionId) {
+      await recordEmailOutcome(submissionId, { status: "sent", id: data?.id })
+    }
+
     // Success response with rate limit headers
     const response = createSuccessResponse({
       success: true,
+      stored: !!submissionId,
+      emailed: true,
       messageId: data?.id,
     })
 

@@ -26,21 +26,51 @@ import { VALIDATION, PAGINATION } from '@/lib/constants'
  * Sanitize string input to prevent XSS attacks
  * Escapes HTML entities and removes potentially dangerous patterns
  */
+const HTML_ENTITIES: Record<string, string> = {
+    '&': '&amp;',
+    '<': '&lt;',
+    '>': '&gt;',
+    '"': '&quot;',
+    "'": '&#x27;',
+    '/': '&#x2F;',
+    '`': '&#x60;',
+    '=': '&#x3D;'
+}
+
 export function sanitizeHtml(input: string): string {
     if (!input || typeof input !== 'string') return ''
 
-    const htmlEntities: Record<string, string> = {
-        '&': '&amp;',
-        '<': '&lt;',
-        '>': '&gt;',
-        '"': '&quot;',
-        "'": '&#x27;',
-        '/': '&#x2F;',
-        '`': '&#x60;',
-        '=': '&#x3D;'
-    }
+    return input.replace(/[&<>"'`=/]/g, (char) => HTML_ENTITIES[char] || char)
+}
 
-    return input.replace(/[&<>"'`=/]/g, (char) => htmlEntities[char] || char)
+/**
+ * The exact inverse of `sanitizeHtml`, built from the same table so the two
+ * cannot drift apart.
+ *
+ * WHEN YOU NEED THIS: repairing data written while the validators still
+ * escaped on input. `safeString`, `safeDisplayName` and `safeBio` used to end
+ * in `.transform(sanitizeHtml)`, so rows created before that changed hold
+ * `It&#x27;s an amazing tool` rather than the apostrophe the user typed.
+ * scripts/database/unescape-legacy-entities.mjs uses this to undo it.
+ *
+ * This is NOT for the request path. New input is stored as typed and escaped
+ * where it is interpolated; calling this on fresh input would corrupt a
+ * message that legitimately contains the text `&amp;`. And never unescape
+ * into an HTML context without re-escaping — that is the XSS the old
+ * transform was guarding against.
+ */
+export function unescapeHtml(input: string): string {
+    if (!input || typeof input !== 'string') return ''
+
+    // Longest-first, and `&amp;` last, so a double-escaped `&amp;#x2F;`
+    // unwinds one level per call instead of collapsing to `/` in one pass.
+    const entries = Object.entries(HTML_ENTITIES).filter(([char]) => char !== '&')
+
+    let output = input
+    for (const [char, entity] of entries) {
+        output = output.split(entity).join(char)
+    }
+    return output.split(HTML_ENTITIES['&']).join('&')
 }
 
 /**
@@ -118,13 +148,29 @@ export function stripUnexpectedFields<T extends object>(
 // ============================================================================
 
 /**
- * Safe string validator with length limits and sanitization
+ * Safe string validator with length limits.
+ *
+ * ESCAPING HAPPENS AT OUTPUT, NOT HERE. This used to end in
+ * `.transform(sanitizeHtml)`, which escaped at the input boundary and so
+ * stored escaped text in the database. Everything that is not an HTML context
+ * then displayed the entities literally: review bodies rendered as
+ * "It&#x27;s an amazing tool", and the contact email's plain-text part and
+ * subject header showed `&#x2F;` for every slash. Escaping again on the way
+ * into HTML produced `&amp;#x2F;`, which renders as the entity itself.
+ *
+ * The rule now: store what the user typed, escape where it is interpolated.
+ * That is safe here because no user-supplied value reaches HTML unescaped —
+ * React escapes `{value}` by default, the only two HTML producers
+ * (app/api/contact and lib/notifications/template.ts) call `sanitizeHtml` at
+ * the point of interpolation, and every `dangerouslySetInnerHTML` in the app
+ * renders JSON-LD or a static script, never user content.
+ *
+ * If you add a path that builds HTML from a validated string, escape it there.
  */
 export const safeString = (minLength = 0, maxLength = 1000) =>
     z.string()
         .min(minLength, `Must be at least ${minLength} characters`)
         .max(maxLength, `Must be at most ${maxLength} characters`)
-        .transform(sanitizeHtml)
 
 /**
  * Safe email validator
@@ -188,14 +234,16 @@ export const safeUsername = z.string()
 export const safeDisplayName = z.string()
     .min(1, 'Display name is required')
     .max(VALIDATION.DISPLAY_NAME_MAX_LENGTH, `Display name must be at most ${VALIDATION.DISPLAY_NAME_MAX_LENGTH} characters`)
-    .transform(sanitizeHtml)
 
 /**
  * Safe bio validator
+ *
+ * Escaped at output like every other stored string — see `safeString`. A bio
+ * with an apostrophe in it was previously stored as `&#x27;` and shown that
+ * way on the profile.
  */
 export const safeBio = z.string()
     .max(VALIDATION.BIO_MAX_LENGTH, `Bio must be at most ${VALIDATION.BIO_MAX_LENGTH} characters`)
-    .transform(sanitizeHtml)
     .optional()
 
 /**
