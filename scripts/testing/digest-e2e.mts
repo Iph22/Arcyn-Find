@@ -287,14 +287,43 @@ if (sendArg) {
   if (!apiKey) {
     check('RESEND_API_KEY is set', false, 'cannot send without it')
   } else {
+    // This must be byte-for-byte what the cron sends, or it is not a test of
+    // the cron. The first version differed in two ways that both happened to
+    // make it *less* deliverable than production: it omitted the
+    // List-Unsubscribe headers, which are a strong legitimacy signal to Gmail,
+    // and it prefixed the subject with "[test]", which is itself a mild spam
+    // trigger. A message that lands in spam then tells you nothing about
+    // whether the real digest would have.
+    //
+    // The unsubscribe token is the recipient's real one when they are a known
+    // profile, so the link in the message genuinely works -- which also makes
+    // this the only way the unsubscribe path gets exercised end to end.
+    // Clicking it really does unsubscribe; re-enable under Settings.
+    const { data: profile } = await db
+      .from('user_profiles')
+      .select('display_name, unsubscribe_token')
+      .eq('email', to)
+      .maybeSingle()
+
+    const token = (profile?.unsubscribe_token as string | undefined) ?? 'preview-token'
+    check('using the recipient\'s real unsubscribe token', token !== 'preview-token',
+      profile ? `profile: ${profile.display_name}` : 'no matching profile; link will be inert')
+
+    const unsubscribeUrl = `${ORIGIN}/api/notifications/unsubscribe?token=${encodeURIComponent(token)}`
+    const realInput = { ...input, displayName: (profile?.display_name as string | undefined) ?? null, unsubscribeUrl }
+
     const { Resend } = await import('resend')
     const resend = new Resend(apiKey)
     const { data, error } = await resend.emails.send({
       from: `Arcyn Find <${process.env.RESEND_FROM_EMAIL || 'onboarding@resend.dev'}>`,
       to: [to],
-      subject: `[test] ${content.isNew ? 'New AI tools on Arcyn Find' : 'AI tools worth a look'}`,
-      html,
-      text,
+      subject: content.isNew ? 'New AI tools on Arcyn Find' : 'AI tools worth a look',
+      html: renderDigestHtml(realInput),
+      text: renderDigestText(realInput),
+      headers: {
+        'List-Unsubscribe': `<${unsubscribeUrl}>`,
+        'List-Unsubscribe-Post': 'List-Unsubscribe=One-Click',
+      },
     })
     check('test message accepted', !error && Boolean(data?.id), error?.message ?? data?.id ?? '')
   }
