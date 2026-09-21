@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useState } from "react"
+import { useEffect } from "react"
 import { useRouter } from "next/navigation"
 import { motion } from "framer-motion"
 import { CodesandboxIcon, ArrowLeft, Loader2, Sparkles, Zap, Shield } from "lucide-react"
@@ -34,9 +34,8 @@ function GoogleIcon({ className }: { className?: string }) {
 
 export default function SignUpPage() {
   const router = useRouter()
-  const { isAuthenticated, isLoading, signIn } = useAuth()
-  const [isSigningUp, setIsSigningUp] = useState(false)
-
+  const { isAuthenticated, isLoading, signIn, isRedirectingToGoogle } = useAuth()
+  
   // Redirect if already authenticated
   useEffect(() => {
     if (!isLoading && isAuthenticated) {
@@ -45,7 +44,6 @@ export default function SignUpPage() {
   }, [isAuthenticated, isLoading, router])
 
   const handleGoogleSignUp = () => {
-    setIsSigningUp(true)
     // Store redirect to onboarding for new users
     if (typeof window !== 'undefined') {
       sessionStorage.setItem('auth_redirect', '/onboarding')
@@ -126,10 +124,10 @@ export default function SignUpPage() {
             {/* Google Sign Up Button */}
             <Button
               onClick={handleGoogleSignUp}
-              disabled={isSigningUp}
+              disabled={isRedirectingToGoogle}
               className="w-full h-12 text-base font-medium bg-primary hover:bg-primary/90 text-primary-foreground shadow-lg shadow-primary/20 transition-all duration-300"
             >
-              {isSigningUp ? (
+              {isRedirectingToGoogle ? (
                 <>
                   <Loader2 className="w-5 h-5 mr-3 animate-spin" />
                   Redirecting to Google…
