@@ -12,7 +12,7 @@
  */
 
 import { NextResponse } from 'next/server'
-import { sendDigest } from '@/lib/notifications/send-digest'
+import { sendDigest, digestRunFailureReason } from '@/lib/notifications/send-digest'
 import { logger } from '@/lib/logger'
 
 export const maxDuration = 60 // 60 seconds max
@@ -43,13 +43,10 @@ export async function GET(req: Request) {
             `failed=${result.failed} skipped=${result.skipped} in ${result.elapsedMs}ms`
         )
 
-        if (result.toolCount === 0) {
-            // Said out loud rather than reported as a successful no-op. An empty
-            // candidate set means the content query stopped matching -- a schema
-            // change, or the popularity band drifting -- and a digest that
-            // quietly stops going out looks identical to one nobody opens.
-            logger.warn('[Cron:SendDigest] no tools qualified; nothing was sent')
-        }
+        // An empty candidate set means the content query stopped matching -- a
+        // schema change, or the popularity band drifting. It is escalated to a
+        // failed response below rather than merely logged, because a digest
+        // that quietly stops going out looks identical to one nobody opens.
 
         if (result.budgetExhausted) {
             // Not an error: claiming is per-period, so the remaining recipients
@@ -63,6 +60,25 @@ export async function GET(req: Request) {
 
         if (result.failed > 0) {
             logger.warn(`[Cron:SendDigest] ${result.failed} recipient(s) failed; see notification_log`)
+        }
+
+        // A run can complete without throwing and still have reached nobody.
+        // Per-recipient rejections are counted rather than thrown, so without
+        // this check a run where Resend refused every address returned 200 and
+        // the workflow went green -- the alert step it has cannot fire on a
+        // success. Non-2xx so `curl --fail` trips and an issue gets opened.
+        const failureReason = digestRunFailureReason(result)
+        if (failureReason) {
+            logger.error(`[Cron:SendDigest] reporting failure: ${failureReason}`)
+            return NextResponse.json(
+                {
+                    success: false,
+                    error: failureReason,
+                    ...result,
+                    duration: Date.now() - startTime,
+                },
+                { status: 500 }
+            )
         }
 
         return NextResponse.json({

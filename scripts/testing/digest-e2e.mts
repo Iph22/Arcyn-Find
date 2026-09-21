@@ -20,7 +20,7 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { buildDigestContent, DIGEST_TOOL_COUNT } from '../../lib/notifications/digest-content.ts'
 import { renderDigestHtml, renderDigestText } from '../../lib/notifications/template.ts'
-import { isoWeekKey, claimRecipients } from '../../lib/notifications/send-digest.ts'
+import { isoWeekKey, claimRecipients, digestRunFailureReason } from '../../lib/notifications/send-digest.ts'
 import { normalizeName } from '../../lib/seo/slug.ts'
 import { getSupabaseAdmin } from '../../lib/supabase.ts'
 
@@ -150,6 +150,45 @@ check('text alternative is not empty', text.trim().length > 100, `${text.length}
 const previewPath = join(tmpdir(), 'arcyn-digest-preview.html')
 writeFileSync(previewPath, html, 'utf8')
 console.log(`\n  Preview written to: ${previewPath}`)
+
+// ---------------------------------------------------------------------------
+// 3b. Failure reporting
+// ---------------------------------------------------------------------------
+//
+// The cron route must answer non-2xx when a run reached nobody, because the
+// workflow's alert step fires on `curl --fail` and cannot fire on a success.
+// Per-recipient rejections are counted rather than thrown, so a run where the
+// provider refused every address previously returned 200 and went green.
+
+console.log('\nFailure reporting')
+const baseResult = {
+  digestKey: '2026-W39', attempted: 0, sent: 0, failed: 0, skipped: 0,
+  budgetExhausted: false, toolCount: 6, isNew: false, elapsedMs: 10,
+}
+
+check('healthy run is not a failure',
+  digestRunFailureReason({ ...baseResult, attempted: 2, sent: 2 }) === null)
+
+// The state right after the migration: content is fine, nobody has an address
+// yet. Must NOT alert, or the schedule cries wolf every week until sign-ins
+// accumulate.
+check('zero recipients is not a failure',
+  digestRunFailureReason(baseResult) === null)
+
+// The configuration fault this fix exists for: unverified domain, revoked key.
+check('every send failing IS a failure',
+  digestRunFailureReason({ ...baseResult, attempted: 2, failed: 2 }) !== null,
+  digestRunFailureReason({ ...baseResult, attempted: 2, failed: 2 }) ?? '')
+
+// One bad address among several is tolerated -- addresses come from OAuth
+// providers and are not re-validated, so some churn is expected.
+check('partial failure is not escalated',
+  digestRunFailureReason({ ...baseResult, attempted: 3, sent: 2, failed: 1 }) === null)
+
+// An empty selection is never the catalog being quiet; the band holds ~2,900.
+check('empty digest IS a failure',
+  digestRunFailureReason({ ...baseResult, toolCount: 0 }) !== null,
+  digestRunFailureReason({ ...baseResult, toolCount: 0 }) ?? '')
 
 // ---------------------------------------------------------------------------
 // 4. The idempotency guard
