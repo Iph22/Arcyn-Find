@@ -51,6 +51,45 @@ export interface DigestRunResult {
   elapsedMs: number
 }
 
+/**
+ * Whether a completed run should be reported to the schedule as a failure.
+ *
+ * Returns a reason, or null when the run was acceptable.
+ *
+ * This exists because "the function returned without throwing" and "people
+ * received the digest" are different claims, and only the first was being
+ * reported. Per-recipient rejections are caught and counted rather than
+ * thrown, so a run in which Resend refused *every* address still returned a
+ * result object and a 200 -- and `curl --fail` in the workflow only trips on
+ * a non-2xx. A total delivery failure therefore produced a green run and no
+ * alert, which is precisely how the trending cron failed 40 times before
+ * anyone noticed.
+ *
+ * Two conditions, both meaning "nobody got mail and that is not normal":
+ *
+ *   - every attempted send failed. One bad address among many is tolerated
+ *     and merely logged, because addresses come from OAuth providers and are
+ *     not re-validated; losing *all* of them is a configuration fault
+ *     (unverified domain, revoked key) and not self-correcting.
+ *
+ *   - the digest had no content. The publishable band holds ~2,900 rows, so
+ *     an empty selection is never the catalog being quiet -- it is a schema
+ *     change, a drifted popularity band or a broken query. A digest that
+ *     silently stops going out looks exactly like one nobody opens.
+ *
+ * Having zero recipients is deliberately *not* a failure: that is the
+ * expected state while addresses are still accumulating from sign-ins.
+ */
+export function digestRunFailureReason(result: DigestRunResult): string | null {
+  if (result.toolCount === 0) {
+    return 'no tools qualified for the digest; nothing could be sent'
+  }
+  if (result.attempted > 0 && result.failed === result.attempted) {
+    return `every one of ${result.attempted} attempted send(s) failed`
+  }
+  return null
+}
+
 interface Recipient {
   id: string
   email: string
