@@ -4,6 +4,7 @@ import { siteUrl } from '@/lib/seo/site'
 import { logger } from '@/lib/logger'
 import { buildDigestContent, type DigestContent } from './digest-content'
 import { renderDigestHtml, renderDigestText } from './template'
+import { isPushConfigured, sendPushToUsers } from './send-push'
 
 /**
  * The digest sender.
@@ -49,6 +50,17 @@ export interface DigestRunResult {
   toolCount: number
   isNew: boolean
   elapsedMs: number
+  /**
+   * Browser-push counts, reported separately from email on purpose.
+   *
+   * Push is a bonus channel: most recipients have no subscription, and an
+   * expired one is routine housekeeping rather than a fault. Folding these
+   * into `sent`/`failed` would make the email numbers unreadable and could
+   * trip the failure check below over something that is working correctly.
+   */
+  pushSent: number
+  pushFailed: number
+  pushExpired: number
 }
 
 /**
@@ -413,6 +425,9 @@ export async function sendDigest(now: Date = new Date()): Promise<DigestRunResul
       failed: 0,
       skipped: 0,
       budgetExhausted: false,
+      pushSent: 0,
+      pushFailed: 0,
+      pushExpired: 0,
       toolCount: 0,
       isNew: content.isNew,
       elapsedMs: Date.now() - startedAt,
@@ -422,6 +437,9 @@ export async function sendDigest(now: Date = new Date()): Promise<DigestRunResul
   const resend = new Resend(apiKey)
 
   let attempted = 0
+  let pushSent = 0
+  let pushFailed = 0
+  let pushExpired = 0
   let sent = 0
   let failed = 0
   let skipped = 0
@@ -461,6 +479,29 @@ export async function sendDigest(now: Date = new Date()): Promise<DigestRunResul
       await resolveClaims(result.sent, digestKey, 'sent', {})
       await markSent(result.sent)
 
+      // Push the same digest to whichever browsers these recipients have
+      // subscribed. Deliberately keyed off `result.sent` rather than the whole
+      // batch: someone whose email bounced should not get a notification
+      // pointing at a digest they never received.
+      //
+      // Push is a bonus channel, never a gate. Most recipients have no
+      // subscription at all, its failures are counted separately, and nothing
+      // here can fail the email run -- which is why it is awaited but its
+      // result only feeds the log.
+      if (result.sent.length > 0 && isPushConfigured()) {
+        const push = await sendPushToUsers(result.sent, {
+          title: content.isNew ? 'New AI tools on Arcyn Find' : 'AI tools worth a look',
+          body: content.tools
+            .slice(0, 3)
+            .map((t) => t.name)
+            .join(', ') + (content.tools.length > 3 ? ` and ${content.tools.length - 3} more` : ''),
+          url: `${origin}/tools`,
+        })
+        pushSent += push.sent
+        pushFailed += push.failed
+        pushExpired += push.expired
+      }
+
       if (result.failed.length > 0) {
         await resolveClaims(result.failed, digestKey, 'failed', {
           error: result.error ?? 'provider rejected this recipient',
@@ -482,5 +523,8 @@ export async function sendDigest(now: Date = new Date()): Promise<DigestRunResul
     toolCount: content.tools.length,
     isNew: content.isNew,
     elapsedMs: Date.now() - startedAt,
+    pushSent,
+    pushFailed,
+    pushExpired,
   }
 }

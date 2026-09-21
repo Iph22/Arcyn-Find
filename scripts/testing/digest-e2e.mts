@@ -23,6 +23,7 @@ import { renderDigestHtml, renderDigestText } from '../../lib/notifications/temp
 import { isoWeekKey, claimRecipients, digestRunFailureReason } from '../../lib/notifications/send-digest.ts'
 import { normalizeName } from '../../lib/seo/slug.ts'
 import { getSupabaseAdmin } from '../../lib/supabase.ts'
+import { isPushConfigured } from '../../lib/notifications/send-push.ts'
 
 const db = getSupabaseAdmin()
 
@@ -164,6 +165,7 @@ console.log('\nFailure reporting')
 const baseResult = {
   digestKey: '2026-W39', attempted: 0, sent: 0, failed: 0, skipped: 0,
   budgetExhausted: false, toolCount: 6, isNew: false, elapsedMs: 10,
+  pushSent: 0, pushFailed: 0, pushExpired: 0,
 }
 
 check('healthy run is not a failure',
@@ -189,6 +191,41 @@ check('partial failure is not escalated',
 check('empty digest IS a failure',
   digestRunFailureReason({ ...baseResult, toolCount: 0 }) !== null,
   digestRunFailureReason({ ...baseResult, toolCount: 0 }) ?? '')
+
+// ---------------------------------------------------------------------------
+// 3c. Browser push
+// ---------------------------------------------------------------------------
+//
+// Push is a bonus channel on the same cron. What matters here is that it is
+// configured, that its storage exists, and above all that it cannot affect the
+// email run -- a browser that unsubscribed must never turn a good digest into
+// a reported failure.
+
+console.log('\nBrowser push')
+check('VAPID keys configured', isPushConfigured(),
+  isPushConfigured() ? '' : 'set NEXT_PUBLIC_VAPID_PUBLIC_KEY and VAPID_PRIVATE_KEY')
+
+// A real column select, deliberately not `{ head: true, count: 'planned' }`.
+// That form returns `ok` with a null count against a table that does not
+// exist -- it never reaches PostgREST's schema cache -- so the first version
+// of this check reported the table as present before the migration had been
+// applied. A test that cannot fail is worse than no test.
+const { data: subs, error: pushTableError } = await db
+  .from('push_subscriptions')
+  .select('id, endpoint, p256dh, auth')
+  .limit(1)
+check('push_subscriptions table exists', !pushTableError,
+  pushTableError ? `${pushTableError.code}: apply supabase/migrations/add_push_subscriptions.sql` : '')
+if (!pushTableError) console.log(`  subscriptions stored: ${subs?.length ?? 0}`)
+
+// Push counts are reported separately from email precisely so they cannot
+// trip the alert. A run where every push failed but every email landed is a
+// successful run.
+check('failed pushes do not fail the run',
+  digestRunFailureReason({ ...baseResult, attempted: 2, sent: 2, pushSent: 0, pushFailed: 9, pushExpired: 4 }) === null)
+// And the converse: push succeeding must not mask a total email failure.
+check('push success does not mask an email failure',
+  digestRunFailureReason({ ...baseResult, attempted: 2, sent: 0, failed: 2, pushSent: 5 }) !== null)
 
 // ---------------------------------------------------------------------------
 // 4. The idempotency guard
