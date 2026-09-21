@@ -9,6 +9,7 @@ import { AuthProvider } from "@/contexts/auth-context"
 import { LanguageProvider } from "@/contexts/language-context"
 import { ThemeProvider } from "next-themes"
 import ClientLayout from "./client-layout"
+import { FeedbackWidget } from "@/components/feedback-widget"
 import { Analytics } from "@vercel/analytics/next"
 import { siteUrl } from "@/lib/seo/site"
 import { Toaster } from "@/components/ui/sonner"
@@ -212,6 +213,16 @@ export default function RootLayout({
         </ThemeProvider>
         <Analytics />
         <Toaster />
+
+        {/*
+          Review-round only. NEXT_PUBLIC_FEEDBACK_MODE is read at build time, so
+          turning the round off is an env change plus a redeploy -- no revert,
+          and no stray feedback button left on the public site. Mounted outside
+          ClientLayout so it is reachable from every route, including the
+          not-found and error boundaries where a reviewer most wants to report
+          something.
+        */}
+        {process.env.NEXT_PUBLIC_FEEDBACK_MODE === "true" && <FeedbackWidget />}
 
         {/* Datafast Analytics */}
         <Script
