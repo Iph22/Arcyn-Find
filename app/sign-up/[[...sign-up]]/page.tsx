@@ -7,6 +7,7 @@ import { CodesandboxIcon, ArrowLeft, Loader2, Sparkles, Zap, Shield } from "luci
 import { Button } from "@/components/ui/button"
 import { useAuth } from "@/contexts/auth-context"
 import Link from "next/link"
+import { useLanguage } from "@/contexts/language-context"
 
 // Google icon component
 function GoogleIcon({ className }: { className?: string }) {
@@ -33,6 +34,7 @@ function GoogleIcon({ className }: { className?: string }) {
 }
 
 export default function SignUpPage() {
+  const { t } = useLanguage()
   const router = useRouter()
   const { isAuthenticated, isLoading, signIn, isRedirectingToGoogle } = useAuth()
   
@@ -93,9 +95,9 @@ export default function SignUpPage() {
                   and tapping its "Create account" button, which starts a
                   GOOGLE signup and then rejects their existing address as
                   already taken. Naming whose account this is costs a word. */}
-              <h1 className="text-2xl sm:text-3xl font-bold mb-2">Create your Arcyn Find account</h1>
+              <h1 className="text-2xl sm:text-3xl font-bold mb-2">{t("auth.createAccount")}</h1>
               <p className="text-muted-foreground">
-                Join Arcyn Find and discover AI tools worldwide
+                {t("auth.signUpSub")}
               </p>
             </div>
 
@@ -135,7 +137,7 @@ export default function SignUpPage() {
               ) : (
                 <>
                   <GoogleIcon className="w-5 h-5 mr-3" />
-                  Continue with Google
+                  {t("auth.continueGoogle")}
                 </>
               )}
             </Button>
@@ -154,11 +156,11 @@ export default function SignUpPage() {
             <p className="mt-6 text-center text-xs text-muted-foreground">
               By signing up, you agree to our{' '}
               <Link href="/terms" className="text-primary hover:underline">
-                Terms of Service
+                {t("landing.termsOfService")}
               </Link>{' '}
               and{' '}
               <Link href="/privacy" className="text-primary hover:underline">
-                Privacy Policy
+                {t("landing.privacyPolicy")}
               </Link>
             </p>
           </div>
@@ -167,7 +169,7 @@ export default function SignUpPage() {
           <p className="mt-6 text-center text-sm text-muted-foreground">
             Already have an account?{' '}
             <Link href="/sign-in" className="text-primary hover:underline font-medium">
-              Sign in
+              {t("nav.signIn")}
             </Link>
           </p>
         </motion.div>
