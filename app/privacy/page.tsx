@@ -35,89 +35,112 @@ export default function PrivacyPage() {
 
             {language !== "en" && (
               <p className="rounded-lg border border-border bg-muted/40 px-4 py-3 text-sm">
-                {t("legal.governingNotice")}
+                {t("legal.englishOnly")}
               </p>
             )}
 
             <section>
-              <h2 className="text-2xl font-semibold text-foreground mb-4">{t("privacy.s1.title")}</h2>
-              <p>{t("privacy.s1.body")}</p>
+              <h2 className="text-2xl font-semibold text-foreground mb-4">1. Introduction</h2>
+              <p>
+                Welcome to Arcyn Find. We respect your privacy and are committed to protecting your personal data.
+                This privacy policy explains how we collect, use, and safeguard your information when you use our service.
+              </p>
             </section>
 
             <section>
-              <h2 className="text-2xl font-semibold text-foreground mb-4">{t("privacy.s2.title")}</h2>
-              <p>{t("privacy.s2.intro")}</p>
+              <h2 className="text-2xl font-semibold text-foreground mb-4">2. Information We Collect</h2>
+              <p>We collect the following types of information:</p>
               <ul className="list-disc pl-6 space-y-2">
-                <li><strong>{t("privacy.s2.accountLabel")}</strong> {t("privacy.s2.account")}</li>
-                <li><strong>{t("privacy.s2.usageLabel")}</strong> {t("privacy.s2.usage")}</li>
-                <li><strong>{t("privacy.s2.deviceLabel")}</strong> {t("privacy.s2.device")}</li>
-                <li><strong>{t("privacy.s2.cookiesLabel")}</strong> {t("privacy.s2.cookies")}</li>
+                <li><strong>Account Information:</strong> Email address, username, and profile information when you create an account</li>
+                <li><strong>Usage Data:</strong> Information about how you interact with our service, including search queries and tool views</li>
+                <li><strong>Device Information:</strong> Browser type, device type, and IP address</li>
+                <li><strong>Cookies:</strong> We use cookies to enhance your experience and analyze usage patterns</li>
               </ul>
             </section>
 
             <section>
-              <h2 className="text-2xl font-semibold text-foreground mb-4">{t("privacy.s3.title")}</h2>
-              <p>{t("privacy.s3.intro")}</p>
+              <h2 className="text-2xl font-semibold text-foreground mb-4">3. How We Use Your Information</h2>
+              <p>We use your information to:</p>
               <ul className="list-disc pl-6 space-y-2">
-                <li>{t("privacy.s3.i1")}</li>
-                <li>{t("privacy.s3.i2")}</li>
-                <li>{t("privacy.s3.i3")}</li>
-                <li>{t("privacy.s3.i4")}</li>
-                <li>{t("privacy.s3.i5")}</li>
+                <li>Provide and improve our services</li>
+                <li>Personalize your experience</li>
+                <li>Send you important updates and notifications</li>
+                <li>Analyze usage patterns to improve our platform</li>
+                <li>Ensure security and prevent fraud</li>
               </ul>
             </section>
 
             <section>
-              <h2 className="text-2xl font-semibold text-foreground mb-4">{t("privacy.s4.title")}</h2>
-              <p>{t("privacy.s4.intro")}</p>
+              <h2 className="text-2xl font-semibold text-foreground mb-4">4. Data Sharing</h2>
+              <p>
+                We do not sell your personal data. We may share your information only in the following circumstances:
+              </p>
               <ul className="list-disc pl-6 space-y-2">
-                <li>{t("privacy.s4.i1")}</li>
-                <li>{t("privacy.s4.i2")}</li>
-                <li>{t("privacy.s4.i3")}</li>
-                <li>{t("privacy.s4.i0")}</li>
+                <li>With your explicit consent</li>
+                <li>To comply with legal obligations</li>
+                <li>To protect our rights and safety</li>
+                <li>With service providers who assist in operating our platform (under strict confidentiality agreements)</li>
               </ul>
             </section>
 
             <section>
-              <h2 className="text-2xl font-semibold text-foreground mb-4">{t("privacy.s5.title")}</h2>
-              <p>{t("privacy.s5.body")}</p>
+              <h2 className="text-2xl font-semibold text-foreground mb-4">5. Data Security</h2>
+              <p>
+                We implement industry-standard security measures to protect your data, including encryption,
+                secure authentication, and regular security audits. However, no method of transmission over the
+                internet is 100% secure.
+              </p>
             </section>
 
             <section>
-              <h2 className="text-2xl font-semibold text-foreground mb-4">{t("privacy.s6.title")}</h2>
-              <p>{t("privacy.s6.intro")}</p>
+              <h2 className="text-2xl font-semibold text-foreground mb-4">6. Your Rights</h2>
+              <p>You have the right to:</p>
               <ul className="list-disc pl-6 space-y-2">
-                <li>{t("privacy.s6.i1")}</li>
-                <li>{t("privacy.s6.i2")}</li>
-                <li>{t("privacy.s6.i3")}</li>
-                <li>{t("privacy.s6.i4")}</li>
-                <li>{t("privacy.s6.i5")}</li>
+                <li>Access your personal data</li>
+                <li>Correct inaccurate data</li>
+                <li>Request deletion of your data</li>
+                <li>Opt-out of marketing communications</li>
+                <li>Export your data</li>
               </ul>
             </section>
 
             <section>
-              <h2 className="text-2xl font-semibold text-foreground mb-4">{t("privacy.s7.title")}</h2>
-              <p>{t("privacy.s7.body")}</p>
+              <h2 className="text-2xl font-semibold text-foreground mb-4">7. Cookies</h2>
+              <p>
+                We use cookies to enhance your experience. You can control cookies through your browser settings,
+                but this may affect some functionality of our service.
+              </p>
             </section>
 
             <section>
-              <h2 className="text-2xl font-semibold text-foreground mb-4">{t("privacy.s8.title")}</h2>
-              <p>{t("privacy.s8.body")}</p>
+              <h2 className="text-2xl font-semibold text-foreground mb-4">8. Third-Party Services</h2>
+              <p>
+                Our service may contain links to third-party websites. We are not responsible for the privacy
+                practices of these external sites. We encourage you to review their privacy policies.
+              </p>
             </section>
 
             <section>
-              <h2 className="text-2xl font-semibold text-foreground mb-4">{t("privacy.s9.title")}</h2>
-              <p>{t("privacy.s9.body")}</p>
+              <h2 className="text-2xl font-semibold text-foreground mb-4">9. Children's Privacy</h2>
+              <p>
+                Our service is not intended for children under 13. We do not knowingly collect personal information
+                from children under 13.
+              </p>
             </section>
 
             <section>
-              <h2 className="text-2xl font-semibold text-foreground mb-4">{t("privacy.s10.title")}</h2>
-              <p>{t("privacy.s10.body")}</p>
+              <h2 className="text-2xl font-semibold text-foreground mb-4">10. Changes to This Policy</h2>
+              <p>
+                We may update this privacy policy from time to time. We will notify you of any significant changes
+                by posting the new policy on this page and updating the "Last updated" date.
+              </p>
             </section>
 
             <section>
-              <h2 className="text-2xl font-semibold text-foreground mb-4">{t("privacy.s11.title")}</h2>
-              <p>{t("privacy.s11.body")}</p>
+              <h2 className="text-2xl font-semibold text-foreground mb-4">11. Contact Us</h2>
+              <p>
+                If you have questions about this privacy policy, please contact us at:
+              </p>
               <p>
                 <strong>{t("legal.email")}</strong> <a href="mailto:hello@arcynfind.com" className="text-primary hover:underline">hello@arcynfind.com</a>
               </p>
