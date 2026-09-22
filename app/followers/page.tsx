@@ -13,6 +13,7 @@ import { Sidebar } from "@/components/layout/sidebar"
 import { ThemeToggle } from "@/components/layout/theme-toggle"
 import { LanguagePicker } from "@/components/layout/language-picker"
 import { useAuth } from "@/contexts/auth-context"
+import { useLanguage } from "@/contexts/language-context"
 import { toast } from "sonner"
 
 interface UserData {
@@ -29,6 +30,7 @@ interface UserData {
 }
 
 export default function FollowersPage() {
+  const { t } = useLanguage()
   const router = useRouter()
   const { user, isLoading: isAuthLoading, isAuthenticated } = useAuth()
   const [sidebarOpen, setSidebarOpen] = useState(false) // Hidden by default on mobile
@@ -97,7 +99,7 @@ export default function FollowersPage() {
       <div className="flex h-dvh items-center justify-center">
         <div className="text-center">
           <div className="mb-4 inline-block h-8 w-8 animate-spin rounded-full border-4 border-primary border-t-transparent" />
-          <p className="text-muted-foreground">Loading...</p>
+          <p className="text-muted-foreground">{t("common.loading")}</p>
         </div>
       </div>
     )
@@ -185,7 +187,7 @@ export default function FollowersPage() {
               </Button>
               <div className="flex items-center gap-2">
 
-                <span className="text-lg font-bold">Community</span>
+                <span className="text-lg font-bold">{t("community.heading")}</span>
               </div>
             </div>
             <div className="flex items-center gap-2">
@@ -205,8 +207,8 @@ export default function FollowersPage() {
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.5, delay: 0.1 }}
             >
-              <h1 className="mb-2 text-4xl font-bold">Community</h1>
-              <p className="text-lg text-muted-foreground">Connect with other AI enthusiasts</p>
+              <h1 className="mb-2 text-4xl font-bold">{t("community.heading")}</h1>
+              <p className="text-lg text-muted-foreground">{t("community.subtitle")}</p>
             </motion.div>
 
             {/* Search Bar */}
@@ -221,7 +223,7 @@ export default function FollowersPage() {
                   <Search className="absolute left-4 top-1/2 h-5 w-5 -translate-y-1/2 text-muted-foreground" />
                   <Input
                     type="text"
-                    placeholder="Search by name or username..."
+                    placeholder={t("community.searchPlaceholder")}
                     value={searchQuery}
                     onChange={(e) => setSearchQuery(e.target.value)}
                     className="h-12 border-0 bg-transparent pl-12 text-base focus-visible:ring-0"

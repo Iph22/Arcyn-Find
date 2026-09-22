@@ -14,6 +14,7 @@ import { Sidebar } from "@/components/layout/sidebar"
 import { ThemeToggle } from "@/components/layout/theme-toggle"
 import { LanguagePicker } from "@/components/layout/language-picker"
 import { usePreferences } from "@/contexts/preferences-context"
+import { useLanguage } from "@/contexts/language-context"
 import {
   AlertDialog,
   AlertDialogAction,
@@ -83,6 +84,7 @@ interface Review {
 }
 
 export default function ProfilePage() {
+  const { t } = useLanguage()
   const router = useRouter()
   const { preferences, clearPreferences } = usePreferences()
   const { user, isLoading: isAuthLoading, isAuthenticated, signOut } = useAuth()
@@ -311,7 +313,7 @@ export default function ProfilePage() {
       <div className="flex h-dvh items-center justify-center">
         <div className="text-center">
           <div className="mb-4 inline-block h-8 w-8 animate-spin rounded-full border-4 border-primary border-t-transparent" />
-          <p className="text-muted-foreground">Loading profile...</p>
+          <p className="text-muted-foreground">{t("profile.loading")}</p>
         </div>
       </div>
     )
@@ -482,7 +484,7 @@ export default function ProfilePage() {
                   <div className="flex gap-6">
                     <div>
                       <span className="font-bold">{userStats?.savedTools || 0}</span>
-                      <span className="ml-1 text-sm text-muted-foreground">Saved Tools</span>
+                      <span className="ml-1 text-sm text-muted-foreground">{t("profile.savedTools")}</span>
                     </div>
                     <div>
                       <span className="font-bold">{userStats?.reviews || 0}</span>
@@ -490,18 +492,18 @@ export default function ProfilePage() {
                     </div>
                     <div>
                       <span className="font-bold">{userStats?.followers || 0}</span>
-                      <span className="ml-1 text-sm text-muted-foreground">Followers</span>
+                      <span className="ml-1 text-sm text-muted-foreground">{t("nav.followers")}</span>
                     </div>
                     <div>
                       <span className="font-bold">{userStats?.following || 0}</span>
-                      <span className="ml-1 text-sm text-muted-foreground">Following</span>
+                      <span className="ml-1 text-sm text-muted-foreground">{t("profile.following")}</span>
                     </div>
                   </div>
 
                   {/* User Preferences Section */}
                   {preferences?.categories && preferences.categories.length > 0 && (
                     <div className="mt-6 rounded-xl border border-border/50 bg-card/30 p-4">
-                      <h3 className="mb-3 text-sm font-semibold">Interests</h3>
+                      <h3 className="mb-3 text-sm font-semibold">{t("profile.interests")}</h3>
                       <div className="flex flex-wrap gap-2">
                         {preferences.categories.map((category) => (
                           <Badge key={category} variant="secondary">
@@ -530,7 +532,7 @@ export default function ProfilePage() {
 
                   {/* Danger Zone */}
                   <div className="mt-8 rounded-xl border border-destructive/20 bg-destructive/5 p-6">
-                    <h3 className="mb-2 text-sm font-semibold text-destructive">Danger Zone</h3>
+                    <h3 className="mb-2 text-sm font-semibold text-destructive">{t("profile.dangerZone")}</h3>
                     <p className="mb-4 text-sm text-muted-foreground">
                       Once you delete your account, there is no going back. Please be certain.
                     </p>
@@ -620,8 +622,8 @@ export default function ProfilePage() {
                       <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-2xl bg-muted">
                         <Bookmark className="h-8 w-8 text-muted-foreground" />
                       </div>
-                      <h3 className="mb-2 text-lg font-semibold">No saved tools yet</h3>
-                      <p className="text-muted-foreground">Start exploring and save tools you find interesting</p>
+                      <h3 className="mb-2 text-lg font-semibold">{t("profile.noSaved")}</h3>
+                      <p className="text-muted-foreground">{t("profile.noSavedDesc")}</p>
                     </Card>
                   )}
                 </TabsContent>
@@ -691,8 +693,8 @@ export default function ProfilePage() {
                       <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-2xl bg-muted">
                         <Star className="h-8 w-8 text-muted-foreground" />
                       </div>
-                      <h3 className="mb-2 text-lg font-semibold">No reviews yet</h3>
-                      <p className="text-muted-foreground">Start reviewing AI tools to help the community</p>
+                      <h3 className="mb-2 text-lg font-semibold">{t("profile.noReviews")}</h3>
+                      <p className="text-muted-foreground">{t("profile.noReviewsDesc")}</p>
                     </Card>
                   )}
                 </TabsContent>
@@ -726,8 +728,8 @@ export default function ProfilePage() {
                       <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-2xl bg-muted">
                         <Users className="h-8 w-8 text-muted-foreground" />
                       </div>
-                      <h3 className="mb-2 text-lg font-semibold">No activity yet</h3>
-                      <p className="text-muted-foreground">Your activity will appear here as you interact with tools</p>
+                      <h3 className="mb-2 text-lg font-semibold">{t("profile.noActivity")}</h3>
+                      <p className="text-muted-foreground">{t("profile.noActivityDesc")}</p>
                     </Card>
                   )}
                 </TabsContent>
@@ -741,23 +743,23 @@ export default function ProfilePage() {
       <AlertDialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Delete Account</AlertDialogTitle>
+            <AlertDialogTitle>{t("profile.deleteAccount")}</AlertDialogTitle>
             <AlertDialogDescription>
               Are you absolutely sure? This action cannot be undone. This will permanently delete your account
               and remove all of your data from our servers.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <div className="text-sm text-muted-foreground">
-            <p className="mb-2">This includes:</p>
+            <p className="mb-2">{t("profile.deleteIncludes")}</p>
             <ul className="ml-4 list-disc space-y-1">
-              <li>Your profile and preferences</li>
-              <li>All your reviews and ratings</li>
-              <li>Your collections and saved tools</li>
-              <li>Your favorites and activity history</li>
+              <li>{t("profile.deleteProfile")}</li>
+              <li>{t("profile.allReviews")}</li>
+              <li>{t("profile.deleteCollections")}</li>
+              <li>{t("profile.deleteFavorites")}</li>
             </ul>
           </div>
           <AlertDialogFooter>
-            <AlertDialogCancel disabled={isDeleting}>Cancel</AlertDialogCancel>
+            <AlertDialogCancel disabled={isDeleting}>{t("common.cancel")}</AlertDialogCancel>
             <AlertDialogAction
               onClick={handleDeleteAccount}
               disabled={isDeleting}

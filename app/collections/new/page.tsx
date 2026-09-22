@@ -1,6 +1,7 @@
 "use client"
 
 import { useState } from "react"
+import { useLanguage } from "@/contexts/language-context"
 import { useRouter } from "next/navigation"
 import { motion } from "framer-motion"
 import { ArrowLeft, Loader2 } from "lucide-react"
@@ -16,6 +17,7 @@ import { ThemeToggle } from "@/components/layout/theme-toggle"
 import { LanguagePicker } from "@/components/layout/language-picker"
 
 export default function NewCollectionPage() {
+  const { t } = useLanguage()
   const router = useRouter()
   const [name, setName] = useState("")
   const [description, setDescription] = useState("")
@@ -75,7 +77,7 @@ export default function NewCollectionPage() {
               <Button variant="ghost" size="icon" onClick={() => router.back()}>
                 <ArrowLeft className="h-5 w-5" />
               </Button>
-              <h1 className="text-lg font-bold">Create New Collection</h1>
+              <h1 className="text-lg font-bold">{t("collections.newHeading")}</h1>
             </div>
             <div className="flex items-center gap-2">
               <LanguagePicker />
@@ -99,7 +101,7 @@ export default function NewCollectionPage() {
                       id="name"
                       value={name}
                       onChange={(e) => setName(e.target.value)}
-                      placeholder="My Awesome AI Tools"
+                      placeholder={t("collections.namePlaceholder")}
                       className="mt-2"
                       maxLength={100}
                       required
@@ -107,12 +109,12 @@ export default function NewCollectionPage() {
                   </div>
 
                   <div>
-                    <Label htmlFor="description">Description (Optional)</Label>
+                    <Label htmlFor="description">{t("collections.descLabel")}</Label>
                     <Textarea
                       id="description"
                       value={description}
                       onChange={(e) => setDescription(e.target.value)}
-                      placeholder="A collection of my favorite AI tools for..."
+                      placeholder={t("collections.descPlaceholder")}
                       className="mt-2"
                       rows={4}
                       maxLength={500}
@@ -124,7 +126,7 @@ export default function NewCollectionPage() {
 
                   <div className="flex items-center justify-between rounded-lg border p-4">
                     <div className="space-y-0.5">
-                      <Label htmlFor="public">Make Public</Label>
+                      <Label htmlFor="public">{t("collections.makePublic")}</Label>
                       <p className="text-sm text-muted-foreground">
                         Allow others to view this collection
                       </p>
@@ -144,7 +146,7 @@ export default function NewCollectionPage() {
                       disabled={isCreating}
                       className="flex-1"
                     >
-                      Cancel
+                      {t("common.cancel")}
                     </Button>
                     <Button
                       type="submit"

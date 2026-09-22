@@ -21,6 +21,7 @@ const ToolDetailModal = dynamic(
 )
 import { PricingBadge } from "@/components/tools/pricing-badge"
 import { usePreferences } from "@/contexts/preferences-context"
+import { useLanguage } from "@/contexts/language-context"
 import { useAuth } from "@/contexts/auth-context"
 import type { ToolWithRating } from "@/lib/types"
 import { logger } from "@/lib/logger"
@@ -42,6 +43,7 @@ interface TrendingTool {
 }
 
 export default function HomePage() {
+  const { t } = useLanguage()
   const router = useRouter()
   const [searchQuery, setSearchQuery] = useState("")
   const [sidebarOpen, setSidebarOpen] = useState(false) // Hidden by default on mobile
@@ -103,7 +105,7 @@ export default function HomePage() {
       <div className="flex h-dvh items-center justify-center">
         <div className="text-center">
           <div className="mb-4 inline-block h-8 w-8 animate-spin rounded-full border-4 border-primary border-t-transparent" />
-          <p className="text-muted-foreground">Loading...</p>
+          <p className="text-muted-foreground">{t("common.loading")}</p>
         </div>
       </div>
     )
@@ -250,7 +252,7 @@ export default function HomePage() {
                     value={searchQuery}
                     onChange={setSearchQuery}
                     onSubmit={handleSearchSubmit}
-                    placeholder="Search AI tools..."
+                    placeholder={t("search.placeholder")}
                     showButton={true}
                     onFocus={() => {
                       // Handle mobile scroll
@@ -306,7 +308,7 @@ export default function HomePage() {
                           <div className="h-6 w-6 animate-spin rounded-full border-3 border-primary border-t-transparent" />
                         </div>
                       ) : trendingTools.length === 0 ? (
-                        <p className="text-center py-8 text-sm text-muted-foreground">No trending tools found</p>
+                        <p className="text-center py-8 text-sm text-muted-foreground">{t("home.noTrending")}</p>
                       ) : (
                         trendingTools.slice(0, 3).map((tool) => (
                           <motion.div
@@ -363,7 +365,7 @@ export default function HomePage() {
                       <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-chart-1/10">
                         <Search className="h-5 w-5 text-chart-1" />
                       </div>
-                      <h2 className="text-lg font-semibold">Recent Searches</h2>
+                      <h2 className="text-lg font-semibold">{t("home.recentSearches")}</h2>
                     </div>
                     <div className="space-y-2">
                       {["ChatGPT Plugins", "Midjourney Prompts", "AI Writing Tools"].map((search, index) => (
