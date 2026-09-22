@@ -11,6 +11,7 @@ import { Sidebar } from "@/components/layout/sidebar"
 import { ThemeToggle } from "@/components/layout/theme-toggle"
 import { LanguagePicker } from "@/components/layout/language-picker"
 import { useAuth } from "@/contexts/auth-context"
+import { useLanguage } from "@/contexts/language-context"
 import { toast } from "sonner"
 
 interface Collection {
@@ -24,6 +25,7 @@ interface Collection {
 }
 
 export default function CollectionsPage() {
+  const { t } = useLanguage()
   const router = useRouter()
   const { user, isLoading: isAuthLoading, isAuthenticated } = useAuth()
   const [sidebarOpen, setSidebarOpen] = useState(false) // Hidden by default on mobile
@@ -61,7 +63,7 @@ export default function CollectionsPage() {
       <div className="flex h-dvh items-center justify-center">
         <div className="text-center">
           <div className="mb-4 inline-block h-8 w-8 animate-spin rounded-full border-4 border-primary border-t-transparent" />
-          <p className="text-muted-foreground">Loading...</p>
+          <p className="text-muted-foreground">{t("common.loading")}</p>
         </div>
       </div>
     )
@@ -133,8 +135,8 @@ export default function CollectionsPage() {
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.5, delay: 0.1 }}
             >
-              <h1 className="mb-2 text-2xl md:text-3xl lg:text-4xl font-bold">My Collections</h1>
-              <p className="text-base sm:text-lg text-muted-foreground">Organize your favorite AI tools into custom collections</p>
+              <h1 className="mb-2 text-2xl md:text-3xl lg:text-4xl font-bold">{t("collections.heading")}</h1>
+              <p className="text-base sm:text-lg text-muted-foreground">{t("collections.subtitle")}</p>
             </motion.div>
 
             {/* Collections Grid */}
@@ -145,8 +147,8 @@ export default function CollectionsPage() {
             ) : collections.length === 0 ? (
               <Card className="border-border/50 bg-card/50 p-12 text-center backdrop-blur-sm">
                 <Bookmark className="mx-auto mb-4 h-16 w-16 text-muted-foreground" />
-                <h3 className="mb-2 text-2xl font-semibold">No collections yet</h3>
-                <p className="mb-6 text-muted-foreground">Create your first collection to organize your favorite AI tools</p>
+                <h3 className="mb-2 text-2xl font-semibold">{t("collections.empty")}</h3>
+                <p className="mb-6 text-muted-foreground">{t("collections.emptyDesc")}</p>
                 <Button className="gap-2" onClick={() => router.push('/collections/new')}>
                   <Plus className="h-4 w-4" />
                   Create Collection
@@ -249,8 +251,8 @@ export default function CollectionsPage() {
                       <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-2xl bg-muted">
                         <Plus className="h-8 w-8 text-muted-foreground" />
                       </div>
-                      <h3 className="mb-2 font-semibold">Create Collection</h3>
-                      <p className="text-sm text-muted-foreground">Start a new collection</p>
+                      <h3 className="mb-2 font-semibold">{t("collections.create")}</h3>
+                      <p className="text-sm text-muted-foreground">{t("collections.startNew")}</p>
                     </div>
                   </Card>
                 </motion.div>
