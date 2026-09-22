@@ -23,7 +23,11 @@ function walk(dir, out = []) {
 // Visible text nodes and user-facing attributes. Deliberately conservative:
 // requires a capital letter and a couple of words, so class names, ids and
 // single symbols do not inflate the number.
-const TEXT = />\s*([A-Z][A-Za-z0-9 ,.'&:!?()/-]{4,80})\s*</g
+// Leading character is [A-Za-z0-9] rather than [A-Z]: numbered legal
+// headings like "5. Data Security" start with a digit, and requiring a
+// capital made the tool report a page as fully translated while five
+// sections of it were still English.
+const TEXT = />\s*([A-Za-z0-9][A-Za-z0-9 ,.'&:!?()/-]{4,200})\s*</g
 const ATTR = /\b(placeholder|title|aria-label|alt|label)="([A-Z][^"]{3,80})"/g
 const TOAST = /toast\.(success|error|info|warning|message)\(\s*["'`]([^"'`]{4,120})/g
 
