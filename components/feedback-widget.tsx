@@ -33,12 +33,14 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog"
 import { toast } from "sonner"
+import { useLanguage } from "@/contexts/language-context"
 
 const IDENTITY_KEY = "arcyn-feedback-identity"
 const MIN_MESSAGE = 10
 const MAX_MESSAGE = 5000
 
 export function FeedbackWidget() {
+  const { t } = useLanguage()
   const pathname = usePathname()
   const [open, setOpen] = useState(false)
   const [name, setName] = useState("")
@@ -140,16 +142,16 @@ export function FeedbackWidget() {
       <Button
         onClick={() => setOpen(true)}
         className="fixed bottom-[calc(1.25rem_+_var(--mobile-nav-clearance))] right-5 z-50 h-12 rounded-full shadow-lg gap-2 px-5 md:bottom-5"
-        aria-label="Send feedback about this page"
+        aria-label={t("feedback.aria")}
       >
         <MessageSquarePlus className="w-5 h-5" />
-        <span className="hidden sm:inline">Feedback</span>
+        <span className="hidden sm:inline">{t("feedback.label")}</span>
       </Button>
 
       <Dialog open={open} onOpenChange={setOpen}>
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
-            <DialogTitle>Send feedback</DialogTitle>
+            <DialogTitle>{t("feedback.send")}</DialogTitle>
             <DialogDescription>
               About <span className="font-mono text-xs">{pathname}</span>. The page and your
               browser details are attached automatically.
@@ -164,7 +166,7 @@ export function FeedbackWidget() {
                   id="feedback-name"
                   value={name}
                   onChange={(e) => setName(e.target.value)}
-                  placeholder="Your name"
+                  placeholder={t("contact.namePlaceholder")}
                   maxLength={100}
                 />
               </div>
@@ -182,7 +184,7 @@ export function FeedbackWidget() {
             </div>
 
             <div className="space-y-1.5">
-              <Label htmlFor="feedback-message">What did you notice?</Label>
+              <Label htmlFor="feedback-message">{t("feedback.prompt")}</Label>
               <Textarea
                 id="feedback-message"
                 value={message}

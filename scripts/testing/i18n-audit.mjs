@@ -51,6 +51,10 @@ for (const dir of DIRS) {
     const text = [...src.matchAll(TEXT)]
       .map((m) => m[1].trim())
       .filter((s) => !/^[A-Z][a-z]*$/.test(s) || s.length > 6)
+      // Widening the leading character to [A-Za-z0-9] let JSX guards in,
+      // e.g. `{items.length > 0 && (` matches as the text "0 && (".
+      // Require a real word and reject anything carrying JS operators.
+      .filter((s) => /[A-Za-z]{2}/.test(s) && !/&&|\|\||=>|[{}]/.test(s))
     const attr = [...src.matchAll(ATTR)].map((m) => m[2])
     const toasts = [...src.matchAll(TOAST)].map((m) => m[2])
 
