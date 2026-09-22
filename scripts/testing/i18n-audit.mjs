@@ -1,9 +1,15 @@
-// How much of the site is actually untranslated?
+// How much of the site is actually untranslated, and are the locales in sync?
 //
-// Counts user-visible English literals in app/ and components/, and separates
-// client components (which can use the current context) from server components
-// (which cannot -- useLanguage is a client hook, so a server-rendered string is
-// unreachable by the existing approach no matter how many keys we add).
+//   npm run i18n:audit
+//
+// Two questions, because they fail differently:
+//
+//   1. Untranslated English literals. Visible immediately to anyone who
+//      switches language, so it gets found eventually either way.
+//   2. Locale key parity. A key present in `en` and missing elsewhere does
+//      NOT fail anything -- `t()` falls back to English, the page renders,
+//      CI stays green, and that locale is quietly half-translated. Nothing
+//      else in this repo catches that.
 import { readdirSync, readFileSync, statSync } from 'node:fs'
 import { join, relative } from 'node:path'
 
@@ -20,19 +26,20 @@ function walk(dir, out = []) {
   return out
 }
 
-// Visible text nodes and user-facing attributes. Deliberately conservative:
-// requires a capital letter and a couple of words, so class names, ids and
-// single symbols do not inflate the number.
-// Leading character is [A-Za-z0-9] rather than [A-Z]: numbered legal
-// headings like "5. Data Security" start with a digit, and requiring a
-// capital made the tool report a page as fully translated while five
-// sections of it were still English.
+// Leading character is [A-Za-z0-9], not [A-Z]: numbered legal headings like
+// "5. Data Security" start with a digit, and requiring a capital made this
+// report a page as fully translated while five sections were still English.
+//
+// The ceiling is 200, not 80. Long sentences are exactly what legal and
+// explanatory copy is made of, and an 80-character cap hid all of it.
 const TEXT = />\s*([A-Za-z0-9][A-Za-z0-9 ,.'&:!?()/-]{4,200})\s*</g
-const ATTR = /\b(placeholder|title|aria-label|alt|label)="([A-Z][^"]{3,80})"/g
-const TOAST = /toast\.(success|error|info|warning|message)\(\s*["'`]([^"'`]{4,120})/g
+const ATTR = /\b(placeholder|title|aria-label|alt|label)="([A-Z][^"]{3,200})"/g
+const TOAST = /toast\.(success|error|info|warning|message)\(\s*["'`]([^"'`]{4,200})/g
 
 const rows = []
-let totalText = 0, totalAttr = 0, totalToast = 0
+let totalText = 0
+let totalAttr = 0
+let totalToast = 0
 
 for (const dir of DIRS) {
   for (const file of walk(join(ROOT, dir))) {
@@ -41,23 +48,24 @@ for (const dir of DIRS) {
     const isClient = /^["']use client["']/m.test(src)
     const hasHook = src.includes('useLanguage')
 
-    const text = [...src.matchAll(TEXT)].map((m) => m[1].trim())
+    const text = [...src.matchAll(TEXT)]
+      .map((m) => m[1].trim())
       .filter((s) => !/^[A-Z][a-z]*$/.test(s) || s.length > 6)
     const attr = [...src.matchAll(ATTR)].map((m) => m[2])
     const toasts = [...src.matchAll(TOAST)].map((m) => m[2])
 
     const n = text.length + attr.length + toasts.length
     if (n === 0) continue
-    totalText += text.length; totalAttr += attr.length; totalToast += toasts.length
-    rows.push({ rel, isClient, hasHook, n, text: text.length, attr: attr.length, toast: toasts.length })
+    totalText += text.length
+    totalAttr += attr.length
+    totalToast += toasts.length
+    rows.push({ rel, isClient, hasHook, n })
   }
 }
 
 rows.sort((a, b) => b.n - a.n)
-
 const client = rows.filter((r) => r.isClient)
 const server = rows.filter((r) => !r.isClient)
-const wired = rows.filter((r) => r.hasHook)
 
 console.log('UNTRANSLATED USER-VISIBLE STRINGS')
 console.log('')
@@ -69,15 +77,57 @@ console.log('')
 console.log(`  files with strings      ${rows.length}`)
 console.log(`    client components     ${client.length}  (reachable by useLanguage)`)
 console.log(`    server components     ${server.length}  (NOT reachable -- useLanguage is a client hook)`)
-console.log(`    already wired to t()  ${wired.length}`)
 console.log('')
-console.log('TOP 20 FILES BY UNTRANSLATED STRINGS')
-for (const r of rows.slice(0, 20)) {
-  const kind = r.isClient ? 'client' : 'SERVER'
-  const w = r.hasHook ? ' [wired]' : ''
-  console.log(`  ${String(r.n).padStart(4)}  ${kind}  ${r.rel}${w}`)
+console.log('TOP 15 FILES')
+for (const r of rows.slice(0, 15)) {
+  console.log(`  ${String(r.n).padStart(4)}  ${r.isClient ? 'client' : 'SERVER'}  ${r.rel}${r.hasHook ? ' [wired]' : ''}`)
 }
-console.log('')
-console.log('SERVER COMPONENTS WITH STRINGS (blocked by the current architecture)')
-for (const r of server.slice(0, 12)) console.log(`  ${String(r.n).padStart(4)}  ${r.rel}`)
-console.log(`  ... ${server.length} files, ${server.reduce((s, r) => s + r.n, 0)} strings total`)
+
+// ---------------------------------------------------------------------------
+// Locale key parity
+// ---------------------------------------------------------------------------
+//
+// Counts every key on a line rather than assuming one per line: the later
+// language blocks pack several onto one line, and a naive line count reports
+// eight locales as missing thirty keys when nothing is actually wrong.
+const ctx = readFileSync(join(ROOT, 'contexts', 'language-context.tsx'), 'utf8')
+const ctxLines = ctx.split('\n')
+const blocks = {}
+
+for (let i = 0; i < ctxLines.length; i++) {
+  const open = ctxLines[i].match(/^ {2}([a-z]{2}): \{\s*$/)
+  if (!open) continue
+  const code = open[1]
+  const keys = new Set()
+  for (i++; i < ctxLines.length && !/^ {2}\},\s*$/.test(ctxLines[i]); i++) {
+    for (const m of ctxLines[i].matchAll(/"([a-zA-Z0-9._]+)":/g)) keys.add(m[1])
+  }
+  blocks[code] = keys
+}
+
+const codes = Object.keys(blocks)
+if (codes.length > 0) {
+  const en = blocks.en ?? new Set()
+  const gaps = []
+  for (const code of codes) {
+    const missing = [...en].filter((k) => !blocks[code].has(k))
+    const extra = [...blocks[code]].filter((k) => !en.has(k))
+    if (missing.length > 0 || extra.length > 0) gaps.push({ code, missing, extra })
+  }
+
+  console.log('')
+  console.log('LOCALE KEY PARITY')
+  console.log(`  locales: ${codes.length} | keys in en: ${en.size}`)
+  if (gaps.length === 0) {
+    console.log('  ok - every locale defines exactly the same keys')
+  } else {
+    for (const g of gaps) {
+      console.log(`  ${g.code}: missing ${g.missing.length}, extra ${g.extra.length}`)
+      if (g.missing.length > 0) console.log(`      missing: ${g.missing.slice(0, 5).join(', ')}`)
+      if (g.extra.length > 0) console.log(`      extra:   ${g.extra.slice(0, 5).join(', ')}`)
+    }
+    // Non-zero exit so this can gate CI: a half-translated locale is invisible
+    // to every other check in the repo.
+    process.exitCode = 1
+  }
+}
