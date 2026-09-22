@@ -350,7 +350,13 @@ async function sendBatch(
   digestKey: string,
   origin: string,
   from: string
-): Promise<{ sent: string[]; failed: string[]; error?: string }> {
+): Promise<{
+  sent: string[]
+  failed: string[]
+  /** Provider message id per recipient, for the ones that were accepted. */
+  messageIds: Record<string, string>
+  error?: string
+}> {
   const payload = batch.map((recipient) => {
     const unsubscribeUrl = `${origin}/api/notifications/unsubscribe?token=${encodeURIComponent(recipient.unsubscribeToken)}`
     const input = {
