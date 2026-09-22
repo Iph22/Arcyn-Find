@@ -49,6 +49,12 @@ type TranslationKey =
   | "nav.signIn"
   | "nav.signOut"
   | "nav.getStarted"
+  | "nav.followers"
+  | "nav.saved"
+  | "nav.backToLanding"
+  | "nav.signInPrompt"
+  | "nav.expandSidebar"
+  | "nav.collapseSidebar"
   | "search.placeholder"
   | "search.filters"
   | "search.pricingModel"
@@ -134,6 +140,7 @@ const translations: TranslationMap = {
     "regions.latinAmerica": "🌎 Latin America",
     "regions.middleEast": "🌍 Middle East",
     "regions.africa": "🌍 Africa",
+    "nav.followers": "Followers", "nav.saved": "Saved", "nav.backToLanding": "Back to Landing", "nav.signInPrompt": "Sign in to use features", "nav.expandSidebar": "Expand sidebar", "nav.collapseSidebar": "Collapse sidebar",
   },
   fr: {
     "nav.home": "Accueil",
@@ -180,6 +187,7 @@ const translations: TranslationMap = {
     "regions.latinAmerica": "🌎 Amérique latine",
     "regions.middleEast": "🌍 Moyen-Orient",
     "regions.africa": "🌍 Afrique",
+    "nav.followers": "Abonnés", "nav.saved": "Enregistrés", "nav.backToLanding": "Retour à l'accueil", "nav.signInPrompt": "Connectez-vous pour utiliser les fonctionnalités", "nav.expandSidebar": "Développer la barre latérale", "nav.collapseSidebar": "Réduire la barre latérale",
   },
   es: {
     "nav.home": "Inicio",
@@ -226,6 +234,7 @@ const translations: TranslationMap = {
     "regions.latinAmerica": "🌎 América Latina",
     "regions.middleEast": "🌍 Oriente Medio",
     "regions.africa": "🌍 África",
+    "nav.followers": "Seguidores", "nav.saved": "Guardados", "nav.backToLanding": "Volver al inicio", "nav.signInPrompt": "Inicia sesión para usar las funciones", "nav.expandSidebar": "Expandir barra lateral", "nav.collapseSidebar": "Contraer barra lateral",
   },
   de: {
     "nav.home": "Startseite",
@@ -272,6 +281,7 @@ const translations: TranslationMap = {
     "regions.latinAmerica": "🌎 Lateinamerika",
     "regions.middleEast": "🌍 Naher Osten",
     "regions.africa": "🌍 Afrika",
+    "nav.followers": "Follower", "nav.saved": "Gespeichert", "nav.backToLanding": "Zurück zur Startseite", "nav.signInPrompt": "Melde dich an, um Funktionen zu nutzen", "nav.expandSidebar": "Seitenleiste ausklappen", "nav.collapseSidebar": "Seitenleiste einklappen",
   },
   pt: {
     "nav.home": "Início",
@@ -318,6 +328,7 @@ const translations: TranslationMap = {
     "regions.latinAmerica": "🌎 América Latina",
     "regions.middleEast": "🌍 Oriente Médio",
     "regions.africa": "🌍 África",
+    "nav.followers": "Seguidores", "nav.saved": "Salvos", "nav.backToLanding": "Voltar ao início", "nav.signInPrompt": "Entre para usar os recursos", "nav.expandSidebar": "Expandir barra lateral", "nav.collapseSidebar": "Recolher barra lateral",
   },
   ja: {
     "nav.home": "ホーム",
@@ -364,6 +375,7 @@ const translations: TranslationMap = {
     "regions.latinAmerica": "🌎 ラテンアメリカ",
     "regions.middleEast": "🌍 中東",
     "regions.africa": "🌍 アフリカ",
+    "nav.followers": "フォロワー", "nav.saved": "保存済み", "nav.backToLanding": "トップページに戻る", "nav.signInPrompt": "機能を使うにはサインイン", "nav.expandSidebar": "サイドバーを展開", "nav.collapseSidebar": "サイドバーを折りたたむ",
   },
   zh: {
     "nav.home": "首页",
@@ -410,6 +422,7 @@ const translations: TranslationMap = {
     "regions.latinAmerica": "🌎 拉丁美洲",
     "regions.middleEast": "🌍 中东",
     "regions.africa": "🌍 非洲",
+    "nav.followers": "粉丝", "nav.saved": "已保存", "nav.backToLanding": "返回首页", "nav.signInPrompt": "登录以使用功能", "nav.expandSidebar": "展开侧边栏", "nav.collapseSidebar": "收起侧边栏",
   },
   ko: {
     "nav.home": "홈", "nav.tools": "도구", "nav.collections": "컬렉션", "nav.profile": "프로필",
@@ -426,6 +439,7 @@ const translations: TranslationMap = {
     "regions.asia": "🌏 아시아", "regions.asiaPacific": "🌏 아시아 태평양", "regions.uk": "🇬🇧 영국",
     "regions.canada": "🇨🇦 캐나다", "regions.australia": "🇦🇺 호주", "regions.india": "🇮🇳 인도",
     "regions.latinAmerica": "🌎 라틴 아메리카", "regions.middleEast": "🌍 중동", "regions.africa": "🌍 아프리카",
+    "nav.followers": "팔로워", "nav.saved": "저장됨", "nav.backToLanding": "첫 화면으로", "nav.signInPrompt": "기능을 사용하려면 로그인", "nav.expandSidebar": "사이드바 펼치기", "nav.collapseSidebar": "사이드바 접기",
   },
   th: {
     "nav.home": "หน้าแรก", "nav.tools": "เครื่องมือ", "nav.collections": "คอลเลกชัน", "nav.profile": "โปรไฟล์",
@@ -442,6 +456,7 @@ const translations: TranslationMap = {
     "regions.asia": "🌏 เอเชีย", "regions.asiaPacific": "🌏 เอเชียแปซิฟิก", "regions.uk": "🇬🇧 สหราชอาณาจักร",
     "regions.canada": "🇨🇦 แคนาดา", "regions.australia": "🇦🇺 ออสเตรเลีย", "regions.india": "🇮🇳 อินเดีย",
     "regions.latinAmerica": "🌎 ละตินอเมริกา", "regions.middleEast": "🌍 ตะวันออกกลาง", "regions.africa": "🌍 แอฟริกา",
+    "nav.followers": "ผู้ติดตาม", "nav.saved": "บันทึกไว้", "nav.backToLanding": "กลับหน้าแรก", "nav.signInPrompt": "เข้าสู่ระบบเพื่อใช้ฟีเจอร์", "nav.expandSidebar": "ขยายแถบข้าง", "nav.collapseSidebar": "ย่อแถบข้าง",
   },
   tl: {
     "nav.home": "Home", "nav.tools": "Mga Tool", "nav.collections": "Mga Koleksyon", "nav.profile": "Profile",
@@ -458,6 +473,7 @@ const translations: TranslationMap = {
     "regions.asia": "🌏 Asya", "regions.asiaPacific": "🌏 Asya Pasipiko", "regions.uk": "🇬🇧 United Kingdom",
     "regions.canada": "🇨🇦 Canada", "regions.australia": "🇦🇺 Australia", "regions.india": "🇮🇳 India",
     "regions.latinAmerica": "🌎 Latin America", "regions.middleEast": "🌍 Gitnang Silangan", "regions.africa": "🌍 Aprika",
+    "nav.followers": "Mga Follower", "nav.saved": "Naka-save", "nav.backToLanding": "Bumalik sa simula", "nav.signInPrompt": "Mag-sign in para magamit ang mga feature", "nav.expandSidebar": "Palawakin ang sidebar", "nav.collapseSidebar": "Isara ang sidebar",
   },
   vi: {
     "nav.home": "Trang chủ", "nav.tools": "Công cụ", "nav.collections": "Bộ sưu tập", "nav.profile": "Hồ sơ",
@@ -474,6 +490,7 @@ const translations: TranslationMap = {
     "regions.asia": "🌏 Châu Á", "regions.asiaPacific": "🌏 Châu Á TBD", "regions.uk": "🇬🇧 Anh Quốc",
     "regions.canada": "🇨🇦 Canada", "regions.australia": "🇦🇺 Úc", "regions.india": "🇮🇳 Ấn Độ",
     "regions.latinAmerica": "🌎 Mỹ Latinh", "regions.middleEast": "🌍 Trung Đông", "regions.africa": "🌍 Châu Phi",
+    "nav.followers": "Người theo dõi", "nav.saved": "Đã lưu", "nav.backToLanding": "Về trang đầu", "nav.signInPrompt": "Đăng nhập để dùng tính năng", "nav.expandSidebar": "Mở rộng thanh bên", "nav.collapseSidebar": "Thu gọn thanh bên",
   },
   id: {
     "nav.home": "Beranda", "nav.tools": "Alat", "nav.collections": "Koleksi", "nav.profile": "Profil",
@@ -490,6 +507,7 @@ const translations: TranslationMap = {
     "regions.asia": "🌏 Asia", "regions.asiaPacific": "🌏 Asia Pasifik", "regions.uk": "🇬🇧 Inggris",
     "regions.canada": "🇨🇦 Kanada", "regions.australia": "🇦🇺 Australia", "regions.india": "🇮🇳 India",
     "regions.latinAmerica": "🌎 Amerika Latin", "regions.middleEast": "🌍 Timur Tengah", "regions.africa": "🌍 Afrika",
+    "nav.followers": "Pengikut", "nav.saved": "Tersimpan", "nav.backToLanding": "Kembali ke beranda", "nav.signInPrompt": "Masuk untuk memakai fitur", "nav.expandSidebar": "Perluas bilah sisi", "nav.collapseSidebar": "Ciutkan bilah sisi",
   },
   hi: {
     "nav.home": "होम", "nav.tools": "टूल्स", "nav.collections": "संग्रह", "nav.profile": "प्रोफ़ाइल",
@@ -506,6 +524,7 @@ const translations: TranslationMap = {
     "regions.asia": "🌏 एशिया", "regions.asiaPacific": "🌏 एशिया प्रशांत", "regions.uk": "🇬🇧 ब्रिटेन",
     "regions.canada": "🇨🇦 कनाडा", "regions.australia": "🇦🇺 ऑस्ट्रेलिया", "regions.india": "🇮🇳 भारत",
     "regions.latinAmerica": "🌎 लैटिन अमेरिका", "regions.middleEast": "🌍 मध्य पूर्व", "regions.africa": "🌍 अफ़्रीका",
+    "nav.followers": "फ़ॉलोअर्स", "nav.saved": "सहेजे गए", "nav.backToLanding": "मुखपृष्ठ पर लौटें", "nav.signInPrompt": "सुविधाएँ उपयोग करने के लिए साइन इन करें", "nav.expandSidebar": "साइडबार खोलें", "nav.collapseSidebar": "साइडबार बंद करें",
   },
   ar: {
     "nav.home": "الرئيسية", "nav.tools": "الأدوات", "nav.collections": "المجموعات", "nav.profile": "الملف الشخصي",
@@ -522,6 +541,7 @@ const translations: TranslationMap = {
     "regions.asia": "🌏 آسيا", "regions.asiaPacific": "🌏 آسيا والمحيط الهادئ", "regions.uk": "🇬🇧 المملكة المتحدة",
     "regions.canada": "🇨🇦 كندا", "regions.australia": "🇦🇺 أستراليا", "regions.india": "🇮🇳 الهند",
     "regions.latinAmerica": "🌎 أمريكا اللاتينية", "regions.middleEast": "🌍 الشرق الأوسط", "regions.africa": "🌍 أفريقيا",
+    "nav.followers": "المتابعون", "nav.saved": "المحفوظات", "nav.backToLanding": "العودة إلى الصفحة الرئيسية", "nav.signInPrompt": "سجّل الدخول لاستخدام الميزات", "nav.expandSidebar": "توسيع الشريط الجانبي", "nav.collapseSidebar": "طي الشريط الجانبي",
   },
   tr: {
     "nav.home": "Ana Sayfa", "nav.tools": "Araçlar", "nav.collections": "Koleksiyonlar", "nav.profile": "Profil",
@@ -538,6 +558,7 @@ const translations: TranslationMap = {
     "regions.asia": "🌏 Asya", "regions.asiaPacific": "🌏 Asya Pasifik", "regions.uk": "🇬🇧 Birleşik Krallık",
     "regions.canada": "🇨🇦 Kanada", "regions.australia": "🇦🇺 Avustralya", "regions.india": "🇮🇳 Hindistan",
     "regions.latinAmerica": "🌎 Latin Amerika", "regions.middleEast": "🌍 Orta Doğu", "regions.africa": "🌍 Afrika",
+    "nav.followers": "Takipçiler", "nav.saved": "Kaydedilenler", "nav.backToLanding": "Ana sayfaya dön", "nav.signInPrompt": "Özellikleri kullanmak için giriş yapın", "nav.expandSidebar": "Kenar çubuğunu genişlet", "nav.collapseSidebar": "Kenar çubuğunu daralt",
   },
 }
 

@@ -9,12 +9,14 @@ import { UserSearch } from "@/components/search/user-search"
 import { useAuth } from "@/contexts/auth-context"
 import { Button } from "@/components/ui/button"
 import { useHaptic } from "@/lib/hooks/use-haptic"
+import { useLanguage } from "@/contexts/language-context"
 
 export function MobileNav() {
   const pathname = usePathname()
   const router = useRouter()
   const { isAuthenticated } = useAuth()
   const { trigger: haptic } = useHaptic()
+  const { t } = useLanguage()
 
 
 
@@ -26,10 +28,11 @@ export function MobileNav() {
   }
 
   const navItems = [
-    { href: "/home", label: "Home", icon: Home, requiresAuth: true },
-    { href: "/browse", label: "Tools", icon: Sparkles, requiresAuth: false },
-    { href: "/collections", label: "Saved", icon: Bookmark, requiresAuth: true },
-    { href: "/profile", label: "Profile", icon: User, requiresAuth: true },
+    { href: "/home", label: t("nav.home"), icon: Home, requiresAuth: true },
+    { href: "/browse", label: t("nav.tools"), icon: Sparkles, requiresAuth: false },
+    // "Saved" rather than "Collections": the mobile bar has room for one word.
+    { href: "/collections", label: t("nav.saved"), icon: Bookmark, requiresAuth: true },
+    { href: "/profile", label: t("nav.profile"), icon: User, requiresAuth: true },
   ]
 
   const isActive = (href: string) => {

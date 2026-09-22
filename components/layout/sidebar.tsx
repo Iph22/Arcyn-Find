@@ -12,6 +12,7 @@ import { useAvatar } from "@/contexts/avatar-context"
 import { UserSearch } from "@/components/search/user-search"
 import { logger } from "@/lib/logger"
 import { useAuth } from "@/contexts/auth-context"
+import { useLanguage } from "@/contexts/language-context"
 
 interface SidebarProps {
   onClose?: () => void
@@ -23,6 +24,7 @@ export function Sidebar({ onClose }: SidebarProps) {
   const { logout, preferences } = usePreferences()
   const { avatarUrl, displayName, username } = useAvatar()
   const { signOut, isAuthenticated } = useAuth()
+  const { t } = useLanguage()
   // Always `false` on the first render. Reading localStorage in the state
   // initializer meant the server emitted `w-72` while a returning client
   // rendered `w-20` -- a hydration mismatch, which makes React throw away the
@@ -69,12 +71,14 @@ export function Sidebar({ onClose }: SidebarProps) {
     router.push("/")
   }
 
+  // Labels are translation keys resolved at render, not baked-in English, so
+  // the language picker actually changes the navigation.
   const navItems = [
-    { href: "/home", label: "Home", icon: Home, requiresAuth: true },
-    { href: "/profile", label: "Profile", icon: User, requiresAuth: true },
-    { href: "/collections", label: "Collections", icon: Bookmark, requiresAuth: true },
-    { href: "/reviews", label: "Reviews", icon: Star, requiresAuth: true },
-    { href: "/followers", label: "Followers", icon: Users, requiresAuth: true },
+    { href: "/home", label: t("nav.home"), icon: Home, requiresAuth: true },
+    { href: "/profile", label: t("nav.profile"), icon: User, requiresAuth: true },
+    { href: "/collections", label: t("nav.collections"), icon: Bookmark, requiresAuth: true },
+    { href: "/reviews", label: t("nav.reviews"), icon: Star, requiresAuth: true },
+    { href: "/followers", label: t("nav.followers"), icon: Users, requiresAuth: true },
   ]
 
   return (
@@ -126,7 +130,7 @@ export function Sidebar({ onClose }: SidebarProps) {
             type="button"
             onClick={toggleCollapse}
             className="hidden md:block p-1.5 hover:bg-sidebar-accent rounded-lg transition-colors shrink-0"
-            title={isCollapsed ? "Expand sidebar" : "Collapse sidebar"}
+            title={isCollapsed ? t("nav.expandSidebar") : t("nav.collapseSidebar")}
           >
             {isCollapsed ? <ChevronRight className="h-4 w-4" /> : <ChevronLeft className="h-4 w-4" />}
           </button>
@@ -211,7 +215,7 @@ export function Sidebar({ onClose }: SidebarProps) {
               href="/browse"
               onClick={onClose}
               className="flex items-center justify-center rounded-lg px-2 py-2.5 text-sm font-medium text-sidebar-foreground/70 transition-all hover:bg-sidebar-accent/50 hover:text-sidebar-accent-foreground"
-              title="AI Tools"
+              title={t("nav.tools")}
             >
               <Sparkles className="h-4 w-4 shrink-0" />
             </Link>
@@ -238,7 +242,7 @@ export function Sidebar({ onClose }: SidebarProps) {
             <button
               onClick={() => router.push("/sign-in")}
               className="flex items-center justify-center w-full rounded-lg px-2 py-2.5 text-sm font-medium text-sidebar-foreground/70 transition-all hover:bg-sidebar-accent/50 hover:text-sidebar-accent-foreground"
-              title="Sign in to use features"
+              title={t("nav.signInPrompt")}
             >
               <Lock className="h-4 w-4 shrink-0" />
             </button>
@@ -274,10 +278,10 @@ export function Sidebar({ onClose }: SidebarProps) {
               "w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sidebar-foreground/70 hover:bg-sidebar-accent/50 hover:text-sidebar-accent-foreground transition-all text-sm font-medium",
               isCollapsed ? "justify-center px-2" : ""
             )}
-            title="Settings"
+            title={t("nav.settings")}
           >
             <Settings className="w-4 h-4 shrink-0" />
-            {!isCollapsed && <span className="truncate">Settings</span>}
+            {!isCollapsed && <span className="truncate">{t("nav.settings")}</span>}
           </Link>
 
           <button
@@ -286,7 +290,7 @@ export function Sidebar({ onClose }: SidebarProps) {
               "w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-destructive hover:bg-destructive/10 transition-all text-sm font-medium",
               isCollapsed ? "justify-center px-2" : ""
             )}
-            title="Sign Out"
+            title={t("nav.signOut")}
           >
             <LogOut className="w-4 h-4 shrink-0" />
             {!isCollapsed && <span className="truncate">Sign Out</span>}
@@ -304,10 +308,10 @@ export function Sidebar({ onClose }: SidebarProps) {
               "w-full flex items-center gap-3 justify-center",
               isCollapsed ? "px-2" : ""
             )}
-            title={isCollapsed ? "Back to landing page" : undefined}
+            title={isCollapsed ? t("nav.backToLanding") : undefined}
           >
             <ArrowLeft className="w-4 h-4" />
-            {!isCollapsed && <span>Back to Landing</span>}
+            {!isCollapsed && <span>{t("nav.backToLanding")}</span>}
           </Button>
         </div>
       )}
