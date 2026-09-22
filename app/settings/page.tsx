@@ -19,6 +19,7 @@ import { useAuth } from "@/contexts/auth-context"
 import { uploadAvatar, uploadBanner } from "@/lib/storage"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { usePreferences } from "@/contexts/preferences-context"
+import { useLanguage } from "@/contexts/language-context"
 import { useAvatar } from "@/contexts/avatar-context"
 import { Label } from "@/components/ui/label"
 import { toast } from "sonner"
@@ -62,6 +63,7 @@ function urlBase64ToUint8Array(base64String: string): Uint8Array<ArrayBuffer> {
 export default function SettingsPage() {
   const router = useRouter()
   const { preferences, updatePreferences } = usePreferences()
+  const { t } = useLanguage()
   const { avatarUrl: contextAvatarUrl, refreshAvatar } = useAvatar()
   const { user, isLoading: isAuthLoading, isAuthenticated } = useAuth()
   const { setTheme: setNextTheme } = useTheme()
@@ -544,7 +546,7 @@ export default function SettingsPage() {
       <div className="flex h-dvh items-center justify-center">
         <div className="text-center">
           <div className="mb-4 inline-block h-8 w-8 animate-spin rounded-full border-4 border-primary border-t-transparent" />
-          <p className="text-muted-foreground">Loading settings...</p>
+          <p className="text-muted-foreground">{t("settings.loading")}</p>
         </div>
       </div>
     )
@@ -596,36 +598,36 @@ export default function SettingsPage() {
             >
               <Menu className="h-5 w-5" />
             </Button>
-            <h1 className="text-2xl md:text-3xl font-bold">Settings</h1>
+            <h1 className="text-2xl md:text-3xl font-bold">{t("settings.title")}</h1>
           </div>
 
           <Tabs defaultValue="profile" className="w-full">
             <TabsList className="flex w-full overflow-x-auto md:grid md:grid-cols-4 h-auto p-1 gap-1">
               <TabsTrigger value="profile" className="flex-1 min-w-[100px]">
                 <User className="mr-2 h-4 w-4" />
-                Profile
+                {t("nav.profile")}
               </TabsTrigger>
               <TabsTrigger value="notifications" className="flex-1 min-w-[100px]">
                 <Bell className="mr-2 h-4 w-4" />
-                Notifications
+                {t("settings.tab.notifications")}
               </TabsTrigger>
               <TabsTrigger value="privacy" className="flex-1 min-w-[100px]">
                 <Shield className="mr-2 h-4 w-4" />
-                Privacy
+                {t("settings.tab.privacy")}
               </TabsTrigger>
               <TabsTrigger value="appearance" className="flex-1 min-w-[100px]">
                 <Palette className="mr-2 h-4 w-4" />
-                Appearance
+                {t("settings.tab.appearance")}
               </TabsTrigger>
             </TabsList>
 
             <TabsContent value="profile" className="mt-4 md:mt-6">
               <Card className="p-4 md:p-6">
-                <h2 className="mb-6 text-xl font-semibold">Profile Settings</h2>
+                <h2 className="mb-6 text-xl font-semibold">{t("settings.profile.heading")}</h2>
 
                 {/* Banner Upload */}
                 <div className="mb-6">
-                  <Label className="mb-2 block">Banner Image</Label>
+                  <Label className="mb-2 block">{t("settings.profile.banner")}</Label>
                   <div className="relative h-48 w-full overflow-hidden rounded-lg border border-border bg-muted">
                     {(bannerPreview || bannerUrl) ? (
                       <>
@@ -655,7 +657,7 @@ export default function SettingsPage() {
                       <div className="flex h-full items-center justify-center">
                         <div className="text-center">
                           <Camera className="mx-auto mb-2 h-8 w-8 text-muted-foreground" />
-                          <p className="text-sm text-muted-foreground">No banner image</p>
+                          <p className="text-sm text-muted-foreground">{t("settings.profile.noBanner")}</p>
                         </div>
                       </div>
                     )}
@@ -673,17 +675,17 @@ export default function SettingsPage() {
                       disabled={isSaving}
                     >
                       <Upload className="mr-2 h-4 w-4" />
-                      {bannerUrl ? "Change Banner" : "Upload Banner"}
+                      {bannerUrl ? t("settings.profile.changeBanner") : t("settings.profile.uploadBanner")}
                     </Button>
                   </div>
                   <p className="mt-2 text-xs text-muted-foreground">
-                    Recommended size: 1200x300px. Max file size: 10MB
+                    {t("settings.profile.bannerHint")}
                   </p>
                 </div>
 
                 {/* Avatar Upload */}
                 <div className="mb-6">
-                  <Label className="mb-2 block">Profile Picture</Label>
+                  <Label className="mb-2 block">{t("settings.profile.picture")}</Label>
                   <div className="flex flex-col sm:flex-row sm:items-center gap-4">
                     <div className="relative">
                       <Avatar className="h-24 w-24">
@@ -716,7 +718,7 @@ export default function SettingsPage() {
                         disabled={isSaving}
                       >
                         <Upload className="mr-2 h-4 w-4" />
-                        {avatarUrl ? "Change Picture" : "Upload Picture"}
+                        {avatarUrl ? t("settings.profile.changePicture") : t("settings.profile.uploadPicture")}
                       </Button>
                       {avatarUrl && (
                         <Button
@@ -735,14 +737,14 @@ export default function SettingsPage() {
                         </Button>
                       )}
                       <p className="mt-2 text-xs text-muted-foreground">
-                        Recommended size: 400x400px. Max file size: 5MB
+                        {t("settings.profile.pictureHint")}
                       </p>
                     </div>
                   </div>
 
                   {/* Preview Section */}
                   <div className="mb-6">
-                    <Label className="mb-2 block">Preview (How you appear in search)</Label>
+                    <Label className="mb-2 block">{t("settings.profile.preview")}</Label>
                     <Card className="overflow-hidden border-border/50 bg-card/50 backdrop-blur-sm">
                       {/* Banner */}
                       <div className="relative h-24 bg-gradient-to-br from-primary/20 via-chart-1/20 to-chart-3/20">
@@ -791,7 +793,7 @@ export default function SettingsPage() {
                         )}
                         {!bio && (
                           <p className="text-sm text-muted-foreground line-clamp-2 mb-3 italic">
-                            Your bio will appear here
+                            {t("settings.profile.bioEmpty")}
                           </p>
                         )}
 
@@ -802,26 +804,26 @@ export default function SettingsPage() {
                       </div>
                     </Card>
                     <p className="mt-2 text-xs text-muted-foreground">
-                      This is how your profile appears when users search for you
+                      {t("settings.profile.previewHint")}
                     </p>
                   </div>
                 </div>
 
                 {/* Display Name */}
                 <div className="mb-4">
-                  <Label htmlFor="displayName">Display Name</Label>
+                  <Label htmlFor="displayName">{t("settings.profile.displayName")}</Label>
                   <Input
                     id="displayName"
                     value={displayName}
                     onChange={(e) => setDisplayName(e.target.value)}
-                    placeholder="Your display name"
+                    placeholder={t("settings.profile.displayNamePlaceholder")}
                     className="mt-2"
                   />
                 </div>
 
                 {/* Username */}
                 <div className="mb-4">
-                  <Label htmlFor="username">Username</Label>
+                  <Label htmlFor="username">{t("settings.profile.username")}</Label>
                   <Input
                     id="username"
                     value={username}
@@ -830,7 +832,7 @@ export default function SettingsPage() {
                     className="mt-2"
                   />
                   <p className="mt-1 text-xs text-muted-foreground">
-                    Only lowercase letters, numbers, and underscores allowed
+                    {t("settings.profile.usernameHint")}
                   </p>
                 </div>
 
@@ -841,7 +843,7 @@ export default function SettingsPage() {
                     id="bio"
                     value={bio}
                     onChange={(e) => setBio(e.target.value)}
-                    placeholder="Tell us about yourself..."
+                    placeholder={t("settings.profile.bioPlaceholder")}
                     rows={4}
                     className="mt-2"
                     maxLength={500}
@@ -860,10 +862,10 @@ export default function SettingsPage() {
                   {isSaving ? (
                     <>
                       <div className="mr-2 h-4 w-4 animate-spin rounded-full border-2 border-background border-t-transparent" />
-                      Saving...
+                      {t("settings.saving")}
                     </>
                   ) : (
-                    "Save Changes"
+                    t("settings.save")
                   )}
                 </Button>
               </Card>
@@ -871,21 +873,21 @@ export default function SettingsPage() {
 
             <TabsContent value="notifications" className="mt-4 md:mt-6">
               <Card className="p-4 md:p-6">
-                <h2 className="mb-6 text-xl font-semibold">Notification Settings</h2>
+                <h2 className="mb-6 text-xl font-semibold">{t("settings.notif.heading")}</h2>
 
                 {/* Push Notifications */}
                 <div className="mb-6">
-                  <Label className="mb-4 block text-base font-semibold">Push Notifications</Label>
+                  <Label className="mb-4 block text-base font-semibold">{t("settings.notif.push")}</Label>
                   <div className="rounded-lg border border-border bg-muted/30 p-4">
                     <div className="flex items-center justify-between mb-2">
                       <div>
-                        <p className="font-medium">Browser Notifications</p>
+                        <p className="font-medium">{t("settings.notif.browser")}</p>
                         <p className="text-sm text-muted-foreground">
                           {pushEnabled
-                            ? "✓ This browser will receive notifications"
+                            ? t("settings.notif.browserOn")
                             : notificationPermission === "denied"
-                              ? "✗ Blocked by this browser"
-                              : "Get the weekly digest as a notification"}
+                              ? t("settings.notif.browserBlocked")
+                              : t("settings.notif.browserHint")}
                         </p>
                       </div>
                       {/* Reflects this browser's actual subscription, not a
@@ -911,12 +913,12 @@ export default function SettingsPage() {
 
                 {/* Email Notifications */}
                 <div className="space-y-4">
-                  <Label className="text-base font-semibold">Email Preferences</Label>
+                  <Label className="text-base font-semibold">{t("settings.notif.emailPrefs")}</Label>
                   <div className="space-y-3">
                     <div className="flex items-center justify-between">
                       <div>
-                        <p className="font-medium">Email Notifications</p>
-                        <p className="text-sm text-muted-foreground">Receive updates via email</p>
+                        <p className="font-medium">{t("settings.notif.email")}</p>
+                        <p className="text-sm text-muted-foreground">{t("settings.notif.emailDesc")}</p>
                       </div>
                       <Switch
                         checked={emailNotifications}
@@ -925,9 +927,9 @@ export default function SettingsPage() {
                     </div>
                     <div className="flex items-center justify-between">
                       <div>
-                        <p className="font-medium">Weekly Digest</p>
+                        <p className="font-medium">{t("settings.notif.digest")}</p>
                         <p className="text-sm text-muted-foreground">
-                          New and noteworthy AI tools, once a week
+                          {t("settings.notif.digestDesc")}
                         </p>
                       </div>
                       <Switch
@@ -938,8 +940,8 @@ export default function SettingsPage() {
                     </div>
                     <div className="flex items-center justify-between">
                       <div>
-                        <p className="font-medium">New Followers</p>
-                        <p className="text-sm text-muted-foreground">When someone follows you</p>
+                        <p className="font-medium">{t("settings.notif.newFollowers")}</p>
+                        <p className="text-sm text-muted-foreground">{t("settings.notif.newFollowersDesc")}</p>
                       </div>
                       <Switch
                         checked={notifyNewFollowers}
@@ -948,8 +950,8 @@ export default function SettingsPage() {
                     </div>
                     <div className="flex items-center justify-between">
                       <div>
-                        <p className="font-medium">Reviews & Comments</p>
-                        <p className="text-sm text-muted-foreground">Activity on your content</p>
+                        <p className="font-medium">{t("settings.notif.reviews")}</p>
+                        <p className="text-sm text-muted-foreground">{t("settings.notif.reviewsDesc")}</p>
                       </div>
                       <Switch
                         checked={notifyReviews}
@@ -958,8 +960,8 @@ export default function SettingsPage() {
                     </div>
                     <div className="flex items-center justify-between">
                       <div>
-                        <p className="font-medium">Marketing Emails</p>
-                        <p className="text-sm text-muted-foreground">Updates and promotions</p>
+                        <p className="font-medium">{t("settings.notif.marketing")}</p>
+                        <p className="text-sm text-muted-foreground">{t("settings.notif.marketingDesc")}</p>
                       </div>
                       <Switch
                         checked={notifyMarketing}
@@ -978,10 +980,10 @@ export default function SettingsPage() {
                   {isSaving ? (
                     <>
                       <div className="mr-2 h-4 w-4 animate-spin rounded-full border-2 border-background border-t-transparent" />
-                      Saving...
+                      {t("settings.saving")}
                     </>
                   ) : (
-                    "Save Notification Preferences"
+                    t("settings.notif.save")
                   )}
                 </Button>
               </Card>
@@ -989,12 +991,12 @@ export default function SettingsPage() {
 
             <TabsContent value="privacy" className="mt-4 md:mt-6">
               <Card className="p-4 md:p-6">
-                <h2 className="mb-6 text-xl font-semibold">Privacy Settings</h2>
+                <h2 className="mb-6 text-xl font-semibold">{t("settings.privacy.heading")}</h2>
 
                 {/* Profile Visibility */}
                 <div className="mb-6">
                   <Label htmlFor="visibility" className="mb-2 block text-base font-semibold">
-                    Profile Visibility
+                    {t("settings.privacy.visibility")}
                   </Label>
                   <Select value={profileVisibility} onValueChange={setProfileVisibility}>
                     <SelectTrigger id="visibility">
@@ -1003,20 +1005,20 @@ export default function SettingsPage() {
                     <SelectContent>
                       <SelectItem value="public">
                         <div>
-                          <p className="font-medium">Public</p>
-                          <p className="text-xs text-muted-foreground">Anyone can see your profile</p>
+                          <p className="font-medium">{t("settings.privacy.public")}</p>
+                          <p className="text-xs text-muted-foreground">{t("settings.privacy.publicDesc")}</p>
                         </div>
                       </SelectItem>
                       <SelectItem value="followers">
                         <div>
-                          <p className="font-medium">Followers Only</p>
-                          <p className="text-xs text-muted-foreground">Only your followers can see</p>
+                          <p className="font-medium">{t("settings.privacy.followersOnly")}</p>
+                          <p className="text-xs text-muted-foreground">{t("settings.privacy.followersOnlyDesc")}</p>
                         </div>
                       </SelectItem>
                       <SelectItem value="private">
                         <div>
-                          <p className="font-medium">Private</p>
-                          <p className="text-xs text-muted-foreground">Only you can see your profile</p>
+                          <p className="font-medium">{t("settings.privacy.private")}</p>
+                          <p className="text-xs text-muted-foreground">{t("settings.privacy.privateDesc")}</p>
                         </div>
                       </SelectItem>
                     </SelectContent>
@@ -1029,7 +1031,7 @@ export default function SettingsPage() {
                   <div className="space-y-3">
                     <div className="flex items-center justify-between">
                       <div>
-                        <p className="font-medium">Show Activity Status</p>
+                        <p className="font-medium">{t("settings.privacy.activity")}</p>
                         <p className="text-sm text-muted-foreground">Let others see when you're online</p>
                       </div>
                       <Switch
@@ -1039,8 +1041,8 @@ export default function SettingsPage() {
                     </div>
                     <div className="flex items-center justify-between">
                       <div>
-                        <p className="font-medium">Allow Search Indexing</p>
-                        <p className="text-sm text-muted-foreground">Let search engines find your profile</p>
+                        <p className="font-medium">{t("settings.privacy.indexing")}</p>
+                        <p className="text-sm text-muted-foreground">{t("settings.privacy.indexingDesc")}</p>
                       </div>
                       <Switch
                         checked={allowSearchIndexing}
@@ -1049,8 +1051,8 @@ export default function SettingsPage() {
                     </div>
                     <div className="flex items-center justify-between">
                       <div>
-                        <p className="font-medium">Show in Suggestions</p>
-                        <p className="text-sm text-muted-foreground">Appear in follow suggestions</p>
+                        <p className="font-medium">{t("settings.privacy.suggestions")}</p>
+                        <p className="text-sm text-muted-foreground">{t("settings.privacy.suggestionsDesc")}</p>
                       </div>
                       <Switch
                         checked={showInSuggestions}
@@ -1077,10 +1079,10 @@ export default function SettingsPage() {
                   {isSaving ? (
                     <>
                       <div className="mr-2 h-4 w-4 animate-spin rounded-full border-2 border-background border-t-transparent" />
-                      Saving...
+                      {t("settings.saving")}
                     </>
                   ) : (
-                    "Save Privacy Settings"
+                    t("settings.privacy.save")
                   )}
                 </Button>
               </Card>
@@ -1088,21 +1090,21 @@ export default function SettingsPage() {
 
             <TabsContent value="appearance" className="mt-4 md:mt-6">
               <Card className="p-4 md:p-6">
-                <h2 className="mb-6 text-xl font-semibold">Appearance</h2>
+                <h2 className="mb-6 text-xl font-semibold">{t("settings.appearance.heading")}</h2>
                 <div>
-                  <Label htmlFor="theme" className="mb-2 block">Theme</Label>
+                  <Label htmlFor="theme" className="mb-2 block">{t("settings.appearance.theme")}</Label>
                   <Select value={theme} onValueChange={handleThemeChange}>
                     <SelectTrigger id="theme">
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="light">Light Mode</SelectItem>
-                      <SelectItem value="dark">Dark Mode</SelectItem>
-                      <SelectItem value="system">System Default</SelectItem>
+                      <SelectItem value="light">{t("settings.appearance.light")}</SelectItem>
+                      <SelectItem value="dark">{t("settings.appearance.dark")}</SelectItem>
+                      <SelectItem value="system">{t("settings.appearance.system")}</SelectItem>
                     </SelectContent>
                   </Select>
                   <p className="mt-2 text-sm text-muted-foreground">
-                    Choose how Arcyn Find looks to you. Changes apply immediately.
+                    {t("settings.appearance.hint")}
                   </p>
                 </div>
               </Card>
