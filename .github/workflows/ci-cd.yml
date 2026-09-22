@@ -2,9 +2,9 @@ name: CI/CD Pipeline
 
 on:
   push:
-    branches: [ main, develop ]
+    branches: [ main, develop, release ]
   pull_request:
-    branches: [ main, develop ]
+    branches: [ main, develop, release ]
   # Manual redeploy. Once Vercel's Git integration is switched off this
   # workflow is the only deploy path, and a path you cannot trigger without
   # inventing a commit is not one you can rely on in an incident.
@@ -106,15 +106,69 @@ jobs:
   # `vercel pull` first. A project-scoped token is the wrong credential class,
   # not a wrong value.
   #
-  # BLUE-GREEN IS STILL IN PLACE -- it moved to branch configuration, which
-  # needs no token:
+  # BLUE-GREEN IS BRANCH CONFIGURATION, NOT A TOKEN -- and that is exactly why
+  # it needs a guard:
   #
-  #     merge to main      -> Vercel builds a PREVIEW deployment (the green)
-  #     verify that URL    -> it is a real, complete build of the merge
-  #     merge main->release-> Vercel promotes it to production
+  #     merge to main       -> Vercel builds a PREVIEW deployment (the green)
+  #     verify that URL     -> it is a real, complete build of the merge
+  #     merge main->release -> Vercel promotes it to production
   #
-  # That requires Vercel > Project > Settings > Git > Production Branch to be
-  # `release` rather than `main`. See docs/DEPLOYMENT.md.
+  # All of it rests on Vercel > Project > Settings > Git > Production Branch
+  # being `release`. That setting lives in a dashboard, so nothing in this repo
+  # can hold it in place.
   #
-  # The verification this job was going to add lives in `npm run smoke` and can
-  # be pointed at any URL, including a preview.
+  # It was never applied. Until 2026-09-22 this comment read "BLUE-GREEN IS
+  # STILL IN PLACE" and docs/DEPLOYMENT.md opened with "Nothing goes straight
+  # to production", while the production branch was `main`, the `release`
+  # branch did not exist, and merges reached production roughly two minutes
+  # later. The claim survived because nothing ever checked it -- a documented
+  # control that is not wired up is worse than none, because it stops people
+  # being careful. The `production-branch` job below checks it now.
+  #
+  # The verification this job was going to add lives in `npm run smoke`, and
+  # runs against every deployment via deploy-verify.yml.
+
+  # Blue-green's one external dependency, asserted on every run.
+  #
+  # A project-scoped token cannot reach /v2/user or /v2/teams per the
+  # measurements above, but /v9/projects returns 200 -- and reading the git
+  # link is all this needs.
+  production-branch:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Assert Vercel promotes from `release`
+        env:
+          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+          VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
+          VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
+        run: |
+          set -euo pipefail
+
+          if [ -z "$VERCEL_TOKEN" ]; then
+            echo "::error::VERCEL_TOKEN was not available to this run, so the production branch could not be verified."
+            exit 1
+          fi
+
+          response=$(curl -sS -w $'\n%{http_code}' \
+            -H "Authorization: Bearer $VERCEL_TOKEN" \
+            "https://api.vercel.com/v9/projects/$VERCEL_PROJECT_ID?teamId=$VERCEL_ORG_ID")
+          status=${response##*$'\n'}
+          body=${response%$'\n'*}
+
+          if [ "$status" != "200" ]; then
+            echo "::error::Vercel project read failed (HTTP $status); the production branch could not be verified."
+            echo "$body"
+            exit 1
+          fi
+
+          branch=$(echo "$body" | jq -r '.link.productionBranch // empty')
+          [ -n "$branch" ] || branch='(unset, so Vercel uses the repo default branch)'
+          echo "Vercel production branch: $branch"
+
+          if [ "$branch" != "release" ]; then
+            echo "::error::Production branch is '$branch', expected 'release'. Blue-green is NOT in effect: merges to main publish straight to production with nothing verified first. Set Vercel > Project > Settings > Git > Production Branch to 'release' (see docs/DEPLOYMENT.md)."
+            exit 1
+          fi
+
+          echo "Blue-green is in effect: production promotes from 'release'."
