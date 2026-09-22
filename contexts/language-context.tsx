@@ -306,6 +306,7 @@ type TranslationKey =
   | "privacy.s10.title"
   | "privacy.s10.body"
   | "privacy.s4.i0"
+  | "legal.englishOnly"
   | "search.placeholder"
   | "search.filters"
   | "search.pricingModel"
@@ -643,6 +644,7 @@ const translations: TranslationMap = {
     "privacy.s10.title": "10. Changes to This Policy",
     "privacy.s10.body": "We may update this privacy policy from time to time. We will notify you of any significant changes by posting the new policy on this page and updating the \"Last updated\" date.",
     "privacy.s4.i0": "With service providers who assist in operating our platform (under strict confidentiality agreements)",
+    "legal.englishOnly": "These terms are provided in English only. A translation could change their legal meaning, so we have deliberately not translated them.",
   },
   fr: {
     "nav.home": "Accueil",
@@ -941,6 +943,7 @@ const translations: TranslationMap = {
     "privacy.s10.title": "10. Modifications de cette politique",
     "privacy.s10.body": "Nous pouvons mettre à jour cette politique de temps à autre. Nous vous informerons de tout changement important en publiant la nouvelle version sur cette page et en actualisant la date de dernière mise à jour.",
     "privacy.s4.i0": "Avec des prestataires qui nous aident à exploiter la plateforme (sous accords de confidentialité stricts)",
+    "legal.englishOnly": "Ces conditions sont fournies uniquement en anglais. Une traduction pourrait en modifier la portée juridique ; nous avons donc choisi de ne pas les traduire.",
   },
   es: {
     "nav.home": "Inicio",
@@ -1239,6 +1242,7 @@ const translations: TranslationMap = {
     "privacy.s10.title": "10. Cambios en esta política",
     "privacy.s10.body": "Podemos actualizar esta política ocasionalmente. Te notificaremos de cualquier cambio significativo publicando la nueva política en esta página y actualizando la fecha de última actualización.",
     "privacy.s4.i0": "Con proveedores que ayudan a operar nuestra plataforma (bajo estrictos acuerdos de confidencialidad)",
+    "legal.englishOnly": "Estos términos se ofrecen solo en inglés. Una traducción podría alterar su significado legal, por lo que hemos optado por no traducirlos.",
   },
   de: {
     "nav.home": "Startseite",
@@ -1537,6 +1541,7 @@ const translations: TranslationMap = {
     "privacy.s10.title": "10. Änderungen dieser Richtlinie",
     "privacy.s10.body": "Wir können diese Richtlinie gelegentlich aktualisieren. Über wesentliche Änderungen informieren wir Sie, indem wir die neue Fassung auf dieser Seite veröffentlichen und das Datum der letzten Aktualisierung anpassen.",
     "privacy.s4.i0": "Mit Dienstleistern, die uns beim Betrieb der Plattform unterstützen (unter strengen Vertraulichkeitsvereinbarungen)",
+    "legal.englishOnly": "Diese Bedingungen liegen nur auf Englisch vor. Eine Übersetzung könnte ihre rechtliche Bedeutung verändern, daher haben wir bewusst darauf verzichtet.",
   },
   pt: {
     "nav.home": "Início",
@@ -1835,6 +1840,7 @@ const translations: TranslationMap = {
     "privacy.s10.title": "10. Alterações nesta política",
     "privacy.s10.body": "Podemos atualizar esta política periodicamente. Notificaremos sobre alterações relevantes publicando a nova política nesta página e atualizando a data da última atualização.",
     "privacy.s4.i0": "Com prestadores de serviço que ajudam a operar nossa plataforma (sob rígidos acordos de confidencialidade)",
+    "legal.englishOnly": "Estes termos são fornecidos apenas em inglês. Uma tradução poderia alterar seu sentido jurídico, por isso optamos por não traduzi-los.",
   },
   ja: {
     "nav.home": "ホーム",
@@ -2133,6 +2139,7 @@ const translations: TranslationMap = {
     "privacy.s10.title": "10. 本ポリシーの変更",
     "privacy.s10.body": "当社は本ポリシーを随時更新する場合があります。重要な変更がある場合は、本ページに新しいポリシーを掲載し、最終更新日を更新してお知らせします。",
     "privacy.s4.i0": "プラットフォームの運営を支援するサービス提供者（厳格な秘密保持契約のもと）",
+    "legal.englishOnly": "本規約は英語でのみ提供されます。翻訳により法的な意味が変わる可能性があるため、あえて翻訳していません。",
   },
   zh: {
     "nav.home": "首页",
@@ -2431,6 +2438,7 @@ const translations: TranslationMap = {
     "privacy.s10.title": "10. 本政策的变更",
     "privacy.s10.body": "我们可能会不时更新本政策。如有重大变更，我们将在本页发布新政策并更新“最后更新”日期以通知您。",
     "privacy.s4.i0": "与协助我们运营平台的服务提供商（在严格保密协议下）",
+    "legal.englishOnly": "本条款仅提供英文版本。翻译可能改变其法律含义，因此我们特意未作翻译。",
   },
   ko: {
     "nav.home": "홈", "nav.tools": "도구", "nav.collections": "컬렉션", "nav.profile": "프로필",
@@ -2699,6 +2707,7 @@ const translations: TranslationMap = {
     "privacy.s10.title": "10. 본 방침의 변경",
     "privacy.s10.body": "저희는 본 방침을 수시로 갱신할 수 있습니다. 중요한 변경 사항은 새 방침을 이 페이지에 게시하고 최종 수정일을 갱신하여 알려드립니다.",
     "privacy.s4.i0": "플랫폼 운영을 지원하는 서비스 제공업체와 (엄격한 기밀 유지 계약 하에)",
+    "legal.englishOnly": "본 약관은 영문으로만 제공됩니다. 번역 시 법적 의미가 달라질 수 있어 의도적으로 번역하지 않았습니다.",
   },
   th: {
     "nav.home": "หน้าแรก", "nav.tools": "เครื่องมือ", "nav.collections": "คอลเลกชัน", "nav.profile": "โปรไฟล์",
@@ -2967,6 +2976,7 @@ const translations: TranslationMap = {
     "privacy.s10.title": "10. การเปลี่ยนแปลงนโยบายนี้",
     "privacy.s10.body": "เราอาจปรับปรุงนโยบายนี้เป็นครั้งคราว เราจะแจ้งการเปลี่ยนแปลงที่สำคัญโดยเผยแพร่นโยบายใหม่บนหน้านี้และอัปเดตวันที่ \"อัปเดตล่าสุด\"",
     "privacy.s4.i0": "กับผู้ให้บริการที่ช่วยดำเนินงานแพลตฟอร์มของเรา (ภายใต้ข้อตกลงรักษาความลับอย่างเข้มงวด)",
+    "legal.englishOnly": "ข้อกำหนดนี้มีเฉพาะภาษาอังกฤษ การแปลอาจเปลี่ยนความหมายทางกฎหมาย เราจึงตั้งใจไม่แปล",
   },
   tl: {
     "nav.home": "Home", "nav.tools": "Mga Tool", "nav.collections": "Mga Koleksyon", "nav.profile": "Profile",
@@ -3235,6 +3245,7 @@ const translations: TranslationMap = {
     "privacy.s10.title": "10. Mga Pagbabago sa Patakarang Ito",
     "privacy.s10.body": "Maaari naming i-update ang patakarang ito paminsan-minsan. Aabisuhan ka namin sa anumang mahalagang pagbabago sa pamamagitan ng pag-post ng bagong patakaran dito at pag-update ng petsa.",
     "privacy.s4.i0": "Sa mga service provider na tumutulong sa pagpapatakbo ng aming platform (sa ilalim ng mahigpit na confidentiality agreement)",
+    "legal.englishOnly": "Ang mga tuntuning ito ay nasa Ingles lamang. Maaaring mabago ng pagsasalin ang legal na kahulugan, kaya sadya naming hindi ito isinalin.",
   },
   vi: {
     "nav.home": "Trang chủ", "nav.tools": "Công cụ", "nav.collections": "Bộ sưu tập", "nav.profile": "Hồ sơ",
@@ -3503,6 +3514,7 @@ const translations: TranslationMap = {
     "privacy.s10.title": "10. Thay đổi chính sách này",
     "privacy.s10.body": "Chúng tôi có thể cập nhật chính sách này theo thời gian. Chúng tôi sẽ thông báo mọi thay đổi quan trọng bằng cách đăng chính sách mới trên trang này và cập nhật ngày \"Cập nhật lần cuối\".",
     "privacy.s4.i0": "Với các nhà cung cấp dịch vụ hỗ trợ vận hành nền tảng của chúng tôi (theo thỏa thuận bảo mật nghiêm ngặt)",
+    "legal.englishOnly": "Các điều khoản này chỉ có bằng tiếng Anh. Bản dịch có thể làm thay đổi ý nghĩa pháp lý, nên chúng tôi chủ ý không dịch.",
   },
   id: {
     "nav.home": "Beranda", "nav.tools": "Alat", "nav.collections": "Koleksi", "nav.profile": "Profil",
@@ -3771,6 +3783,7 @@ const translations: TranslationMap = {
     "privacy.s10.title": "10. Perubahan Kebijakan Ini",
     "privacy.s10.body": "Kami dapat memperbarui kebijakan ini dari waktu ke waktu. Kami akan memberi tahu perubahan penting dengan memuat kebijakan baru di halaman ini dan memperbarui tanggal pembaruan terakhir.",
     "privacy.s4.i0": "Dengan penyedia layanan yang membantu mengoperasikan platform kami (di bawah perjanjian kerahasiaan yang ketat)",
+    "legal.englishOnly": "Ketentuan ini hanya tersedia dalam bahasa Inggris. Terjemahan dapat mengubah makna hukumnya, sehingga kami sengaja tidak menerjemahkannya.",
   },
   hi: {
     "nav.home": "होम", "nav.tools": "टूल्स", "nav.collections": "संग्रह", "nav.profile": "प्रोफ़ाइल",
@@ -4039,6 +4052,7 @@ const translations: TranslationMap = {
     "privacy.s10.title": "10. इस नीति में परिवर्तन",
     "privacy.s10.body": "हम समय-समय पर इस नीति को अद्यतन कर सकते हैं। किसी भी महत्वपूर्ण परिवर्तन की सूचना हम इस पृष्ठ पर नई नीति प्रकाशित कर और \"अंतिम अद्यतन\" तिथि बदलकर देंगे।",
     "privacy.s4.i0": "उन सेवा प्रदाताओं के साथ जो हमारे प्लेटफ़ॉर्म के संचालन में सहायता करते हैं (सख्त गोपनीयता समझौतों के तहत)",
+    "legal.englishOnly": "ये शर्तें केवल अंग्रेज़ी में उपलब्ध हैं। अनुवाद से इनका कानूनी अर्थ बदल सकता है, इसलिए हमने जानबूझकर इनका अनुवाद नहीं किया।",
   },
   ar: {
     "nav.home": "الرئيسية", "nav.tools": "الأدوات", "nav.collections": "المجموعات", "nav.profile": "الملف الشخصي",
@@ -4307,6 +4321,7 @@ const translations: TranslationMap = {
     "privacy.s10.title": "10. التغييرات على هذه السياسة",
     "privacy.s10.body": "قد نحدّث هذه السياسة من وقت لآخر. سنخطرك بأي تغييرات جوهرية عبر نشر السياسة الجديدة على هذه الصفحة وتحديث تاريخ \"آخر تحديث\".",
     "privacy.s4.i0": "مع مزوّدي الخدمات الذين يساعدون في تشغيل منصتنا (بموجب اتفاقيات سرية صارمة)",
+    "legal.englishOnly": "هذه الشروط متاحة بالإنجليزية فقط. قد تغيّر الترجمة معناها القانوني، لذا تعمّدنا عدم ترجمتها.",
   },
   tr: {
     "nav.home": "Ana Sayfa", "nav.tools": "Araçlar", "nav.collections": "Koleksiyonlar", "nav.profile": "Profil",
@@ -4575,6 +4590,7 @@ const translations: TranslationMap = {
     "privacy.s10.title": "10. Bu politikadaki değişiklikler",
     "privacy.s10.body": "Bu politikayı zaman zaman güncelleyebiliriz. Önemli değişiklikleri, yeni politikayı bu sayfada yayımlayarak ve \"son güncelleme\" tarihini değiştirerek bildiririz.",
     "privacy.s4.i0": "Platformumuzu işletmemize yardımcı olan hizmet sağlayıcılarla (sıkı gizlilik sözleşmeleri kapsamında)",
+    "legal.englishOnly": "Bu şartlar yalnızca İngilizce sunulmaktadır. Çeviri hukuki anlamını değiştirebileceğinden bilinçli olarak çevirmedik.",
   },
 }
 
