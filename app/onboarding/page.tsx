@@ -7,11 +7,13 @@ import { ArrowRight, Check, ChevronDown, ArrowLeft, Code, GraduationCap, Briefca
 import { Button } from "@/components/ui/button"
 import { usePreferences } from "@/contexts/preferences-context"
 import { useAuth } from "@/contexts/auth-context"
+import { useLanguage } from "@/contexts/language-context"
 
 // Define types locally since we can't import types easily in this environment
 type UserRole = "developer" | "student" | "designer" | "business" | "enthusiast" | null
 
 export default function OnboardingPage() {
+  const { t } = useLanguage()
   const router = useRouter()
   const { updatePreferences, logout } = usePreferences()
   const { user, isLoading: isAuthLoading, isAuthenticated } = useAuth()
@@ -156,7 +158,7 @@ export default function OnboardingPage() {
           }}
           className="text-muted-foreground hover:text-foreground gap-2 text-sm sm:text-base"
         >
-          <ArrowLeft className="w-4 h-4" /> <span className="hidden sm:inline">Back to Home</span>
+          <ArrowLeft className="w-4 h-4" /> <span className="hidden sm:inline">{t("common.backHome")}</span>
           <span className="sm:hidden">Back</span>
         </Button>
 
@@ -191,10 +193,10 @@ export default function OnboardingPage() {
               className="text-center mb-8 sm:mb-12"
             >
               <h2 className="text-3xl sm:text-4xl md:text-6xl font-bold mb-4 sm:mb-6 bg-clip-text text-transparent bg-gradient-to-r from-primary to-chart-1">
-                Who are you?
+                {t("onboarding.whoAreYou")}
               </h2>
               <p className="text-lg sm:text-xl text-muted-foreground max-w-2xl mx-auto">
-                Let's tailor the Arcyn experience to your background.
+                {t("onboarding.tailor")}
               </p>
             </motion.div>
 
@@ -246,9 +248,9 @@ export default function OnboardingPage() {
               className="text-center mb-8 sm:mb-12"
             >
               <h2 className="text-3xl sm:text-4xl md:text-6xl font-bold mb-4 sm:mb-6 bg-clip-text text-transparent bg-gradient-to-r from-chart-1 to-chart-2">
-                What brings you here?
+                {t("onboarding.whatBrings")}
               </h2>
-              <p className="text-lg sm:text-xl text-muted-foreground">We'll help you find exactly what you need.</p>
+              <p className="text-lg sm:text-xl text-muted-foreground">{t("onboarding.helpFind")}</p>
             </motion.div>
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4 md:gap-6 max-w-3xl mx-auto">
@@ -292,9 +294,9 @@ export default function OnboardingPage() {
               className="text-center mb-8 sm:mb-12"
             >
               <h2 className="text-3xl sm:text-4xl md:text-6xl font-bold mb-4 sm:mb-6 bg-clip-text text-transparent bg-gradient-to-r from-chart-2 to-chart-3">
-                Pick your interests
+                {t("onboarding.pickInterests")}
               </h2>
-              <p className="text-lg sm:text-xl text-muted-foreground">Select as many as you like.</p>
+              <p className="text-lg sm:text-xl text-muted-foreground">{t("onboarding.selectMany")}</p>
             </motion.div>
 
             <div className="flex flex-wrap justify-center gap-2.5 sm:gap-3 md:gap-4 max-w-3xl mx-auto">
@@ -324,7 +326,7 @@ export default function OnboardingPage() {
                 disabled={interests.length === 0}
                 className="rounded-full px-6 sm:px-8 py-3 sm:py-4 md:py-6 text-sm sm:text-base md:text-lg h-12 sm:h-auto min-h-[48px]"
               >
-                Continue <ChevronDown className="ml-2 w-4 h-4" />
+                {t("common.continue")} <ChevronDown className="ml-2 w-4 h-4" />
               </Button>
             </div>
           </div>
@@ -343,9 +345,9 @@ export default function OnboardingPage() {
               className="text-center mb-8 sm:mb-12"
             >
               <h2 className="text-3xl sm:text-4xl md:text-6xl font-bold mb-4 sm:mb-6 bg-clip-text text-transparent bg-gradient-to-r from-chart-3 to-chart-4">
-                One last thing
+                {t("onboarding.oneLast")}
               </h2>
-              <p className="text-lg sm:text-xl text-muted-foreground">How familiar are you with AI tools?</p>
+              <p className="text-lg sm:text-xl text-muted-foreground">{t("onboarding.howFamiliar")}</p>
             </motion.div>
 
             <div className="space-y-2.5 sm:space-y-3 md:space-y-4 max-w-xl mx-auto mb-6 sm:mb-8 md:mb-12">
@@ -383,11 +385,11 @@ export default function OnboardingPage() {
                 {isSaving ? (
                   <>
                     <div className="mr-2 h-5 w-5 animate-spin rounded-full border-2 border-current border-t-transparent" />
-                    Saving...
+                    {t("settings.saving")}
                   </>
                 ) : (
                   <>
-                    Start Your Journey <ArrowRight className="ml-2 w-4 h-4 sm:w-5 sm:h-5" />
+                    {t("onboarding.startJourney")} <ArrowRight className="ml-2 w-4 h-4 sm:w-5 sm:h-5" />
                   </>
                 )}
               </Button>

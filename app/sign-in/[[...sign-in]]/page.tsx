@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button"
 import { useAuth } from "@/contexts/auth-context"
 import Link from "next/link"
 import type { Metadata } from 'next'
+import { useLanguage } from "@/contexts/language-context"
 
 // Google icon component
 function GoogleIcon({ className }: { className?: string }) {
@@ -34,6 +35,7 @@ function GoogleIcon({ className }: { className?: string }) {
 }
 
 export default function SignInPage() {
+  const { t } = useLanguage()
   const router = useRouter()
   const searchParams = useSearchParams()
   const { isAuthenticated, isLoading, signIn, isRedirectingToGoogle } = useAuth()
@@ -114,9 +116,9 @@ export default function SignInPage() {
               <div className="inline-flex items-center justify-center w-16 h-16 bg-primary/10 rounded-2xl mb-4">
                 <CodesandboxIcon className="w-8 h-8 text-primary" />
               </div>
-              <h1 className="text-2xl sm:text-3xl font-bold mb-2">Welcome Back</h1>
+              <h1 className="text-2xl sm:text-3xl font-bold mb-2">{t("auth.welcomeBack")}</h1>
               <p className="text-muted-foreground">
-                Sign in to discover AI tools worldwide
+                {t("auth.signInSub")}
               </p>
             </div>
 
@@ -141,12 +143,12 @@ export default function SignInPage() {
               {isRedirectingToGoogle ? (
                 <>
                   <Loader2 className="w-5 h-5 mr-3 animate-spin" />
-                  Signing in...
+                  {t("auth.signingIn")}
                 </>
               ) : (
                 <>
                   <GoogleIcon className="w-5 h-5 mr-3" />
-                  Continue with Google
+                  {t("auth.continueGoogle")}
                 </>
               )}
             </Button>
@@ -155,11 +157,11 @@ export default function SignInPage() {
             <p className="mt-6 text-center text-xs text-muted-foreground">
               By signing in, you agree to our{' '}
               <Link href="/terms" className="text-primary hover:underline">
-                Terms of Service
+                {t("landing.termsOfService")}
               </Link>{' '}
               and{' '}
               <Link href="/privacy" className="text-primary hover:underline">
-                Privacy Policy
+                {t("landing.privacyPolicy")}
               </Link>
             </p>
           </div>
@@ -171,7 +173,7 @@ export default function SignInPage() {
               onClick={handleGoogleSignIn}
               className="text-primary hover:underline font-medium"
             >
-              Sign up with Google
+              {t("landing.signUpGoogle")}
             </button>
           </p>
         </motion.div>
