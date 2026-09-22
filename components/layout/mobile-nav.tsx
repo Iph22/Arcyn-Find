@@ -82,7 +82,7 @@ export function MobileNav() {
               >
                 <Sparkles className={cn("w-5 h-5 shrink-0", pathname === "/browse" && "scale-110")} />
               </motion.div>
-              <span className="text-[11px] font-medium leading-tight">Tools</span>
+              <span className="text-[11px] font-medium leading-tight">{t("nav.tools")}</span>
             </Link>
 
             {/* Sign In Button */}
@@ -99,7 +99,7 @@ export function MobileNav() {
             >
               <Lock className="w-4 h-4 shrink-0" />
               <span className="text-[11px] font-medium leading-tight text-center line-clamp-2">
-                Sign in to use more tools
+                {t("nav.signInPrompt")}
               </span>
             </Button>
           </div>
@@ -170,7 +170,7 @@ export function MobileNav() {
                 <motion.div whileTap={{ scale: 0.9 }}>
                   <Search className="w-5 h-5" />
                 </motion.div>
-                <span className="text-[11px] font-medium leading-tight">Search</span>
+                <span className="text-[11px] font-medium leading-tight">{t("nav.search")}</span>
               </div>
             }
           />
