@@ -16,6 +16,7 @@ const BrowserSearchAnimation = dynamic(() => import("@/components/search/browser
 import type { LandingSearchDemo } from "@/lib/landing/search-demo"
 import { usePreferences } from "@/contexts/preferences-context"
 import { useAuth } from "@/contexts/auth-context"
+import { useLanguage } from "@/contexts/language-context"
 
 // Google icon component
 function GoogleIcon({ className }: { className?: string }) {
@@ -68,6 +69,7 @@ export function LandingPage({
   stats: LandingStats
   searchDemo: LandingSearchDemo
 }) {
+  const { t } = useLanguage()
   const router = useRouter()
   const { preferences } = usePreferences()
   const { isAuthenticated, isLoading, signIn } = useAuth()
@@ -147,12 +149,12 @@ export function LandingPage({
               className="space-y-3 sm:space-y-4"
             >
               <h1 className="text-3xl sm:text-4xl md:text-5xl lg:text-6xl xl:text-7xl font-serif font-medium tracking-tight leading-[1.1] flex flex-col">
-                <span className="text-muted-foreground">Need Help?</span>
-                <span className="text-foreground">Ask Arcyn.</span>
+                <span className="text-muted-foreground">{t("landing.needHelp")}</span>
+                <span className="text-foreground">{t("landing.askArcyn")}</span>
               </h1>
               <div className="flex flex-col gap-2">
                 <p className="text-sm sm:text-base md:text-lg lg:text-xl text-muted-foreground font-light max-w-lg leading-relaxed">
-                  Discover, compare and master the right AI tools for your problems
+                  {t("landing.tagline")}
                 </p>
                 {toolCount > 0 && (
                   // Server-rendered, so this is the sentence a crawler reads —
@@ -188,9 +190,9 @@ export function LandingPage({
               className="w-full max-w-sm mx-auto lg:mx-0 bg-card/80 backdrop-blur-sm border border-border/50 rounded-xl p-4 sm:p-5 md:p-6 shadow-xl"
             >
               <div className="mb-4 text-center">
-                <h2 className="text-lg sm:text-xl font-semibold mb-1">Welcome</h2>
+                <h2 className="text-lg sm:text-xl font-semibold mb-1">{t("landing.welcome")}</h2>
                 <p className="text-xs sm:text-sm text-muted-foreground">
-                  Join the community or sign in to continue
+                  {t("landing.joinOrSignIn")}
                 </p>
               </div>
 
@@ -202,7 +204,7 @@ export function LandingPage({
                   variant="default"
                 >
                   <GoogleIcon className="w-5 h-5 mr-3 fill-current" />
-                  Sign Up with Google
+                  {t("landing.signUpGoogle")}
                 </Button>
 
                 <div className="relative py-1">
@@ -210,7 +212,7 @@ export function LandingPage({
                     <span className="w-full border-t border-border/50" />
                   </div>
                   <div className="relative flex justify-center text-[10px] uppercase">
-                    <span className="bg-card px-2 text-muted-foreground">Already have an account?</span>
+                    <span className="bg-card px-2 text-muted-foreground">{t("landing.haveAccount")}</span>
                   </div>
                 </div>
 
@@ -221,7 +223,7 @@ export function LandingPage({
                   variant="outline"
                 >
                   <GoogleIcon className="w-5 h-5 mr-3" />
-                  Sign In
+                  {t("nav.signIn")}
                 </Button>
 
                 <Button
@@ -229,12 +231,12 @@ export function LandingPage({
                   onClick={() => router.push('/tools')}
                   className="w-full h-12 sm:h-11 text-sm sm:text-base font-normal hover:bg-muted/50 active:scale-[0.98]"
                 >
-                  Explore Tools First
+                  {t("landing.exploreFirst")}
                 </Button>
               </div>
 
               <div className="mt-3 sm:mt-4 text-center text-[10px] sm:text-xs text-muted-foreground leading-relaxed">
-                By continuing, you agree to our Terms of Service and Privacy Policy
+                {t("landing.legalNotice")}
               </div>
             </motion.div>
           </div>
@@ -258,9 +260,9 @@ export function LandingPage({
             transition={{ duration: 0.8 }}
             className="text-center mb-8 sm:mb-12 md:mb-16"
           >
-            <h2 className="text-3xl sm:text-4xl md:text-5xl font-bold mb-4 sm:mb-6">Why Arcyn Find?</h2>
+            <h2 className="text-3xl sm:text-4xl md:text-5xl font-bold mb-4 sm:mb-6">{t("landing.why")}</h2>
             <p className="text-base sm:text-lg md:text-xl text-muted-foreground max-w-2xl mx-auto px-4">
-              The most powerful discovery engine for the AI era.
+              {t("landing.whySub")}
             </p>
           </motion.div>
 
@@ -311,7 +313,7 @@ export function LandingPage({
               className="text-center lg:text-left"
             >
               <h2 className="text-3xl sm:text-4xl md:text-5xl lg:text-6xl font-bold mb-6 sm:mb-8 leading-tight flex flex-col">
-                <span>Every number</span>
+                <span>{t("landing.everyNumber")}</span>
                 <span className="text-primary">on this page</span>
                 <span>is measured</span>
               </h2>
@@ -326,7 +328,7 @@ export function LandingPage({
                 lower than the catalog. It goes up every week.
               </p>
               <Button asChild size="lg" className="gap-2 h-12 sm:h-11 text-sm sm:text-base">
-                <Link href="/tools">Browse the directory <ArrowRight className="w-4 h-4" /></Link>
+                <Link href="/tools">{t("landing.browseDirectory")} <ArrowRight className="w-4 h-4" /></Link>
               </Button>
             </motion.div>
 
@@ -355,7 +357,7 @@ export function LandingPage({
                   hint: "features, pricing, alternatives",
                 },
                 {
-                  label: "Categories",
+                  label: t("landing.categories"),
                   value: categories > 0 ? String(categories) : "—",
                   hint: "each with its own page",
                 },
@@ -402,9 +404,9 @@ export function LandingPage({
             <div className="inline-flex items-center justify-center w-12 h-12 sm:w-16 sm:h-16 rounded-full bg-primary/20 mb-4 sm:mb-6">
               <Heart className="w-6 h-6 sm:w-8 sm:h-8 text-primary fill-primary" />
             </div>
-            <h2 className="text-3xl sm:text-4xl md:text-5xl lg:text-6xl font-bold mb-3 sm:mb-4">Behind Arcyn Find</h2>
+            <h2 className="text-3xl sm:text-4xl md:text-5xl lg:text-6xl font-bold mb-3 sm:mb-4">{t("landing.behind")}</h2>
             <p className="text-base sm:text-lg md:text-xl text-muted-foreground max-w-2xl mx-auto px-4">
-              Designed, built and maintained by one person
+              {t("landing.behindSub")}
             </p>
           </motion.div>
 
@@ -491,9 +493,9 @@ export function LandingPage({
         <div className="absolute inset-0 bg-[url('/grid.svg')] opacity-10" />
         <div className="max-w-4xl mx-auto px-4 sm:px-6 text-center relative z-10">
           <motion.div initial={{ opacity: 0, y: 40 }} whileInView={{ opacity: 1, y: 0 }} transition={{ duration: 0.8 }}>
-            <h2 className="text-3xl sm:text-4xl md:text-5xl lg:text-6xl xl:text-7xl font-bold mb-6 sm:mb-8 tracking-tight">Ready to start?</h2>
+            <h2 className="text-3xl sm:text-4xl md:text-5xl lg:text-6xl xl:text-7xl font-bold mb-6 sm:mb-8 tracking-tight">{t("landing.ready")}</h2>
             <p className="text-base sm:text-lg md:text-xl lg:text-2xl text-muted-foreground mb-8 sm:mb-10 md:mb-12 max-w-2xl mx-auto px-4">
-              Join Arcyn Find today and discover the tools that will power your next big idea.
+              {t("landing.readySub")}
             </p>
             <div className="flex flex-col sm:flex-row items-center justify-center gap-3 sm:gap-4">
               <Button
@@ -502,13 +504,13 @@ export function LandingPage({
                 onClick={handleSignIn}
               >
                 <GoogleIcon className="w-5 h-5 mr-2" />
-                Get Started with Google
+                {t("landing.getStartedGoogle")}
               </Button>
               {/* A real anchor, not an onClick handler. This is the primary
                   path from the homepage into the public directory, and a
                   crawler cannot follow router.push(). */}
               <Button asChild size="lg" variant="outline" className="h-12 sm:h-14 px-6 sm:px-8 text-sm sm:text-base md:text-lg rounded-full bg-background/50 w-full sm:w-auto active:scale-[0.98]">
-                <Link href="/tools">Explore Tools</Link>
+                <Link href="/tools">{t("landing.exploreTools")}</Link>
               </Button>
             </div>
           </motion.div>
@@ -524,9 +526,9 @@ export function LandingPage({
             transition={{ duration: 0.8 }}
             className="text-center mb-8 sm:mb-10 md:mb-12"
           >
-            <h2 className="text-3xl sm:text-4xl md:text-5xl font-bold mb-3 sm:mb-4">Get in Touch</h2>
+            <h2 className="text-3xl sm:text-4xl md:text-5xl font-bold mb-3 sm:mb-4">{t("landing.getInTouch")}</h2>
             <p className="text-base sm:text-lg md:text-xl text-muted-foreground max-w-2xl mx-auto px-4">
-              Have questions? We'd love to hear from you.
+              {t("landing.getInTouchSub")}
             </p>
           </motion.div>
 
@@ -537,11 +539,11 @@ export function LandingPage({
               transition={{ duration: 0.5, delay: 0.1 }}
               className="text-center"
             >
-              <h3 className="text-lg font-semibold mb-4">Contact</h3>
+              <h3 className="text-lg font-semibold mb-4">{t("landing.getInTouch")}</h3>
               <ul className="space-y-2 text-sm sm:text-base text-muted-foreground">
                 <li>
                   <a href="/contact" className="hover:text-primary transition-colors min-h-[44px] flex items-center justify-center">
-                    Contact Us
+                    {t("landing.contactUs")}
                   </a>
                 </li>
                 <li>
@@ -558,16 +560,16 @@ export function LandingPage({
               transition={{ duration: 0.5, delay: 0.2 }}
               className="text-center"
             >
-              <h3 className="text-lg font-semibold mb-4">Legal</h3>
+              <h3 className="text-lg font-semibold mb-4">{t("landing.legal")}</h3>
               <ul className="space-y-2 text-sm sm:text-base text-muted-foreground">
                 <li>
                   <a href="/privacy" className="hover:text-primary transition-colors min-h-[44px] flex items-center justify-center">
-                    Privacy Policy
+                    {t("landing.privacyPolicy")}
                   </a>
                 </li>
                 <li>
                   <a href="/terms" className="hover:text-primary transition-colors min-h-[44px] flex items-center justify-center">
-                    Terms of Service
+                    {t("landing.termsOfService")}
                   </a>
                 </li>
               </ul>
@@ -579,11 +581,11 @@ export function LandingPage({
               transition={{ duration: 0.5, delay: 0.3 }}
               className="text-center"
             >
-              <h3 className="text-lg font-semibold mb-4">Resources</h3>
+              <h3 className="text-lg font-semibold mb-4">{t("landing.resources")}</h3>
               <ul className="space-y-2 text-sm sm:text-base text-muted-foreground">
                 <li>
                   <a href="/community" className="hover:text-primary transition-colors min-h-[44px] flex items-center justify-center">
-                    Community
+                    {t("community.heading")}
                   </a>
                 </li>
                 {/* Was /home, which is auth-gated and Disallow'd in
@@ -591,12 +593,12 @@ export function LandingPage({
                     every crawler into a sign-in redirect. */}
                 <li>
                   <a href="/tools" className="hover:text-primary transition-colors min-h-[44px] flex items-center justify-center">
-                    Browse Tools
+                    {t("landing.browseTools")}
                   </a>
                 </li>
                 <li>
                   <a href="/tools/category" className="hover:text-primary transition-colors min-h-[44px] flex items-center justify-center">
-                    Categories
+                    {t("landing.categories")}
                   </a>
                 </li>
               </ul>
@@ -608,11 +610,11 @@ export function LandingPage({
               transition={{ duration: 0.5, delay: 0.4 }}
               className="text-center"
             >
-              <h3 className="text-lg font-semibold mb-4">Connect</h3>
+              <h3 className="text-lg font-semibold mb-4">{t("landing.connect")}</h3>
               <ul className="space-y-2 text-sm sm:text-base text-muted-foreground">
                 <li>
                   <a href="/about" className="hover:text-primary transition-colors min-h-[44px] flex items-center justify-center">
-                    About Us
+                    {t("landing.aboutUs")}
                   </a>
                 </li>
                 <li className="flex items-center justify-center gap-2 min-h-[44px]">
