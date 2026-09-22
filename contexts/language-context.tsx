@@ -4966,6 +4966,39 @@ export function LanguageProvider({ children }: { children: ReactNode }) {
   )
 }
 
+/**
+ * Like `useLanguage`, but tolerates being rendered outside the provider.
+ *
+ * `FeedbackWidget` is mounted as a sibling of the provider tree on purpose --
+ * so it still works on the not-found and error boundaries, which is exactly
+ * where someone most wants to report a problem. Calling `useLanguage` there
+ * throws, and a widget that crashes the page it exists to collect a bug report
+ * from is worse than an untranslated one.
+ *
+ * Falls back to English rather than throwing. Deliberately separate from
+ * `useLanguage`, which keeps throwing: a component that *should* be inside the
+ * provider and is not is a bug worth surfacing loudly, and silently degrading
+ * every such case would hide it.
+ */
+export function useOptionalLanguage(): LanguageContextValue {
+  const ctx = useContext(LanguageContext)
+  if (ctx) return ctx
+  return {
+    language: "en",
+    setLanguage: () => {},
+    currentLanguage: LANGUAGES[0],
+    t: (key, vars) => {
+      let text = translations.en[key] ?? key
+      if (vars) {
+        Object.entries(vars).forEach(([k, v]) => {
+          text = text.replace(`{${k}}`, String(v))
+        })
+      }
+      return text
+    },
+  }
+}
+
 export function useLanguage(): LanguageContextValue {
   const ctx = useContext(LanguageContext)
   if (!ctx) throw new Error("useLanguage must be used inside <LanguageProvider>")

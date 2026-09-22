@@ -33,14 +33,14 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog"
 import { toast } from "sonner"
-import { useLanguage } from "@/contexts/language-context"
+import { useOptionalLanguage } from "@/contexts/language-context"
 
 const IDENTITY_KEY = "arcyn-feedback-identity"
 const MIN_MESSAGE = 10
 const MAX_MESSAGE = 5000
 
 export function FeedbackWidget() {
-  const { t } = useLanguage()
+  const { t } = useOptionalLanguage()
   const pathname = usePathname()
   const [open, setOpen] = useState(false)
   const [name, setName] = useState("")
