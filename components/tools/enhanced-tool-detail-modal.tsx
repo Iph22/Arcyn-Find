@@ -17,6 +17,7 @@ import { toast } from "sonner"
 import type { ToolWithRating } from "@/lib/types"
 import { logger } from "@/lib/logger"
 import { useTrackToolView } from "@/lib/hooks/use-track-tool-view"
+import { useLanguage } from "@/contexts/language-context"
 
 interface Tool {
   id: string
@@ -59,6 +60,7 @@ interface Collection {
 }
 
 export function ToolDetailModal({ tool, isOpen, onClose }: ToolDetailModalProps) {
+  const { t } = useLanguage()
   const router = useRouter()
   const [isFavorited, setIsFavorited] = useState(false)
   const [isTogglingFavorite, setIsTogglingFavorite] = useState(false)
@@ -381,7 +383,7 @@ export function ToolDetailModal({ tool, isOpen, onClose }: ToolDetailModalProps)
                       <div className="flex items-center gap-3">
                         <div className="flex items-center gap-2">
                           <DollarSign className="w-5 h-5 text-muted-foreground" />
-                          <span className="font-semibold text-sm text-muted-foreground">Pricing:</span>
+                          <span className="font-semibold text-sm text-muted-foreground">{t("tool.pricing")}</span>
                         </div>
                         <div className="flex items-center gap-2 flex-wrap">
                           <PricingBadge
@@ -407,7 +409,7 @@ export function ToolDetailModal({ tool, isOpen, onClose }: ToolDetailModalProps)
                   {/* Tags */}
                   {tool.tags && tool.tags.length > 0 && (
                     <div className="flex flex-wrap gap-2 items-center">
-                      <span className="text-sm font-semibold text-muted-foreground mr-1">Tags:</span>
+                      <span className="text-sm font-semibold text-muted-foreground mr-1">{t("tool.tags")}</span>
                       {tool.tags.map((tag) => (
                         <Badge key={tag} variant="outline" className="border-border">
                           {tag}
@@ -437,7 +439,7 @@ export function ToolDetailModal({ tool, isOpen, onClose }: ToolDetailModalProps)
                       onClick={() => setShowCollectionDialog(true)}
                     >
                       <Plus className="w-4 h-4 mr-2" />
-                      Add to Collection
+                      {t("tool.addToCollection")}
                     </Button>
                     <Button
                       variant="outline"
@@ -456,7 +458,7 @@ export function ToolDetailModal({ tool, isOpen, onClose }: ToolDetailModalProps)
                       <h3 className="text-2xl font-bold">Reviews</h3>
                       <Button onClick={() => setShowReviewDialog(true)}>
                         <Star className="w-4 h-4 mr-2" />
-                        Write Review
+                        {t("tool.writeReview")}
                       </Button>
                     </div>
 
@@ -546,13 +548,13 @@ export function ToolDetailModal({ tool, isOpen, onClose }: ToolDetailModalProps)
               <div className="text-center py-8">
                 <p className="text-muted-foreground mb-4">You don't have any collections yet.</p>
                 <Button onClick={() => router.push('/collections')}>
-                  Create Collection
+                  {t("collections.create")}
                 </Button>
               </div>
             ) : (
               <Select value={selectedCollection} onValueChange={setSelectedCollection}>
                 <SelectTrigger>
-                  <SelectValue placeholder="Select a collection" />
+                  <SelectValue placeholder={t("tool.selectCollection")} />
                 </SelectTrigger>
                 <SelectContent>
                   {collections.map((collection) => (
@@ -599,7 +601,7 @@ export function ToolDetailModal({ tool, isOpen, onClose }: ToolDetailModalProps)
                 value={reviewTitle}
                 onChange={(e) => setReviewTitle(e.target.value)}
                 className="w-full px-3 py-2 border rounded-md"
-                placeholder="Sum up your experience"
+                placeholder={t("tool.sumUp")}
               />
             </div>
             <div>
@@ -607,7 +609,7 @@ export function ToolDetailModal({ tool, isOpen, onClose }: ToolDetailModalProps)
               <Textarea
                 value={reviewText}
                 onChange={(e) => setReviewText(e.target.value)}
-                placeholder="Share your thoughts..."
+                placeholder={t("tool.shareThoughts")}
                 rows={4}
               />
             </div>
@@ -632,7 +634,7 @@ export function ToolDetailModal({ tool, isOpen, onClose }: ToolDetailModalProps)
               onClick={handleNativeShare}
             >
               <Share2 className="w-4 h-4 mr-2" />
-              Share via...
+              {t("tool.shareVia")}
             </Button>
             <Button
               variant="outline"
@@ -643,7 +645,7 @@ export function ToolDetailModal({ tool, isOpen, onClose }: ToolDetailModalProps)
               {copied ? 'Copied!' : 'Copy Link'}
             </Button>
             <div className="pt-2">
-              <p className="text-sm text-muted-foreground mb-2">Link to website:</p>
+              <p className="text-sm text-muted-foreground mb-2">{t("tool.linkToWebsite")}</p>
               <code className="block p-2 bg-muted rounded text-xs break-all">
                 {tool.platform || `${window.location.origin}/tools/${tool.id}`}
               </code>
