@@ -47,7 +47,8 @@
     "dedupe": "node --env-file=.env.local scripts/database/dedupe-tools.mjs --execute",
     "seo:slugs": "node --env-file=.env.local scripts/seo/backfill-slugs.mjs",
     "seo:slugs:dry": "node --env-file=.env.local scripts/seo/backfill-slugs.mjs --dry-run",
-    "seo:audit": "node --env-file=.env.local scripts/seo/audit.mjs"
+    "seo:audit": "node --env-file=.env.local scripts/seo/audit.mjs",
+    "i18n:audit": "node scripts/testing/i18n-audit.mjs"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.124.0",
