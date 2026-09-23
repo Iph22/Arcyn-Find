@@ -65,18 +65,26 @@ const reason = (error) => {
  * behind at the edge, and the first attempt then throws before the site is
  * reachable at all. A failed assertion is never retried; only a throw is.
  */
-async function get(path, attempts = 3) {
+async function get(path, { attempts = 3, redirect = 'follow' } = {}) {
+  // No `x-vercel-set-bypass-cookie`. It asks Vercel to hand back a cookie, and
+  // Node's fetch has no cookie jar to keep it in -- so the bypass never
+  // persisted, the wall redirected to vercel.com, fetch stripped the custom
+  // header on that cross-origin hop, and the two bounced until undici gave up
+  // with `redirect count exceeded`. The header alone is what authorises the
+  // request, and it is sent on every call here.
   const headers = { 'user-agent': 'arcyn-smoke/1.0' }
-  if (BYPASS) {
-    headers['x-vercel-protection-bypass'] = BYPASS
-    headers['x-vercel-set-bypass-cookie'] = 'true'
-  }
+  if (BYPASS) headers['x-vercel-protection-bypass'] = BYPASS
 
   let last
   for (let attempt = 1; attempt <= attempts; attempt++) {
     try {
-      const res = await fetch(BASE + path, { headers, signal: AbortSignal.timeout(60_000) })
-      return { status: res.status, body: await res.text(), url: res.url }
+      const res = await fetch(BASE + path, { headers, redirect, signal: AbortSignal.timeout(60_000) })
+      return {
+        status: res.status,
+        body: res.status >= 300 && res.status < 400 ? '' : await res.text(),
+        url: res.url,
+        location: res.headers.get('location') ?? '',
+      }
     } catch (error) {
       last = error
       if (attempt < attempts) {
@@ -89,14 +97,27 @@ async function get(path, attempts = 3) {
   throw last
 }
 
-/** Vercel's protection wall answers 200 with a login page, not the site. */
-const isAuthWall = ({ body, url }) =>
-  /\/sso-api|vercel\.com\/login/.test(url) || /_vercel_sso_nonce|Authentication Required/i.test(body)
+/**
+ * Vercel's protection wall.
+ *
+ * Probed with `redirect: 'manual'`, so the 302 to `vercel.com/sso-api` is the
+ * signal rather than something to chase -- chasing it is what produced
+ * `redirect count exceeded` instead of a readable answer. A valid bypass
+ * header returns 200 directly, so any redirect off-site means the bypass did
+ * not take. The body patterns stay for the followed case and for production.
+ */
+const isAuthWall = ({ status, url, body, location }) =>
+  (status >= 300 && status < 400 && /vercel\.com\/(sso-api|login)/.test(location)) ||
+  /\/sso-api|vercel\.com\/login/.test(url) ||
+  /_vercel_sso_nonce|Authentication Required/i.test(body)
 
 console.log(`smoke test: ${BASE}\n`)
 
 try {
-  const home = await get('/')
+  // Reachability first, without following redirects. Everything after this
+  // point follows them normally, which the site's own 308s rely on.
+  const probe = await get('/', { redirect: 'manual' })
+  const home = isAuthWall(probe) ? probe : await get('/')
 
   // Bail before the content checks rather than reporting five misleading ones.
   if (isAuthWall(home)) {
