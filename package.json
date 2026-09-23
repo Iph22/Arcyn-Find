@@ -44,6 +44,8 @@
     "enrich:submit": "node --env-file=.env.local scripts/enrich/enrich-tools.mjs submit",
     "enrich:collect": "node --env-file=.env.local scripts/enrich/enrich-tools.mjs collect",
     "unescape:legacy": "node --env-file=.env.local scripts/database/unescape-legacy-entities.mjs",
+    "categories:dry": "tsx --env-file=.env.local scripts/database/merge-categories.mts",
+    "categories": "tsx --env-file=.env.local scripts/database/merge-categories.mts --execute",
     "dedupe:dry": "node --env-file=.env.local scripts/database/dedupe-tools.mjs",
     "dedupe": "node --env-file=.env.local scripts/database/dedupe-tools.mjs --execute",
     "seo:slugs": "tsx --env-file=.env.local scripts/seo/backfill-slugs.mts",
