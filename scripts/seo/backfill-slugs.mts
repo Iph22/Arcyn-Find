@@ -3,8 +3,8 @@
  * Assign a public URL slug to one row per distinct product.
  *
  * Run:
- *   node --env-file=.env.local scripts/seo/backfill-slugs.mjs --dry-run
- *   node --env-file=.env.local scripts/seo/backfill-slugs.mjs
+ *   npm run seo:slugs:dry
+ *   npm run seo:slugs
  *
  * Requires supabase/migrations/add_tool_slugs.sql to have been applied.
  *
@@ -22,8 +22,14 @@
 
 import { createClient } from '@supabase/supabase-js'
 
+// Single source of truth, shared with lib/seo/catalog.ts. It used to be a
+// literal here, and a literal in audit, and a literal in catalog.ts -- three
+// copies of a number that must agree or the backfill assigns slugs the layer
+// then filters out.
+import { PUBLISH_MIN_POPULARITY as MIN_POPULARITY } from '../../lib/seo/publish-policy'
+import { isPubliclyListable } from '../../lib/seo/content-rating'
+
 const DRY_RUN = process.argv.includes('--dry-run')
-const MIN_POPULARITY = 90
 const PAGE_SIZE = 1000
 const WRITE_CHUNK = 25
 const WRITE_PAUSE_MS = 120
@@ -34,7 +40,7 @@ const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY
 if (!supabaseUrl || !serviceKey) {
   console.error(
     'Missing NEXT_PUBLIC_SUPABASE_URL or SUPABASE_SERVICE_ROLE_KEY.\n' +
-      'Run with: node --env-file=.env.local scripts/seo/backfill-slugs.mjs'
+      'Run with: npm run seo:slugs:dry'
   )
   process.exit(1)
 }
@@ -71,7 +77,8 @@ async function loadBand() {
   for (let page = 0; page < 40; page++) {
     let query = db
       .from('ai_tools')
-      .select('id, name, category, description, popularity, slug')
+      // `tags` is here for the content rating, not for the slug.
+      .select('id, name, category, description, popularity, slug, tags')
       .gte('popularity', MIN_POPULARITY)
       .order('id', { ascending: true })
       .limit(PAGE_SIZE)
@@ -130,14 +137,45 @@ async function main() {
   const rows = await loadBand()
   console.log(`Loaded ${rows.length} rows.\n`)
 
-  const groups = new Map()
+  // Never mint a public URL for something the public layer refuses to serve,
+  // and take back any that were minted before the content rating existed.
+  //
+  // Withholding new ones is not enough on its own: two nudify tools had held
+  // slugs since the original backfill, and because they are not "no longer the
+  // winner" they never qualified as stale. They 404 through resolveToolRoute
+  // either way, but a slug on a row nothing will serve is a URL that exists in
+  // the database and nowhere else.
+  //
+  // `adult` rows keep their slug on purpose. Those pages serve; they are only
+  // kept out of the index.
+  const listable = []
+  const withheld = []
   for (const row of rows) {
+    const target = isPubliclyListable({
+      name: row.name ?? '',
+      rawDescription: row.description ?? '',
+      tags: row.tags ?? [],
+    })
+      ? listable
+      : withheld
+    target.push(row)
+  }
+  if (withheld.length) {
+    const holding = withheld.filter((row) => row.slug)
+    console.log(
+      `Prohibited content: ${withheld.length} rows withheld` +
+        (holding.length ? `, ${holding.length} of which must lose a slug they already hold` : '')
+    )
+  }
+
+  const groups = new Map()
+  for (const row of listable) {
     const key = normalizeName(row.name)
     if (!key) continue
     if (!groups.has(key)) groups.set(key, [])
     groups.get(key).push(row)
   }
-  console.log(`Distinct products: ${groups.size} (from ${rows.length} rows)`)
+  console.log(`Distinct products: ${groups.size} (from ${listable.length} listable rows)`)
 
   const assignments = []
   const takenSlugs = new Set()
@@ -169,9 +207,12 @@ async function main() {
   // Rows that previously held a slug but are no longer the chosen winner must
   // lose it, or the partial unique index will reject the new owner.
   const winnerIds = new Set(assignments.map((a) => a.id))
-  const stale = rows.filter(
-    (row) => row.slug && !winnerIds.has(row.id) && !takenSlugs.has(row.slug)
-  )
+  const stale = [
+    ...listable.filter((row) => row.slug && !winnerIds.has(row.id) && !takenSlugs.has(row.slug)),
+    // Prohibited rows lose their slug unconditionally -- they are not competing
+    // for one, so the "no longer the winner" test above would never catch them.
+    ...withheld.filter((row) => row.slug),
+  ]
 
   console.log(`Slugs to write:   ${assignments.length}`)
   console.log(`Slugs to clear:   ${stale.length}`)
@@ -188,6 +229,7 @@ async function main() {
 
   console.log(`\nWriting in chunks of ${WRITE_CHUNK} ...`)
   let written = 0
+  let cleared = 0
   let failed = 0
 
   for (let i = 0; i < stale.length; i += WRITE_CHUNK) {
@@ -198,6 +240,8 @@ async function main() {
         if (error) {
           failed++
           console.error(`  clear ${row.id}: ${error.message}`)
+        } else {
+          cleared++
         }
       })
     )
@@ -225,7 +269,10 @@ async function main() {
     await sleep(WRITE_PAUSE_MS)
   }
 
-  console.log(`\nWrote ${written} slugs, ${failed} failures.`)
+  // Clears are counted separately. A run that only withdrew slugs reported
+  // "Wrote 0 slugs, 0 failures", which reads as "did nothing" -- it took a
+  // database check to confirm the two prohibited pages had actually gone.
+  console.log(`\nWrote ${written} slugs, cleared ${cleared}, ${failed} failures.`)
   console.log(
     'Now run this in the Supabase SQL editor -- §2: a bulk UPDATE of this size\n' +
       'left stale statistics and index bloat last time, and query latency did\n' +
