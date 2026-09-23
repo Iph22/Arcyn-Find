@@ -32,16 +32,32 @@ branch, so what you verified is what goes live.
 
 ## One-time setup
 
-**Vercel → Project → Settings → Git → Production Branch: `release`.**
+Two Vercel dashboard settings. Neither can be set from this repository, and
+blue-green does not work until both are done.
 
-That single setting is what makes this blue-green. With it on `main`, every
-merge publishes to production immediately and there is nothing to verify
-first.
+**1. Settings → Git → Production Branch: `release`.**
+
+This is what makes the flow blue-green. With it on `main`, every merge
+publishes to production immediately and there is nothing to verify first.
 
 Nothing in this repository can hold that setting in place — it is dashboard
-state. So the `production-branch` job reads it back from
-`/v9/projects/{id}` on every CI run and fails the build if it is anything but
-`release`. That is the guard whose absence let this page stay wrong.
+state. So the `production-branch` job reads it back from `/v9/projects/{id}`
+on every CI run and fails the build if it is anything but `release`. That is
+the guard whose absence let this page stay wrong.
+
+**2. Settings → Deployment Protection → Protection Bypass for Automation.**
+
+Generate the secret, then add it to GitHub as the repository secret
+`VERCEL_AUTOMATION_BYPASS_SECRET`.
+
+Without it the verify step cannot run at all: protected preview deployments
+answer **HTTP 200 with an SSO login page**, so `smoke` reads a login form
+instead of the site and reports "no count found" and "0 sitemap URLs" — a
+database failure that is not happening. It is the deployment you are meant to
+verify that cannot be reached, which makes verify-then-promote unusable.
+
+`smoke` now detects that wall and names it, rather than reporting the
+misleading content failures. Production is not protected and needs no secret.
 
 The `release` branch exists as of 2026-09-22. If it is ever lost:
 
