@@ -46,14 +46,47 @@ const check = (label, ok, detail = '') => {
   if (!ok) failures++
 }
 
-async function get(path) {
+/**
+ * `fetch` rejects with a bare "fetch failed" and puts the reason in `cause`.
+ * Reporting only the message told us a deployment was unreachable without ever
+ * saying why, which is how a DNS race and a protection wall look identical.
+ */
+const reason = (error) => {
+  const parts = [error.message]
+  for (let c = error.cause; c; c = c.cause) parts.push(c.message ?? String(c))
+  return [...new Set(parts)].join(' <- ')
+}
+
+/**
+ * Retries the network layer, not the assertions.
+ *
+ * This runs off Vercel's `deployment_status` webhook, which fires when the
+ * deployment is marked ready -- the generated hostname can still be a moment
+ * behind at the edge, and the first attempt then throws before the site is
+ * reachable at all. A failed assertion is never retried; only a throw is.
+ */
+async function get(path, attempts = 3) {
   const headers = { 'user-agent': 'arcyn-smoke/1.0' }
   if (BYPASS) {
     headers['x-vercel-protection-bypass'] = BYPASS
     headers['x-vercel-set-bypass-cookie'] = 'true'
   }
-  const res = await fetch(BASE + path, { headers, signal: AbortSignal.timeout(60_000) })
-  return { status: res.status, body: await res.text(), url: res.url }
+
+  let last
+  for (let attempt = 1; attempt <= attempts; attempt++) {
+    try {
+      const res = await fetch(BASE + path, { headers, signal: AbortSignal.timeout(60_000) })
+      return { status: res.status, body: await res.text(), url: res.url }
+    } catch (error) {
+      last = error
+      if (attempt < attempts) {
+        const wait = attempt * 3000
+        console.log(`  ...${path} did not connect (${reason(error)}); retrying in ${wait / 1000}s`)
+        await new Promise((r) => setTimeout(r, wait))
+      }
+    }
+  }
+  throw last
 }
 
 /** Vercel's protection wall answers 200 with a login page, not the site. */
@@ -102,7 +135,7 @@ try {
   const locs = (sitemap.body.match(/<loc>/g) || []).length
   check(`sitemap has more than ${MIN_SITEMAP_URLS} URLs`, locs > MIN_SITEMAP_URLS, `${locs} URLs`)
 } catch (error) {
-  check('reachable', false, error.message)
+  check('reachable', false, reason(error))
 }
 
 console.log(failures === 0 ? '\nHealthy.' : `\n${failures} check(s) failed.`)
