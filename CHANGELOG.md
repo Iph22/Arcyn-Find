@@ -95,6 +95,10 @@ between that point and the first tagged release.
   (#11, #17, #18)
 - `npm run smoke` now runs automatically against every deployment via the
   `deployment_status` event, instead of being referenced only in a comment
+- `npm run smoke` understands Vercel Deployment Protection: protected previews
+  answer HTTP 200 with an SSO login page, which it used to report as an
+  unreachable database. It now detects the wall, names it, and accepts
+  `VERCEL_AUTOMATION_BYPASS_SECRET` to get through it
 - First tagged release: the repo previously had no git tags at all
 - `package.json` renamed from `my-v0-project` to `arcyn-find`, version
   `0.1.0` → `1.2.0`
