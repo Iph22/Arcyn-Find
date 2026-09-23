@@ -46,9 +46,9 @@
     "unescape:legacy": "node --env-file=.env.local scripts/database/unescape-legacy-entities.mjs",
     "dedupe:dry": "node --env-file=.env.local scripts/database/dedupe-tools.mjs",
     "dedupe": "node --env-file=.env.local scripts/database/dedupe-tools.mjs --execute",
-    "seo:slugs": "node --env-file=.env.local scripts/seo/backfill-slugs.mjs",
-    "seo:slugs:dry": "node --env-file=.env.local scripts/seo/backfill-slugs.mjs --dry-run",
-    "seo:audit": "node --env-file=.env.local scripts/seo/audit.mjs",
+    "seo:slugs": "tsx --env-file=.env.local scripts/seo/backfill-slugs.mts",
+    "seo:slugs:dry": "tsx --env-file=.env.local scripts/seo/backfill-slugs.mts --dry-run",
+    "seo:audit": "tsx --env-file=.env.local scripts/seo/audit.mts",
     "i18n:audit": "node scripts/testing/i18n-audit.mjs"
   },
   "dependencies": {

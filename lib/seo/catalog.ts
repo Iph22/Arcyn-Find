@@ -18,8 +18,13 @@ import { clampForMeta, isTruncated, normalizeName, slugify, tidyDescription } fr
 const PAGE_COLUMNS =
   'id, slug, name, category, description, platform, access_type, pricing, tags, popularity, last_updated, image, pricing_model, price_monthly_min_usd, price_monthly_max_usd, has_free_tier, has_free_trial'
 
-/** Rows below this popularity are excluded from the public layer entirely. */
-export const PUBLISH_MIN_POPULARITY = 90
+/**
+ * Rows below this popularity are excluded from the public layer entirely.
+ * Defined in its own dependency-free module so the standalone scripts that
+ * assign and audit slugs can read the same number; re-exported here because
+ * this is where callers already import it from.
+ */
+export { PUBLISH_MIN_POPULARITY } from './publish-policy'
 
 /** A category needs this many distinct products before it earns a landing page. */
 const MIN_CATEGORY_SIZE = 20
