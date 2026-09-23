@@ -1,0 +1,58 @@
+name: Verify deployment
+
+# Vercel reports every deployment it makes to GitHub as a Deployment object,
+# which is what this verifies against. It fires for both halves of blue-green:
+#
+#     main    -> Preview      the green; smoke decides whether it may be promoted
+#     release -> Production   the swap; smoke confirms the promotion is serving
+#
+# `npm run smoke` existed long before this workflow, but was referenced only
+# inside a comment in ci-cd.yml -- so it ran only when somebody remembered to
+# run it by hand. Both regressions it catches shipped while CI was green and
+# while the site returned HTTP 200, which is precisely the class of failure a
+# gate nobody triggers will never catch.
+
+on:
+  deployment_status:
+
+# A newer deployment for the same environment makes an in-flight check moot.
+concurrency:
+  group: smoke-${{ github.event.deployment.environment }}
+  cancel-in-progress: true
+
+jobs:
+  smoke:
+    # Vercel posts `pending` and `error` statuses against the same deployment.
+    # Only a finished one that published a URL is worth smoking.
+    if: >-
+      github.event.deployment_status.state == 'success' &&
+      github.event.deployment_status.target_url != ''
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout the deployed commit
+        uses: actions/checkout@v4
+        with:
+          # Smoke the script as it exists in the commit under test, not as it
+          # exists on the default branch.
+          ref: ${{ github.event.deployment.sha }}
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22.x'
+
+      # No `npm ci` here on purpose. smoke.mjs uses only global fetch and
+      # AbortSignal.timeout, both built into Node 20+, so installing this
+      # project's dependency tree to run it would add minutes for nothing.
+      #
+      # target_url goes through the environment rather than into the command
+      # line: it is attacker-influencable input in the general case, and
+      # interpolating it straight into `run:` would be a shell injection.
+      - name: Smoke the deployment
+        env:
+          TARGET_URL: ${{ github.event.deployment_status.target_url }}
+          ENVIRONMENT: ${{ github.event.deployment.environment }}
+        run: |
+          echo "Verifying $ENVIRONMENT deployment at $TARGET_URL"
+          node scripts/testing/smoke.mjs "$TARGET_URL"

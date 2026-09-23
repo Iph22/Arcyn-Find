@@ -12,6 +12,7 @@ import {
   SelectValue,
 } from "@/components/ui/select"
 import { cn } from "@/lib/utils"
+import { useLanguage } from "@/contexts/language-context"
 
 interface FilterBarProps {
   categories?: string[]
@@ -40,6 +41,7 @@ export function FilterBar({
   onClear,
   className,
 }: FilterBarProps) {
+  const { t } = useLanguage()
   const hasActiveFilters =
     selectedCategory || selectedRegion || selectedAccessType
 
@@ -54,15 +56,15 @@ export function FilterBar({
     <div className={cn("flex flex-wrap items-center gap-3", className)}>
       <div className="flex items-center gap-2">
         <Filter className="h-4 w-4 text-muted-foreground" />
-        <span className="text-sm font-medium">Filters:</span>
+        <span className="text-sm font-medium">{t("filter.label")}</span>
       </div>
 
       <Select value={selectedCategory || "all"} onValueChange={onCategoryChange}>
         <SelectTrigger className="w-[180px]">
-          <SelectValue placeholder="Category" />
+          <SelectValue placeholder={t("filter.category")} />
         </SelectTrigger>
         <SelectContent>
-          <SelectItem value="all">All Categories</SelectItem>
+          <SelectItem value="all">{t("filter.allCategories")}</SelectItem>
           {categories.map((category) => (
             <SelectItem key={category} value={category}>
               {category}
@@ -74,10 +76,10 @@ export function FilterBar({
       {regions.length > 0 && (
         <Select value={selectedRegion || "all"} onValueChange={onRegionChange}>
           <SelectTrigger className="w-[180px]">
-            <SelectValue placeholder="Region" />
+            <SelectValue placeholder={t("search.region")} />
           </SelectTrigger>
           <SelectContent>
-            <SelectItem value="all">All Regions</SelectItem>
+            <SelectItem value="all">{t("filter.allRegions")}</SelectItem>
             {regions.map((region) => (
               <SelectItem key={region} value={region}>
                 {region}
@@ -93,10 +95,10 @@ export function FilterBar({
           onValueChange={onAccessTypeChange}
         >
           <SelectTrigger className="w-[180px]">
-            <SelectValue placeholder="Access Type" />
+            <SelectValue placeholder={t("filter.accessType")} />
           </SelectTrigger>
           <SelectContent>
-            <SelectItem value="all">All Access Types</SelectItem>
+            <SelectItem value="all">{t("filter.allAccessTypes")}</SelectItem>
             {accessTypes.map((type) => (
               <SelectItem key={type} value={type}>
                 {type}

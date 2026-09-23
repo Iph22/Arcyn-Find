@@ -157,7 +157,7 @@ export function ToolDetailModal({ tool, isOpen, onClose }: ToolDetailModalProps)
     if (url && url !== '#') {
       window.open(url, '_blank', 'noopener,noreferrer')
     } else {
-      toast.error('Website URL not available')
+      toast.error(t("toast.websiteUnavailable"))
     }
   }
 
@@ -172,9 +172,9 @@ export function ToolDetailModal({ tool, isOpen, onClose }: ToolDetailModalProps)
         })
         if (response.ok) {
           setIsFavorited(false)
-          toast.success('Removed from favorites')
+          toast.success(t("toast.removedFavorites"))
         } else {
-          toast.error('Failed to remove from favorites')
+          toast.error(t("toast.removeFavoritesFailed"))
         }
       } else {
         // Add favorite
@@ -185,14 +185,14 @@ export function ToolDetailModal({ tool, isOpen, onClose }: ToolDetailModalProps)
         })
         if (response.ok) {
           setIsFavorited(true)
-          toast.success('Added to favorites')
+          toast.success(t("toast.addedFavorites"))
         } else {
-          toast.error('Failed to add to favorites')
+          toast.error(t("toast.addFavoritesFailed"))
         }
       }
     } catch (error) {
       logger.error('Error toggling favorite:', error)
-      toast.error('Failed to update favorites')
+      toast.error(t("toast.updateFavoritesFailed"))
     } finally {
       setIsTogglingFavorite(false)
     }
@@ -208,7 +208,7 @@ export function ToolDetailModal({ tool, isOpen, onClose }: ToolDetailModalProps)
       })
 
       if (response.ok) {
-        toast.success('Added to collection')
+        toast.success(t("toast.addedToCollection"))
         setShowCollectionDialog(false)
         setSelectedCollection("")
       } else {
@@ -233,7 +233,7 @@ export function ToolDetailModal({ tool, isOpen, onClose }: ToolDetailModalProps)
 
     // Validate rating
     if (reviewRating < 1 || reviewRating > 5) {
-      toast.error('Please select a rating between 1 and 5 stars')
+      toast.error(t("toast.selectRating"))
       return
     }
 
@@ -252,7 +252,7 @@ export function ToolDetailModal({ tool, isOpen, onClose }: ToolDetailModalProps)
       })
 
       if (response.ok) {
-        toast.success('Review submitted successfully!')
+        toast.success(t("toast.reviewSubmitted"))
         setShowReviewDialog(false)
         setReviewRating(5)
         setReviewTitle('')
@@ -273,7 +273,7 @@ export function ToolDetailModal({ tool, isOpen, onClose }: ToolDetailModalProps)
       }
     } catch (error) {
       logger.error('Error submitting review:', error)
-      toast.error('Network error: Failed to submit review. Please check your connection.')
+      toast.error(t("toast.reviewNetworkError"))
     }
   }
 
@@ -283,10 +283,10 @@ export function ToolDetailModal({ tool, isOpen, onClose }: ToolDetailModalProps)
     try {
       await navigator.clipboard.writeText(url)
       setCopied(true)
-      toast.success('Link copied to clipboard')
+      toast.success(t("toast.linkCopied"))
       setTimeout(() => setCopied(false), 2000)
     } catch (error) {
-      toast.error('Failed to copy link')
+      toast.error(t("toast.copyFailed"))
     }
   }
 
@@ -303,7 +303,7 @@ export function ToolDetailModal({ tool, isOpen, onClose }: ToolDetailModalProps)
         await navigator.share(shareData)
         setShowShareDialog(false)
       } else {
-        toast.error('Sharing not supported on this device')
+        toast.error(t("toast.shareUnsupported"))
       }
     } catch (error) {
       if ((error as Error).name !== 'AbortError') {
@@ -424,7 +424,7 @@ export function ToolDetailModal({ tool, isOpen, onClose }: ToolDetailModalProps)
                       className="flex-1 min-w-[200px]"
                       onClick={handleVisitWebsite}
                     >
-                      Visit Website <ExternalLink className="w-4 h-4 ml-2" />
+                      {t("tool.visitWebsite")} <ExternalLink className="w-4 h-4 ml-2" />
                     </Button>
                     <Button
                       variant="outline"
@@ -455,7 +455,7 @@ export function ToolDetailModal({ tool, isOpen, onClose }: ToolDetailModalProps)
                   {/* Reviews Section */}
                   <div>
                     <div className="flex items-center justify-between mb-4">
-                      <h3 className="text-2xl font-bold">Reviews</h3>
+                      <h3 className="text-2xl font-bold">{t("nav.reviews")}</h3>
                       <Button onClick={() => setShowReviewDialog(true)}>
                         <Star className="w-4 h-4 mr-2" />
                         {t("tool.writeReview")}
@@ -469,7 +469,7 @@ export function ToolDetailModal({ tool, isOpen, onClose }: ToolDetailModalProps)
                     ) : reviews.length === 0 ? (
                       <Card className="p-8 text-center bg-card/50">
                         <Star className="w-12 h-12 mx-auto mb-3 text-muted-foreground" />
-                        <p className="text-muted-foreground">No reviews yet. Be the first to review!</p>
+                        <p className="text-muted-foreground">{t("tool.noReviewsBeFirst")}</p>
                       </Card>
                     ) : (
                       <div className="space-y-4">
@@ -501,7 +501,7 @@ export function ToolDetailModal({ tool, isOpen, onClose }: ToolDetailModalProps)
                     <>
                       <Separator />
                       <div>
-                        <h3 className="text-2xl font-bold mb-4">Similar AI Tools</h3>
+                        <h3 className="text-2xl font-bold mb-4">{t("tool.similar")}</h3>
                         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                           {similarTools.map((similarTool) => (
                             <Card
@@ -541,12 +541,12 @@ export function ToolDetailModal({ tool, isOpen, onClose }: ToolDetailModalProps)
       <Dialog open={showCollectionDialog} onOpenChange={setShowCollectionDialog}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Add to Collection</DialogTitle>
+            <DialogTitle>{t("tool.addToCollection")}</DialogTitle>
           </DialogHeader>
           <div className="py-4">
             {collections.length === 0 ? (
               <div className="text-center py-8">
-                <p className="text-muted-foreground mb-4">You don't have any collections yet.</p>
+                <p className="text-muted-foreground mb-4">{t("tool.noCollections")}</p>
                 <Button onClick={() => router.push('/collections')}>
                   {t("collections.create")}
                 </Button>
@@ -577,7 +577,7 @@ export function ToolDetailModal({ tool, isOpen, onClose }: ToolDetailModalProps)
       <Dialog open={showReviewDialog} onOpenChange={setShowReviewDialog}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Write a Review</DialogTitle>
+            <DialogTitle>{t("tool.writeAReview")}</DialogTitle>
           </DialogHeader>
           <div className="space-y-4 py-4">
             <div>
@@ -595,7 +595,7 @@ export function ToolDetailModal({ tool, isOpen, onClose }: ToolDetailModalProps)
               </div>
             </div>
             <div>
-              <label className="text-sm font-medium mb-2 block">Title (optional)</label>
+              <label className="text-sm font-medium mb-2 block">{t("tool.titleOptional")}</label>
               <input
                 type="text"
                 value={reviewTitle}
@@ -605,7 +605,7 @@ export function ToolDetailModal({ tool, isOpen, onClose }: ToolDetailModalProps)
               />
             </div>
             <div>
-              <label className="text-sm font-medium mb-2 block">Review (optional)</label>
+              <label className="text-sm font-medium mb-2 block">{t("tool.reviewOptional")}</label>
               <Textarea
                 value={reviewText}
                 onChange={(e) => setReviewText(e.target.value)}
@@ -616,7 +616,7 @@ export function ToolDetailModal({ tool, isOpen, onClose }: ToolDetailModalProps)
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setShowReviewDialog(false)}>Cancel</Button>
-            <Button onClick={handleSubmitReview}>Submit Review</Button>
+            <Button onClick={handleSubmitReview}>{t("tool.submitReview")}</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
