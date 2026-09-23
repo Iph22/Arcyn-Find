@@ -21,10 +21,21 @@
  *     site. Also a 200.
  *
  * Both are invisible to a status-code check and visible to a visitor, which is
- * exactly the gap a deploy gate should cover. Nothing here needs credentials.
+ * exactly the gap a deploy gate should cover.
+ *
+ * DEPLOYMENT PROTECTION
+ *
+ * Preview deployments sit behind Vercel Deployment Protection, which answers
+ * 200 with an SSO login page. Every content assertion then fails saying the
+ * database is unreachable, which is untrue and sends you looking in the wrong
+ * place -- it happened on the first CI run of this gate. `VERCEL_AUTOMATION_
+ * BYPASS_SECRET` (Vercel > Settings > Deployment Protection > Protection
+ * Bypass for Automation) is what lets automation through; without it the login
+ * wall is detected and reported as itself.
  */
 
 const BASE = (process.argv[2] || process.env.BASE_URL || 'https://arcynfind.com').replace(/\/+$/, '')
+const BYPASS = process.env.VERCEL_AUTOMATION_BYPASS_SECRET || ''
 
 /** A sitemap that lost its tool pages still returns 200; 8 was the broken shape. */
 const MIN_SITEMAP_URLS = 100
@@ -36,23 +47,50 @@ const check = (label, ok, detail = '') => {
 }
 
 async function get(path) {
-  const res = await fetch(BASE + path, {
-    headers: { 'user-agent': 'arcyn-smoke/1.0' },
-    signal: AbortSignal.timeout(60_000),
-  })
-  return { status: res.status, body: await res.text() }
+  const headers = { 'user-agent': 'arcyn-smoke/1.0' }
+  if (BYPASS) {
+    headers['x-vercel-protection-bypass'] = BYPASS
+    headers['x-vercel-set-bypass-cookie'] = 'true'
+  }
+  const res = await fetch(BASE + path, { headers, signal: AbortSignal.timeout(60_000) })
+  return { status: res.status, body: await res.text(), url: res.url }
 }
+
+/** Vercel's protection wall answers 200 with a login page, not the site. */
+const isAuthWall = ({ body, url }) =>
+  /\/sso-api|vercel\.com\/login/.test(url) || /_vercel_sso_nonce|Authentication Required/i.test(body)
 
 console.log(`smoke test: ${BASE}\n`)
 
 try {
-  for (const path of ['/', '/tools', '/tools/category', '/sitemap.xml', '/robots.txt']) {
+  const home = await get('/')
+
+  // Bail before the content checks rather than reporting five misleading ones.
+  if (isAuthWall(home)) {
+    check('deployment is publicly reachable', false, 'Vercel Deployment Protection')
+    console.log(
+      '\nThis deployment is behind Vercel Deployment Protection, which answers HTTP 200\n' +
+        'with a login page. The checks below would all fail for a reason that has nothing\n' +
+        'to do with the build, so they were skipped.\n'
+    )
+    console.log(
+      BYPASS
+        ? 'VERCEL_AUTOMATION_BYPASS_SECRET is set but was not accepted. Regenerate it at\n' +
+            'Vercel > Settings > Deployment Protection > Protection Bypass for Automation.'
+        : 'Set VERCEL_AUTOMATION_BYPASS_SECRET to the value at Vercel > Settings >\n' +
+            'Deployment Protection > Protection Bypass for Automation, and expose it to\n' +
+            'this job. Production is not protected, so it needs no secret.'
+    )
+    process.exit(1)
+  }
+
+  check('/ responds 200', home.status === 200, `HTTP ${home.status}`)
+  for (const path of ['/tools', '/tools/category', '/sitemap.xml', '/robots.txt']) {
     const { status } = await get(path)
     check(`${path} responds 200`, status === 200, `HTTP ${status}`)
   }
 
   // The homepage must state a real catalog size, not the placeholder.
-  const home = await get('/')
   const count = home.body.match(/([0-9]{1,3},[0-9]{3})\s+AI tools/)
   check(
     'homepage states a catalog count',

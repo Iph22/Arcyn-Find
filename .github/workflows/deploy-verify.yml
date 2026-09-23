@@ -53,6 +53,13 @@ jobs:
         env:
           TARGET_URL: ${{ github.event.deployment_status.target_url }}
           ENVIRONMENT: ${{ github.event.deployment.environment }}
+          # Preview deployments sit behind Vercel Deployment Protection, which
+          # answers 200 with an SSO login page -- so without this the content
+          # checks fail claiming the database is unreachable, which is untrue.
+          # Vercel > Settings > Deployment Protection > Protection Bypass for
+          # Automation. Production is unprotected and needs no secret, so an
+          # empty value here only affects previews.
+          VERCEL_AUTOMATION_BYPASS_SECRET: ${{ secrets.VERCEL_AUTOMATION_BYPASS_SECRET }}
         run: |
           echo "Verifying $ENVIRONMENT deployment at $TARGET_URL"
           node scripts/testing/smoke.mjs "$TARGET_URL"
