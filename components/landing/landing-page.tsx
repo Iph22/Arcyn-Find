@@ -173,8 +173,16 @@ export function LandingPage({
                       AI tools
                     </span>
                     {published > 0 && (
+                      // "with an in-depth page", not "with full profiles".
+                      //
+                      // Two numbers side by side invite the question "what is
+                      // the difference?" and the old wording did not answer
+                      // it -- it read as though the other 9,396 were somehow
+                      // incomplete. They are not: every one of the 15,273 is
+                      // searchable and recommendable. What the 5,877 have IN
+                      // ADDITION is a page of their own at /tools/<slug>.
                       <span className="text-muted-foreground font-normal">
-                        &middot; {published.toLocaleString()} with full profiles
+                        &middot; {published.toLocaleString()} with an in-depth page
                       </span>
                     )}
                   </div>
@@ -349,10 +357,10 @@ export function LandingPage({
                 {
                   label: "AI tools in the catalog",
                   value: toolCount > 0 ? toolCount.toLocaleString() : "—",
-                  hint: "distinct products, de-duplicated",
+                  hint: "distinct products, all searchable",
                 },
                 {
-                  label: "With full public profiles",
+                  label: "With a page of their own",
                   value: published > 0 ? published.toLocaleString() : "—",
                   hint: "features, pricing, alternatives",
                 },
