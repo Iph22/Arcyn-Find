@@ -113,7 +113,8 @@ jobs:
   #     verify that URL     -> it is a real, complete build of the merge
   #     merge main->release -> Vercel promotes it to production
   #
-  # All of it rests on Vercel > Project > Settings > Git > Production Branch
+  # All of it rests on Vercel > Project > Settings > Environments > Production
+  # > Branch Tracking (NOT Settings > Git, where it used to live)
   # being `release`. That setting lives in a dashboard, so nothing in this repo
   # can hold it in place.
   #
@@ -167,7 +168,7 @@ jobs:
           echo "Vercel production branch: $branch"
 
           if [ "$branch" != "release" ]; then
-            echo "::error::Production branch is '$branch', expected 'release'. Blue-green is NOT in effect: merges to main publish straight to production with nothing verified first. Set Vercel > Project > Settings > Git > Production Branch to 'release' (see docs/DEPLOYMENT.md)."
+            echo "::error::Production branch is '$branch', expected 'release'. Blue-green is NOT in effect: merges to main publish straight to production with nothing verified first. Set it at Vercel > Project > Settings > Environments > Production > Branch Tracking -- it is NOT under Settings > Git any more (see docs/DEPLOYMENT.md)."
             exit 1
           fi
 
