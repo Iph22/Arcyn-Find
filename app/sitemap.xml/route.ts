@@ -6,10 +6,17 @@ export const revalidate = 3600 // Revalidate every hour
 
 export async function GET(request: Request) {
   try {
-    // Get page number from query parameter (defaults to 0)
+    // The page number arrives one of two ways, and the path has to be read as
+    // well as the query. `/sitemap-1.xml` is rewritten here by next.config.ts,
+    // but a rewrite masks the URL: `request.url` is still what the client
+    // asked for, so `?page=` is empty and every file would render page 0 --
+    // five identical sitemaps, which is the duplicate-content problem this
+    // whole layer was built to fix.
     const url = new URL(request.url)
-    const pageParam = url.searchParams.get("page")
-    const page = pageParam ? parseInt(pageParam, 10) : 0
+    const fromPath = url.pathname.match(/sitemap-(\d+)\.xml$/)?.[1]
+    const pageParam = url.searchParams.get("page") ?? fromPath
+    const parsed = pageParam ? parseInt(pageParam, 10) : 0
+    const page = Number.isFinite(parsed) && parsed >= 0 ? parsed : 0
 
     const sitemap = await generateSitemapXML(page)
 

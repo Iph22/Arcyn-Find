@@ -4,6 +4,30 @@ const nextConfig: NextConfig = {
   turbopack: {
     root: process.cwd(),
   },
+  async rewrites() {
+    return [
+      {
+        // `/sitemap-1.xml` and friends.
+        //
+        // The sitemap index advertises one file per 5,000 URLs, and page 0 is
+        // served by app/sitemap.xml. The rest were routed by a directory named
+        // `app/sitemap-[[...page]].xml/`, which cannot match anything: Next
+        // requires a dynamic segment to BE the segment, not to sit inside a
+        // longer folder name. So /sitemap-1.xml returned 404 while the index
+        // told Google to fetch it.
+        //
+        // Nothing caught it because nothing exercised it. Until 2026-09-23 the
+        // sitemap held 2,598 URLs, one page, and the index never emitted a
+        // second entry. Publishing the popularity-75 tier took it to 5,235 and
+        // the second file went live and broken on the same deploy.
+        //
+        // app/sitemap.xml already reads `?page=`, so a rewrite is the whole
+        // fix, and it keeps the clean URLs the index is already publishing.
+        source: '/sitemap-:page(\\d{1,})\\.xml',
+        destination: '/sitemap.xml?page=:page',
+      },
+    ]
+  },
   images: {
     // Tool logos are scraped from arbitrary vendor domains, so this list
     // cannot be enumerated -- but `hostname: '**'` over BOTH protocols made
