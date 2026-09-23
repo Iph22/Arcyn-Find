@@ -36,6 +36,7 @@
     "test:contact": "tsx --env-file=.env.local scripts/testing/contact-submissions-e2e.mts",
     "test:session:e2e": "node scripts/testing/session-security-e2e.mjs",
     "test:stats": "node --env-file=.env.local scripts/testing/catalog-stats-e2e.mjs",
+    "test:content-rating": "tsx --env-file=.env.local scripts/testing/content-rating-e2e.mts",
     "test:dedup": "node --env-file=.env.local scripts/testing/ingest-dedup-e2e.mjs",
     "test:trending": "node --env-file=.env.local scripts/testing/trending-refresh-e2e.mjs",
     "test:digest": "tsx --env-file=.env.local scripts/testing/digest-e2e.mts",
