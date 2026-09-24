@@ -1,15 +1,21 @@
-import { generateSitemapXML, SITEMAP_CACHE_CONTROL, SITEMAP_MAX_AGE_SECONDS } from "@/lib/sitemap"
+import { generateSitemapXML, SITEMAP_CACHE_CONTROL } from "@/lib/sitemap"
 
 // Allow dynamic generation to fetch from Supabase
 export const dynamic = "force-dynamic"
 
-// 24 hours, not 1. Each response costs a 4.1 MB full catalog walk -- see the
-// measurement on SITEMAP_MAX_AGE_SECONDS in lib/sitemap.ts.
+// 24 hours (86400), not 1 hour. Each response costs a 4.1 MB full catalog
+// walk -- see the measurement on SITEMAP_MAX_AGE_SECONDS in lib/sitemap.ts.
 //
-// `force-dynamic` above means this export does not drive ISR; the CDN
-// s-maxage in the response is what actually caches. Kept in step with it so
-// the two never say different things.
-export const revalidate = SITEMAP_MAX_AGE_SECONDS
+// Written as a literal on purpose. Route segment config exports are read by
+// Next's static analysis at build time, not evaluated, so importing the shared
+// constant here fails the build outright:
+//
+//     ⨯ Invalid segment configuration export detected
+//
+// Keep this number in step with SITEMAP_MAX_AGE_SECONDS by hand. The operative
+// value is the CDN s-maxage in the response below anyway -- `force-dynamic`
+// means this export does not drive ISR.
+export const revalidate = 86400
 
 export async function GET(request: Request) {
   try {

@@ -1,12 +1,15 @@
-import { generateSitemapIndex, SITEMAP_CACHE_CONTROL, SITEMAP_MAX_AGE_SECONDS } from "@/lib/sitemap"
+import { generateSitemapIndex, SITEMAP_CACHE_CONTROL } from "@/lib/sitemap"
 
 export const dynamic = "force-dynamic"
 
-// 24 hours. This route is the worst value of the three: countSitemapPages()
-// walks the entire published catalog (4.1 MB) purely to divide a length by
-// 5,000 and emit two <loc> lines. Same TTL as the files it advertises, so the
-// index can never promise a page count the sitemaps have stopped agreeing to.
-export const revalidate = SITEMAP_MAX_AGE_SECONDS
+// 24 hours (86400). This route is the worst value of the three:
+// countSitemapPages() walks the entire published catalog (4.1 MB) purely to
+// divide a length by 5,000 and emit two <loc> lines. Same TTL as the files it
+// advertises, so the index can never promise a page count the sitemaps have
+// stopped agreeing to.
+//
+// A literal, not the shared constant -- see the note in app/sitemap.xml.
+export const revalidate = 86400
 
 export async function GET() {
   try {

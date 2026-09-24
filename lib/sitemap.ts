@@ -49,9 +49,14 @@ const MAX_URLS_PER_SITEMAP = 5000
  * not served one by us expiring the cache -- it is served one when it asks
  * after the TTL. 24 hours takes this to 3 walks a day, ~12 MB.
  *
- * Kept here rather than written into each route so the two cannot drift: they
- * are the same document at different offsets and must expire together, or the
- * index advertises a file count the pages no longer agree with.
+ * CAUTION: the routes CANNOT import this for their `revalidate` export. Route
+ * segment config is read by Next's static analysis at build time rather than
+ * evaluated, so an imported constant fails the build with "Invalid segment
+ * configuration export detected". Each route therefore repeats `86400` as a
+ * literal and points back here. If you change this number, change those two.
+ * (Their `Cache-Control` header is a normal runtime value and does use
+ * SITEMAP_CACHE_CONTROL below, which is the directive that actually caches --
+ * both routes are `force-dynamic`, so `revalidate` drives nothing.)
  */
 export const SITEMAP_MAX_AGE_SECONDS = 86400 // 24 hours
 
