@@ -23,6 +23,42 @@ import { deriveCategories, getPublishedTools, isIndexable, siteUrl } from '@/lib
 /** Google's hard limit is 50,000; smaller files are faster to fetch and parse. */
 const MAX_URLS_PER_SITEMAP = 5000
 
+/**
+ * How long the CDN may serve a sitemap before regenerating it.
+ *
+ * MEASURED 2026-09-24, while the project was 217% over its Supabase egress
+ * quota (11.93 GB against 5.5 GB) with restriction three days out.
+ *
+ * Every sitemap response costs one full walk of the published catalog:
+ * `collectUrls()` -> `getPublishedTools()` -> 5,877 rows at 726 bytes =
+ * **4.1 MB of database egress**, measured against the live table, to produce
+ * an 853 KB XML file.
+ *
+ * Three separate URLs each pay it and each hold their own CDN entry:
+ *
+ *     /sitemap-index.xml   countSitemapPages() -> collectUrls()
+ *     /sitemap.xml         page 0
+ *     /sitemap-1.xml       page 1, rewritten to the same route (next.config.ts)
+ *
+ * At the previous 3600s that was up to 3 walks an hour -- 72 a day, ~295 MB --
+ * which accounted for roughly 80% of the project's entire daily egress burn.
+ *
+ * A sitemap does not need hourly freshness. The ingest adds rows daily at
+ * most, `lastmod` is a real per-row date so Google re-crawls individual pages
+ * on its own schedule regardless, and a crawler that wants a fresher copy is
+ * not served one by us expiring the cache -- it is served one when it asks
+ * after the TTL. 24 hours takes this to 3 walks a day, ~12 MB.
+ *
+ * Kept here rather than written into each route so the two cannot drift: they
+ * are the same document at different offsets and must expire together, or the
+ * index advertises a file count the pages no longer agree with.
+ */
+export const SITEMAP_MAX_AGE_SECONDS = 86400 // 24 hours
+
+/** `Cache-Control` for every sitemap response. See SITEMAP_MAX_AGE_SECONDS. */
+export const SITEMAP_CACHE_CONTROL =
+  `public, s-maxage=${SITEMAP_MAX_AGE_SECONDS}, stale-while-revalidate=604800`
+
 interface SitemapUrl {
   url: string
   changefreq: string

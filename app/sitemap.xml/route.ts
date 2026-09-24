@@ -1,8 +1,15 @@
-import { generateSitemapXML } from "@/lib/sitemap"
+import { generateSitemapXML, SITEMAP_CACHE_CONTROL, SITEMAP_MAX_AGE_SECONDS } from "@/lib/sitemap"
 
 // Allow dynamic generation to fetch from Supabase
 export const dynamic = "force-dynamic"
-export const revalidate = 3600 // Revalidate every hour
+
+// 24 hours, not 1. Each response costs a 4.1 MB full catalog walk -- see the
+// measurement on SITEMAP_MAX_AGE_SECONDS in lib/sitemap.ts.
+//
+// `force-dynamic` above means this export does not drive ISR; the CDN
+// s-maxage in the response is what actually caches. Kept in step with it so
+// the two never say different things.
+export const revalidate = SITEMAP_MAX_AGE_SECONDS
 
 export async function GET(request: Request) {
   try {
@@ -24,7 +31,7 @@ export async function GET(request: Request) {
       status: 200,
       headers: {
         "Content-Type": "application/xml; charset=utf-8",
-        "Cache-Control": "public, s-maxage=3600, stale-while-revalidate=86400",
+        "Cache-Control": SITEMAP_CACHE_CONTROL,
       },
     })
   } catch (error) {
