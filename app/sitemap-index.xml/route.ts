@@ -1,7 +1,15 @@
-import { generateSitemapIndex } from "@/lib/sitemap"
+import { generateSitemapIndex, SITEMAP_CACHE_CONTROL } from "@/lib/sitemap"
 
 export const dynamic = "force-dynamic"
-export const revalidate = 3600 // Revalidate every hour
+
+// 24 hours (86400). This route is the worst value of the three:
+// countSitemapPages() walks the entire published catalog (4.1 MB) purely to
+// divide a length by 5,000 and emit two <loc> lines. Same TTL as the files it
+// advertises, so the index can never promise a page count the sitemaps have
+// stopped agreeing to.
+//
+// A literal, not the shared constant -- see the note in app/sitemap.xml.
+export const revalidate = 86400
 
 export async function GET() {
   try {
@@ -11,7 +19,7 @@ export async function GET() {
       status: 200,
       headers: {
         "Content-Type": "application/xml; charset=utf-8",
-        "Cache-Control": "public, s-maxage=3600, stale-while-revalidate=86400",
+        "Cache-Control": SITEMAP_CACHE_CONTROL,
       },
     })
   } catch (error) {
