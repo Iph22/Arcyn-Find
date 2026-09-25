@@ -82,8 +82,96 @@ jobs:
 
       # No continue-on-error: these assert that a forged session cookie is
       # rejected. If they fail, the build should not ship.
+      #
+      # This is the only suite that needs nothing but Node -- it is pure crypto,
+      # no database, no network. The rest live in db-checks below because they
+      # need credentials.
       - name: Session security checks
         run: npm run test:session
+
+  # The suites that talk to the database.
+  #
+  # These existed and only ever ran on someone's laptop, so a regression they
+  # were written to catch could reach production unchallenged. Each one encodes
+  # an outage this project actually had: refresh_trending_stats replaced the
+  # walk that failed 40 consecutive cron runs, existing_tool_names replaced the
+  # guard whose `.limit()` let the catalog fill with 94.4% duplicates, and the
+  # contact suite covers submissions that were previously dropped on the floor.
+  #
+  # They are safe to run against the live database, which is why they can run at
+  # all: every writing suite inserts a sentinel row and removes it in a
+  # `finally`, so an assertion failure still cleans up. test:trending does
+  # perform a real refresh, but it calls exactly the RPC the 6-hourly cron
+  # already calls, so it does no work the schedule would not have done anyway.
+  #
+  # Kept as a separate job rather than folded into type-check so that a missing
+  # secret or a database wobble reads as "the database checks failed", not as
+  # "the types are wrong".
+  db-checks:
+    runs-on: ubuntu-latest
+
+    # There is one database, and these suites write sentinel rows into it. Two
+    # runs at once could delete each other's rows in their cleanup and report a
+    # failure that is really a collision. Serialise them; they take seconds.
+    concurrency:
+      group: db-checks
+      cancel-in-progress: false
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20.x'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci --legacy-peer-deps
+
+      # The scripts are invoked directly rather than through their npm scripts.
+      # Those carry `--env-file=.env.local`, and node exits non-zero when that
+      # file is absent -- which it always is in CI, since it is gitignored. The
+      # env block below supplies the same two variables the file would.
+      - name: Catalog stats
+        run: node scripts/testing/catalog-stats-e2e.mjs
+        env:
+          NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+          # Round-trip from a runner, not query time. See the constant's note.
+          CATALOG_STATS_CACHED_BUDGET_MS: '5000'
+
+      - name: Ingest de-duplication
+        run: node scripts/testing/ingest-dedup-e2e.mjs
+        env:
+          NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+
+      - name: Trending refresh
+        run: node scripts/testing/trending-refresh-e2e.mjs
+        env:
+          NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+
+      - name: Contact submissions
+        run: npx tsx scripts/testing/contact-submissions-e2e.mts
+        env:
+          NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+
+      - name: View tracking
+        run: npx tsx scripts/testing/view-tracking-e2e.mts
+        env:
+          NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+
+      # Sends nothing: the suite only mails when given --send=<address>.
+      - name: Notification digest
+        run: npx tsx scripts/testing/digest-e2e.mts
+        env:
+          NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
 
   # No deploy job, and this is deliberate.
   #
