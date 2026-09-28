@@ -80,7 +80,7 @@ try {
   await client.connect()
   console.log('ok\n')
 } catch (error) {
-  const ipv6 = error.code === 'ENOTFOUND' && /^db\./.test(new URL(DB_URL).hostname)
+  const ipv6 = error.code === 'ENOTFOUND' && new URL(DB_URL).hostname.startsWith('db.')
   console.error(
     `\n  ERROR  ${error.message}\n\n         ` +
       (ipv6

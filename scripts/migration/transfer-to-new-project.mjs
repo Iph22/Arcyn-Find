@@ -230,7 +230,7 @@ async function transfer({ name, key }) {
     if (page.length === 0) break
 
     const rows = NO_EMBEDDINGS && name === 'ai_tools'
-      ? page.map(({ embedding, ...rest }) => rest)
+      ? page.map(({ embedding: _embedding, ...rest }) => rest)
       : page
 
     if (!DRY_RUN) {
