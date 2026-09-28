@@ -30,6 +30,37 @@ A preview deployment is a complete production-grade build of that commit, on
 its own URL. Promoting is a rebuild of the same commit on the production
 branch, so what you verified is what goes live.
 
+### Only `main` and `release` deploy
+
+`vercel.json` sets `git.deploymentEnabled` so a push to any other branch
+builds nothing:
+
+```json
+"deploymentEnabled": { "**": false, "main": true, "release": true }
+```
+
+Without it Vercel builds every branch, which is the default. That produced a
+deployment per feature branch, all of them live at once and most of them
+stale -- several branches sat 35 commits behind `main` while still serving a
+URL that looked current. There was no way to tell from the deployment list
+which build represented the integrated state, which is the one question the
+list exists to answer. `main` is the preview; that is the whole point of it
+having its own branch.
+
+`**` rather than `*`: these are minimatch patterns and `*` does not cross a
+`/`, so it would miss every `fix/...` and `ci/...` branch -- which is all of
+them. Vercel resolves a branch matching several rules in favour of any rule
+that is `true`, so naming `main` and `release` explicitly overrides the
+catch-all rather than fighting it.
+
+The trade-off, stated plainly: **a pull request no longer gets its own
+preview URL.** A change is seen running only once it is on `main`. That is
+the cost of having one preview that always means the same thing.
+
+One caveat on rollout: Vercel reads `vercel.json` from the commit it is
+building, so a branch created before this landed still deploys until it picks
+the file up. Merging or closing the open branches settles it.
+
 ## One-time setup
 
 Two Vercel dashboard settings. Neither can be set from this repository, and
