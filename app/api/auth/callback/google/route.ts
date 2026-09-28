@@ -12,6 +12,7 @@ import {
     decodeOAuthState,
     nonceMatches,
 } from '@/lib/session'
+import { googleCallbackUri } from '@/lib/oauth-redirect'
 
 export async function GET(request: NextRequest) {
     try {
@@ -49,7 +50,7 @@ export async function GET(request: NextRequest) {
         const redirectPath = oauthState.redirectPath
 
         // Exchange code for tokens
-        const tokens = await exchangeCodeForTokens(code)
+        const tokens = await exchangeCodeForTokens(code, googleCallbackUri(request))
         if (!tokens) {
             return NextResponse.redirect(new URL('/sign-in?error=token_exchange_failed', request.url))
         }
