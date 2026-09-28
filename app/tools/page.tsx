@@ -6,7 +6,10 @@ import { PublicFooter, PublicHeader } from '@/components/seo/public-chrome'
 import { CategoryCard, SeoToolCard } from '@/components/seo/tool-card'
 import { getDirectoryData, siteUrl } from '@/lib/seo/catalog'
 
-export const revalidate = 3600 // 1 hour
+// 24 hours. The directory shows category counts and 24 featured tools, both
+// derived from a daily scrape. Hourly regeneration also meant an hourly
+// getFeaturedTools query and its render, against the Fluid CPU budget.
+export const revalidate = 86400 // 24 hours
 
 /**
  * The public directory.
