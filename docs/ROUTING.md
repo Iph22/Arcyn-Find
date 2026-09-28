@@ -36,37 +36,41 @@ which is the correct outcome for a real tool with no public page.
 new endpoint that omits it silently degrades every link it feeds to the
 redirecting form.
 
-## In-app category links go to `/browse`, not `/tools/category`
+## A search and a category go to different places
 
-These are two different products sharing a noun:
-
-| route | built for | has filters/sort/search |
+| the user did | lands on | why |
 | --- | --- | --- |
-| `/tools/category/<slug>` | crawlers — static, hourly-revalidated | no |
-| `/browse?category=<slug>` | people — the tool browser, filtered | yes |
+| typed a query | `/browse?search=…` | a query needs filtering and refining |
+| named a category | `/tools/category/<slug>` | a category is a destination with a curated list |
 
-Sending a signed-in user to the SEO page from an in-app tile drops them out of
-the product: they clicked a category because they wanted to browse it, and the
-page they land on cannot browse. Use **`browseCategoryHref(name, knownSlugs)`**
-or `browseCategorySlugHref(slug)`. The crawlable pages are linked from `/tools`,
-the footer and individual tool pages — reach them with `seoCategoryHref()`.
+Use **`searchHref(query)`** and **`categoryPageHref(name, knownSlugs)`** /
+`categoryPageSlugHref(slug)`. Every category link goes to the category's own
+page, wherever it is — home-page shortcuts, a trending row's category label,
+the footer, a tool page.
 
-This costs nothing in search terms because `/home` is `noindex, nofollow`.
+Watch the path segment: `/tools/category/<slug>` is one category,
+`/tools/category` is the index of all of them. Landing on the index after
+clicking a named category is a bug, and the two URLs differ by one segment.
+
+`/browse?category=<slug>` also works and nothing links to it. It is kept
+because `/browse` is an application surface whose state lives in its query
+string, so the filter has to be expressible as a URL for that state to be
+shareable at all.
 
 **Two category vocabularies exist and neither is the other's slug.** The catalog
 layer slugifies raw `ai_tools.category` values, so `Marketing & Sales` becomes
 `marketing-sales`; the browser filters on display names, where the same category
 is `Marketing` and slugifies to `marketing`. `lib/categories.ts` indexes both.
 
-The failure when that bridge breaks is silent: an unresolved slug falls back to
+When that bridge breaks the failure is silent: an unresolved slug falls back to
 `All`, the browser shows the unfiltered list, and `/browse` returns 200 either
-way — so the tile looks like it worked. `npm run test:home-links` asserts every
-published category slug resolves to a real filter.
+way. `npm run test:home-links` asserts every published category slug resolves
+to a real filter.
 
 **A category name is still not a URL.** Category pages exist only above
 `MIN_CATEGORY_SIZE` (20 published tools); measured 2026-09-28, **21** of the
 catalog's categories qualify, and `Research & Open Source` and `Computer Vision`
-are real category values that do not. `browseCategoryHref()` returns `null` in
+are real category values that do not. `categoryPageHref()` returns `null` in
 that case — the signal to render plain text instead of a link.
 
 Onboarding interests are a separate trap: `preferences.categories` stores
@@ -141,8 +145,10 @@ npm run test:home-links -- https://example.com
 ```
 
 It checks that every onboarding interest resolves to a category that has a
-page, that every category `/api/categories` advertises really renders, and that
-a trending tool's `toolHref()` resolves. It exists because the block it covers
+page, that every category `/api/categories` advertises really renders, that
+every published slug also resolves to a browser filter rather than falling back
+to `All`, and that a trending tool's `toolHref()` resolves. It exists because
+the block it covers
 previously shipped `<button>`s with no `onClick`, counts computed with
 `Math.random()`, and a Tailwind class interpolated at runtime
 (`from-${color}/5`) that therefore was never generated — all three type-checked

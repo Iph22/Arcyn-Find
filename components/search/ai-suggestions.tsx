@@ -10,7 +10,7 @@ import {
 } from "lucide-react"
 import { Card } from "@/components/ui/card"
 import { cn } from "@/lib/utils"
-import { browseCategorySlugHref } from "@/lib/tool-href"
+import { categoryPageSlugHref } from "@/lib/tool-href"
 
 /**
  * Category shortcuts on the signed-in home page.
@@ -137,7 +137,7 @@ export function AISuggestions({
         const blurb = CATEGORY_BLURBS[category.slug]
 
         return (
-            <Link href={browseCategorySlugHref(category.slug)} className="block h-full">
+            <Link href={categoryPageSlugHref(category.slug)} className="block h-full">
                 <Card
                     className={cn(
                         "relative overflow-hidden cursor-pointer transition-all duration-300",

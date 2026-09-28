@@ -18,7 +18,7 @@ import { usePreferences } from "@/contexts/preferences-context"
 import { useLanguage } from "@/contexts/language-context"
 import { useAuth } from "@/contexts/auth-context"
 import { logger } from "@/lib/logger"
-import { browseCategoryHref, searchHref, toolHref } from "@/lib/tool-href"
+import { categoryPageHref, searchHref, toolHref } from "@/lib/tool-href"
 import { categoriesForInterests } from "@/lib/interest-categories"
 import { addRecentSearch, getRecentSearches } from "@/lib/recent-searches"
 import { toast } from "sonner"
@@ -403,7 +403,7 @@ export default function HomePage() {
                               </h3>
                               <div className="flex items-center gap-2 mt-1">
                                 {(() => {
-                                  const href = browseCategoryHref(tool.category, categorySlugs)
+                                  const href = categoryPageHref(tool.category, categorySlugs)
                                   // Opens the browser filtered to this
                                   // category. Categories too small to be
                                   // published stay plain text.

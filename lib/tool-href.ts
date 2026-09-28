@@ -36,44 +36,53 @@ export function toolHref(tool: LinkableTool): string {
 }
 
 /**
- * Open a category inside the app's tool browser, filtered and ready to refine.
+ * A category's own page: `/tools/category/<slug>`.
  *
- * NOT `/tools/category/<slug>`. That page is the SEO surface: a static,
- * hourly-revalidated list built for a crawler, with no filters, no sort and no
- * search box. Sending a signed-in user there from an in-app tile drops them
- * out of the product and into a dead end -- they wanted to browse that
- * category, and the page they land on cannot browse.
+ * This is where a category link goes, from anywhere -- the home page's
+ * shortcuts, a trending row's category label, the footer, a tool page. A
+ * category is a destination with a curated list, so naming one should land on
+ * it.
  *
- * This costs nothing in search terms. /home is `noindex, nofollow`, so its
- * links were never passing crawl value; the SEO category pages are reached
- * from /tools, the footer and individual tool pages, which are untouched.
+ * Note the distinction from `/tools/category` with no slug, which is the index
+ * of every category. Landing there after clicking a specific category is the
+ * bug this replaced, and the two URLs are one path segment apart.
  *
- * Returns null when the category has no page-worthy size. Category identity is
- * still checked against the published set, because a category too small to
- * have an SEO page is also too small to be worth a tile -- and the caller
- * needs a signal to render plain text instead of a link.
+ * Free-text search goes somewhere else -- see searchHref(). A query needs
+ * filtering and refining, so it belongs in the browser; a category does not.
+ *
+ * Returns null when the category is below MIN_CATEGORY_SIZE and therefore has
+ * no page, which is the caller's signal to render plain text instead of a
+ * link. Callers pass the published set, usually from GET /api/categories.
  *
  * The category column is ~2% wrong outright (docs/CORPUS_AND_CONSTRAINTS §1),
- * so a correct-looking link can still open a filter the tool does not belong
- * in. Nothing here can detect that.
+ * so a correct-looking link can still land on a page the tool does not belong
+ * on. Nothing here can detect that.
  */
-export function browseCategoryHref(
+export function categoryPageHref(
   category: string | null | undefined,
   known: ReadonlySet<string>
 ): string | null {
   const slug = slugify(category || '')
   if (!slug || !known.has(slug)) return null
-  return `/browse?category=${encodeURIComponent(slug)}`
+  return categoryPageSlugHref(slug)
 }
 
-/** The in-app browser URL for a category slug that is already known good. */
+/** The same, for a slug already known to be published. */
+export function categoryPageSlugHref(slug: string): string {
+  return `/tools/category/${encodeURIComponent(slug)}`
+}
+
+/**
+ * The tool browser, pre-filtered to a category.
+ *
+ * Nothing links here today -- category links go to the category's own page
+ * above. It is kept because `/browse` is an application surface whose state
+ * lives in its query string (see the comment on app/browse/page.tsx), so the
+ * filter has to be expressible as a URL for that state to be shareable at all,
+ * and ToolsBrowser reads the parameter either way.
+ */
 export function browseCategorySlugHref(slug: string): string {
   return `/browse?category=${encodeURIComponent(slug)}`
-}
-
-/** The public, crawlable category page. Used by the SEO surfaces only. */
-export function seoCategoryHref(slug: string): string {
-  return `/tools/category/${slug}`
 }
 
 /**

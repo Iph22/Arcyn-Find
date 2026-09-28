@@ -123,12 +123,13 @@ async function main() {
     check(code === 200, `/tools/category/${category.slug} -> ${code}`)
   }
 
-  console.log('\n3. Every advertised category resolves to a browser filter')
-  // The failure this catches is silent. In-app tiles link to
-  // /browse?category=<slug>; if the browser cannot resolve that slug it falls
-  // back to "All" and shows the unfiltered list, with nothing in the UI
-  // admitting the filter was dropped. /browse returns 200 either way, so a
-  // status check cannot see it.
+  console.log('\n3. Every advertised category also resolves to a browser filter')
+  // Secondary now that category links go to /tools/category/<slug> (checked
+  // above) rather than to /browse. It still matters because /browse?category=
+  // is what makes the browser's filter state shareable as a URL, and the
+  // failure is silent: an unresolved slug falls back to "All" and shows the
+  // unfiltered list while /browse returns 200 either way, so a status check
+  // cannot see it.
   for (const category of categories) {
     const display = displayCategoryForSlug(category.slug)
     check(
