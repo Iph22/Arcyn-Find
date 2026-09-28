@@ -42,8 +42,12 @@ export function getSupabaseAdmin() {
 // column and `fts_vector` a tsvector — both are large, neither is used by any
 // consumer of AIEntry/transformToAIEntry, so `select('*')` was pulling several
 // KB of unused data over the wire on every list/filter/detail request.
+// `slug` is here so listings can link to the canonical /tools/<slug> URL.
+// Without it every in-app card had only the id, and linking by id costs a 308
+// on each click -- see lib/tool-href.ts. It is NULL for rows below the publish
+// floor, which is why the href helper falls back rather than assuming it.
 export const AI_TOOLS_COLUMNS =
-  'id, name, category, description, platform, region, access_type, pricing, tags, popularity, last_updated, is_trending, image, priority, pricing_model, price_monthly_min_usd, price_monthly_max_usd, has_free_tier, has_free_trial'
+  'id, slug, name, category, description, platform, region, access_type, pricing, tags, popularity, last_updated, is_trending, image, priority, pricing_model, price_monthly_min_usd, price_monthly_max_usd, has_free_tier, has_free_trial'
 
 /**
  * Explicit column lists for `user_profiles`, for the same reason as
@@ -71,6 +75,7 @@ export const OWN_PROFILE_COLUMNS =
 // Transform database row to AIEntry
 export function transformToAIEntry(row: {
   id: string
+  slug?: string | null
   name: string
   category: string
   description?: string | null
@@ -97,6 +102,7 @@ export function transformToAIEntry(row: {
   
   return {
     id: row.id,
+    slug: row.slug ?? null,
     name: row.name,
     category: row.category,
     description: row.description || '',

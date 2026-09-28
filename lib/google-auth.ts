@@ -218,9 +218,8 @@ export async function upsertUserProfile(profile: {
  * to a nonce cookie set on the same response as the redirect, which only the
  * route handler can do. See app/api/auth/google/route.ts.
  */
-export async function getGoogleAuthUrl(state: string): Promise<string> {
+export async function getGoogleAuthUrl(state: string, redirectUri: string): Promise<string> {
     const clientId = process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID
-    const redirectUri = `${process.env.NEXT_PUBLIC_SITE_URL}/api/auth/callback/google`
 
     const params = new URLSearchParams({
         client_id: clientId || '',
@@ -256,7 +255,7 @@ export async function getGoogleAuthUrl(state: string): Promise<string> {
 /**
  * Exchange authorization code for tokens
  */
-export async function exchangeCodeForTokens(code: string): Promise<{
+export async function exchangeCodeForTokens(code: string, redirectUri: string): Promise<{
     access_token: string
     id_token: string
     refresh_token?: string
@@ -271,7 +270,11 @@ export async function exchangeCodeForTokens(code: string): Promise<{
                 code,
                 client_id: process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID || '',
                 client_secret: process.env.GOOGLE_CLIENT_SECRET || '',
-                redirect_uri: `${process.env.NEXT_PUBLIC_SITE_URL}/api/auth/callback/google`,
+                // Must be byte-identical to the redirect_uri sent at
+                // authorisation, or Google answers redirect_uri_mismatch. Both
+                // are derived from the request's own origin, and this handler
+                // runs on the host Google was told to return to, so they agree.
+                redirect_uri: redirectUri,
                 grant_type: 'authorization_code',
             }),
         })
@@ -296,7 +299,7 @@ export async function exchangeCodeForTokens(code: string): Promise<{
                 `[auth] Google token exchange failed: HTTP ${response.status} ${response.statusText} -- ${detail}`
             )
             console.error(
-                `[auth] sent redirect_uri=${process.env.NEXT_PUBLIC_SITE_URL}/api/auth/callback/google ` +
+                `[auth] sent redirect_uri=${redirectUri} ` +
                 `client_id=${(process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID || '<unset>').slice(0, 24)}… ` +
                 `client_secret=${process.env.GOOGLE_CLIENT_SECRET ? 'set' : '<UNSET>'}`
             )

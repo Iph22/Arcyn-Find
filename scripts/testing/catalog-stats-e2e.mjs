@@ -23,8 +23,22 @@ if (!url || !key) {
 }
 const db = createClient(url, key, { auth: { persistSession: false } })
 
-/** The read path runs inside a page render, so it has to be quick. */
-const CACHED_BUDGET_MS = 1500
+/**
+ * The read path runs inside a page render, so it has to be quick.
+ *
+ * Overridable because this figure is round-trip time, not query time, and the
+ * two are not separable from here. The same call measured 400ms and 1639ms on
+ * one machine minutes apart -- straddling this budget -- and a GitHub runner
+ * reaches Supabase over a different network again. Left as a hard 1500 it makes
+ * the suite flaky, and a merge gate that fails at random is one people learn to
+ * ignore, which is the habit `continue-on-error` already cost this project.
+ *
+ * CI sets a looser value. That still catches the regression this guards -- a
+ * cached read collapsing into a full recompute, which costs seconds, not
+ * milliseconds. A tighter figure belongs in a performance check that can
+ * re-measure, not in a gate that has to be right first time.
+ */
+const CACHED_BUDGET_MS = Number(process.env.CATALOG_STATS_CACHED_BUDGET_MS) || 1500
 /** The recompute is a full scan of ~272k rows; the statement timeout is 8-9s. */
 const RECOMPUTE_BUDGET_MS = 8000
 
@@ -75,10 +89,22 @@ check('distinct products <= total rows', d <= t, `${d} <= ${t}`)
 check('published <= distinct products', p <= d, `${p} <= ${d}`)
 check('published > 0', p > 0, String(p))
 check('categories > 0', c > 0, String(c))
+// This assertion used to read `d < t * 0.5` -- distinct had to sit well below
+// the row count, which proved the figure was not a naive `count(*)` back when
+// 94.4% of the table was duplicate re-ingests.
+//
+// The de-duplication (2026-09-21) made that premise false: 15,250 distinct
+// names in 15,252 rows. The old check now fails precisely because the fix
+// worked, so it was reporting a success as a regression.
+//
+// Inverted to guard what matters now. AGENTS.md records that the duplication
+// "rebuilds itself silently if that guard is removed", and nothing else here
+// would notice -- search hides duplicates behind DISTINCT ON at query time.
+// A drop below 90% distinct means the ingest guard has regressed.
 check(
-  'distinct is well below rows (duplicates are real, so this is not the row count)',
-  d < t * 0.5,
-  `${d} vs ${t} rows`
+  'duplicates have not come back (distinct is close to the row count)',
+  d >= t * 0.9,
+  `${d} distinct of ${t} rows — ${((d / t) * 100).toFixed(1)}% distinct`
 )
 
 // 3. Forced recompute: the once-a-day path must fit the statement timeout.

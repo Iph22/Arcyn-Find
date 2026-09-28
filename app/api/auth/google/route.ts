@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server'
 import { getGoogleAuthUrl } from '@/lib/google-auth'
+import { googleCallbackUri } from '@/lib/oauth-redirect'
 import {
     OAUTH_STATE_COOKIE_NAME,
     OAUTH_STATE_MAX_AGE_SECONDS,
@@ -24,7 +25,11 @@ export async function GET(request: Request) {
         const nonce = createOAuthNonce()
         const state = encodeOAuthState({ nonce, redirectPath })
 
-        const authUrl = await getGoogleAuthUrl(state)
+        // Derived from this request, not from NEXT_PUBLIC_SITE_URL: that is a
+        // single value shared by the development, preview and production
+        // targets, so a preview told Google to return to the production
+        // domain, where the state cookie set a moment ago does not exist.
+        const authUrl = await getGoogleAuthUrl(state, googleCallbackUri(request))
 
         const response = NextResponse.redirect(authUrl)
 

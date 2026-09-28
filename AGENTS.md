@@ -8,6 +8,17 @@ This block is written and re-added by `next dev` — verify at `node_modules/nex
 
 <!-- END:nextjs-agent-rules -->
 
+# Before adding a link, a search box, or a result list
+
+Read `docs/ROUTING.md`.
+
+`/tools` and `/browse` are different pages and only one of them reads
+`?search=`. Linking a tool by id costs a 308 on every click. Slugifying a
+category name produces a 404 for every category below the size floor. And a
+click handler that opens a modal is not a link — it leaves the result with no
+URL at all, which is how the app came to contribute zero internal links to the
+pages the sitemap is trying to get indexed.
+
 # Before querying or generating pages from `ai_tools`
 
 Read `docs/CORPUS_AND_CONSTRAINTS.md`.
