@@ -4,15 +4,17 @@ import { motion } from "framer-motion"
 import { ArrowLeft, Shield } from "lucide-react"
 import Link from "next/link"
 import { Button } from "@/components/ui/button"
+import { useLanguage } from "@/contexts/language-context"
 
 export default function PrivacyPage() {
+  const { t, language } = useLanguage()
   return (
     <div className="min-h-dvh bg-background">
       <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
         <Link href="/">
           <Button variant="ghost" className="mb-8 gap-2">
             <ArrowLeft className="w-4 h-4" />
-            Back to Home
+            {t("common.backHome")}
           </Button>
         </Link>
 
@@ -23,13 +25,19 @@ export default function PrivacyPage() {
         >
           <div className="flex items-center gap-3 mb-8">
             <Shield className="w-8 h-8 text-primary" />
-            <h1 className="text-4xl md:text-5xl font-bold">Privacy Policy</h1>
+            <h1 className="text-4xl md:text-5xl font-bold">{t("landing.privacyPolicy")}</h1>
           </div>
 
           <div className="prose prose-invert max-w-none space-y-8 text-muted-foreground">
             <p className="text-sm text-muted-foreground/80">
-              Last updated: {new Date().toLocaleDateString()}
+              {t("legal.lastUpdated")} {new Date().toLocaleDateString()}
             </p>
+
+            {language !== "en" && (
+              <p className="rounded-lg border border-border bg-muted/40 px-4 py-3 text-sm">
+                {t("legal.englishOnly")}
+              </p>
+            )}
 
             <section>
               <h2 className="text-2xl font-semibold text-foreground mb-4">1. Introduction</h2>
@@ -134,7 +142,7 @@ export default function PrivacyPage() {
                 If you have questions about this privacy policy, please contact us at:
               </p>
               <p>
-                <strong>Email:</strong> <a href="mailto:hello@arcynfind.com" className="text-primary hover:underline">hello@arcynfind.com</a>
+                <strong>{t("legal.email")}</strong> <a href="mailto:hello@arcynfind.com" className="text-primary hover:underline">hello@arcynfind.com</a>
               </p>
             </section>
           </div>

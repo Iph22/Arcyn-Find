@@ -40,7 +40,9 @@ export async function GET(req: Request) {
         logger.info(
             `[Cron:SendDigest] key=${result.digestKey} tools=${result.toolCount} ` +
             `new=${result.isNew} attempted=${result.attempted} sent=${result.sent} ` +
-            `failed=${result.failed} skipped=${result.skipped} in ${result.elapsedMs}ms`
+            `failed=${result.failed} skipped=${result.skipped} ` +
+            `push=${result.pushSent}/${result.pushFailed}f/${result.pushExpired}x ` +
+            `in ${result.elapsedMs}ms`
         )
 
         // An empty candidate set means the content query stopped matching -- a

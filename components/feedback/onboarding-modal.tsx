@@ -9,12 +9,14 @@ import { Badge } from "@/components/ui/badge"
 import { Slider } from "@/components/ui/slider"
 import { Switch } from "@/components/ui/switch"
 import { Label } from "@/components/ui/label"
+import { useLanguage } from "@/contexts/language-context"
 
 interface OnboardingModalProps {
   onComplete: () => void
 }
 
 export function OnboardingModal({ onComplete }: OnboardingModalProps) {
+  const { t } = useLanguage()
   const [step, setStep] = useState(0)
   const [selectedPurpose, setSelectedPurpose] = useState<string[]>([])
   const [experienceLevel, setExperienceLevel] = useState(50)
@@ -143,9 +145,9 @@ export function OnboardingModal({ onComplete }: OnboardingModalProps) {
                   >
                     <Sparkles className="h-10 w-10 text-primary-foreground" />
                   </motion.div>
-                  <h2 className="mb-4 text-3xl font-bold text-balance">Let's personalize Arcyn Find for you.</h2>
+                  <h2 className="mb-4 text-3xl font-bold text-balance">{t("onboarding.personalize")}</h2>
                   <p className="mb-8 text-lg text-muted-foreground text-balance">
-                    Answer a few quick questions to get a tailored experience
+                    {t("onboarding.personalizeSub")}
                   </p>
                   <Button size="lg" onClick={handleNext} className="gap-2 px-8">
                     Start
@@ -162,8 +164,8 @@ export function OnboardingModal({ onComplete }: OnboardingModalProps) {
                   animate={{ opacity: 1, x: 0 }}
                   exit={{ opacity: 0, x: -20 }}
                 >
-                  <h2 className="mb-2 text-2xl font-bold">Why are you here?</h2>
-                  <p className="mb-6 text-muted-foreground">Select all that apply</p>
+                  <h2 className="mb-2 text-2xl font-bold">{t("onboarding.whyHere")}</h2>
+                  <p className="mb-6 text-muted-foreground">{t("onboarding.selectAll")}</p>
                   <div className="grid gap-3 sm:grid-cols-2">
                     {purposes.map((purpose) => (
                       <motion.button
@@ -204,12 +206,12 @@ export function OnboardingModal({ onComplete }: OnboardingModalProps) {
                   animate={{ opacity: 1, x: 0 }}
                   exit={{ opacity: 0, x: -20 }}
                 >
-                  <h2 className="mb-2 text-2xl font-bold">AI Experience Level</h2>
-                  <p className="mb-8 text-muted-foreground">Help us understand your familiarity with AI tools</p>
+                  <h2 className="mb-2 text-2xl font-bold">{t("onboarding.experienceLevel")}</h2>
+                  <p className="mb-8 text-muted-foreground">{t("onboarding.experienceSub")}</p>
                   <div className="space-y-8">
                     <div className="space-y-4">
                       <div className="flex items-center justify-between">
-                        <span className="text-sm text-muted-foreground">Beginner</span>
+                        <span className="text-sm text-muted-foreground">{t("onboarding.beginner")}</span>
                         <span className="text-sm text-muted-foreground">Expert</span>
                       </div>
                       <Slider
@@ -237,8 +239,8 @@ export function OnboardingModal({ onComplete }: OnboardingModalProps) {
                   animate={{ opacity: 1, x: 0 }}
                   exit={{ opacity: 0, x: -20 }}
                 >
-                  <h2 className="mb-2 text-2xl font-bold">Interests</h2>
-                  <p className="mb-6 text-muted-foreground">What types of AI tools interest you?</p>
+                  <h2 className="mb-2 text-2xl font-bold">{t("profile.interests")}</h2>
+                  <p className="mb-6 text-muted-foreground">{t("onboarding.interestsSub")}</p>
                   <div className="flex flex-wrap gap-2">
                     {interests.map((interest) => (
                       <motion.button
@@ -267,8 +269,8 @@ export function OnboardingModal({ onComplete }: OnboardingModalProps) {
                   animate={{ opacity: 1, x: 0 }}
                   exit={{ opacity: 0, x: -20 }}
                 >
-                  <h2 className="mb-2 text-2xl font-bold">Feature Preferences</h2>
-                  <p className="mb-6 text-muted-foreground">Customize your experience</p>
+                  <h2 className="mb-2 text-2xl font-bold">{t("onboarding.features")}</h2>
+                  <p className="mb-6 text-muted-foreground">{t("onboarding.featuresSub")}</p>
                   <div className="space-y-4">
                     {Object.entries(preferences).map(([key, value]) => (
                       <div
@@ -307,9 +309,9 @@ export function OnboardingModal({ onComplete }: OnboardingModalProps) {
                       >
                         <Check className="h-10 w-10 text-primary-foreground" />
                       </motion.div>
-                      <h2 className="mb-4 text-3xl font-bold text-balance">You're all set!</h2>
+                      <h2 className="mb-4 text-3xl font-bold text-balance">{t("onboarding.allSet")}</h2>
                       <p className="mb-8 text-lg text-muted-foreground text-balance">
-                        Ready to explore AI tools personalized for you
+                        {t("onboarding.allSetSub")}
                       </p>
                     </>
                   ) : (
@@ -321,8 +323,8 @@ export function OnboardingModal({ onComplete }: OnboardingModalProps) {
                       >
                         <Sparkles className="h-10 w-10 text-primary-foreground" />
                       </motion.div>
-                      <h2 className="mb-4 text-3xl font-bold text-balance">Your personalized feed is loading...</h2>
-                      <p className="text-lg text-muted-foreground text-balance">This will only take a moment</p>
+                      <h2 className="mb-4 text-3xl font-bold text-balance">{t("onboarding.loadingFeed")}</h2>
+                      <p className="text-lg text-muted-foreground text-balance">{t("onboarding.moment")}</p>
                     </>
                   )}
                 </motion.div>

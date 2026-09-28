@@ -4,6 +4,7 @@ import { siteUrl } from '@/lib/seo/site'
 import { logger } from '@/lib/logger'
 import { buildDigestContent, type DigestContent } from './digest-content'
 import { renderDigestHtml, renderDigestText } from './template'
+import { isPushConfigured, sendPushToUsers } from './send-push'
 
 /**
  * The digest sender.
@@ -49,6 +50,17 @@ export interface DigestRunResult {
   toolCount: number
   isNew: boolean
   elapsedMs: number
+  /**
+   * Browser-push counts, reported separately from email on purpose.
+   *
+   * Push is a bonus channel: most recipients have no subscription, and an
+   * expired one is routine housekeeping rather than a fault. Folding these
+   * into `sent`/`failed` would make the email numbers unreadable and could
+   * trip the failure check below over something that is working correctly.
+   */
+  pushSent: number
+  pushFailed: number
+  pushExpired: number
 }
 
 /**
@@ -236,33 +248,58 @@ export async function claimRecipients(recipients: Recipient[], digestKey: string
   return new Set((data ?? []).map((row) => String(row.user_id)))
 }
 
-/** Record the outcome for a set of claimed recipients. */
+/**
+ * Record the outcome for a set of claimed recipients.
+ *
+ * `messageIds` maps a user to the provider id for their message. Those are
+ * per-recipient, so storing them means one statement each rather than a single
+ * bulk update — worth it, because without them a run is unauditable. The first
+ * real run wrote six rows reading `sent` with `message_id` null, and when one
+ * of those recipients said the mail never arrived there was nothing to look up.
+ *
+ * Failures share one statement: they have no ids, and the `error` text is the
+ * same for everyone the batch rejected together.
+ */
 async function resolveClaims(
   userIds: string[],
   digestKey: string,
   status: 'sent' | 'failed',
-  detail: { messageId?: string; error?: string }
+  detail: { messageIds?: Record<string, string>; error?: string }
 ): Promise<void> {
   if (userIds.length === 0) return
 
   const supabase = getSupabaseAdmin()
-  const { error } = await supabase
-    .from('notification_log')
-    .update({
-      status,
-      message_id: detail.messageId ?? null,
-      error: detail.error ?? null,
-      updated_at: new Date().toISOString(),
-    })
-    .eq('kind', 'digest')
-    .eq('digest_key', digestKey)
-    .in('user_id', userIds)
+  const now = new Date().toISOString()
 
-  if (error) {
+  const update = (ids: string[], messageId: string | null) =>
+    supabase
+      .from('notification_log')
+      .update({ status, message_id: messageId, error: detail.error ?? null, updated_at: now })
+      .eq('kind', 'digest')
+      .eq('digest_key', digestKey)
+      .in('user_id', ids)
+
+  const withIds = userIds.filter((id) => detail.messageIds?.[id])
+  const withoutIds = userIds.filter((id) => !detail.messageIds?.[id])
+
+  // Bounded concurrency: a batch is at most 100, and firing 100 statements at
+  // once against PostgREST is how an otherwise successful run ends in timeouts.
+  const results: { error: { message: string } | null }[] = []
+  for (let i = 0; i < withIds.length; i += 20) {
+    results.push(
+      ...(await Promise.all(
+        withIds.slice(i, i + 20).map((id) => update([id], detail.messageIds![id]))
+      ))
+    )
+  }
+  if (withoutIds.length > 0) results.push(await update(withoutIds, null))
+
+  const failure = results.find((r) => r.error)
+  if (failure?.error) {
     // Not fatal: the mail is already sent or already failed, and the claim rows
     // still prevent a duplicate. Losing the status is an audit gap, not a
     // correctness problem, and failing the run here would be worse.
-    logger.error('[Digest] could not resolve claims:', error.message)
+    logger.error('[Digest] could not resolve claims:', failure.error.message)
   }
 }
 
@@ -313,7 +350,13 @@ async function sendBatch(
   digestKey: string,
   origin: string,
   from: string
-): Promise<{ sent: string[]; failed: string[]; error?: string }> {
+): Promise<{
+  sent: string[]
+  failed: string[]
+  /** Provider message id per recipient, for the ones that were accepted. */
+  messageIds: Record<string, string>
+  error?: string
+}> {
   const payload = batch.map((recipient) => {
     const unsubscribeUrl = `${origin}/api/notifications/unsubscribe?token=${encodeURIComponent(recipient.unsubscribeToken)}`
     const input = {
@@ -352,7 +395,7 @@ async function sendBatch(
     })
 
     if (error) {
-      return { sent: [], failed: batch.map((r) => r.id), error: error.message }
+      return { sent: [], failed: batch.map((r) => r.id), messageIds: {}, error: error.message }
     }
 
     // Under permissive validation the response carries per-index failures
@@ -365,18 +408,31 @@ async function sendBatch(
       ((data as unknown as { errors?: { index: number }[] } | null)?.errors ?? []).map((e) => e.index)
     )
 
+    // Provider message ids, in batch order. Capturing these is what makes a
+    // send auditable afterwards: without them a delivery complaint cannot be
+    // traced to a message, and the whole run is a black box the moment it
+    // leaves this function. The first real run recorded six sends and not one
+    // could be looked up.
+    const ids = ((data as unknown as { data?: { id: string }[] } | null)?.data ?? []).map((d) => d.id)
+
     const sent: string[] = []
     const failed: string[] = []
+    const messageIds: Record<string, string> = {}
     batch.forEach((recipient, index) => {
-      if (failedIndexes.has(index)) failed.push(recipient.id)
-      else sent.push(recipient.id)
+      if (failedIndexes.has(index)) {
+        failed.push(recipient.id)
+      } else {
+        sent.push(recipient.id)
+        if (ids[index]) messageIds[recipient.id] = ids[index]
+      }
     })
 
-    return { sent, failed }
+    return { sent, failed, messageIds }
   } catch (cause) {
     return {
       sent: [],
       failed: batch.map((r) => r.id),
+      messageIds: {},
       error: cause instanceof Error ? cause.message : String(cause),
     }
   }
@@ -413,6 +469,9 @@ export async function sendDigest(now: Date = new Date()): Promise<DigestRunResul
       failed: 0,
       skipped: 0,
       budgetExhausted: false,
+      pushSent: 0,
+      pushFailed: 0,
+      pushExpired: 0,
       toolCount: 0,
       isNew: content.isNew,
       elapsedMs: Date.now() - startedAt,
@@ -422,6 +481,9 @@ export async function sendDigest(now: Date = new Date()): Promise<DigestRunResul
   const resend = new Resend(apiKey)
 
   let attempted = 0
+  let pushSent = 0
+  let pushFailed = 0
+  let pushExpired = 0
   let sent = 0
   let failed = 0
   let skipped = 0
@@ -458,8 +520,31 @@ export async function sendDigest(now: Date = new Date()): Promise<DigestRunResul
       sent += result.sent.length
       failed += result.failed.length
 
-      await resolveClaims(result.sent, digestKey, 'sent', {})
+      await resolveClaims(result.sent, digestKey, 'sent', { messageIds: result.messageIds })
       await markSent(result.sent)
+
+      // Push the same digest to whichever browsers these recipients have
+      // subscribed. Deliberately keyed off `result.sent` rather than the whole
+      // batch: someone whose email bounced should not get a notification
+      // pointing at a digest they never received.
+      //
+      // Push is a bonus channel, never a gate. Most recipients have no
+      // subscription at all, its failures are counted separately, and nothing
+      // here can fail the email run -- which is why it is awaited but its
+      // result only feeds the log.
+      if (result.sent.length > 0 && isPushConfigured()) {
+        const push = await sendPushToUsers(result.sent, {
+          title: content.isNew ? 'New AI tools on Arcyn Find' : 'AI tools worth a look',
+          body: content.tools
+            .slice(0, 3)
+            .map((t) => t.name)
+            .join(', ') + (content.tools.length > 3 ? ` and ${content.tools.length - 3} more` : ''),
+          url: `${origin}/tools`,
+        })
+        pushSent += push.sent
+        pushFailed += push.failed
+        pushExpired += push.expired
+      }
 
       if (result.failed.length > 0) {
         await resolveClaims(result.failed, digestKey, 'failed', {
@@ -482,5 +567,8 @@ export async function sendDigest(now: Date = new Date()): Promise<DigestRunResul
     toolCount: content.tools.length,
     isNew: content.isNew,
     elapsedMs: Date.now() - startedAt,
+    pushSent,
+    pushFailed,
+    pushExpired,
   }
 }

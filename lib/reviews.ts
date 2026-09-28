@@ -1,5 +1,27 @@
-import { supabase } from './supabase'
+import { getSupabaseAdmin } from './supabase'
 import { getCurrentUser } from '@/lib/google-auth'
+
+/**
+ * Server-side database access, via the SERVICE ROLE key.
+ *
+ * This module used the ANON client, and it is imported only by server code
+ * (no "use client" component imports it -- collection-card.tsx takes a type,
+ * which is erased). Writing through the anon key meant the anon role needed
+ * INSERT/UPDATE/DELETE on these tables, and because that key ships in the
+ * public client bundle, anyone holding it had those rights directly.
+ *
+ * Measured on the new project 2026-09-28, before this change: anon held
+ * DELETE, INSERT, SELECT, UPDATE and TRUNCATE on all 19 public tables, with
+ * RLS off on 17 of them. Moving these calls to the service role is what lets
+ * those grants be revoked -- see supabase/bootstrap/05_rls_and_grants.sql.
+ *
+ * Lazy rather than module-scope: getSupabaseAdmin() throws when the service
+ * role key is absent, and this module is imported by 21 API routes. Failing
+ * on first use beats failing at import time across all of them.
+ */
+let _admin: ReturnType<typeof getSupabaseAdmin> | null = null
+const db = () => (_admin ??= getSupabaseAdmin())
+
 
 export interface Review {
   id: string
@@ -37,7 +59,7 @@ export async function getToolReviews(
 ): Promise<{ reviews: Review[]; total: number }> {
   try {
     // Get reviews with user profiles
-    const { data: reviews, error, count } = await supabase
+    const { data: reviews, error, count } = await db()
       .from('tool_reviews')
       .select(
         `
@@ -129,7 +151,7 @@ export async function getToolReviews(
     if (userId) {
       const reviewIds = reviews?.map(r => r.id) || []
       if (reviewIds.length > 0) {
-        const { data: votes, error: votesError } = await supabase
+        const { data: votes, error: votesError } = await db()
           .from('review_helpful_votes')
           .select('review_id, is_helpful')
           .eq('user_id', userId)
@@ -247,7 +269,7 @@ export async function getToolReviews(
  */
 export async function getToolReviewStats(toolId: string): Promise<ReviewStats | null> {
   try {
-    const { data, error } = await supabase
+    const { data, error } = await db()
       .from('tool_reviews')
       .select('rating')
       .eq('tool_id', toolId)
@@ -352,7 +374,7 @@ export async function submitReview(
       return { success: false, error: 'You must be logged in to submit a review' }
     }
 
-    const { data, error } = await supabase
+    const { data, error } = await db()
       .from('tool_reviews')
       .insert({
         tool_id: toolId,
@@ -393,7 +415,7 @@ export async function updateReview(
       return { success: false, error: 'You must be logged in' }
     }
 
-    const { error } = await supabase
+    const { error } = await db()
       .from('tool_reviews')
       .update({
         rating,
@@ -423,7 +445,7 @@ export async function deleteReview(reviewId: string): Promise<{ success: boolean
       return { success: false, error: 'You must be logged in' }
     }
 
-    const { error } = await supabase
+    const { error } = await db()
       .from('tool_reviews')
       .delete()
       .eq('id', reviewId)
@@ -451,7 +473,7 @@ export async function voteReviewHelpful(
       return { success: false, error: 'You must be logged in to vote' }
     }
 
-    const { error } = await supabase
+    const { error } = await db()
       .from('review_helpful_votes')
       .upsert({
         review_id: reviewId,

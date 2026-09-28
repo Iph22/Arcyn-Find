@@ -14,6 +14,7 @@ import { Sidebar } from "@/components/layout/sidebar"
 import { ThemeToggle } from "@/components/layout/theme-toggle"
 import { LanguagePicker } from "@/components/layout/language-picker"
 import { usePreferences } from "@/contexts/preferences-context"
+import { useLanguage } from "@/contexts/language-context"
 import {
   AlertDialog,
   AlertDialogAction,
@@ -83,6 +84,7 @@ interface Review {
 }
 
 export default function ProfilePage() {
+  const { t } = useLanguage()
   const router = useRouter()
   const { preferences, clearPreferences } = usePreferences()
   const { user, isLoading: isAuthLoading, isAuthenticated, signOut } = useAuth()
@@ -107,16 +109,16 @@ export default function ProfilePage() {
         })
       } else {
         await navigator.clipboard.writeText(profileUrl)
-        toast.success("Profile link copied to clipboard!")
+        toast.success(t("toast.profileLinkCopied"))
       }
     } catch (error) {
       logger.error("Error sharing:", error)
       // Fallback: just copy to clipboard
       try {
         await navigator.clipboard.writeText(profileUrl)
-        toast.success("Profile link copied to clipboard!")
+        toast.success(t("toast.profileLinkCopied"))
       } catch (e) {
-        toast.error("Failed to copy link")
+        toast.error(t("toast.copyFailed"))
       }
     }
   }
@@ -262,7 +264,7 @@ export default function ProfilePage() {
       const data = await response.json()
 
       if (response.ok) {
-        toast.success("Account deleted successfully")
+        toast.success(t("toast.accountDeleted"))
 
         clearPreferences()
         // Clear all localStorage items
@@ -284,7 +286,7 @@ export default function ProfilePage() {
       if (process.env.NODE_ENV === 'development') {
         logger.error("Error deleting account:", error)
       }
-      toast.error("An error occurred while deleting your account")
+      toast.error(t("toast.deleteAccountFailed"))
       setIsDeleting(false)
       setShowDeleteDialog(false)
     }
@@ -311,7 +313,7 @@ export default function ProfilePage() {
       <div className="flex h-dvh items-center justify-center">
         <div className="text-center">
           <div className="mb-4 inline-block h-8 w-8 animate-spin rounded-full border-4 border-primary border-t-transparent" />
-          <p className="text-muted-foreground">Loading profile...</p>
+          <p className="text-muted-foreground">{t("profile.loading")}</p>
         </div>
       </div>
     )
@@ -374,7 +376,7 @@ export default function ProfilePage() {
                 {sidebarOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
               </Button>
               <div className="flex items-center gap-2">
-                <span className="text-lg font-bold">Profile</span>
+                <span className="text-lg font-bold">{t("nav.profile")}</span>
               </div>
             </div>
             <div className="flex items-center gap-2">
@@ -382,7 +384,7 @@ export default function ProfilePage() {
               <ThemeToggle />
               <Button variant="ghost" size="sm" onClick={handleSignOut} className="gap-2">
                 <LogOut className="h-4 w-4" />
-                Sign Out
+                {t("nav.signOut")}
               </Button>
             </div>
           </div>
@@ -403,7 +405,7 @@ export default function ProfilePage() {
                   <div className="h-32 sm:h-48 relative">
                     <Image
                       src={userProfile.banner_url}
-                      alt="Profile banner"
+                      alt={t("profile.bannerAlt")}
                       fill
                       className="object-cover"
                       sizes="100vw"
@@ -439,7 +441,7 @@ export default function ProfilePage() {
                         onClick={() => router.push("/settings")}
                       >
                         <Settings className="h-4 w-4" />
-                        Edit Profile
+                        {t("profile.editProfile")}
                       </Button>
                       <Button size="sm" className="gap-2" onClick={handleShareProfile}>
                         <Share2 className="h-4 w-4" />
@@ -482,26 +484,26 @@ export default function ProfilePage() {
                   <div className="flex gap-6">
                     <div>
                       <span className="font-bold">{userStats?.savedTools || 0}</span>
-                      <span className="ml-1 text-sm text-muted-foreground">Saved Tools</span>
+                      <span className="ml-1 text-sm text-muted-foreground">{t("profile.savedTools")}</span>
                     </div>
                     <div>
                       <span className="font-bold">{userStats?.reviews || 0}</span>
-                      <span className="ml-1 text-sm text-muted-foreground">Reviews</span>
+                      <span className="ml-1 text-sm text-muted-foreground">{t("nav.reviews")}</span>
                     </div>
                     <div>
                       <span className="font-bold">{userStats?.followers || 0}</span>
-                      <span className="ml-1 text-sm text-muted-foreground">Followers</span>
+                      <span className="ml-1 text-sm text-muted-foreground">{t("nav.followers")}</span>
                     </div>
                     <div>
                       <span className="font-bold">{userStats?.following || 0}</span>
-                      <span className="ml-1 text-sm text-muted-foreground">Following</span>
+                      <span className="ml-1 text-sm text-muted-foreground">{t("profile.following")}</span>
                     </div>
                   </div>
 
                   {/* User Preferences Section */}
                   {preferences?.categories && preferences.categories.length > 0 && (
                     <div className="mt-6 rounded-xl border border-border/50 bg-card/30 p-4">
-                      <h3 className="mb-3 text-sm font-semibold">Interests</h3>
+                      <h3 className="mb-3 text-sm font-semibold">{t("profile.interests")}</h3>
                       <div className="flex flex-wrap gap-2">
                         {preferences.categories.map((category) => (
                           <Badge key={category} variant="secondary">
@@ -511,7 +513,7 @@ export default function ProfilePage() {
                       </div>
                       {preferences.level && (
                         <div className="mt-3">
-                          <span className="text-sm text-muted-foreground">Experience: </span>
+                          <span className="text-sm text-muted-foreground">{t("profile.experience")}</span>
                           <Badge variant="outline">
                             {preferences.level.charAt(0).toUpperCase() + preferences.level.slice(1)}
                           </Badge>
@@ -519,7 +521,7 @@ export default function ProfilePage() {
                       )}
                       {preferences.userRole && (
                         <div className="mt-3">
-                          <span className="text-sm text-muted-foreground">Role: </span>
+                          <span className="text-sm text-muted-foreground">{t("profile.role")}</span>
                           <Badge variant="outline">
                             {preferences.userRole.charAt(0).toUpperCase() + preferences.userRole.slice(1)}
                           </Badge>
@@ -530,9 +532,9 @@ export default function ProfilePage() {
 
                   {/* Danger Zone */}
                   <div className="mt-8 rounded-xl border border-destructive/20 bg-destructive/5 p-6">
-                    <h3 className="mb-2 text-sm font-semibold text-destructive">Danger Zone</h3>
+                    <h3 className="mb-2 text-sm font-semibold text-destructive">{t("profile.dangerZone")}</h3>
                     <p className="mb-4 text-sm text-muted-foreground">
-                      Once you delete your account, there is no going back. Please be certain.
+                      {t("profile.deleteWarning")}
                     </p>
                     <Button
                       variant="destructive"
@@ -541,7 +543,7 @@ export default function ProfilePage() {
                       className="gap-2"
                     >
                       <Trash2 className="h-4 w-4" />
-                      Delete Account
+                      {t("profile.deleteAccount")}
                     </Button>
                   </div>
                 </div>
@@ -559,7 +561,7 @@ export default function ProfilePage() {
                 <TabsList className="mb-6 w-full justify-start rounded-xl bg-card/50 p-1">
                   <TabsTrigger value="saved" className="gap-2 rounded-lg">
                     <Bookmark className="h-4 w-4" />
-                    Saved Tools
+                    {t("profile.savedTools")}
                   </TabsTrigger>
                   <TabsTrigger value="reviews" className="gap-2 rounded-lg">
                     <Star className="h-4 w-4" />
@@ -567,7 +569,7 @@ export default function ProfilePage() {
                   </TabsTrigger>
                   <TabsTrigger value="activity" className="gap-2 rounded-lg">
                     <Users className="h-4 w-4" />
-                    Activity
+                    {t("profile.activity")}
                   </TabsTrigger>
                 </TabsList>
 
@@ -620,8 +622,8 @@ export default function ProfilePage() {
                       <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-2xl bg-muted">
                         <Bookmark className="h-8 w-8 text-muted-foreground" />
                       </div>
-                      <h3 className="mb-2 text-lg font-semibold">No saved tools yet</h3>
-                      <p className="text-muted-foreground">Start exploring and save tools you find interesting</p>
+                      <h3 className="mb-2 text-lg font-semibold">{t("profile.noSaved")}</h3>
+                      <p className="text-muted-foreground">{t("profile.noSavedDesc")}</p>
                     </Card>
                   )}
                 </TabsContent>
@@ -691,8 +693,8 @@ export default function ProfilePage() {
                       <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-2xl bg-muted">
                         <Star className="h-8 w-8 text-muted-foreground" />
                       </div>
-                      <h3 className="mb-2 text-lg font-semibold">No reviews yet</h3>
-                      <p className="text-muted-foreground">Start reviewing AI tools to help the community</p>
+                      <h3 className="mb-2 text-lg font-semibold">{t("profile.noReviews")}</h3>
+                      <p className="text-muted-foreground">{t("profile.noReviewsDesc")}</p>
                     </Card>
                   )}
                 </TabsContent>
@@ -726,8 +728,8 @@ export default function ProfilePage() {
                       <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-2xl bg-muted">
                         <Users className="h-8 w-8 text-muted-foreground" />
                       </div>
-                      <h3 className="mb-2 text-lg font-semibold">No activity yet</h3>
-                      <p className="text-muted-foreground">Your activity will appear here as you interact with tools</p>
+                      <h3 className="mb-2 text-lg font-semibold">{t("profile.noActivity")}</h3>
+                      <p className="text-muted-foreground">{t("profile.noActivityDesc")}</p>
                     </Card>
                   )}
                 </TabsContent>
@@ -741,23 +743,23 @@ export default function ProfilePage() {
       <AlertDialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Delete Account</AlertDialogTitle>
+            <AlertDialogTitle>{t("profile.deleteAccount")}</AlertDialogTitle>
             <AlertDialogDescription>
               Are you absolutely sure? This action cannot be undone. This will permanently delete your account
               and remove all of your data from our servers.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <div className="text-sm text-muted-foreground">
-            <p className="mb-2">This includes:</p>
+            <p className="mb-2">{t("profile.deleteIncludes")}</p>
             <ul className="ml-4 list-disc space-y-1">
-              <li>Your profile and preferences</li>
-              <li>All your reviews and ratings</li>
-              <li>Your collections and saved tools</li>
-              <li>Your favorites and activity history</li>
+              <li>{t("profile.deleteProfile")}</li>
+              <li>{t("profile.allReviews")}</li>
+              <li>{t("profile.deleteCollections")}</li>
+              <li>{t("profile.deleteFavorites")}</li>
             </ul>
           </div>
           <AlertDialogFooter>
-            <AlertDialogCancel disabled={isDeleting}>Cancel</AlertDialogCancel>
+            <AlertDialogCancel disabled={isDeleting}>{t("common.cancel")}</AlertDialogCancel>
             <AlertDialogAction
               onClick={handleDeleteAccount}
               disabled={isDeleting}
@@ -766,7 +768,7 @@ export default function ProfilePage() {
               {isDeleting ? (
                 <>
                   <div className="mr-2 h-4 w-4 animate-spin rounded-full border-2 border-current border-t-transparent" />
-                  Deleting...
+                  {t("profile.deleting")}
                 </>
               ) : (
                 "Yes, delete my account"

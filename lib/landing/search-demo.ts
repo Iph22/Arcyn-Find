@@ -95,6 +95,10 @@ export async function getLandingSearchDemo(): Promise<LandingSearchDemo> {
     const results = ((data ?? []) as SearchRow[])
       .filter((row) =>
         isIndexable({
+          // `name` is required since isIndexable started applying the content
+          // rating, which reads it -- the landing demo is the last place an
+          // adult result should surface.
+          name: row.name ?? '',
           rawDescription: row.description ?? '',
           tags: row.tags ?? [],
           image: row.image,

@@ -13,11 +13,13 @@ import { ThemeToggle } from "@/components/layout/theme-toggle"
 import { LanguagePicker } from "@/components/layout/language-picker"
 import { EmptyState } from "@/components/feedback/empty-state"
 import { useAuth } from "@/contexts/auth-context"
+import { useLanguage } from "@/contexts/language-context"
 import { logger } from "@/lib/logger"
 import { formatDistanceToNow } from "date-fns"
 import type { ReviewWithProfile } from "@/lib/types"
 
 export default function ReviewsPage() {
+  const { t } = useLanguage()
   const router = useRouter()
   const { user, isLoading: isAuthLoading, isAuthenticated } = useAuth()
   const [sidebarOpen, setSidebarOpen] = useState(false) // Hidden by default on mobile
@@ -44,7 +46,7 @@ export default function ReviewsPage() {
       <div className="flex h-dvh items-center justify-center">
         <div className="text-center">
           <div className="mb-4 inline-block h-8 w-8 animate-spin rounded-full border-4 border-primary border-t-transparent" />
-          <p className="text-muted-foreground">Loading...</p>
+          <p className="text-muted-foreground">{t("common.loading")}</p>
         </div>
       </div>
     )
@@ -167,8 +169,8 @@ export default function ReviewsPage() {
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.5, delay: 0.1 }}
             >
-              <h1 className="mb-2 text-4xl font-bold">My Reviews</h1>
-              <p className="text-lg text-muted-foreground">Share your experiences with AI tools</p>
+              <h1 className="mb-2 text-4xl font-bold">{t("reviews.heading")}</h1>
+              <p className="text-lg text-muted-foreground">{t("reviews.subtitle")}</p>
             </motion.div>
 
             {/* Reviews List */}
@@ -179,7 +181,7 @@ export default function ReviewsPage() {
             ) : error ? (
               <EmptyState
                 icon={MessageSquare}
-                title="Error loading reviews"
+                title={t("reviews.errorLoading")}
                 description={error}
                 action={{
                   label: "Try again",
@@ -189,7 +191,7 @@ export default function ReviewsPage() {
             ) : reviews.length === 0 ? (
               <EmptyState
                 icon={MessageSquare}
-                title="No reviews yet"
+                title={t("profile.noReviews")}
                 description="You haven't reviewed any tools yet. Start exploring and share your experiences!"
                 action={{
                   label: "Explore Tools",

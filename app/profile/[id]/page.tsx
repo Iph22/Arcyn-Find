@@ -15,6 +15,7 @@ import { ThemeToggle } from "@/components/layout/theme-toggle"
 import { LanguagePicker } from "@/components/layout/language-picker"
 import { toast } from "sonner"
 import { useAuth } from "@/contexts/auth-context"
+import { useLanguage } from "@/contexts/language-context"
 
 interface UserProfile {
   id: string
@@ -63,6 +64,7 @@ interface Review {
 }
 
 export default function UserProfilePage() {
+  const { t } = useLanguage()
   const params = useParams()
   const router = useRouter()
   const { user: currentUser } = useAuth()
@@ -116,7 +118,7 @@ export default function UserProfilePage() {
         if (!profileRes.ok) {
           if (profileRes.status === 404) {
             if (isMounted) {
-              toast.error("User not found")
+              toast.error(t("profile.userNotFound"))
               router.push("/")
             }
             return
@@ -189,7 +191,7 @@ export default function UserProfilePage() {
       } catch (error) {
         console.error("Error loading user data:", error)
         if (isMounted) {
-          toast.error("Failed to load user profile")
+          toast.error(t("toast.loadProfileFailed"))
           router.push("/")
         }
       } finally {
@@ -208,7 +210,7 @@ export default function UserProfilePage() {
 
   const handleFollow = async () => {
     if (!currentUser) {
-      toast.error("Please sign in to follow users")
+      toast.error(t("toast.signInToFollow"))
       return
     }
 
@@ -228,11 +230,11 @@ export default function UserProfilePage() {
           setUserStats(statsData.stats)
         }
       } else {
-        toast.error("Failed to update follow status")
+        toast.error(t("toast.followFailed"))
       }
     } catch (error) {
       console.error("Error following user:", error)
-      toast.error("An error occurred")
+      toast.error(t("toast.genericError"))
     } finally {
       setIsFollowingLoading(false)
     }
@@ -249,15 +251,15 @@ export default function UserProfilePage() {
         })
       } else {
         await navigator.clipboard.writeText(profileUrl)
-        toast.success("Profile link copied to clipboard!")
+        toast.success(t("toast.profileLinkCopied"))
       }
     } catch (error) {
       if (error instanceof Error && error.name !== "AbortError") {
         try {
           await navigator.clipboard.writeText(profileUrl)
-          toast.success("Profile link copied to clipboard!")
+          toast.success(t("toast.profileLinkCopied"))
         } catch (e) {
-          toast.error("Failed to copy link")
+          toast.error(t("toast.copyFailed"))
         }
       }
     }
@@ -268,7 +270,7 @@ export default function UserProfilePage() {
       <div className="flex h-dvh items-center justify-center">
         <div className="text-center">
           <div className="mb-4 inline-block h-8 w-8 animate-spin rounded-full border-4 border-primary border-t-transparent" />
-          <p className="text-muted-foreground">Loading profile...</p>
+          <p className="text-muted-foreground">{t("profile.loading")}</p>
         </div>
       </div>
     )
@@ -278,8 +280,8 @@ export default function UserProfilePage() {
     return (
       <div className="flex h-dvh items-center justify-center">
         <div className="text-center">
-          <p className="mb-4 text-destructive">User not found</p>
-          <Button onClick={() => router.push("/")}>Go Home</Button>
+          <p className="mb-4 text-destructive">{t("profile.userNotFound")}</p>
+          <Button onClick={() => router.push("/")}>{t("profile.goHome")}</Button>
         </div>
       </div>
     )
@@ -361,7 +363,7 @@ export default function UserProfilePage() {
                 Back
               </Button>
               <div className="flex items-center gap-2">
-                <span className="text-lg font-bold">Profile</span>
+                <span className="text-lg font-bold">{t("nav.profile")}</span>
               </div>
             </div>
             <div className="flex items-center gap-2">
@@ -386,7 +388,7 @@ export default function UserProfilePage() {
                   <div className="h-32 sm:h-48 relative">
                     <Image
                       src={userProfile.banner_url}
-                      alt="Profile banner"
+                      alt={t("profile.bannerAlt")}
                       fill
                       className="object-cover"
                       sizes="100vw"
@@ -423,7 +425,7 @@ export default function UserProfilePage() {
                           {isFollowing ? (
                             <>
                               <UserCheck className="h-4 w-4" />
-                              Following
+                              {t("profile.following")}
                             </>
                           ) : (
                             <>
@@ -440,7 +442,7 @@ export default function UserProfilePage() {
                           className="gap-2 bg-transparent"
                           onClick={() => router.push("/settings")}
                         >
-                          Edit Profile
+                          {t("profile.editProfile")}
                         </Button>
                       )}
                       <Button size="sm" className="gap-2" onClick={handleShareProfile}>
@@ -467,19 +469,19 @@ export default function UserProfilePage() {
                   <div className="flex gap-6">
                     <div>
                       <span className="font-bold">{userStats?.savedTools || 0}</span>
-                      <span className="ml-1 text-sm text-muted-foreground">Saved Tools</span>
+                      <span className="ml-1 text-sm text-muted-foreground">{t("profile.savedTools")}</span>
                     </div>
                     <div>
                       <span className="font-bold">{userStats?.reviews || 0}</span>
-                      <span className="ml-1 text-sm text-muted-foreground">Reviews</span>
+                      <span className="ml-1 text-sm text-muted-foreground">{t("nav.reviews")}</span>
                     </div>
                     <div>
                       <span className="font-bold">{userStats?.followers || 0}</span>
-                      <span className="ml-1 text-sm text-muted-foreground">Followers</span>
+                      <span className="ml-1 text-sm text-muted-foreground">{t("nav.followers")}</span>
                     </div>
                     <div>
                       <span className="font-bold">{userStats?.following || 0}</span>
-                      <span className="ml-1 text-sm text-muted-foreground">Following</span>
+                      <span className="ml-1 text-sm text-muted-foreground">{t("profile.following")}</span>
                     </div>
                   </div>
                 </div>
@@ -497,11 +499,11 @@ export default function UserProfilePage() {
                 <TabsList className="mb-6 w-full justify-start rounded-xl bg-card/50 p-1">
                   <TabsTrigger value="saved" className="gap-2 rounded-lg">
                     <Bookmark className="h-4 w-4" />
-                    Saved Tools
+                    {t("profile.savedTools")}
                   </TabsTrigger>
                   <TabsTrigger value="reviews" className="gap-2 rounded-lg">
                     <Star className="h-4 w-4" />
-                    Reviews
+                    {t("nav.reviews")}
                   </TabsTrigger>
                 </TabsList>
 
@@ -554,8 +556,8 @@ export default function UserProfilePage() {
                       <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-2xl bg-muted">
                         <Bookmark className="h-8 w-8 text-muted-foreground" />
                       </div>
-                      <h3 className="mb-2 text-lg font-semibold">No saved tools yet</h3>
-                      <p className="text-muted-foreground">This user hasn't saved any tools yet</p>
+                      <h3 className="mb-2 text-lg font-semibold">{t("profile.noSaved")}</h3>
+                      <p className="text-muted-foreground">{t("profile.userNoSaved")}</p>
                     </Card>
                   )}
                 </TabsContent>
@@ -624,8 +626,8 @@ export default function UserProfilePage() {
                       <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-2xl bg-muted">
                         <Star className="h-8 w-8 text-muted-foreground" />
                       </div>
-                      <h3 className="mb-2 text-lg font-semibold">No reviews yet</h3>
-                      <p className="text-muted-foreground">This user hasn't written any reviews yet</p>
+                      <h3 className="mb-2 text-lg font-semibold">{t("profile.noReviews")}</h3>
+                      <p className="text-muted-foreground">{t("profile.userNoReviews")}</p>
                     </Card>
                   )}
                 </TabsContent>

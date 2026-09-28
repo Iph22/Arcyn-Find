@@ -8,8 +8,10 @@ import { Input } from "@/components/ui/input"
 import { useState } from "react"
 import { Textarea } from "@/components/ui/textarea"
 import { toast } from "sonner"
+import { useLanguage } from "@/contexts/language-context"
 
 export default function ContactPage() {
+  const { t } = useLanguage()
   const [formData, setFormData] = useState({
     name: "",
     email: "",
@@ -50,7 +52,7 @@ export default function ContactPage() {
       setIsSubmitting(false)
       setSubmitStatus("success")
       setFormData({ name: "", email: "", subject: "", message: "" })
-      toast.success("Message sent successfully! We'll get back to you soon.")
+      toast.success(t("contact.sent"))
       setTimeout(() => setSubmitStatus("idle"), 5000)
     } catch (error) {
       setIsSubmitting(false)
@@ -67,7 +69,7 @@ export default function ContactPage() {
         <Link href="/">
           <Button variant="ghost" className="mb-8 gap-2">
             <ArrowLeft className="w-4 h-4" />
-            Back to Home
+            {t("common.backHome")}
           </Button>
         </Link>
 
@@ -78,13 +80,13 @@ export default function ContactPage() {
         >
           <div className="flex items-center gap-3 mb-8">
             <MessageSquare className="w-8 h-8 text-primary" />
-            <h1 className="text-4xl md:text-5xl font-bold">Contact Us</h1>
+            <h1 className="text-4xl md:text-5xl font-bold">{t("landing.contactUs")}</h1>
           </div>
 
           <div className="grid md:grid-cols-2 gap-8">
             <div className="space-y-6">
               <div>
-                <h2 className="text-2xl font-semibold mb-4">Get in Touch</h2>
+                <h2 className="text-2xl font-semibold mb-4">{t("landing.getInTouch")}</h2>
                 <p className="text-muted-foreground mb-6">
                   Have a question or feedback? We'd love to hear from you. Send us a message and we'll respond as soon as possible.
                 </p>
@@ -138,9 +140,9 @@ export default function ContactPage() {
               </div>
 
               <div className="pt-6 border-t border-border">
-                <h3 className="font-semibold mb-3">Response Time</h3>
+                <h3 className="font-semibold mb-3">{t("contact.responseTime")}</h3>
                 <p className="text-sm text-muted-foreground">
-                  We typically respond within 24-48 hours during business days.
+                  {t("contact.responseTimeDesc")}
                 </p>
               </div>
             </div>
@@ -157,7 +159,7 @@ export default function ContactPage() {
                     required
                     value={formData.name}
                     onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                    placeholder="Your name"
+                    placeholder={t("contact.namePlaceholder")}
                   />
                 </div>
 
@@ -177,7 +179,7 @@ export default function ContactPage() {
 
                 <div>
                   <label htmlFor="subject" className="block text-sm font-medium mb-2">
-                    Subject
+                    {t("contact.subject")}
                   </label>
                   <Input
                     id="subject"
@@ -185,33 +187,33 @@ export default function ContactPage() {
                     required
                     value={formData.subject}
                     onChange={(e) => setFormData({ ...formData, subject: e.target.value })}
-                    placeholder="What's this about?"
+                    placeholder={t("contact.subjectPlaceholder")}
                   />
                 </div>
 
                 <div>
                   <label htmlFor="message" className="block text-sm font-medium mb-2">
-                    Message
+                    {t("contact.message")}
                   </label>
                   <Textarea
                     id="message"
                     required
                     value={formData.message}
                     onChange={(e) => setFormData({ ...formData, message: e.target.value })}
-                    placeholder="Your message..."
+                    placeholder={t("contact.messagePlaceholder")}
                     rows={6}
                   />
                 </div>
 
                 {submitStatus === "success" && (
                   <div className="p-4 bg-green-500/10 border border-green-500/20 rounded-lg text-green-400">
-                    Message sent successfully! We'll get back to you soon.
+                    {t("contact.sent")}
                   </div>
                 )}
 
                 {submitStatus === "error" && (
                   <div className="p-4 bg-red-500/10 border border-red-500/20 rounded-lg text-red-400">
-                    Something went wrong. Please try again.
+                    {t("contact.error")}
                   </div>
                 )}
 
@@ -224,12 +226,12 @@ export default function ContactPage() {
                   {isSubmitting ? (
                     <>
                       <div className="w-4 h-4 border-2 border-background/30 border-t-background rounded-full animate-spin" />
-                      Sending...
+                      {t("contact.sending")}
                     </>
                   ) : (
                     <>
                       <Send className="w-4 h-4" />
-                      Send Message
+                      {t("contact.send")}
                     </>
                   )}
                 </Button>

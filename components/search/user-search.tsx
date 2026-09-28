@@ -12,6 +12,7 @@ import { Button } from "@/components/ui/button"
 import { toast } from "sonner"
 import { motion, AnimatePresence } from "framer-motion"
 import { logger } from "@/lib/logger"
+import { useLanguage } from "@/contexts/language-context"
 
 interface UserResult {
   id: string
@@ -28,6 +29,7 @@ interface UserSearchProps {
 }
 
 export function UserSearch({ trigger }: UserSearchProps) {
+  const { t } = useLanguage()
   const router = useRouter()
   const [isOpen, setIsOpen] = useState(false)
   const [searchQuery, setSearchQuery] = useState("")
@@ -109,7 +111,7 @@ export function UserSearch({ trigger }: UserSearchProps) {
                   <Input
                     value={searchQuery}
                     onChange={(e) => setSearchQuery(e.target.value)}
-                    placeholder="Search by name or username..."
+                    placeholder={t("community.searchPlaceholder")}
                     className="pl-10"
                     autoFocus
                   />
@@ -131,7 +133,7 @@ export function UserSearch({ trigger }: UserSearchProps) {
                 ) : results.length === 0 && searchQuery ? (
                   <div className="text-center py-8 text-muted-foreground">
                     <User className="h-12 w-12 mx-auto mb-2 opacity-50" />
-                    <p>No users found</p>
+                    <p>{t("userSearch.noUsers")}</p>
                   </div>
                 ) : results.length > 0 ? (
                   <div className="grid gap-4 sm:grid-cols-2">
@@ -155,7 +157,7 @@ export function UserSearch({ trigger }: UserSearchProps) {
                               {user.banner_url && (
                                 <Image
                                   src={user.banner_url}
-                                  alt="Banner"
+                                  alt={t("common.banner")}
                                   fill
                                   className="object-cover"
                                   sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
@@ -204,7 +206,7 @@ export function UserSearch({ trigger }: UserSearchProps) {
                                       })
 
                                       if (!response.ok) {
-                                        throw new Error("Failed to update follow status")
+                                        throw new Error(t("toast.followFailed"))
                                       }
 
                                       toast.success(newIsFollowing ? `Following ${displayName}` : `Unfollowed ${displayName}`)
@@ -213,7 +215,7 @@ export function UserSearch({ trigger }: UserSearchProps) {
                                       setResults(prev => prev.map(u =>
                                         u.id === user.id ? { ...u, isFollowing: user.isFollowing } : u
                                       ))
-                                      toast.error("Failed to update follow status")
+                                      toast.error(t("toast.followFailed"))
                                     }
                                   }}
                                 >
@@ -249,7 +251,7 @@ export function UserSearch({ trigger }: UserSearchProps) {
                                   e.stopPropagation()
                                 }}
                               >
-                                View Profile
+                                {t("common.viewProfile")}
                               </Button>
                             </div>
                           </Card>
@@ -260,7 +262,7 @@ export function UserSearch({ trigger }: UserSearchProps) {
                 ) : (
                   <div className="text-center py-8 text-muted-foreground">
                     <Search className="h-12 w-12 mx-auto mb-2 opacity-50" />
-                    <p>Search for users by name or username</p>
+                    <p>{t("userSearch.hint")}</p>
                   </div>
                 )}
               </div>
@@ -282,10 +284,10 @@ export function UserSearch({ trigger }: UserSearchProps) {
         <button
           onClick={() => setIsOpen(true)}
           className="w-full flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium text-sidebar-foreground/70 hover:bg-sidebar-accent/50 hover:text-sidebar-foreground transition-all"
-          title="Search users"
+          title={t("userSearch.title")}
         >
           <Search className="h-4 w-4 shrink-0" />
-          <span className="truncate">Search users...</span>
+          <span className="truncate">{t("userSearch.placeholder")}</span>
         </button>
       )}
 

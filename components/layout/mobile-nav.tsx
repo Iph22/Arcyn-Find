@@ -9,12 +9,14 @@ import { UserSearch } from "@/components/search/user-search"
 import { useAuth } from "@/contexts/auth-context"
 import { Button } from "@/components/ui/button"
 import { useHaptic } from "@/lib/hooks/use-haptic"
+import { useLanguage } from "@/contexts/language-context"
 
 export function MobileNav() {
   const pathname = usePathname()
   const router = useRouter()
   const { isAuthenticated } = useAuth()
   const { trigger: haptic } = useHaptic()
+  const { t } = useLanguage()
 
 
 
@@ -26,10 +28,11 @@ export function MobileNav() {
   }
 
   const navItems = [
-    { href: "/home", label: "Home", icon: Home, requiresAuth: true },
-    { href: "/browse", label: "Tools", icon: Sparkles, requiresAuth: false },
-    { href: "/collections", label: "Saved", icon: Bookmark, requiresAuth: true },
-    { href: "/profile", label: "Profile", icon: User, requiresAuth: true },
+    { href: "/home", label: t("nav.home"), icon: Home, requiresAuth: true },
+    { href: "/browse", label: t("nav.tools"), icon: Sparkles, requiresAuth: false },
+    // "Saved" rather than "Collections": the mobile bar has room for one word.
+    { href: "/collections", label: t("nav.saved"), icon: Bookmark, requiresAuth: true },
+    { href: "/profile", label: t("nav.profile"), icon: User, requiresAuth: true },
   ]
 
   const isActive = (href: string) => {
@@ -79,7 +82,7 @@ export function MobileNav() {
               >
                 <Sparkles className={cn("w-5 h-5 shrink-0", pathname === "/browse" && "scale-110")} />
               </motion.div>
-              <span className="text-[11px] font-medium leading-tight">Tools</span>
+              <span className="text-[11px] font-medium leading-tight">{t("nav.tools")}</span>
             </Link>
 
             {/* Sign In Button */}
@@ -96,7 +99,7 @@ export function MobileNav() {
             >
               <Lock className="w-4 h-4 shrink-0" />
               <span className="text-[11px] font-medium leading-tight text-center line-clamp-2">
-                Sign in to use more tools
+                {t("nav.signInPrompt")}
               </span>
             </Button>
           </div>
@@ -167,7 +170,7 @@ export function MobileNav() {
                 <motion.div whileTap={{ scale: 0.9 }}>
                   <Search className="w-5 h-5" />
                 </motion.div>
-                <span className="text-[11px] font-medium leading-tight">Search</span>
+                <span className="text-[11px] font-medium leading-tight">{t("nav.search")}</span>
               </div>
             }
           />

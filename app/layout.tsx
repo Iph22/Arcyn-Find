@@ -199,17 +199,23 @@ export default function RootLayout({
           disableTransitionOnChange={false}
           storageKey="arcyn-theme"
         >
-          <LanguageProvider>
-            <AuthProvider>
-              <PreferencesProvider>
+          {/* LanguageProvider sits inside Auth and Preferences because the
+              language is now an account-level setting: it reads whether anyone
+              is signed in, and adopts the language saved on their profile so
+              the choice follows them to a new device. Nothing between these
+              providers consumes `useLanguage`, so the move is inert for
+              everything except the language itself. */}
+          <AuthProvider>
+            <PreferencesProvider>
+              <LanguageProvider>
                 <AvatarProvider>
                   <ClientLayout>
                     {children}
                   </ClientLayout>
                 </AvatarProvider>
-              </PreferencesProvider>
-            </AuthProvider>
-          </LanguageProvider>
+              </LanguageProvider>
+            </PreferencesProvider>
+          </AuthProvider>
         </ThemeProvider>
         <Analytics />
         <Toaster />

@@ -4,8 +4,10 @@ import { motion } from "framer-motion"
 import { ArrowLeft, Target, Zap, Users, Globe, Instagram, Twitter } from "lucide-react"
 import Link from "next/link"
 import { Button } from "@/components/ui/button"
+import { useLanguage } from "@/contexts/language-context"
 
 export default function AboutPage() {
+  const { t } = useLanguage()
   const values = [
     {
       icon: Target,
@@ -35,7 +37,7 @@ export default function AboutPage() {
         <Link href="/">
           <Button variant="ghost" className="mb-8 gap-2">
             <ArrowLeft className="w-4 h-4" />
-            Back to Home
+            {t("common.backHome")}
           </Button>
         </Link>
 
@@ -44,14 +46,14 @@ export default function AboutPage() {
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.6 }}
         >
-          <h1 className="text-4xl md:text-5xl font-bold mb-4">About Arcyn Find</h1>
+          <h1 className="text-4xl md:text-5xl font-bold mb-4">{t("about.title")}</h1>
           <p className="text-xl text-muted-foreground mb-12">
             The most comprehensive platform for discovering, comparing, and mastering AI tools.
           </p>
 
           <div className="prose prose-invert max-w-none space-y-8 text-muted-foreground mb-12">
             <section>
-              <h2 className="text-2xl font-semibold text-foreground mb-4">Who We Are</h2>
+              <h2 className="text-2xl font-semibold text-foreground mb-4">{t("about.whoWeAre")}</h2>
               <p>
                 Arcyn Find is a platform dedicated to helping developers, researchers, and AI enthusiasts discover
                 the best AI tools for their needs. We curate and organize thousands of AI tools, making it easy to
@@ -65,7 +67,7 @@ export default function AboutPage() {
             </section>
 
             <section>
-              <h2 className="text-2xl font-semibold text-foreground mb-4">What We Do</h2>
+              <h2 className="text-2xl font-semibold text-foreground mb-4">{t("about.whatWeDo")}</h2>
               <p>
                 We aggregate AI tools from various sources, provide detailed information, user reviews, and comparisons.
                 Our platform helps you make informed decisions about which AI tools to use for your projects.
@@ -90,7 +92,7 @@ export default function AboutPage() {
           </div>
 
           <div className="p-8 bg-muted/30 rounded-xl">
-            <h2 className="text-2xl font-semibold mb-4">Connect With Us</h2>
+            <h2 className="text-2xl font-semibold mb-4">{t("about.connectWithUs")}</h2>
             <p className="text-muted-foreground mb-6">
               Follow us on social media to stay updated with the latest AI tools and platform updates. 
               We welcome feedback, suggestions, and contributions from our community.
@@ -109,7 +111,7 @@ export default function AboutPage() {
                 </a>
               </Button>
               <Button variant="outline" asChild>
-                <Link href="/contact">Contact Us</Link>
+                <Link href="/contact">{t("landing.contactUs")}</Link>
               </Button>
             </div>
           </div>

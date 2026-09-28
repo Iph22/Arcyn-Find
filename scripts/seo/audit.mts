@@ -10,8 +10,9 @@
  */
 
 import { createClient } from '@supabase/supabase-js'
+import { PUBLISH_MIN_POPULARITY as MIN_POPULARITY } from '../../lib/seo/publish-policy'
 
-const MIN_POPULARITY = 90
+
 const PAGE_SIZE = 1000
 
 const db = createClient(

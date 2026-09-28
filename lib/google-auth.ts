@@ -1,13 +1,35 @@
 "use server"
 
 import { cookies } from 'next/headers'
-import { supabase, OWN_PROFILE_COLUMNS } from './supabase'
+import { getSupabaseAdmin, OWN_PROFILE_COLUMNS } from './supabase'
 import {
     SESSION_COOKIE_NAME,
     SESSION_MAX_AGE_SECONDS,
     signSession,
     verifySession,
 } from './session'
+
+/**
+ * Server-side database access, via the SERVICE ROLE key.
+ *
+ * This module used the ANON client, and it is imported only by server code
+ * (no "use client" component imports it -- collection-card.tsx takes a type,
+ * which is erased). Writing through the anon key meant the anon role needed
+ * INSERT/UPDATE/DELETE on these tables, and because that key ships in the
+ * public client bundle, anyone holding it had those rights directly.
+ *
+ * Measured on the new project 2026-09-28, before this change: anon held
+ * DELETE, INSERT, SELECT, UPDATE and TRUNCATE on all 19 public tables, with
+ * RLS off on 17 of them. Moving these calls to the service role is what lets
+ * those grants be revoked -- see supabase/bootstrap/05_rls_and_grants.sql.
+ *
+ * Lazy rather than module-scope: getSupabaseAdmin() throws when the service
+ * role key is absent, and this module is imported by 21 API routes. Failing
+ * on first use beats failing at import time across all of them.
+ */
+let _admin: ReturnType<typeof getSupabaseAdmin> | null = null
+const db = () => (_admin ??= getSupabaseAdmin())
+
 
 export interface GoogleUser {
     id: string
@@ -135,7 +157,7 @@ export async function getUserProfile(userId?: string): Promise<UserProfile | nul
         // the caller's own profile and for other users' (the userId argument
         // is optional), so it uses the wider set -- but an explicit one, so a
         // new column is a deliberate decision rather than an automatic leak.
-        const { data, error } = await supabase
+        const { data, error } = await db()
             .from('user_profiles')
             .select(OWN_PROFILE_COLUMNS)
             .eq('id', targetUserId)
@@ -168,7 +190,7 @@ export async function upsertUserProfile(profile: {
     email?: string
 }): Promise<{ success: boolean; profile?: UserProfile; error?: string }> {
     try {
-        const { data, error } = await supabase
+        const { data, error } = await db()
             .from('user_profiles')
             .upsert({
                 ...profile,
@@ -329,11 +351,11 @@ export async function deleteAccount(): Promise<{ success: boolean; error?: strin
         }
 
         // Delete user data from database
-        await supabase.from('user_preferences').delete().eq('user_id', user.id)
-        await supabase.from('user_collections').delete().eq('user_id', user.id)
-        await supabase.from('user_followers').delete().eq('follower_id', user.id)
-        await supabase.from('user_followers').delete().eq('following_id', user.id)
-        await supabase.from('user_profiles').delete().eq('id', user.id)
+        await db().from('user_preferences').delete().eq('user_id', user.id)
+        await db().from('user_collections').delete().eq('user_id', user.id)
+        await db().from('user_followers').delete().eq('follower_id', user.id)
+        await db().from('user_followers').delete().eq('following_id', user.id)
+        await db().from('user_profiles').delete().eq('id', user.id)
 
         // Delete session
         await deleteSession()

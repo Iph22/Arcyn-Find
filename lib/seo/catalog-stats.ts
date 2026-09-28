@@ -1,4 +1,5 @@
 import { getSupabaseAdmin } from '@/lib/supabase'
+import { getCategoriesSafe } from './catalog'
 
 /**
  * Public catalog figures, for anywhere that states a number out loud.
@@ -49,8 +50,30 @@ let inflight: Promise<CatalogStats> | null = null
 
 async function load(): Promise<CatalogStats> {
   const supabase = getSupabaseAdmin()
-  const { data, error } = await supabase.rpc('catalog_stats_current')
 
+  // Categories come from the same place the category pages do, rather than
+  // from the RPC.
+  //
+  // `catalog_stats_current()` returns COUNT(DISTINCT category) over published
+  // rows, which is not what this field has always claimed to be. Two things
+  // separate the two numbers, and the landing pages apply both: categories are
+  // grouped by SLUG (`ChatBots` and `Chatbots` are one page, not two) and must
+  // clear MIN_CATEGORY_SIZE to earn a page at all.
+  //
+  // Measured 2026-09-23, after publishing the popularity-75 tier:
+  //
+  //     distinct categories over published rows   27   <- the RPC
+  //     categories a visitor can actually open    21   <- the pages
+  //
+  // Stating 27 sends someone to a directory listing 21. Deriving it from
+  // `getCategoriesSafe()` makes the number right by construction instead of by
+  // two definitions agreeing, which is the failure this module exists to stop.
+  const [statsResult, categories] = await Promise.all([
+    supabase.rpc('catalog_stats_current'),
+    getCategoriesSafe(),
+  ])
+
+  const { data, error } = statsResult
   if (error) {
     if (error.message?.includes('Could not find the function')) {
       throw new Error(
@@ -64,7 +87,7 @@ async function load(): Promise<CatalogStats> {
   return {
     toolCount: Number(row?.distinct_products) || 0,
     published: Number(row?.published) || 0,
-    categories: Number(row?.categories) || 0,
+    categories: categories.length,
   }
 }
 
