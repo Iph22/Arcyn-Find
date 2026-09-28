@@ -150,5 +150,53 @@ for (const table of ORDER) {
   console.log(` ${done} rows${DRY_RUN ? ' (dry run)' : ''}`)
 }
 
+/**
+ * Advance every sequence past the ids we just inserted.
+ *
+ * THIS IS NOT OPTIONAL, and leaving it out is a silent bug that only shows up
+ * later. Copying rows carries their explicit `id` values across, but a
+ * BIGSERIAL's sequence starts at 1 on the new database regardless. The table
+ * looks perfect -- right rows, right ids -- and then the first INSERT tries to
+ * generate id 1 and dies on the primary key.
+ *
+ * Found the hard way on 2026-09-28: the notification digest's idempotency test
+ * failed in CI with
+ *
+ *     duplicate key value violates unique constraint "notification_log_pkey"
+ *
+ * hours after the migration looked complete and verified. Both sequence-backed
+ * tables in this schema were affected.
+ *
+ * `setval(..., greatest(max(id), 1), true)` rather than `max(id) + 1`: setval
+ * with is_called = true means the NEXT nextval() returns max+1, and greatest()
+ * keeps it legal for an empty table, where max() is NULL and 0 is out of range.
+ */
+async function resyncSequences() {
+  const { rows: seqs } = await client.query(`
+    SELECT s.relname AS seq, t.relname AS tbl, a.attname AS col
+      FROM pg_class s
+      JOIN pg_depend d ON d.objid = s.oid AND d.classid = 'pg_class'::regclass
+      JOIN pg_class t ON t.oid = d.refobjid
+      JOIN pg_attribute a ON a.attrelid = t.oid AND a.attnum = d.refobjsubid
+     WHERE s.relkind = 'S' AND t.relnamespace = 'public'::regnamespace
+     ORDER BY t.relname`)
+
+  if (seqs.length === 0) return
+
+  console.log('\n  resyncing sequences:')
+  for (const s of seqs) {
+    await client.query(
+      `SELECT setval(pg_get_serial_sequence($1, $2),
+                     GREATEST((SELECT COALESCE(MAX("${s.col}"), 0) FROM "${s.tbl}"), 1),
+                     true)`,
+      [s.tbl, s.col]
+    )
+    const { rows } = await client.query(`SELECT last_value FROM "${s.seq}"`)
+    console.log(`    ${`${s.tbl}.${s.col}`.padEnd(30)} -> ${rows[0].last_value}`)
+  }
+}
+
+if (!DRY_RUN) await resyncSequences()
+
 await client.end()
 console.log(`\n  ${grand} rows loaded${DRY_RUN ? ' (dry run — nothing written)' : ''}.\n`)
