@@ -246,17 +246,17 @@ export default function SettingsPage() {
    */
   const enableBrowserNotifications = async () => {
     if (!("Notification" in window)) {
-      toast.error("This browser does not support notifications")
+      toast.error(t("toast.noNotificationSupport"))
       return
     }
     if (!("serviceWorker" in navigator) || !("PushManager" in window)) {
-      toast.error("This browser does not support push notifications")
+      toast.error(t("toast.noPushSupport"))
       return
     }
 
     const vapidKey = process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY
     if (!vapidKey) {
-      toast.error("Push is not configured on this deployment")
+      toast.error(t("toast.pushNotConfigured"))
       return
     }
 
@@ -266,7 +266,7 @@ export default function SettingsPage() {
       setNotificationPermission(permission)
 
       if (permission !== "granted") {
-        if (permission === "denied") toast.error("Notification permission denied")
+        if (permission === "denied") toast.error(t("toast.permissionDenied"))
         return
       }
 
@@ -300,11 +300,11 @@ export default function SettingsPage() {
       }
 
       setPushEnabled(true)
-      toast.success("Browser notifications enabled")
+      toast.success(t("toast.pushEnabled"))
     } catch (error) {
       logger.error("Error enabling push:", error)
       setPushEnabled(false)
-      toast.error(error instanceof Error ? error.message : "Could not enable notifications")
+      toast.error(error instanceof Error ? error.message : t("toast.pushEnableFailed"))
     } finally {
       setIsSubscribingPush(false)
     }
@@ -328,10 +328,10 @@ export default function SettingsPage() {
 
       await sub?.unsubscribe()
       setPushEnabled(false)
-      toast.success("Browser notifications turned off")
+      toast.success(t("toast.pushDisabled"))
     } catch (error) {
       logger.error("Error disabling push:", error)
-      toast.error("Could not turn off notifications")
+      toast.error(t("toast.pushDisableFailed"))
     } finally {
       setIsSubscribingPush(false)
     }
@@ -594,7 +594,7 @@ export default function SettingsPage() {
               size="icon"
               onClick={() => setSidebarOpen(!sidebarOpen)}
               className="h-10 w-10 md:hidden"
-              aria-label="Open menu"
+              aria-label={t("common.openMenu")}
             >
               <Menu className="h-5 w-5" />
             </Button>
@@ -633,7 +633,7 @@ export default function SettingsPage() {
                       <>
                         <Image
                           src={bannerPreview || bannerUrl}
-                          alt="Banner"
+                          alt={t("common.banner")}
                           fill
                           className="object-cover"
                           sizes="(max-width: 768px) 100vw, 800px"
@@ -799,7 +799,7 @@ export default function SettingsPage() {
 
                         {/* Action Button Preview */}
                         <Button variant="default" size="sm" className="w-full" disabled>
-                          View Profile
+                          {t("common.viewProfile")}
                         </Button>
                       </div>
                     </Card>
@@ -1027,12 +1027,12 @@ export default function SettingsPage() {
 
                 {/* Data & Privacy Options */}
                 <div className="space-y-4">
-                  <Label className="text-base font-semibold">Data & Privacy</Label>
+                  <Label className="text-base font-semibold">{t("settings.privacy.dataPrivacy")}</Label>
                   <div className="space-y-3">
                     <div className="flex items-center justify-between">
                       <div>
                         <p className="font-medium">{t("settings.privacy.activity")}</p>
-                        <p className="text-sm text-muted-foreground">Let others see when you're online</p>
+                        <p className="text-sm text-muted-foreground">{t("settings.privacy.activityDesc")}</p>
                       </div>
                       <Switch
                         checked={showActivityStatus}
@@ -1064,9 +1064,9 @@ export default function SettingsPage() {
 
                 {/* Blocked Users */}
                 <div className="mt-6">
-                  <Label className="text-base font-semibold">Blocked Users</Label>
+                  <Label className="text-base font-semibold">{t("settings.privacy.blocked")}</Label>
                   <div className="mt-3 rounded-lg border border-border bg-muted/30 p-4 text-center">
-                    <p className="text-sm text-muted-foreground">You haven't blocked anyone yet</p>
+                    <p className="text-sm text-muted-foreground">{t("settings.privacy.noBlocked")}</p>
                   </div>
                 </div>
 

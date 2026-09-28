@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server'
-import { getSupabaseAdmin } from '@/lib/supabase'
+import { getCatalogStats } from '@/lib/seo/catalog-stats'
 import { logger } from '@/lib/logger'
 
 /**
@@ -41,25 +41,23 @@ const EMPTY: CatalogCounts = { count: 0, published: 0, categories: 0 }
 
 export async function GET() {
   try {
-    const supabase = getSupabaseAdmin()
-    const { data, error } = await supabase.rpc('catalog_stats_current')
-
-    if (error) {
-      if (error.message?.includes('Could not find the function')) {
-        throw new Error(
-          'catalog_stats_current() is missing. Apply ' +
-            'supabase/migrations/add_catalog_stats.sql.'
-        )
-      }
-      throw new Error(error.message)
-    }
-
-    const row = Array.isArray(data) ? data[0] : data
+    // Through getCatalogStats(), not the RPC directly.
+    //
+    // This route called `catalog_stats_current()` itself, which is a second
+    // definition of the same three numbers -- and they had already drifted.
+    // The RPC counts every distinct category over published rows; the landing
+    // pages group by slug and require MIN_CATEGORY_SIZE members. On
+    // 2026-09-23 that was 23 here against 21 on the pages a visitor can open.
+    //
+    // lib/seo/catalog-stats.ts says it is "one loader, one definition, used by
+    // every surface that says a number, so they cannot drift apart again".
+    // This route was the surface that was not using it.
+    const stats = await getCatalogStats()
 
     const payload: CatalogCounts = {
-      count: Number(row?.distinct_products) || 0,
-      published: Number(row?.published) || 0,
-      categories: Number(row?.categories) || 0,
+      count: stats.toolCount,
+      published: stats.published,
+      categories: stats.categories,
     }
 
     return NextResponse.json(payload, {

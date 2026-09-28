@@ -34,7 +34,7 @@ export async function generateMetadata(): Promise<Metadata> {
     stats.toolCount > 0
       ? `Search ${stats.toolCount.toLocaleString()} AI tools across ${stats.categories} categories. ` +
         `Compare features, pricing and alternatives, with ${stats.published.toLocaleString()} ` +
-        `full profiles and new tools added daily.`
+        `on an in-depth page of their own and new tools added daily.`
       : 'Discover, compare and master the right AI tools for your problems. ' +
         'Search by category, pricing and use case.'
 

@@ -109,16 +109,16 @@ export default function ProfilePage() {
         })
       } else {
         await navigator.clipboard.writeText(profileUrl)
-        toast.success("Profile link copied to clipboard!")
+        toast.success(t("toast.profileLinkCopied"))
       }
     } catch (error) {
       logger.error("Error sharing:", error)
       // Fallback: just copy to clipboard
       try {
         await navigator.clipboard.writeText(profileUrl)
-        toast.success("Profile link copied to clipboard!")
+        toast.success(t("toast.profileLinkCopied"))
       } catch (e) {
-        toast.error("Failed to copy link")
+        toast.error(t("toast.copyFailed"))
       }
     }
   }
@@ -264,7 +264,7 @@ export default function ProfilePage() {
       const data = await response.json()
 
       if (response.ok) {
-        toast.success("Account deleted successfully")
+        toast.success(t("toast.accountDeleted"))
 
         clearPreferences()
         // Clear all localStorage items
@@ -286,7 +286,7 @@ export default function ProfilePage() {
       if (process.env.NODE_ENV === 'development') {
         logger.error("Error deleting account:", error)
       }
-      toast.error("An error occurred while deleting your account")
+      toast.error(t("toast.deleteAccountFailed"))
       setIsDeleting(false)
       setShowDeleteDialog(false)
     }
@@ -376,7 +376,7 @@ export default function ProfilePage() {
                 {sidebarOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
               </Button>
               <div className="flex items-center gap-2">
-                <span className="text-lg font-bold">Profile</span>
+                <span className="text-lg font-bold">{t("nav.profile")}</span>
               </div>
             </div>
             <div className="flex items-center gap-2">
@@ -384,7 +384,7 @@ export default function ProfilePage() {
               <ThemeToggle />
               <Button variant="ghost" size="sm" onClick={handleSignOut} className="gap-2">
                 <LogOut className="h-4 w-4" />
-                Sign Out
+                {t("nav.signOut")}
               </Button>
             </div>
           </div>
@@ -405,7 +405,7 @@ export default function ProfilePage() {
                   <div className="h-32 sm:h-48 relative">
                     <Image
                       src={userProfile.banner_url}
-                      alt="Profile banner"
+                      alt={t("profile.bannerAlt")}
                       fill
                       className="object-cover"
                       sizes="100vw"
@@ -441,7 +441,7 @@ export default function ProfilePage() {
                         onClick={() => router.push("/settings")}
                       >
                         <Settings className="h-4 w-4" />
-                        Edit Profile
+                        {t("profile.editProfile")}
                       </Button>
                       <Button size="sm" className="gap-2" onClick={handleShareProfile}>
                         <Share2 className="h-4 w-4" />
@@ -488,7 +488,7 @@ export default function ProfilePage() {
                     </div>
                     <div>
                       <span className="font-bold">{userStats?.reviews || 0}</span>
-                      <span className="ml-1 text-sm text-muted-foreground">Reviews</span>
+                      <span className="ml-1 text-sm text-muted-foreground">{t("nav.reviews")}</span>
                     </div>
                     <div>
                       <span className="font-bold">{userStats?.followers || 0}</span>
@@ -513,7 +513,7 @@ export default function ProfilePage() {
                       </div>
                       {preferences.level && (
                         <div className="mt-3">
-                          <span className="text-sm text-muted-foreground">Experience: </span>
+                          <span className="text-sm text-muted-foreground">{t("profile.experience")}</span>
                           <Badge variant="outline">
                             {preferences.level.charAt(0).toUpperCase() + preferences.level.slice(1)}
                           </Badge>
@@ -521,7 +521,7 @@ export default function ProfilePage() {
                       )}
                       {preferences.userRole && (
                         <div className="mt-3">
-                          <span className="text-sm text-muted-foreground">Role: </span>
+                          <span className="text-sm text-muted-foreground">{t("profile.role")}</span>
                           <Badge variant="outline">
                             {preferences.userRole.charAt(0).toUpperCase() + preferences.userRole.slice(1)}
                           </Badge>
@@ -534,7 +534,7 @@ export default function ProfilePage() {
                   <div className="mt-8 rounded-xl border border-destructive/20 bg-destructive/5 p-6">
                     <h3 className="mb-2 text-sm font-semibold text-destructive">{t("profile.dangerZone")}</h3>
                     <p className="mb-4 text-sm text-muted-foreground">
-                      Once you delete your account, there is no going back. Please be certain.
+                      {t("profile.deleteWarning")}
                     </p>
                     <Button
                       variant="destructive"
@@ -543,7 +543,7 @@ export default function ProfilePage() {
                       className="gap-2"
                     >
                       <Trash2 className="h-4 w-4" />
-                      Delete Account
+                      {t("profile.deleteAccount")}
                     </Button>
                   </div>
                 </div>
@@ -561,7 +561,7 @@ export default function ProfilePage() {
                 <TabsList className="mb-6 w-full justify-start rounded-xl bg-card/50 p-1">
                   <TabsTrigger value="saved" className="gap-2 rounded-lg">
                     <Bookmark className="h-4 w-4" />
-                    Saved Tools
+                    {t("profile.savedTools")}
                   </TabsTrigger>
                   <TabsTrigger value="reviews" className="gap-2 rounded-lg">
                     <Star className="h-4 w-4" />
@@ -569,7 +569,7 @@ export default function ProfilePage() {
                   </TabsTrigger>
                   <TabsTrigger value="activity" className="gap-2 rounded-lg">
                     <Users className="h-4 w-4" />
-                    Activity
+                    {t("profile.activity")}
                   </TabsTrigger>
                 </TabsList>
 
@@ -768,7 +768,7 @@ export default function ProfilePage() {
               {isDeleting ? (
                 <>
                   <div className="mr-2 h-4 w-4 animate-spin rounded-full border-2 border-current border-t-transparent" />
-                  Deleting...
+                  {t("profile.deleting")}
                 </>
               ) : (
                 "Yes, delete my account"

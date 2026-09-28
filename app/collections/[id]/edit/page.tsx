@@ -14,8 +14,10 @@ import { toast } from "sonner"
 import { Sidebar } from "@/components/layout/sidebar"
 import { ThemeToggle } from "@/components/layout/theme-toggle"
 import { LanguagePicker } from "@/components/layout/language-picker"
+import { useLanguage } from "@/contexts/language-context"
 
 export default function EditCollectionPage() {
+  const { t } = useLanguage()
   const router = useRouter()
   const params = useParams()
   const collectionId = Array.isArray(params.id) ? params.id[0] : params.id || ""
@@ -38,7 +40,7 @@ export default function EditCollectionPage() {
         }
       } catch (error) {
         console.error('Error fetching collection:', error)
-        toast.error('Failed to load collection')
+        toast.error(t("toast.loadCollectionFailed"))
       } finally {
         setIsLoading(false)
       }
@@ -53,7 +55,7 @@ export default function EditCollectionPage() {
     e.preventDefault()
     
     if (!name.trim()) {
-      toast.error('Please enter a collection name')
+      toast.error(t("toast.enterCollectionName"))
       return
     }
 
@@ -70,15 +72,15 @@ export default function EditCollectionPage() {
       })
 
       if (response.ok) {
-        toast.success('Collection updated successfully!')
+        toast.success(t("toast.collectionUpdated"))
         router.push(`/collections/${collectionId}`)
       } else {
         const error = await response.json()
-        toast.error(error.message || 'Failed to update collection')
+        toast.error(error.message || t("toast.updateCollectionFailed"))
       }
     } catch (error) {
       console.error('Error updating collection:', error)
-      toast.error('Failed to update collection')
+      toast.error(t("toast.updateCollectionFailed"))
     } finally {
       setIsSaving(false)
     }
@@ -115,7 +117,7 @@ export default function EditCollectionPage() {
               <Button variant="ghost" size="icon" onClick={() => router.back()}>
                 <ArrowLeft className="h-5 w-5" />
               </Button>
-              <h1 className="text-lg font-bold">Edit Collection</h1>
+              <h1 className="text-lg font-bold">{t("collections.editHeading")}</h1>
             </div>
             <div className="flex items-center gap-2">
               <LanguagePicker />
@@ -139,7 +141,7 @@ export default function EditCollectionPage() {
                       id="name"
                       value={name}
                       onChange={(e) => setName(e.target.value)}
-                      placeholder="My Awesome AI Tools"
+                      placeholder={t("collections.namePlaceholder")}
                       className="mt-2"
                       maxLength={100}
                       required
@@ -147,12 +149,12 @@ export default function EditCollectionPage() {
                   </div>
 
                   <div>
-                    <Label htmlFor="description">Description (Optional)</Label>
+                    <Label htmlFor="description">{t("collections.descLabel")}</Label>
                     <Textarea
                       id="description"
                       value={description}
                       onChange={(e) => setDescription(e.target.value)}
-                      placeholder="A collection of my favorite AI tools for..."
+                      placeholder={t("collections.descPlaceholder")}
                       className="mt-2"
                       rows={4}
                       maxLength={500}
@@ -164,9 +166,9 @@ export default function EditCollectionPage() {
 
                   <div className="flex items-center justify-between rounded-lg border p-4">
                     <div className="space-y-0.5">
-                      <Label htmlFor="public">Make Public</Label>
+                      <Label htmlFor="public">{t("collections.makePublic")}</Label>
                       <p className="text-sm text-muted-foreground">
-                        Allow others to view this collection
+                        {t("collections.allowOthers")}
                       </p>
                     </div>
                     <Switch

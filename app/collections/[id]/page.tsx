@@ -13,8 +13,10 @@ import { EmptyState } from "@/components/feedback/empty-state"
 import { ToolCardSkeleton } from "@/components/feedback/loading-skeleton"
 import { toast } from "sonner"
 import type { ToolWithRating } from "@/lib/types"
+import { useLanguage } from "@/contexts/language-context"
 
 export default function CollectionDetailPage() {
+  const { t } = useLanguage()
   const params = useParams()
   const router = useRouter()
   const collectionId = Array.isArray(params.id) ? params.id[0] : params.id || ""
@@ -67,13 +69,13 @@ export default function CollectionDetailPage() {
       
       if (response.ok) {
         setTools(tools.filter(t => t.id !== toolId))
-        toast.success('Tool removed from collection')
+        toast.success(t("toast.toolRemoved"))
       } else {
-        toast.error('Failed to remove tool')
+        toast.error(t("toast.removeToolFailed"))
       }
     } catch (error) {
       console.error('Error removing tool:', error)
-      toast.error('Failed to remove tool')
+      toast.error(t("toast.removeToolFailed"))
     } finally {
       setRemovingToolId(null)
     }
@@ -101,7 +103,7 @@ export default function CollectionDetailPage() {
         <div className="flex-1 overflow-y-auto p-6 pb-[var(--mobile-nav-clearance)] md:pb-6">
           <EmptyState
             icon={Bookmark}
-            title="Collection not found"
+            title={t("collections.notFound")}
             description="This collection doesn't exist or has been removed."
             action={{
               label: "Go Back",
@@ -133,7 +135,7 @@ export default function CollectionDetailPage() {
                 {collection.is_public ? (
                   <Badge variant="secondary">Public</Badge>
                 ) : (
-                  <Badge variant="secondary">Private</Badge>
+                  <Badge variant="secondary">{t("settings.privacy.private")}</Badge>
                 )}
               </div>
             </div>
@@ -142,7 +144,7 @@ export default function CollectionDetailPage() {
                 variant="outline" 
                 onClick={() => router.push(`/collections/${collectionId}/edit`)}
               >
-                Edit Collection
+                {t("collections.editHeading")}
               </Button>
               <Button 
                 variant="destructive" 
@@ -232,7 +234,7 @@ export default function CollectionDetailPage() {
           ) : (
             <EmptyState
               icon={Bookmark}
-              title="No tools yet"
+              title={t("collections.noTools")}
               description="Add tools to this collection to get started."
               action={{
                 label: "Browse AI Tools",

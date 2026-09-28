@@ -1,5 +1,6 @@
 import { cache } from 'react'
 import { getSupabaseAdmin } from '@/lib/supabase'
+import { isPubliclyListable, isSearchEngineSafe } from './content-rating'
 import { clampForMeta, isTruncated, normalizeName, slugify, tidyDescription } from './slug'
 
 /**
@@ -17,8 +18,13 @@ import { clampForMeta, isTruncated, normalizeName, slugify, tidyDescription } fr
 const PAGE_COLUMNS =
   'id, slug, name, category, description, platform, access_type, pricing, tags, popularity, last_updated, image, pricing_model, price_monthly_min_usd, price_monthly_max_usd, has_free_tier, has_free_trial'
 
-/** Rows below this popularity are excluded from the public layer entirely. */
-export const PUBLISH_MIN_POPULARITY = 90
+/**
+ * Rows below this popularity are excluded from the public layer entirely.
+ * Defined in its own dependency-free module so the standalone scripts that
+ * assign and audit slugs can read the same number; re-exported here because
+ * this is where callers already import it from.
+ */
+export { PUBLISH_MIN_POPULARITY } from './publish-policy'
 
 /** A category needs this many distinct products before it earns a landing page. */
 const MIN_CATEGORY_SIZE = 20
@@ -34,11 +40,19 @@ const PAGE_SIZE = 1000
  * This cache is module scope, so it is shared by every request a server
  * instance handles until the TTL expires.
  *
- * Ten minutes is chosen against what actually changes the published set: the
- * ingest cron (daily) and the slug backfill (manual). Ten minutes of staleness
- * on a directory listing is invisible; the egress difference is not.
+ * Sixty minutes, chosen against what actually changes the published set: the
+ * ingest cron (daily) and the slug backfill (manual). An hour of staleness on
+ * a directory listing is invisible; the egress difference is not.
+ *
+ * Raised from ten minutes on 2026-09-24. The published set has since grown to
+ * 5,877 rows and a full walk measures 4.1 MB, so the cost of missing this
+ * cache has roughly doubled. More to the point, it now spans how a crawler
+ * actually behaves: it reads /sitemap-index.xml and then immediately fetches
+ * the files that index lists. At ten minutes those three requests could each
+ * pay for their own walk; at sixty they share one whenever they land on the
+ * same warm instance.
  */
-const CATALOG_TTL_MS = 10 * 60 * 1000
+const CATALOG_TTL_MS = 60 * 60 * 1000
 
 /**
  * Memoise an async loader across requests, with a TTL and single-flight.
@@ -144,8 +158,15 @@ export function isIndexable(
   // A structural subset rather than the full CatalogTool, so callers holding
   // raw search-RPC rows can apply the identical gate instead of copying it.
   // Every existing caller passes a whole CatalogTool and is unaffected.
-  tool: Pick<CatalogTool, 'rawDescription' | 'tags' | 'image' | 'platform'>
+  tool: Pick<CatalogTool, 'name' | 'rawDescription' | 'tags' | 'image' | 'platform'>
 ): boolean {
+  // Content rating first: it is the one criterion here that is not about page
+  // quality. Google classifies domains, not pages, so a handful of adult URLs
+  // in the sitemap can get the whole site filtered out of default results --
+  // which would cost more traffic than every thin page this gate rejects.
+  // See lib/seo/content-rating.ts.
+  if (!isSearchEngineSafe(tool)) return false
+
   const description = tool.rawDescription.trim()
 
   // Measured 2026-09-12 over the 2,913 distinct products in the band:
@@ -231,7 +252,11 @@ const loadPublishedTools = sharedWithTtl(CATALOG_TTL_MS, async (): Promise<Catal
   // Bounded so a pagination bug cannot spin forever against the database.
   for (let page = 0; page < 40; page++) {
     const batch: CatalogTool[] = await fetchPublishedPage(cursor)
-    all.push(...batch)
+    // Drop `prohibited` rows here rather than at each call site. This is the
+    // widest read in the layer, so filtering it covers the sitemap and the
+    // directory in one place. The cursor still advances on the UNFILTERED
+    // batch below -- paginating on the filtered array would skip rows.
+    all.push(...batch.filter(isPubliclyListable))
     if (batch.length < PAGE_SIZE) break
     cursor = batch[batch.length - 1].id
   }
@@ -350,10 +375,17 @@ export type ToolRoute =
  */
 export const resolveToolRoute = cache(async (segment: string): Promise<ToolRoute> => {
   const published = await getToolBySlug(segment)
-  if (published) return { kind: 'published', tool: published }
+  if (published) {
+    // `prohibited` resolves to nothing, so the page 404s. Deindexing is not
+    // enough for this category: the URL has to stop serving, or it stays
+    // reachable from anything that already links to it. Two such pages were
+    // live and indexed before this landed.
+    return isPubliclyListable(published) ? { kind: 'published', tool: published } : null
+  }
 
   const byId = await getToolById(segment)
   if (!byId) return null
+  if (!isPubliclyListable(byId)) return null
 
   // The row itself is published under a different segment.
   if (byId.slug && byId.slug !== segment) return { kind: 'redirect', slug: byId.slug }
@@ -645,6 +677,7 @@ export const getCategoryBySlug = cache(
 
     const tools = (data ?? [])
       .map((row) => toTool(row as Row))
+      .filter(isPubliclyListable)
       // The DB orders by popularity alone; the name tiebreak is applied here
       // so the page is stable between renders for equal-popularity rows.
       .sort((a, b) => b.popularity - a.popularity || a.name.localeCompare(b.name))
@@ -718,6 +751,7 @@ export async function getRelatedTools(tool: CatalogTool, limit = 8): Promise<Cat
     for (const row of [...(sameCategory.data ?? []), ...(sharedTags.data ?? [])]) {
       const candidate = toTool(row as Row)
       if (candidate.id === tool.id || candidate.slug === tool.slug) continue
+      if (!isPubliclyListable(candidate)) continue
       byId.set(candidate.id, candidate)
     }
 

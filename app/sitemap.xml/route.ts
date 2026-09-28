@@ -1,15 +1,35 @@
-import { generateSitemapXML } from "@/lib/sitemap"
+import { generateSitemapXML, SITEMAP_CACHE_CONTROL } from "@/lib/sitemap"
 
 // Allow dynamic generation to fetch from Supabase
 export const dynamic = "force-dynamic"
-export const revalidate = 3600 // Revalidate every hour
+
+// 24 hours (86400), not 1 hour. Each response costs a 4.1 MB full catalog
+// walk -- see the measurement on SITEMAP_MAX_AGE_SECONDS in lib/sitemap.ts.
+//
+// Written as a literal on purpose. Route segment config exports are read by
+// Next's static analysis at build time, not evaluated, so importing the shared
+// constant here fails the build outright:
+//
+//     ⨯ Invalid segment configuration export detected
+//
+// Keep this number in step with SITEMAP_MAX_AGE_SECONDS by hand. The operative
+// value is the CDN s-maxage in the response below anyway -- `force-dynamic`
+// means this export does not drive ISR.
+export const revalidate = 86400
 
 export async function GET(request: Request) {
   try {
-    // Get page number from query parameter (defaults to 0)
+    // The page number arrives one of two ways, and the path has to be read as
+    // well as the query. `/sitemap-1.xml` is rewritten here by next.config.ts,
+    // but a rewrite masks the URL: `request.url` is still what the client
+    // asked for, so `?page=` is empty and every file would render page 0 --
+    // five identical sitemaps, which is the duplicate-content problem this
+    // whole layer was built to fix.
     const url = new URL(request.url)
-    const pageParam = url.searchParams.get("page")
-    const page = pageParam ? parseInt(pageParam, 10) : 0
+    const fromPath = url.pathname.match(/sitemap-(\d+)\.xml$/)?.[1]
+    const pageParam = url.searchParams.get("page") ?? fromPath
+    const parsed = pageParam ? parseInt(pageParam, 10) : 0
+    const page = Number.isFinite(parsed) && parsed >= 0 ? parsed : 0
 
     const sitemap = await generateSitemapXML(page)
 
@@ -17,7 +37,7 @@ export async function GET(request: Request) {
       status: 200,
       headers: {
         "Content-Type": "application/xml; charset=utf-8",
-        "Cache-Control": "public, s-maxage=3600, stale-while-revalidate=86400",
+        "Cache-Control": SITEMAP_CACHE_CONTROL,
       },
     })
   } catch (error) {
