@@ -18,7 +18,7 @@ import { usePreferences } from "@/contexts/preferences-context"
 import { useLanguage } from "@/contexts/language-context"
 import { useAuth } from "@/contexts/auth-context"
 import { logger } from "@/lib/logger"
-import { browseCategoryHref, browseCategorySlugHref, searchHref, toolHref } from "@/lib/tool-href"
+import { browseCategoryHref, searchHref, toolHref } from "@/lib/tool-href"
 import { categoriesForInterests } from "@/lib/interest-categories"
 import { addRecentSearch, getRecentSearches } from "@/lib/recent-searches"
 import { toast } from "sonner"
@@ -190,11 +190,6 @@ export default function HomePage() {
 
   const handleSearchSubmit = () => runSearch(searchQuery)
 
-  const handleSuggestionClick = (query: string) => {
-    setSearchQuery(query)
-    runSearch(query)
-  }
-
   return (
     <div className="flex h-dvh bg-background">
       {/* Sidebar */}
@@ -315,17 +310,33 @@ export default function HomePage() {
                 </motion.div>
               </motion.div>
 
-              {/* AI Suggestions */}
+              {/* Category shortcuts.
+                  The heading tells the truth about where these came from: the
+                  user's onboarding interests when those resolve to real
+                  categories, otherwise the largest ones. It does not claim to
+                  be personalised when it is not. */}
               <motion.div
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ duration: 0.6, delay: 0.3 }}
                 className="mb-8"
               >
-                <AISuggestions
-                  onSuggestionClick={handleSuggestionClick}
-                  limit={6}
-                />
+                {(() => {
+                  const interestCategories = categoriesForInterests(preferences?.categories, categories)
+                  const usingInterests = interestCategories.length > 0
+                  return (
+                    <AISuggestions
+                      categories={usingInterests ? interestCategories : categories}
+                      heading={usingInterests ? t("home.yourInterests") : t("home.browseByCategory")}
+                      subheading={
+                        usingInterests
+                          ? t("home.basedOnInterests")
+                          : t("home.biggestCategories")
+                      }
+                      limit={6}
+                    />
+                  )
+                })()}
               </motion.div>
 
               {/* Quick Access Cards */}
@@ -474,72 +485,6 @@ export default function HomePage() {
             </div>
           </section>
 
-          <section className="">
-            <div className="mx-auto max-w-5xl px-6 py-12">
-              <motion.div
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.6, delay: 0.6 }}
-              >
-                {/* Three things were wrong with this block, and all three were
-                    invisible in a screenshot:
-
-                      1. The tiles were <button>s with no onClick. The
-                         "Popular Categories" grid on the home page did
-                         nothing at all when clicked.
-                      2. The counts under each name were
-                         `Math.floor(Math.random() * 100) + 50` for the
-                         signed-in case -- a different fabricated number on
-                         every render -- and hardcoded constants otherwise.
-                      3. The hover gradient interpolated a Tailwind class name
-                         at runtime (`from-${category.color}/5`). Tailwind
-                         scans source text for complete class names, so that
-                         class was never generated and the effect never
-                         rendered.
-
-                    Now: real categories from /api/categories, real published
-                    counts, and each tile is a link to the page it names. */}
-                {(() => {
-                  const interestCategories = categoriesForInterests(preferences?.categories, categories)
-                  const usingInterests = interestCategories.length > 0
-                  const shown = (usingInterests ? interestCategories : categories).slice(0, 4)
-
-                  if (shown.length === 0) return null
-
-                  return (
-                    <>
-                      <h2 className="mb-6 text-2xl font-bold">
-                        {usingInterests ? t("home.yourInterests") : t("home.popularCategories")}
-                      </h2>
-                      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-                        {shown.map((category) => (
-                          <motion.div
-                            key={category.slug}
-                            whileHover={{ scale: 1.02 }}
-                            transition={{ type: "spring", stiffness: 400 }}
-                          >
-                            <Link
-                              href={browseCategorySlugHref(category.slug)}
-                              className="group relative block overflow-hidden rounded-xl border border-border/50 bg-card/50 p-4 md:p-6 text-left backdrop-blur-sm transition-all hover:border-border hover:shadow-md touch-manipulation"
-                            >
-                              <div className="relative z-10">
-                                <h3 className="mb-1 font-semibold">{category.name}</h3>
-                                <p className="text-sm text-muted-foreground">
-                                  {category.count.toLocaleString()} {t("home.toolsCount")}
-                                </p>
-                              </div>
-                              {/* Static class names so Tailwind can see them. */}
-                              <div className="absolute inset-0 bg-gradient-to-br from-primary/5 to-transparent opacity-0 transition-opacity group-hover:opacity-100" />
-                            </Link>
-                          </motion.div>
-                        ))}
-                      </div>
-                    </>
-                  )
-                })()}
-              </motion.div>
-            </div>
-          </section>
         </main>
       </div>
 
