@@ -18,9 +18,9 @@ import { usePreferences } from "@/contexts/preferences-context"
 import { useLanguage } from "@/contexts/language-context"
 import { useAuth } from "@/contexts/auth-context"
 import { logger } from "@/lib/logger"
-import { categoryHref, searchHref, toolHref } from "@/lib/tool-href"
+import { browseCategoryHref, browseCategorySlugHref, searchHref, toolHref } from "@/lib/tool-href"
 import { categoriesForInterests } from "@/lib/interest-categories"
-import { addRecentSearch, getRecentSearches, STARTER_SEARCHES } from "@/lib/recent-searches"
+import { addRecentSearch, getRecentSearches } from "@/lib/recent-searches"
 import { toast } from "sonner"
 
 /** A category that has a public page. Mirrors /api/categories. */
@@ -392,10 +392,10 @@ export default function HomePage() {
                               </h3>
                               <div className="flex items-center gap-2 mt-1">
                                 {(() => {
-                                  const href = categoryHref(tool.category, categorySlugs)
-                                  // Categories below the size floor have no
-                                  // page, so they stay plain text rather than
-                                  // becoming a link to a 404.
+                                  const href = browseCategoryHref(tool.category, categorySlugs)
+                                  // Opens the browser filtered to this
+                                  // category. Categories too small to be
+                                  // published stay plain text.
                                   return href ? (
                                     <Link
                                       href={href}
@@ -436,16 +436,20 @@ export default function HomePage() {
                       <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-chart-1/10">
                         <Search className="h-5 w-5 text-chart-1" />
                       </div>
-                      {/* Only called "recent" when it actually is. Before the
-                          first search this shows starter queries under a
-                          different heading, rather than three hardcoded
-                          strings permanently labelled as the user's history. */}
-                      <h2 className="text-lg font-semibold">
-                        {recentSearches.length > 0 ? t("home.recentSearches") : t("home.trySearching")}
-                      </h2>
+                      <h2 className="text-lg font-semibold">{t("home.recentSearches")}</h2>
                     </div>
+                    {/* This panel shows the reader's own searches or nothing.
+                        It previously showed three hardcoded strings under a
+                        "Recent Searches" heading, which is not a placeholder
+                        -- it is a claim about the reader that is false. An
+                        empty panel on a first visit is the honest state. */}
                     <div className="space-y-2">
-                      {(recentSearches.length > 0 ? recentSearches : [...STARTER_SEARCHES]).map((search) => (
+                      {recentSearches.length === 0 && (
+                        <p className="px-1 py-6 text-sm text-muted-foreground">
+                          {t("home.noRecentSearches")}
+                        </p>
+                      )}
+                      {recentSearches.map((search) => (
                         <motion.div key={search} whileHover={{ x: 4 }} transition={{ type: "spring", stiffness: 400 }}>
                           {/* A link, so the search is reachable by middle-click
                               and back/forward. The old handler only called
@@ -515,7 +519,7 @@ export default function HomePage() {
                             transition={{ type: "spring", stiffness: 400 }}
                           >
                             <Link
-                              href={`/tools/category/${category.slug}`}
+                              href={browseCategorySlugHref(category.slug)}
                               className="group relative block overflow-hidden rounded-xl border border-border/50 bg-card/50 p-4 md:p-6 text-left backdrop-blur-sm transition-all hover:border-border hover:shadow-md touch-manipulation"
                             >
                               <div className="relative z-10">

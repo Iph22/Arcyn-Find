@@ -36,24 +36,43 @@ export function toolHref(tool: LinkableTool): string {
 }
 
 /**
- * The URL for a category page, or null when that category has no page.
+ * Open a category inside the app's tool browser, filtered and ready to refine.
  *
- * Category pages exist only above MIN_CATEGORY_SIZE (20 published tools) and
- * `notFound()` below it, so a link cannot be built from a category name alone
- * -- it has to be checked against the categories that actually have pages.
- * Callers pass that set; returning null is the signal to render plain text
- * instead of a link.
+ * NOT `/tools/category/<slug>`. That page is the SEO surface: a static,
+ * hourly-revalidated list built for a crawler, with no filters, no sort and no
+ * search box. Sending a signed-in user there from an in-app tile drops them
+ * out of the product and into a dead end -- they wanted to browse that
+ * category, and the page they land on cannot browse.
  *
- * The category column is also ~2% wrong outright (docs/CORPUS_AND_CONSTRAINTS
- * §1), so a correct-looking link can still land on a page the tool does not
- * belong on. Nothing here can detect that.
+ * This costs nothing in search terms. /home is `noindex, nofollow`, so its
+ * links were never passing crawl value; the SEO category pages are reached
+ * from /tools, the footer and individual tool pages, which are untouched.
+ *
+ * Returns null when the category has no page-worthy size. Category identity is
+ * still checked against the published set, because a category too small to
+ * have an SEO page is also too small to be worth a tile -- and the caller
+ * needs a signal to render plain text instead of a link.
+ *
+ * The category column is ~2% wrong outright (docs/CORPUS_AND_CONSTRAINTS §1),
+ * so a correct-looking link can still open a filter the tool does not belong
+ * in. Nothing here can detect that.
  */
-export function categoryHref(
+export function browseCategoryHref(
   category: string | null | undefined,
   known: ReadonlySet<string>
 ): string | null {
   const slug = slugify(category || '')
   if (!slug || !known.has(slug)) return null
+  return `/browse?category=${encodeURIComponent(slug)}`
+}
+
+/** The in-app browser URL for a category slug that is already known good. */
+export function browseCategorySlugHref(slug: string): string {
+  return `/browse?category=${encodeURIComponent(slug)}`
+}
+
+/** The public, crawlable category page. Used by the SEO surfaces only. */
+export function seoCategoryHref(slug: string): string {
   return `/tools/category/${slug}`
 }
 

@@ -21,6 +21,7 @@
  */
 
 import { categoriesForInterests, INTEREST_CATEGORY_NAMES } from '../../lib/interest-categories'
+import { displayCategoryForSlug } from '../../lib/categories'
 import { toolHref } from '../../lib/tool-href'
 
 const BASE = process.argv[2] || process.env.SITE_URL || 'http://localhost:3000'
@@ -66,7 +67,17 @@ async function status(path: string, attempt = 1): Promise<number> {
 async function main() {
   console.log(`Checking home-page links against ${BASE}\n`)
 
-  const response = await fetch(`${BASE}/api/categories`)
+  let response: Response
+  try {
+    response = await fetch(`${BASE}/api/categories`)
+  } catch (error) {
+    // Most often "no server running on that port", which deserves a sentence
+    // rather than an uncaught AggregateError and a stack trace.
+    console.error(`Could not reach ${BASE} -- ${(error as Error).message}.`)
+    console.error('Start the app first, or pass a base URL as the first argument.')
+    process.exitCode = 1
+    return
+  }
   if (!response.ok) {
     console.error(`/api/categories returned ${response.status} -- cannot continue.`)
     process.exitCode = 1
@@ -98,7 +109,22 @@ async function main() {
     check(code === 200, `/tools/category/${category.slug} -> ${code}`)
   }
 
-  console.log('\n3. A trending tool links somewhere real')
+  console.log('\n3. Every advertised category resolves to a browser filter')
+  // The failure this catches is silent. In-app tiles link to
+  // /browse?category=<slug>; if the browser cannot resolve that slug it falls
+  // back to "All" and shows the unfiltered list, with nothing in the UI
+  // admitting the filter was dropped. /browse returns 200 either way, so a
+  // status check cannot see it.
+  for (const category of categories) {
+    const display = displayCategoryForSlug(category.slug)
+    check(
+      display !== 'All',
+      `${category.slug} -> ${display}`,
+      'falls back to All, so the tile would open an unfiltered list'
+    )
+  }
+
+  console.log('\n4. A trending tool links somewhere real')
   const trending = await fetch(`${BASE}/api/tools/trending?limit=3`)
   if (trending.ok) {
     const tools = (await trending.json()).tools ?? []

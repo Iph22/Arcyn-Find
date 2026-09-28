@@ -77,12 +77,9 @@ export function clearRecentSearches(): void {
   }
 }
 
-/**
- * Shown before a user has searched anything, so the panel is not an empty box
- * on a first visit. Labelled as suggestions in the UI, never as history.
- */
-export const STARTER_SEARCHES = [
-  'summarize long documents',
-  'generate images from text',
-  'write code from a description',
-] as const
+// There is deliberately no starter/placeholder list here. A panel headed
+// "Recent Searches" that is populated before the reader has searched anything
+// is not a placeholder, it is a false statement about them -- which is exactly
+// what the three hardcoded strings this module replaced were. An empty panel
+// on a first visit is the honest state, and it fills itself on the first
+// search.
