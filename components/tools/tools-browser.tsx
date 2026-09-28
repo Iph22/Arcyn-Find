@@ -54,7 +54,12 @@ function ToolsContent() {
   const initialSearch = searchParams.get('search') || ""
 
   const [searchQuery, setSearchQuery] = useState(initialSearch)
-  const [debouncedSearch, setDebouncedSearch] = useState("")
+  // Seeded from the URL, not "". A search arriving via `?search=` has already
+  // been committed by the user -- there is nothing to debounce. Starting empty
+  // meant the first render fetched the UNFILTERED list, rendered it, and only
+  // replaced it ~450ms later when the debounce caught up: arriving from a
+  // search showed a screenful of wrong results first.
+  const [debouncedSearch, setDebouncedSearch] = useState(initialSearch)
   // `?category=` lets the rest of the app open this browser already filtered,
   // which is what an in-app category tile should do. An unrecognised slug
   // falls back to "All" rather than filtering to nothing.
