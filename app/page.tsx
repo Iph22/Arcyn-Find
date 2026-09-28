@@ -4,6 +4,7 @@ import { LandingPage, type LandingStats } from '@/components/landing/landing-pag
 import { getCatalogStats } from '@/lib/seo/catalog-stats'
 import { getLandingSearchDemo } from '@/lib/landing/search-demo'
 import { siteUrl } from '@/lib/seo/site'
+import { SEARCH_PARAM } from '@/lib/tool-href'
 
 /**
  * The homepage.
@@ -76,9 +77,16 @@ export default async function HomePage() {
         name: 'Arcyn Find',
         url: origin,
         description: 'A searchable directory of AI tools.',
+        // The parameter name has to be the one ToolsBrowser actually reads.
+        // This advertised `?q=` while the browser reads `?search=`, so a
+        // sitelinks searchbox would have landed every visitor on an empty
+        // result list. SEARCH_PARAM is the single definition of that name.
         potentialAction: {
           '@type': 'SearchAction',
-          target: { '@type': 'EntryPoint', urlTemplate: `${origin}/browse?q={search_term_string}` },
+          target: {
+            '@type': 'EntryPoint',
+            urlTemplate: `${origin}/browse?${SEARCH_PARAM}={search_term_string}`,
+          },
           'query-input': 'required name=search_term_string',
         },
       },

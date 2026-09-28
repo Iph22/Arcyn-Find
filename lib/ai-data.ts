@@ -1,5 +1,13 @@
 export interface AIEntry {
   id: string
+  /**
+   * The public URL segment, when this tool has a page of its own.
+   *
+   * NULL below the publish floor and for anything ingested since the last slug
+   * backfill. Use toolHref() rather than reading it directly -- /tools/<id>
+   * still resolves, so a missing slug is a redirect, not a dead link.
+   */
+  slug?: string | null
   name: string
   category: string
   description: string
