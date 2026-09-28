@@ -72,6 +72,29 @@
 
 DROP INDEX IF EXISTS ai_tools_embedding_idx;
 
+-- ----------------------------------------------------------------------------
+-- idx_ai_tools_platform_trgm -- GIN trigram over `platform`.
+--
+-- An earlier version of this file KEPT this one, on the stated grounds that
+-- "fix_advanced_search_bounded_retrieval.sql created it for the platform
+-- matching inside search_tools_advanced -- which is live". That was read from
+-- the migration's comment, not from the function.
+--
+-- Checked against the actual function body on 2026-09-28: search_tools_advanced
+-- mentions `platform` exactly once, as `t.platform,` in its SELECT list. It
+-- RETURNS the column; it never matches on it. No ILIKE, no %, no similarity,
+-- no <-> operator, in that function or in search_tools_hybrid.
+--
+-- Measured: 46 MB and ONE lifetime scan on the old project, over weeks of real
+-- traffic. 6.4 MB on the new one, which will grow with the catalogue.
+--
+-- Rollback, if platform matching is ever added:
+--     CREATE INDEX idx_ai_tools_platform_trgm
+--       ON ai_tools USING gin (platform gin_trgm_ops);
+-- ----------------------------------------------------------------------------
+
+DROP INDEX IF EXISTS idx_ai_tools_platform_trgm;
+
 ANALYZE ai_tools;
 
 -- ============================================================================
