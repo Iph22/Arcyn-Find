@@ -23,7 +23,30 @@ import { priceLabel } from '@/lib/pricing-display'
 
 import { ToolActions } from './tool-actions'
 
-export const revalidate = 7200 // 2 hours
+/**
+ * Seven days (604800), not two hours.
+ *
+ * MEASURED 2026-09-28, against Vercel's 200,000 ISR writes/month on this plan:
+ * usage was at 161,000. This route is essentially all of it -- 5,877 published
+ * tool pages, each eligible to regenerate every two hours.
+ *
+ * The arithmetic at 2h is 5,877 x 360 = 2.1M writes/month if every page were
+ * hit in every window; real crawl coverage made that 161k. Note that 24 hours
+ * would NOT have been enough headroom: 5,877 x 30 = 176k is still against a
+ * 200k cap, before any growth in the published set.
+ *
+ * Seven days is safe here because staleness is no longer how a correction
+ * reaches the site. app/api/revalidate/route.ts exists precisely so a changed
+ * row can be pushed immediately, and the page content -- name, description,
+ * pricing, tags, image -- comes from a daily scrape that rarely changes
+ * materially between runs. This TTL is the backstop, not the mechanism.
+ *
+ * Worth knowing: a DEPLOYMENT invalidates the ISR cache wholesale, so every
+ * one of these 5,877 pages regenerates on next crawl regardless of this
+ * number. On a day with six deploys that is ~35k writes on its own. Deploy
+ * frequency is the other half of this budget.
+ */
+export const revalidate = 604800 // 7 days
 
 /**
  * Tools outside `generateStaticParams` still render, on demand, and are then

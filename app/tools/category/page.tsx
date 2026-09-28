@@ -5,7 +5,9 @@ import { PublicFooter, PublicHeader } from '@/components/seo/public-chrome'
 import { CategoryCard } from '@/components/seo/tool-card'
 import { getDirectoryData, siteUrl } from '@/lib/seo/catalog'
 
-export const revalidate = 7200 // 2 hours
+// 24 hours: a single page listing categories, which change when the ingest
+// does, i.e. daily at most.
+export const revalidate = 86400 // 24 hours
 
 export async function generateMetadata(): Promise<Metadata> {
   const canonical = `${siteUrl()}/tools/category`

@@ -20,7 +20,10 @@ import { SEARCH_PARAM } from '@/lib/tool-href'
  *      own.
  */
 
-export const revalidate = 3600 // 1 hour
+// 24 hours. The landing page states catalogue figures that come from
+// catalog_stats_current(), which itself recomputes at most once a day --
+// so regenerating hourly re-rendered the same numbers 23 extra times.
+export const revalidate = 86400 // 24 hours
 
 export async function generateMetadata(): Promise<Metadata> {
   const stats = await getCatalogStats()
