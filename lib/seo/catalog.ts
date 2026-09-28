@@ -40,11 +40,19 @@ const PAGE_SIZE = 1000
  * This cache is module scope, so it is shared by every request a server
  * instance handles until the TTL expires.
  *
- * Ten minutes is chosen against what actually changes the published set: the
- * ingest cron (daily) and the slug backfill (manual). Ten minutes of staleness
- * on a directory listing is invisible; the egress difference is not.
+ * Sixty minutes, chosen against what actually changes the published set: the
+ * ingest cron (daily) and the slug backfill (manual). An hour of staleness on
+ * a directory listing is invisible; the egress difference is not.
+ *
+ * Raised from ten minutes on 2026-09-24. The published set has since grown to
+ * 5,877 rows and a full walk measures 4.1 MB, so the cost of missing this
+ * cache has roughly doubled. More to the point, it now spans how a crawler
+ * actually behaves: it reads /sitemap-index.xml and then immediately fetches
+ * the files that index lists. At ten minutes those three requests could each
+ * pay for their own walk; at sixty they share one whenever they land on the
+ * same warm instance.
  */
-const CATALOG_TTL_MS = 10 * 60 * 1000
+const CATALOG_TTL_MS = 60 * 60 * 1000
 
 /**
  * Memoise an async loader across requests, with a TTL and single-flight.

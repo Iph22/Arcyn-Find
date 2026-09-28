@@ -1,6 +1,28 @@
-import { supabase, transformToAIEntry, AI_TOOLS_COLUMNS } from './supabase'
+import { getSupabaseAdmin, transformToAIEntry, AI_TOOLS_COLUMNS } from './supabase'
 import type { AIEntry } from './ai-data'
 import { getCurrentUser } from '@/lib/google-auth'
+
+/**
+ * Server-side database access, via the SERVICE ROLE key.
+ *
+ * This module used the ANON client, and it is imported only by server code
+ * (no "use client" component imports it -- collection-card.tsx takes a type,
+ * which is erased). Writing through the anon key meant the anon role needed
+ * INSERT/UPDATE/DELETE on these tables, and because that key ships in the
+ * public client bundle, anyone holding it had those rights directly.
+ *
+ * Measured on the new project 2026-09-28, before this change: anon held
+ * DELETE, INSERT, SELECT, UPDATE and TRUNCATE on all 19 public tables, with
+ * RLS off on 17 of them. Moving these calls to the service role is what lets
+ * those grants be revoked -- see supabase/bootstrap/05_rls_and_grants.sql.
+ *
+ * Lazy rather than module-scope: getSupabaseAdmin() throws when the service
+ * role key is absent, and this module is imported by 21 API routes. Failing
+ * on first use beats failing at import time across all of them.
+ */
+let _admin: ReturnType<typeof getSupabaseAdmin> | null = null
+const db = () => (_admin ??= getSupabaseAdmin())
+
 
 export interface Collection {
   id: string
@@ -26,7 +48,7 @@ export interface CollectionWithTools extends Collection {
  */
 export async function getUserCollections(userId: string): Promise<Collection[]> {
   try {
-    const { data, error } = await supabase
+    const { data, error } = await db()
       .from('collections')
       .select(`
         *,
@@ -52,7 +74,7 @@ export async function getUserCollections(userId: string): Promise<Collection[]> 
  */
 export async function getPublicCollections(limit: number = 20, userId?: string): Promise<Collection[]> {
   try {
-    let query = supabase
+    let query = db()
       .from('collections')
       .select(`
         *,
@@ -93,7 +115,7 @@ export async function getPublicCollections(limit: number = 20, userId?: string):
  */
 export async function getCollection(collectionId: string): Promise<CollectionWithTools | null> {
   try {
-    const { data, error } = await supabase
+    const { data, error } = await db()
       .from('collections')
       .select(`
         *,
@@ -108,7 +130,7 @@ export async function getCollection(collectionId: string): Promise<CollectionWit
     if (error) throw error
 
     // Get tools in collection
-    const { data: items, error: itemsError } = await supabase
+    const { data: items, error: itemsError } = await db()
       .from('collection_items')
       .select('tool_id, notes, added_at')
       .eq('collection_id', collectionId)
@@ -127,7 +149,7 @@ export async function getCollection(collectionId: string): Promise<CollectionWit
     let tools: AIEntry[] = []
 
     if (toolIds.length > 0) {
-      const { data: toolRows, error: toolsError } = await supabase
+      const { data: toolRows, error: toolsError } = await db()
         .from('ai_tools')
         .select(AI_TOOLS_COLUMNS)
         .in('id', toolIds)
@@ -214,7 +236,7 @@ export async function createCollection(
       return { success: false, error: 'You must be logged in to create a collection' }
     }
 
-    const { data, error } = await supabase
+    const { data, error } = await db()
       .from('collections')
       .insert({
         user_id: user.id,
@@ -251,7 +273,7 @@ export async function updateCollection(
       return { success: false, error: 'You must be logged in' }
     }
 
-    const { error } = await supabase
+    const { error } = await db()
       .from('collections')
       .update(updates)
       .eq('id', collectionId)
@@ -276,7 +298,7 @@ export async function deleteCollection(collectionId: string): Promise<{ success:
       return { success: false, error: 'You must be logged in' }
     }
 
-    const { error } = await supabase
+    const { error } = await db()
       .from('collections')
       .delete()
       .eq('id', collectionId)
@@ -306,7 +328,7 @@ export async function addToolToCollection(
     }
 
     // Verify collection belongs to user
-    const { data: collection } = await supabase
+    const { data: collection } = await db()
       .from('collections')
       .select('id')
       .eq('id', collectionId)
@@ -317,7 +339,7 @@ export async function addToolToCollection(
       return { success: false, error: 'Collection not found or access denied' }
     }
 
-    const { error } = await supabase
+    const { error } = await db()
       .from('collection_items')
       .insert({
         collection_id: collectionId,
@@ -353,7 +375,7 @@ export async function removeToolFromCollection(
     }
 
     // Verify collection belongs to user
-    const { data: collection } = await supabase
+    const { data: collection } = await db()
       .from('collections')
       .select('id')
       .eq('id', collectionId)
@@ -364,7 +386,7 @@ export async function removeToolFromCollection(
       return { success: false, error: 'Collection not found or access denied' }
     }
 
-    const { error } = await supabase
+    const { error } = await db()
       .from('collection_items')
       .delete()
       .eq('collection_id', collectionId)
