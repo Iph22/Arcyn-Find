@@ -36,6 +36,7 @@ import { toast } from "sonner"
 import { useAuth } from "@/contexts/auth-context"
 import type { AIEntry } from "@/lib/ai-data"
 import { toolHref } from "@/lib/tool-href"
+import { addRecentSearch } from "@/lib/recent-searches"
 import {
   CATEGORY_SLUG_TO_DISPLAY,
   categoryMapping,
@@ -368,6 +369,15 @@ function ToolsContent() {
                   placeholder={t("search.placeholder")}
                   className="flex-1"
                   showButton={false}
+                  // Record the search so /home's Recent Searches reflects
+                  // searching done here too, not only searches launched from
+                  // the home page. Deliberately hung off submit rather than
+                  // the debounced value: the debounce fires on every typing
+                  // pause, so "cod" and "codin" would both be filed as
+                  // searches the user made.
+                  onSubmit={() => {
+                    if (searchQuery.trim()) addRecentSearch(searchQuery)
+                  }}
                   onFocus={() => {
                     // Handle mobile scroll
                     if (typeof window !== 'undefined' && window.innerWidth < 768) {
