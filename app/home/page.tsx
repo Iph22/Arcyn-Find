@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react"
 import Image from "next/image"
-import dynamic from "next/dynamic"
+import Link from "next/link"
 import { useRouter } from "next/navigation"
 import { motion, AnimatePresence } from "framer-motion"
 import { Search, Sparkles, TrendingUp, Menu, X, Star } from "lucide-react"
@@ -13,22 +13,26 @@ import { Card } from "@/components/ui/card"
 import { Sidebar } from "@/components/layout/sidebar"
 import { ThemeToggle } from "@/components/layout/theme-toggle"
 import { LanguagePicker } from "@/components/layout/language-picker"
-// Code-split: not visible until a card is clicked, no reason to ship it in
-// the homepage's initial bundle.
-const ToolDetailModal = dynamic(
-  () => import("@/components/tools/enhanced-tool-detail-modal").then((mod) => mod.ToolDetailModal),
-  { ssr: false }
-)
 import { PricingBadge } from "@/components/tools/pricing-badge"
 import { usePreferences } from "@/contexts/preferences-context"
 import { useLanguage } from "@/contexts/language-context"
 import { useAuth } from "@/contexts/auth-context"
-import type { ToolWithRating } from "@/lib/types"
 import { logger } from "@/lib/logger"
+import { categoryHref, searchHref, toolHref } from "@/lib/tool-href"
+import { categoriesForInterests } from "@/lib/interest-categories"
+import { addRecentSearch, getRecentSearches, STARTER_SEARCHES } from "@/lib/recent-searches"
 import { toast } from "sonner"
+
+/** A category that has a public page. Mirrors /api/categories. */
+interface PublicCategory {
+  slug: string
+  name: string
+  count: number
+}
 
 interface TrendingTool {
   id: string
+  slug?: string | null
   name: string
   category: string
   rating: number
@@ -49,9 +53,22 @@ export default function HomePage() {
   const [sidebarOpen, setSidebarOpen] = useState(false) // Hidden by default on mobile
   const { preferences, isLoading } = usePreferences()
   const { user, isLoading: authLoading, isAuthenticated } = useAuth()
-  const [selectedTool, setSelectedTool] = useState<ToolWithRating | TrendingTool | null>(null)
   const [trendingTools, setTrendingTools] = useState<TrendingTool[]>([])
   const [loadingTrending, setLoadingTrending] = useState(true)
+  // The categories that actually have a page. Needed before any category can
+  // be linked: /tools/category/[slug] notFound()s below MIN_CATEGORY_SIZE, so
+  // slugifying a tool's category string and hoping is a 404 generator.
+  const [categories, setCategories] = useState<PublicCategory[]>([])
+  const [recentSearches, setRecentSearches] = useState<string[]>([])
+
+  const categorySlugs = new Set(categories.map((c) => c.slug))
+
+  // Read on mount rather than in the initial state, because localStorage does
+  // not exist during SSR and touching it in a useState initialiser would make
+  // the first client render disagree with the server's.
+  useEffect(() => {
+    setRecentSearches(getRecentSearches())
+  }, [])
 
   useEffect(() => {
     if (!authLoading && !isAuthenticated) {
@@ -60,6 +77,7 @@ export default function HomePage() {
     }
     if (isAuthenticated) {
       loadTrendingTools()
+      loadCategories()
 
       // Ensure profile exists and is up-to-date with username/display_name
       fetch('/api/auth/ensure-profile', {
@@ -97,6 +115,20 @@ export default function HomePage() {
       setTrendingTools([]) // Reset to empty array on error
     } finally {
       setLoadingTrending(false)
+    }
+  }
+
+  // Failure here is deliberately quiet: no category list means the category
+  // panel renders nothing and trending rows drop their category link. That is
+  // a smaller loss than a toast on a page the user did not ask anything of.
+  const loadCategories = async () => {
+    try {
+      const response = await fetch('/api/categories')
+      if (!response.ok) return
+      const data = await response.json()
+      setCategories(Array.isArray(data.categories) ? data.categories : [])
+    } catch (error) {
+      logger.error('Error loading categories:', error)
     }
   }
 
@@ -140,15 +172,27 @@ export default function HomePage() {
     }
   }
 
-  const handleSearchSubmit = () => {
-    if (searchQuery.trim()) {
-      router.push(`/tools?search=${encodeURIComponent(searchQuery.trim())}`)
-    }
+  /**
+   * Run a search.
+   *
+   * Both of these used to push `/tools?search=...`. /tools is the static SEO
+   * directory -- its page function takes no searchParams at all -- so the
+   * query was dropped on every search from this page and the user landed on a
+   * generic category grid with no sign that anything had been searched. The
+   * component that reads `?search=` is ToolsBrowser, mounted at /browse.
+   */
+  const runSearch = (query: string) => {
+    const trimmed = query.trim()
+    if (!trimmed) return
+    setRecentSearches(addRecentSearch(trimmed))
+    router.push(searchHref(trimmed))
   }
+
+  const handleSearchSubmit = () => runSearch(searchQuery)
 
   const handleSuggestionClick = (query: string) => {
     setSearchQuery(query)
-    router.push(`/tools?search=${encodeURIComponent(query)}`)
+    runSearch(query)
   }
 
   return (
@@ -311,10 +355,15 @@ export default function HomePage() {
                         <p className="text-center py-8 text-sm text-muted-foreground">{t("home.noTrending")}</p>
                       ) : (
                         trendingTools.slice(0, 3).map((tool) => (
+                          // A real row, not a click handler. The whole row is
+                          // still clickable -- the title anchor is stretched
+                          // over it with `after:inset-0` -- but it is one <a>
+                          // with an href, so it can be opened in a new tab,
+                          // copied, and prefetched. The category link sits
+                          // above that overlay on its own z-index.
                           <motion.div
                             key={tool.id}
-                            onClick={() => setSelectedTool(tool)}
-                            className="flex items-center gap-3 md:gap-4 p-2 rounded-xl hover:bg-accent/50 cursor-pointer transition-colors touch-manipulation active:scale-[0.98]"
+                            className="group relative flex items-center gap-3 md:gap-4 p-2 rounded-xl hover:bg-accent/50 transition-colors touch-manipulation"
                             whileHover={{ x: 4 }}
                           >
                             {tool.image ? (
@@ -333,9 +382,31 @@ export default function HomePage() {
                               </div>
                             )}
                             <div className="flex-1 min-w-0">
-                              <h3 className="font-medium truncate">{tool.name}</h3>
+                              <h3 className="font-medium truncate">
+                                <Link
+                                  href={toolHref(tool)}
+                                  className="after:absolute after:inset-0 after:content-[''] hover:underline"
+                                >
+                                  {tool.name}
+                                </Link>
+                              </h3>
                               <div className="flex items-center gap-2 mt-1">
-                                <p className="text-xs text-muted-foreground truncate">{tool.category}</p>
+                                {(() => {
+                                  const href = categoryHref(tool.category, categorySlugs)
+                                  // Categories below the size floor have no
+                                  // page, so they stay plain text rather than
+                                  // becoming a link to a 404.
+                                  return href ? (
+                                    <Link
+                                      href={href}
+                                      className="relative z-10 text-xs text-muted-foreground truncate hover:text-foreground hover:underline"
+                                    >
+                                      {tool.category}
+                                    </Link>
+                                  ) : (
+                                    <p className="text-xs text-muted-foreground truncate">{tool.category}</p>
+                                  )
+                                })()}
                                 <PricingBadge
                                   pricing={tool.pricing}
                                   accessType={tool.access_type}
@@ -365,22 +436,32 @@ export default function HomePage() {
                       <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-chart-1/10">
                         <Search className="h-5 w-5 text-chart-1" />
                       </div>
-                      <h2 className="text-lg font-semibold">{t("home.recentSearches")}</h2>
+                      {/* Only called "recent" when it actually is. Before the
+                          first search this shows starter queries under a
+                          different heading, rather than three hardcoded
+                          strings permanently labelled as the user's history. */}
+                      <h2 className="text-lg font-semibold">
+                        {recentSearches.length > 0 ? t("home.recentSearches") : t("home.trySearching")}
+                      </h2>
                     </div>
                     <div className="space-y-2">
-                      {["ChatGPT Plugins", "Midjourney Prompts", "AI Writing Tools"].map((search, index) => (
-                        <motion.button
-                          key={index}
-                          onClick={() => setSearchQuery(search)}
-                          className="flex w-full items-center gap-3 rounded-xl p-3 text-left transition-colors hover:bg-accent touch-manipulation active:scale-[0.98]"
-                          whileHover={{ x: 4 }}
-                          transition={{ type: "spring", stiffness: 400 }}
-                        >
-                          <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-muted shrink-0">
-                            <Search className="h-4 w-4 text-muted-foreground" />
-                          </div>
-                          <span className="text-sm font-medium">{search}</span>
-                        </motion.button>
+                      {(recentSearches.length > 0 ? recentSearches : [...STARTER_SEARCHES]).map((search) => (
+                        <motion.div key={search} whileHover={{ x: 4 }} transition={{ type: "spring", stiffness: 400 }}>
+                          {/* A link, so the search is reachable by middle-click
+                              and back/forward. The old handler only called
+                              setSearchQuery() -- it filled the input and never
+                              submitted, so clicking one appeared to do nothing. */}
+                          <Link
+                            href={searchHref(search)}
+                            onClick={() => setRecentSearches(addRecentSearch(search))}
+                            className="flex w-full items-center gap-3 rounded-xl p-3 text-left transition-colors hover:bg-accent touch-manipulation"
+                          >
+                            <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-muted shrink-0">
+                              <Search className="h-4 w-4 text-muted-foreground" />
+                            </div>
+                            <span className="text-sm font-medium truncate">{search}</span>
+                          </Link>
+                        </motion.div>
                       ))}
                     </div>
                   </Card>
@@ -396,81 +477,68 @@ export default function HomePage() {
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ duration: 0.6, delay: 0.6 }}
               >
-                <h2 className="mb-6 text-2xl font-bold">
-                  {preferences?.categories?.length ? "Your Interests" : "Popular Categories"}
-                </h2>
-                <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-                  {(preferences?.categories?.length
-                    ? preferences.categories.map((cat) => ({
-                      name: cat.charAt(0).toUpperCase() + cat.slice(1),
-                      count: Math.floor(Math.random() * 100) + 50,
-                      color: "primary",
-                      id: cat,
-                    }))
-                    : [
-                      { name: "AI Agents", count: 1299, color: "primary", id: "agents" },
-                      { name: "Code & Development", count: 1253, color: "chart-1", id: "coding" },
-                      { name: "Chatbots", count: 720, color: "chart-2", id: "chat" },
-                      { name: "Image Generation", count: 596, color: "chart-3", id: "vision" },
-                    ]
-                  ).map((category, index) => (
-                    <motion.button
-                      key={category.id}
-                      className="group relative overflow-hidden rounded-xl border border-border/50 bg-card/50 p-4 md:p-6 text-left backdrop-blur-sm transition-all hover:border-border hover:shadow-md touch-manipulation active:scale-[0.98]"
-                      whileHover={{ scale: 1.02 }}
-                      transition={{ type: "spring", stiffness: 400 }}
-                    >
-                      <div className="relative z-10">
-                        <h3 className="mb-1 font-semibold">{category.name}</h3>
-                        <p className="text-sm text-muted-foreground">{category.count} tools</p>
+                {/* Three things were wrong with this block, and all three were
+                    invisible in a screenshot:
+
+                      1. The tiles were <button>s with no onClick. The
+                         "Popular Categories" grid on the home page did
+                         nothing at all when clicked.
+                      2. The counts under each name were
+                         `Math.floor(Math.random() * 100) + 50` for the
+                         signed-in case -- a different fabricated number on
+                         every render -- and hardcoded constants otherwise.
+                      3. The hover gradient interpolated a Tailwind class name
+                         at runtime (`from-${category.color}/5`). Tailwind
+                         scans source text for complete class names, so that
+                         class was never generated and the effect never
+                         rendered.
+
+                    Now: real categories from /api/categories, real published
+                    counts, and each tile is a link to the page it names. */}
+                {(() => {
+                  const interestCategories = categoriesForInterests(preferences?.categories, categories)
+                  const usingInterests = interestCategories.length > 0
+                  const shown = (usingInterests ? interestCategories : categories).slice(0, 4)
+
+                  if (shown.length === 0) return null
+
+                  return (
+                    <>
+                      <h2 className="mb-6 text-2xl font-bold">
+                        {usingInterests ? t("home.yourInterests") : t("home.popularCategories")}
+                      </h2>
+                      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+                        {shown.map((category) => (
+                          <motion.div
+                            key={category.slug}
+                            whileHover={{ scale: 1.02 }}
+                            transition={{ type: "spring", stiffness: 400 }}
+                          >
+                            <Link
+                              href={`/tools/category/${category.slug}`}
+                              className="group relative block overflow-hidden rounded-xl border border-border/50 bg-card/50 p-4 md:p-6 text-left backdrop-blur-sm transition-all hover:border-border hover:shadow-md touch-manipulation"
+                            >
+                              <div className="relative z-10">
+                                <h3 className="mb-1 font-semibold">{category.name}</h3>
+                                <p className="text-sm text-muted-foreground">
+                                  {category.count.toLocaleString()} {t("home.toolsCount")}
+                                </p>
+                              </div>
+                              {/* Static class names so Tailwind can see them. */}
+                              <div className="absolute inset-0 bg-gradient-to-br from-primary/5 to-transparent opacity-0 transition-opacity group-hover:opacity-100" />
+                            </Link>
+                          </motion.div>
+                        ))}
                       </div>
-                      <div
-                        className={`absolute inset-0 bg-gradient-to-br from-${category.color}/5 to-transparent opacity-0 transition-opacity group-hover:opacity-100`}
-                      />
-                    </motion.button>
-                  ))}
-                </div>
+                    </>
+                  )
+                })()}
               </motion.div>
             </div>
           </section>
         </main>
       </div>
 
-      {selectedTool && (
-        <ToolDetailModal
-          tool={
-            'platform' in selectedTool
-              ? {
-                id: selectedTool.id,
-                name: selectedTool.name,
-                category: selectedTool.category,
-                description: selectedTool.description,
-                image: selectedTool.image || null,
-                rating: selectedTool.rating || null,
-                users: selectedTool.users?.toString() || null,
-                tags: selectedTool.tags,
-                pricing: selectedTool.pricing || undefined,
-                accessType: selectedTool.accessType || undefined,
-                platform: typeof selectedTool.platform === 'string' ? selectedTool.platform : undefined,
-              }
-              : {
-                id: String(selectedTool.id),
-                name: selectedTool.name,
-                category: selectedTool.category,
-                description: selectedTool.description,
-                image: selectedTool.image,
-                rating: selectedTool.rating,
-                users: selectedTool.users,
-                tags: selectedTool.tags,
-                pricing: selectedTool.pricing || undefined,
-                accessType: selectedTool.access_type || undefined,
-                platform: undefined,
-              }
-          }
-          isOpen={!!selectedTool}
-          onClose={() => setSelectedTool(null)}
-        />
-      )}
     </div>
   )
 }

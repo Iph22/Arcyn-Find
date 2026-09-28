@@ -2,6 +2,7 @@
 
 import React, { Suspense } from "react"
 import dynamic from "next/dynamic"
+import Link from "next/link"
 
 import { useState, useEffect, useMemo, useCallback } from "react"
 import { ToolImage } from "@/components/tools/tool-image"
@@ -34,6 +35,7 @@ import { useRecommendation } from "@/lib/hooks/use-recommendation"
 import { toast } from "sonner"
 import { useAuth } from "@/contexts/auth-context"
 import type { AIEntry } from "@/lib/ai-data"
+import { toolHref } from "@/lib/tool-href"
 
 // Comprehensive category mapping from API/database categories to user-friendly display categories
 // Based on actual database categories from analyze-tools.js
@@ -619,10 +621,15 @@ function ToolsContent() {
                         // animating in for 5 full seconds after every re-render.
                         transition={{ duration: 0.3, delay: Math.min(index, 12) * 0.05 }}
                       >
-                        <Card
-                          className="group relative h-full overflow-hidden border-border/50 bg-card/50 backdrop-blur-sm transition-all hover:border-border hover:shadow-lg cursor-pointer"
-                          onClick={() => setSelectedTool(tool)}
-                        >
+                        {/* The card used to be a <div> with an onClick that
+                            opened a modal, so a search result had no URL at
+                            all: nothing to copy, share, open in a new tab, or
+                            link to. The title is now a real anchor stretched
+                            over the card with `after:inset-0`, which keeps the
+                            whole-card click target while giving the result a
+                            genuine href. The modal is still reachable from the
+                            Details button for a quick look. */}
+                        <Card className="group relative h-full overflow-hidden border-border/50 bg-card/50 backdrop-blur-sm transition-all hover:border-border hover:shadow-lg">
                           {/* Tool Image */}
                           <div className="relative h-40 md:h-48 overflow-hidden bg-muted">
                             <ToolImage
@@ -638,12 +645,19 @@ function ToolsContent() {
                           <div className="p-4 md:p-5">
                             <div className="mb-2 flex items-start justify-between gap-2">
                               <h3 className="text-base md:text-lg font-semibold leading-tight">
-                                <HighlightedText text={tool.name} query={debouncedSearch} />
+                                <Link
+                                  href={toolHref(tool)}
+                                  className="after:absolute after:inset-0 after:content-[''] hover:underline"
+                                >
+                                  <HighlightedText text={tool.name} query={debouncedSearch} />
+                                </Link>
                               </h3>
+                              {/* Above the stretched overlay, or the anchor
+                                  would swallow the click. */}
                               <Button
                                 variant="ghost"
                                 size="icon"
-                                className="h-8 w-8 shrink-0 rounded-lg"
+                                className="relative z-10 h-8 w-8 shrink-0 rounded-lg"
                                 onClick={(e) => handleToggleFavorite(tool.id, e)}
                                 disabled={togglingFavorite === tool.id || !user}
                                 title={favoritedTools.has(tool.id) ? t("tools.removeFromFavorites") : t("tools.addToFavorites")}
@@ -681,7 +695,7 @@ function ToolsContent() {
                               <Button
                                 size="sm"
                                 variant="ghost"
-                                className="gap-1"
+                                className="relative z-10 gap-1"
                                 onClick={(e) => {
                                   e.stopPropagation()
                                   setSelectedTool(tool)

@@ -21,6 +21,7 @@ export async function GET(request: NextRequest) {
       .from('ai_tools')
       .select(`
         id,
+        slug,
         name,
         description,
         category,
