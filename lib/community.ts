@@ -1,5 +1,27 @@
-import { supabase } from './supabase'
+import { getSupabaseAdmin } from './supabase'
 import { getCurrentUser } from '@/lib/google-auth'
+
+/**
+ * Server-side database access, via the SERVICE ROLE key.
+ *
+ * This module used the ANON client, and it is imported only by server code
+ * (no "use client" component imports it -- collection-card.tsx takes a type,
+ * which is erased). Writing through the anon key meant the anon role needed
+ * INSERT/UPDATE/DELETE on these tables, and because that key ships in the
+ * public client bundle, anyone holding it had those rights directly.
+ *
+ * Measured on the new project 2026-09-28, before this change: anon held
+ * DELETE, INSERT, SELECT, UPDATE and TRUNCATE on all 19 public tables, with
+ * RLS off on 17 of them. Moving these calls to the service role is what lets
+ * those grants be revoked -- see supabase/bootstrap/05_rls_and_grants.sql.
+ *
+ * Lazy rather than module-scope: getSupabaseAdmin() throws when the service
+ * role key is absent, and this module is imported by 21 API routes. Failing
+ * on first use beats failing at import time across all of them.
+ */
+let _admin: ReturnType<typeof getSupabaseAdmin> | null = null
+const db = () => (_admin ??= getSupabaseAdmin())
+
 
 export interface UserActivity {
   id: string
@@ -50,7 +72,7 @@ export async function followUser(userId: string): Promise<{ success: boolean; er
       return { success: false, error: 'You cannot follow yourself' }
     }
 
-    const { error } = await supabase
+    const { error } = await db()
       .from('user_follows')
       .insert({
         follower_id: currentUser.id,
@@ -81,7 +103,7 @@ export async function unfollowUser(userId: string): Promise<{ success: boolean; 
       return { success: false, error: 'You must be logged in' }
     }
 
-    const { error } = await supabase
+    const { error } = await db()
       .from('user_follows')
       .delete()
       .eq('follower_id', currentUser.id)
@@ -104,7 +126,7 @@ export async function isFollowingUser(userId: string): Promise<boolean> {
     const currentUser = await getCurrentUser()
     if (!currentUser) return false
 
-    const { data } = await supabase
+    const { data } = await db()
       .from('user_follows')
       .select('id')
       .eq('follower_id', currentUser.id)
@@ -125,7 +147,7 @@ export async function getActivityFeed(limit: number = 20): Promise<UserActivity[
     const user = await getCurrentUser()
     if (!user) return []
 
-    const { data, error } = await supabase
+    const { data, error } = await db()
       .from('user_activities')
       .select(`
         *,
@@ -153,10 +175,10 @@ export async function getActivityFeed(limit: number = 20): Promise<UserActivity[
 
     const [toolRows, collectionRows] = await Promise.all([
       toolIds.length > 0
-        ? supabase.from('ai_tools').select('id, name').in('id', toolIds)
+        ? db().from('ai_tools').select('id, name').in('id', toolIds)
         : Promise.resolve({ data: [] as { id: string; name: string }[] }),
       collectionIds.length > 0
-        ? supabase.from('collections').select('id, name').in('id', collectionIds)
+        ? db().from('collections').select('id, name').in('id', collectionIds)
         : Promise.resolve({ data: [] as { id: string; name: string }[] }),
     ])
 
@@ -212,7 +234,7 @@ const USER_STATS_COLUMNS =
  */
 export async function getLeaderboard(limit: number = 10): Promise<UserStats[]> {
   try {
-    const { data, error } = await supabase
+    const { data, error } = await db()
       .from('user_stats')
       .select(USER_STATS_COLUMNS)
       .order('total_helpful_votes', { ascending: false })
@@ -233,7 +255,7 @@ export async function getLeaderboard(limit: number = 10): Promise<UserStats[]> {
  */
 export async function getUserStats(userId: string): Promise<UserStats | null> {
   try {
-    const { data, error } = await supabase
+    const { data, error } = await db()
       .from('user_stats')
       .select(USER_STATS_COLUMNS)
       .eq('id', userId)

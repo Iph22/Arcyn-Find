@@ -52,3 +52,12 @@ scripts/enrich/.state/
 # checkout keeps an undeletable copy on disk forever. Ignoring it keeps
 # `git status` clean and stops it being re-committed by a `git add -A`.
 scripts/setup/fix-npm-path.ps1
+
+# Local database dumps from scripts/migration/dump-via-postgres.mjs.
+# Real user data -- emails, profiles, reviews -- and this repository is public.
+migration-dump/
+*.dump.json
+old-data.sql
+
+# Supabase CLI scratch
+supabase/.temp/
