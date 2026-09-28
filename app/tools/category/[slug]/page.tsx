@@ -12,7 +12,10 @@ import {
   siteUrl,
 } from '@/lib/seo/catalog'
 
-export const revalidate = 7200 // 2 hours
+// 24 hours. Only ~21 of these exist, so they are a rounding error against
+// the 200k ISR-writes cap that /tools/[slug] nearly exhausted -- but they
+// read the same daily-scraped data, so a 2-hour window bought nothing.
+export const revalidate = 86400 // 24 hours
 export const dynamicParams = true
 
 type Props = { params: Promise<{ slug: string }> }

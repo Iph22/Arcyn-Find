@@ -11,14 +11,20 @@ import { logger } from '@/lib/logger'
  *
  * WHY THIS EXISTS
  *
- * Editing a row and waiting is the whole problem. Measured 2026-09-28, a
- * single correction takes this long to become visible:
+ * Editing a row and waiting is the whole problem. Without this route, a single
+ * correction takes this long to become visible:
  *
- *     /tools/<slug>            2 hours     (revalidate = 7200)
- *     /tools/category/<slug>   2 hours
- *     /tools                   1 hour
- *     /                        1 hour
- *     /sitemap.xml            24 hours     (revalidate = 86400)
+ *     /tools/<slug>            7 days      (revalidate = 604800)
+ *     /tools/category/<slug>  24 hours
+ *     /tools                  24 hours
+ *     /                       24 hours
+ *     /sitemap.xml            24 hours
+ *
+ * Those windows were 2 hours, 2 hours, 1 hour and 1 hour until 2026-09-28,
+ * when ISR writes reached 161,000 against a 200,000/month cap -- 5,877 tool
+ * pages regenerating every two hours is what spent it. Raising the TTLs made
+ * THIS route load-bearing rather than a convenience: it is now the only way a
+ * correction reaches a tool page promptly.
  *
  * So a vendor who writes in to correct their pricing is told it is fixed, and
  * sees the old figure for the rest of the day. The sitemap is the worst of it:
