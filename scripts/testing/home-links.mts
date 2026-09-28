@@ -83,6 +83,20 @@ async function main() {
     process.exitCode = 1
     return
   }
+
+  // Vercel Deployment Protection answers 200 with an SSO login page, so an
+  // unauthenticated run against a preview gets HTML where it expects JSON.
+  // Without this guard that surfaces as `SyntaxError: Unexpected token '<'`
+  // and a 200-line HTML dump, which says nothing about the real cause.
+  const contentType = response.headers.get('content-type') ?? ''
+  if (!contentType.includes('json')) {
+    console.error(`/api/categories returned ${contentType || 'no content-type'}, not JSON.`)
+    console.error('On a Vercel preview this is Deployment Protection serving an SSO page.')
+    console.error('Set VERCEL_AUTOMATION_BYPASS_SECRET, or run against localhost.')
+    process.exitCode = 1
+    return
+  }
+
   const categories: PublicCategory[] = (await response.json()).categories ?? []
   console.log(`/api/categories advertises ${categories.length} categories\n`)
 

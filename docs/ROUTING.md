@@ -36,22 +36,56 @@ which is the correct outcome for a real tool with no public page.
 new endpoint that omits it silently degrades every link it feeds to the
 redirecting form.
 
-## A category name is not a category URL
+## In-app category links go to `/browse`, not `/tools/category`
 
-Category pages exist only above `MIN_CATEGORY_SIZE` (20 published tools) and
-`notFound()` below it. Slugifying `ai_tools.category` and linking to the result
-produces a 404 for every small category — measured 2026-09-28, **21** of the
-catalog's categories have pages, and `Research & Open Source` and
-`Computer Vision` are real category values that do not.
+These are two different products sharing a noun:
 
-**Use `categoryHref(name, knownSlugs)`.** It returns `null` when there is no
-page, which is the signal to render plain text instead of a link. Client
-components get the known set from `GET /api/categories`.
+| route | built for | has filters/sort/search |
+| --- | --- | --- |
+| `/tools/category/<slug>` | crawlers — static, hourly-revalidated | no |
+| `/browse?category=<slug>` | people — the tool browser, filtered | yes |
+
+Sending a signed-in user to the SEO page from an in-app tile drops them out of
+the product: they clicked a category because they wanted to browse it, and the
+page they land on cannot browse. Use **`browseCategoryHref(name, knownSlugs)`**
+or `browseCategorySlugHref(slug)`. The crawlable pages are linked from `/tools`,
+the footer and individual tool pages — reach them with `seoCategoryHref()`.
+
+This costs nothing in search terms because `/home` is `noindex, nofollow`.
+
+**Two category vocabularies exist and neither is the other's slug.** The catalog
+layer slugifies raw `ai_tools.category` values, so `Marketing & Sales` becomes
+`marketing-sales`; the browser filters on display names, where the same category
+is `Marketing` and slugifies to `marketing`. `lib/categories.ts` indexes both.
+
+The failure when that bridge breaks is silent: an unresolved slug falls back to
+`All`, the browser shows the unfiltered list, and `/browse` returns 200 either
+way — so the tile looks like it worked. `npm run test:home-links` asserts every
+published category slug resolves to a real filter.
+
+**A category name is still not a URL.** Category pages exist only above
+`MIN_CATEGORY_SIZE` (20 published tools); measured 2026-09-28, **21** of the
+catalog's categories qualify, and `Research & Open Source` and `Computer Vision`
+are real category values that do not. `browseCategoryHref()` returns `null` in
+that case — the signal to render plain text instead of a link.
 
 Onboarding interests are a separate trap: `preferences.categories` stores
 abstract tags (`text`, `vision`, `coding`, `agents`, `automation`, `knowledge`,
 `research`, `productivity`), none of which is a category value. Map them with
 `categoriesForInterests()` in `lib/interest-categories.ts`.
+
+## Don't populate a panel that makes a claim about the reader
+
+"Recent Searches" shipped with three hardcoded strings. That is not a
+placeholder — it is a false statement about the person reading it, and it
+survived review twice because an empty panel looks unfinished and a full one
+does not. Recent searches come from `lib/recent-searches.ts` (localStorage,
+genuinely per-user) or the panel is empty. There is deliberately no starter
+list.
+
+They are **not** backed by `search_cache`: that table is global, with no user
+column, so it would put one visitor's raw query text on every other visitor's
+home page.
 
 ## A click handler is not a link
 
