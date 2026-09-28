@@ -171,8 +171,11 @@ nothing out of it.
 The restriction is applied at the **gateway, not at Postgres**, so a direct
 database connection normally still works. Two steps:
 
-**1. Dump over a direct connection** (needs the DB password from
-Settings → Database, *not* the service role key; use session mode, port 5432):
+**1. Dump over a direct connection.** Get the string from the **`Connect`**
+button in the dashboard's top bar (not Settings → Database — it is no longer
+there), and choose **Session pooler**, which is IPv4-compatible. You need the
+**database password**, not the service role key; reset it on Settings →
+Database if you never saved it.
 
 ```bash
 npm i pg --no-save

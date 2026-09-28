@@ -26,9 +26,19 @@
  *
  * WHERE TO GET THE CONNECTION STRING
  *
- * Supabase dashboard -> Settings -> Database -> Connection string -> URI.
- * Use SESSION mode (port 5432), not transaction mode (6543): transaction
- * pooling does not keep a cursor open between statements, and this paginates.
+ * The `Connect` button in the dashboard's TOP BAR, next to the branch name --
+ * NOT Settings -> Database, which no longer shows one.
+ *
+ * Pick SESSION POOLER, not "Direct connection" and not transaction pooler:
+ *
+ *   Session pooler      aws-0-<region>.pooler.supabase.com:5432   <- this one
+ *   Direct connection   db.<ref>.supabase.co:5432                 IPv6 only
+ *   Transaction pooler  ...:6543                                  no cursors
+ *
+ * Direct connections are IPv6-only on current projects, which fails outright
+ * on most home networks. The session pooler is IPv4-compatible and holds a
+ * connection open across statements, which is what this script's paging needs;
+ * transaction pooling does not, and reports "Tenant or user not found".
  *
  * The password is NOT the service role key. It is the database password, on
  * that same page -- reset it there if you never saved it.
