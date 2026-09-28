@@ -176,13 +176,6 @@ jobs:
         env:
           NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
           SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
-          # This suite asserts browser push is configured, so the keys have to
-          # reach it or the check fails on CI's own configuration rather than
-          # on anything about the code. They are NOT used to send: the suite
-          # only mails when given --send=<address>, which it is not.
-          NEXT_PUBLIC_VAPID_PUBLIC_KEY: ${{ secrets.NEXT_PUBLIC_VAPID_PUBLIC_KEY }}
-          VAPID_PRIVATE_KEY: ${{ secrets.VAPID_PRIVATE_KEY }}
-          VAPID_SUBJECT: ${{ secrets.VAPID_SUBJECT }}
 
   # No deploy job, and this is deliberate.
   #
