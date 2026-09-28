@@ -159,3 +159,39 @@ at the same rate — so carry the fix across. The sitemap was re-walking the
 entire published catalog (4.1 MB) every hour on three separate URLs, roughly
 80% of the daily burn; that is fixed on `main` as of #57. Verify the deployment
 pointing at the new project includes it.
+
+---
+
+## Moving the data (the old project is restricted)
+
+As of 2026-09-28 the old project returns **HTTP 402 on every API-gateway path**
+— REST, RPC, Storage and Auth. Anything that reads through PostgREST gets
+nothing out of it.
+
+The restriction is applied at the **gateway, not at Postgres**, so a direct
+database connection normally still works. Two steps:
+
+**1. Dump over a direct connection** (needs the DB password from
+Settings → Database, *not* the service role key; use session mode, port 5432):
+
+```bash
+npm i pg --no-save
+node scripts/migration/dump-via-postgres.mjs "postgresql://postgres.<ref>:<pw>@<host>:5432/postgres"
+```
+
+Writes `migration-dump/<table>.json` plus a manifest. `pg` is pure JavaScript,
+so this needs neither Docker nor `pg_dump` — both of which `supabase db dump`
+requires and neither of which is installed here.
+
+**2. Load it into the new project**, once `01`–`04` have been run there:
+
+```bash
+node --env-file=.env.local scripts/migration/transfer-to-new-project.mjs --from-dir=migration-dump
+```
+
+Needs `NEW_SUPABASE_URL` and `NEW_SUPABASE_SERVICE_ROLE_KEY` in `.env.local`.
+Every write is an upsert on the primary key, so a failed run is resumable.
+
+If the direct connection is *also* blocked, what remains is the dashboard SQL
+editor with CSV export, or one month of Pro to lift the restriction long enough
+to get the data out.

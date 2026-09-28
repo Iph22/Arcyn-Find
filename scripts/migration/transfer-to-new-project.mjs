@@ -70,10 +70,26 @@
  * ---------------------------------------------------------------------------
  */
 
+import fs from 'node:fs'
+import path from 'node:path'
+
 const args = process.argv.slice(2)
 const DRY_RUN = args.includes('--dry-run')
 const NO_EMBEDDINGS = args.includes('--no-embeddings')
 const ONLY = args.find((a) => a.startsWith('--only='))?.split('=')[1]
+
+/**
+ * Load rows from a local dump directory instead of reading the source project.
+ *
+ * This is the mode to use while the old project is restricted: PostgREST
+ * answers 402 on every request, so there is nothing to read from. Take the
+ * data out over a direct Postgres connection first --
+ * scripts/migration/dump-via-postgres.mjs -- then point this at the result.
+ *
+ * The destination is still written through PostgREST, which is fine: the NEW
+ * project is not restricted.
+ */
+const FROM_DIR = args.find((a) => a.startsWith('--from-dir='))?.split('=')[1]
 
 const SRC_URL = process.env.NEXT_PUBLIC_SUPABASE_URL
 const SRC_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY
@@ -136,7 +152,12 @@ function die(message) {
   process.exit(1)
 }
 
-if (!SRC_URL || !SRC_KEY) die('Missing NEXT_PUBLIC_SUPABASE_URL / SUPABASE_SERVICE_ROLE_KEY (the OLD project).')
+if (!FROM_DIR && (!SRC_URL || !SRC_KEY)) {
+  die('Missing NEXT_PUBLIC_SUPABASE_URL / SUPABASE_SERVICE_ROLE_KEY (the OLD project).')
+}
+if (FROM_DIR && !fs.existsSync(FROM_DIR)) {
+  die(`--from-dir=${FROM_DIR} does not exist. Run dump-via-postgres.mjs first.`)
+}
 if (!DST_URL || !DST_KEY) {
   die(
     'Missing NEW_SUPABASE_URL / NEW_SUPABASE_SERVICE_ROLE_KEY.\n' +
@@ -145,7 +166,9 @@ if (!DST_URL || !DST_KEY) {
       '           NEW_SUPABASE_SERVICE_ROLE_KEY=<new service_role key>'
   )
 }
-if (SRC_URL === DST_URL) die('Source and destination are the same project. Check NEW_SUPABASE_URL.')
+if (!FROM_DIR && SRC_URL === DST_URL) {
+  die('Source and destination are the same project. Check NEW_SUPABASE_URL.')
+}
 
 const srcHeaders = { apikey: SRC_KEY, Authorization: `Bearer ${SRC_KEY}` }
 const dstHeaders = {
@@ -184,14 +207,26 @@ async function writeChunk(table, key, rows) {
   if (!res.ok) throw new Error(`write ${table}: ${res.status} ${(await res.text()).slice(0, 300)}`)
 }
 
+/**
+ * Rows for one table, from the local dump, in pages of the same size the
+ * network path uses so the write loop below is identical either way.
+ */
+function* readFromDir(table) {
+  const file = path.join(FROM_DIR, `${table}.json`)
+  if (!fs.existsSync(file)) return
+  const all = JSON.parse(fs.readFileSync(file, 'utf8'))
+  for (let i = 0; i < all.length; i += READ_PAGE) yield all.slice(i, i + READ_PAGE)
+}
+
 async function transfer({ name, key }) {
   process.stdout.write(`  ${name.padEnd(24)}`)
 
   let after = null
   let moved = 0
+  const fromDir = FROM_DIR ? readFromDir(name) : null
 
   for (;;) {
-    const page = await readPage(name, key, after)
+    const page = fromDir ? (fromDir.next().value ?? []) : await readPage(name, key, after)
     if (page.length === 0) break
 
     const rows = NO_EMBEDDINGS && name === 'ai_tools'
@@ -210,6 +245,7 @@ async function transfer({ name, key }) {
 
     // A short page means the table is drained. PostgREST caps a response at
     // 1000 rows (§2), so a full page is never proof there is nothing more.
+    // The generator signals the same way by yielding a short final slice.
     if (page.length < READ_PAGE) break
   }
 
@@ -242,6 +278,10 @@ for (const table of selected) {
 }
 
 console.log(`\n  ${total} rows across ${selected.length} tables`)
-console.log(`  ~${(bytesRead / 1048576).toFixed(1)} MB read from the old project (egress)`)
+if (FROM_DIR) {
+  console.log(`  read from ${FROM_DIR}/ — no egress on the old project`)
+} else {
+  console.log(`  ~${(bytesRead / 1048576).toFixed(1)} MB read from the old project (egress)`)
+}
 if (!ONLY) console.log(`  skipped by design: ${SKIPPED.join(', ')}`)
 console.log()
