@@ -1,14 +1,17 @@
 -- ============================================================================
 -- ARCYN FIND — complete schema for a NEW, EMPTY Supabase project.
 --
--- Generated 2026-09-28. Paste the whole thing into the SQL editor
--- and run it once. It builds every table, index, function and trigger.
+-- Generated 2026-09-28 by scripts/migration/build-all-in-one.mjs from
+-- supabase/bootstrap/ORDER.txt. Edit that list, not this file.
+--
+-- Paste the whole thing into the SQL editor and run it once, or apply it with
+--     node scripts/migration/run-sql-file.mjs "<conn>" supabase/bootstrap/ALL_IN_ONE.sql
+-- which reports failures per section rather than as an offset into 150 KB.
 --
 -- It creates NO DATA. Load that separately — see supabase/bootstrap/README.md.
 --
 -- Safe to re-run: every statement is CREATE ... IF NOT EXISTS or
--- CREATE OR REPLACE. If it stops with an error, the section banners below
--- tell you exactly which file it died in.
+-- CREATE OR REPLACE.
 -- ============================================================================
 
 
@@ -70,6 +73,7 @@ BEGIN
     END IF;
 END
 $do$;
+
 
 
 -- ###########################################################################
@@ -290,24 +294,51 @@ CREATE TABLE IF NOT EXISTS review_helpful_votes (
 );
 
 -- Foreign keys, applied after every table exists so order cannot matter.
-ALTER TABLE user_follows ADD CONSTRAINT user_follows_follower_id_fkey FOREIGN KEY (follower_id) REFERENCES user_profiles(id) ON DELETE CASCADE;
-ALTER TABLE user_follows ADD CONSTRAINT user_follows_following_id_fkey FOREIGN KEY (following_id) REFERENCES user_profiles(id) ON DELETE CASCADE;
-ALTER TABLE collections ADD CONSTRAINT collections_user_id_fkey FOREIGN KEY (user_id) REFERENCES user_profiles(id) ON DELETE CASCADE;
-ALTER TABLE user_activities ADD CONSTRAINT user_activities_user_id_fkey FOREIGN KEY (user_id) REFERENCES user_profiles(id) ON DELETE CASCADE;
-ALTER TABLE user_activities ADD CONSTRAINT user_activities_tool_id_fkey FOREIGN KEY (tool_id) REFERENCES ai_tools(id) ON DELETE CASCADE;
-ALTER TABLE user_activities ADD CONSTRAINT user_activities_collection_id_fkey FOREIGN KEY (collection_id) REFERENCES collections(id) ON DELETE CASCADE;
-ALTER TABLE user_activities ADD CONSTRAINT user_activities_review_id_fkey FOREIGN KEY (review_id) REFERENCES tool_reviews(id) ON DELETE CASCADE;
-ALTER TABLE tool_reviews ADD CONSTRAINT tool_reviews_tool_id_fkey FOREIGN KEY (tool_id) REFERENCES ai_tools(id) ON DELETE CASCADE;
-ALTER TABLE tool_reviews ADD CONSTRAINT tool_reviews_user_id_fkey FOREIGN KEY (user_id) REFERENCES user_profiles(id) ON DELETE CASCADE;
-ALTER TABLE collection_items ADD CONSTRAINT collection_items_collection_id_fkey FOREIGN KEY (collection_id) REFERENCES collections(id) ON DELETE CASCADE;
-ALTER TABLE collection_items ADD CONSTRAINT collection_items_tool_id_fkey FOREIGN KEY (tool_id) REFERENCES ai_tools(id) ON DELETE CASCADE;
-ALTER TABLE pricing_history ADD CONSTRAINT pricing_history_tool_id_fkey FOREIGN KEY (tool_id) REFERENCES ai_tools(id) ON DELETE CASCADE;
-ALTER TABLE price_alerts ADD CONSTRAINT price_alerts_tool_id_fkey FOREIGN KEY (tool_id) REFERENCES ai_tools(id) ON DELETE CASCADE;
-ALTER TABLE price_alerts ADD CONSTRAINT price_alerts_user_id_fkey FOREIGN KEY (user_id) REFERENCES user_profiles(id) ON DELETE CASCADE;
-ALTER TABLE user_favorites ADD CONSTRAINT user_favorites_user_id_fkey FOREIGN KEY (user_id) REFERENCES user_profiles(id) ON DELETE CASCADE;
-ALTER TABLE user_favorites ADD CONSTRAINT user_favorites_tool_id_fkey FOREIGN KEY (tool_id) REFERENCES ai_tools(id) ON DELETE CASCADE;
-ALTER TABLE review_helpful_votes ADD CONSTRAINT review_helpful_votes_review_id_fkey FOREIGN KEY (review_id) REFERENCES tool_reviews(id) ON DELETE CASCADE;
-ALTER TABLE review_helpful_votes ADD CONSTRAINT review_helpful_votes_user_id_fkey FOREIGN KEY (user_id) REFERENCES user_profiles(id) ON DELETE CASCADE;
+--
+-- Each is dropped before being added. ALTER TABLE ADD CONSTRAINT has no
+-- IF NOT EXISTS form, so a bare ADD makes this file fail on a second run:
+--
+--     ERROR: constraint "user_follows_follower_id_fkey" already exists
+--
+-- which matters because the tables above are CREATE TABLE IF NOT EXISTS and
+-- the whole bootstrap is documented as safe to re-run. Found by re-running it.
+ALTER TABLE user_follows DROP CONSTRAINT IF EXISTS user_follows_follower_id_fkey;
+ALTER TABLE user_follows ADD  CONSTRAINT user_follows_follower_id_fkey FOREIGN KEY (follower_id) REFERENCES user_profiles(id) ON DELETE CASCADE;
+ALTER TABLE user_follows DROP CONSTRAINT IF EXISTS user_follows_following_id_fkey;
+ALTER TABLE user_follows ADD  CONSTRAINT user_follows_following_id_fkey FOREIGN KEY (following_id) REFERENCES user_profiles(id) ON DELETE CASCADE;
+ALTER TABLE collections DROP CONSTRAINT IF EXISTS collections_user_id_fkey;
+ALTER TABLE collections ADD  CONSTRAINT collections_user_id_fkey FOREIGN KEY (user_id) REFERENCES user_profiles(id) ON DELETE CASCADE;
+ALTER TABLE user_activities DROP CONSTRAINT IF EXISTS user_activities_user_id_fkey;
+ALTER TABLE user_activities ADD  CONSTRAINT user_activities_user_id_fkey FOREIGN KEY (user_id) REFERENCES user_profiles(id) ON DELETE CASCADE;
+ALTER TABLE user_activities DROP CONSTRAINT IF EXISTS user_activities_tool_id_fkey;
+ALTER TABLE user_activities ADD  CONSTRAINT user_activities_tool_id_fkey FOREIGN KEY (tool_id) REFERENCES ai_tools(id) ON DELETE CASCADE;
+ALTER TABLE user_activities DROP CONSTRAINT IF EXISTS user_activities_collection_id_fkey;
+ALTER TABLE user_activities ADD  CONSTRAINT user_activities_collection_id_fkey FOREIGN KEY (collection_id) REFERENCES collections(id) ON DELETE CASCADE;
+ALTER TABLE user_activities DROP CONSTRAINT IF EXISTS user_activities_review_id_fkey;
+ALTER TABLE user_activities ADD  CONSTRAINT user_activities_review_id_fkey FOREIGN KEY (review_id) REFERENCES tool_reviews(id) ON DELETE CASCADE;
+ALTER TABLE tool_reviews DROP CONSTRAINT IF EXISTS tool_reviews_tool_id_fkey;
+ALTER TABLE tool_reviews ADD  CONSTRAINT tool_reviews_tool_id_fkey FOREIGN KEY (tool_id) REFERENCES ai_tools(id) ON DELETE CASCADE;
+ALTER TABLE tool_reviews DROP CONSTRAINT IF EXISTS tool_reviews_user_id_fkey;
+ALTER TABLE tool_reviews ADD  CONSTRAINT tool_reviews_user_id_fkey FOREIGN KEY (user_id) REFERENCES user_profiles(id) ON DELETE CASCADE;
+ALTER TABLE collection_items DROP CONSTRAINT IF EXISTS collection_items_collection_id_fkey;
+ALTER TABLE collection_items ADD  CONSTRAINT collection_items_collection_id_fkey FOREIGN KEY (collection_id) REFERENCES collections(id) ON DELETE CASCADE;
+ALTER TABLE collection_items DROP CONSTRAINT IF EXISTS collection_items_tool_id_fkey;
+ALTER TABLE collection_items ADD  CONSTRAINT collection_items_tool_id_fkey FOREIGN KEY (tool_id) REFERENCES ai_tools(id) ON DELETE CASCADE;
+ALTER TABLE pricing_history DROP CONSTRAINT IF EXISTS pricing_history_tool_id_fkey;
+ALTER TABLE pricing_history ADD  CONSTRAINT pricing_history_tool_id_fkey FOREIGN KEY (tool_id) REFERENCES ai_tools(id) ON DELETE CASCADE;
+ALTER TABLE price_alerts DROP CONSTRAINT IF EXISTS price_alerts_tool_id_fkey;
+ALTER TABLE price_alerts ADD  CONSTRAINT price_alerts_tool_id_fkey FOREIGN KEY (tool_id) REFERENCES ai_tools(id) ON DELETE CASCADE;
+ALTER TABLE price_alerts DROP CONSTRAINT IF EXISTS price_alerts_user_id_fkey;
+ALTER TABLE price_alerts ADD  CONSTRAINT price_alerts_user_id_fkey FOREIGN KEY (user_id) REFERENCES user_profiles(id) ON DELETE CASCADE;
+ALTER TABLE user_favorites DROP CONSTRAINT IF EXISTS user_favorites_user_id_fkey;
+ALTER TABLE user_favorites ADD  CONSTRAINT user_favorites_user_id_fkey FOREIGN KEY (user_id) REFERENCES user_profiles(id) ON DELETE CASCADE;
+ALTER TABLE user_favorites DROP CONSTRAINT IF EXISTS user_favorites_tool_id_fkey;
+ALTER TABLE user_favorites ADD  CONSTRAINT user_favorites_tool_id_fkey FOREIGN KEY (tool_id) REFERENCES ai_tools(id) ON DELETE CASCADE;
+ALTER TABLE review_helpful_votes DROP CONSTRAINT IF EXISTS review_helpful_votes_review_id_fkey;
+ALTER TABLE review_helpful_votes ADD  CONSTRAINT review_helpful_votes_review_id_fkey FOREIGN KEY (review_id) REFERENCES tool_reviews(id) ON DELETE CASCADE;
+ALTER TABLE review_helpful_votes DROP CONSTRAINT IF EXISTS review_helpful_votes_user_id_fkey;
+ALTER TABLE review_helpful_votes ADD  CONSTRAINT review_helpful_votes_user_id_fkey FOREIGN KEY (user_id) REFERENCES user_profiles(id) ON DELETE CASCADE;
+
 
 
 -- ###########################################################################
@@ -399,6 +430,7 @@ GRANT SELECT ON user_stats TO anon, authenticated;
 --     SELECT tablename, policyname, permissive, roles, cmd, qual, with_check
 --       FROM pg_policies WHERE schemaname = 'public' ORDER BY tablename;
 -- ----------------------------------------------------------------------------
+
 
 
 -- ###########################################################################
@@ -591,6 +623,7 @@ COMMIT;
 
 
 
+
 -- ###########################################################################
 -- ## STEP 05 of 26 — supabase/migrations/add_semantic_search.sql
 -- ###########################################################################
@@ -738,6 +771,7 @@ $$;
 COMMENT ON COLUMN ai_tools.embedding IS 'Semantic embedding vector (768 dimensions) generated from name + description using Gemini text-embedding-004';
 
 
+
 -- ###########################################################################
 -- ## STEP 06 of 26 — supabase/migrations/add_view_tracking.sql
 -- ###########################################################################
@@ -799,6 +833,7 @@ COMMENT ON COLUMN ai_tools.view_count_7d IS 'Views in last 7 days (updated by cr
 COMMENT ON COLUMN ai_tools.trending_score IS 'Calculated trending score (0-100)';
 
 
+
 -- ###########################################################################
 -- ## STEP 07 of 26 — supabase/migrations/add_tool_submissions.sql
 -- ###########################################################################
@@ -843,6 +878,7 @@ ON tool_submissions (lower(name));
 COMMIT;
 
 
+
 -- ###########################################################################
 -- ## STEP 08 of 26 — supabase/migrations/add_priority_column.sql
 -- ###########################################################################
@@ -859,6 +895,7 @@ CREATE INDEX IF NOT EXISTS idx_ai_tools_priority ON ai_tools(priority DESC);
 
 -- Comment on column
 COMMENT ON COLUMN ai_tools.priority IS 'Priority score 0-100 for search ranking. Higher = consumer tools, lower = research/repos';
+
 
 
 -- ###########################################################################
@@ -1000,6 +1037,7 @@ $$;
 ANALYZE ai_tools;
 
 
+
 -- ###########################################################################
 -- ## STEP 10 of 26 — supabase/migrations/add_tool_slugs.sql
 -- ###########################################################################
@@ -1038,8 +1076,138 @@ COMMENT ON COLUMN ai_tools.slug IS
   'a name, and only the best row of each group is given a slug.';
 
 
+
 -- ###########################################################################
--- ## STEP 11 of 26 — supabase/migrations/add_normalized_name.sql
+-- ## STEP 11 of 26 — supabase/migrations/add_catalog_stats.sql
+-- ###########################################################################
+
+-- Honest, cheap catalog statistics for the public landing page.
+--
+-- WHY THIS EXISTS
+--
+-- The landing page claimed numbers the data does not support. Measured
+-- 2026-09-21 by walking the whole table:
+--
+--     rows in ai_tools          272,755
+--     DISTINCT PRODUCTS          15,210
+--     duplicate rows            257,545   (94.4%)
+--     with a public page          2,913
+--
+-- Two separate problems came out of that:
+--
+--   1. `/api/tools/count` returned the planner's ROW estimate (272,753), and
+--      the page rendered it as "272.7K+ AI Tools". That is an 18x overstatement,
+--      because 94.4% of rows are duplicate re-ingests of the same products.
+--      (docs/CORPUS_AND_CONSTRAINTS.md §1 recorded 55% from a top-5,000 sample;
+--      across the full table it is far worse.)
+--   2. Google was showing "Over 25,000 AI tools", a figure with no basis in the
+--      data at all, while a visitor browsing the public directory could only
+--      reach 2,913. The site looked like it was inflating.
+--
+-- The defensible number is the distinct-product count: 15,210. That is what
+-- `search_tools_advanced` effectively presents, since it applies
+-- DISTINCT ON (normalized name), and it is what this function computes.
+--
+-- WHY IT IS CACHED IN A TABLE
+--
+-- COUNT(DISTINCT normalized_name) over 272k rows is a full scan with a regexp
+-- per row. That is fine once a day and completely unacceptable per page view,
+-- and this table's statement timeout is 8-9s (§2). So the expensive query runs
+-- at most once per p_max_age and everything else reads one cached row.
+
+CREATE TABLE IF NOT EXISTS catalog_stats (
+    -- Single-row table: the CHECK pins the key to true so a second row cannot
+    -- be inserted, which makes the upsert below trivially correct.
+    id                boolean PRIMARY KEY DEFAULT true CHECK (id),
+    distinct_products integer     NOT NULL,
+    published         integer     NOT NULL,
+    categories        integer     NOT NULL,
+    total_rows        integer     NOT NULL,
+    computed_at       timestamptz NOT NULL DEFAULT now()
+);
+
+COMMENT ON TABLE catalog_stats IS
+  'One cached row of public-facing catalog counts. Refreshed by '
+  'catalog_stats_current(). distinct_products is the honest headline figure; '
+  'total_rows is NOT, because 94.4% of rows are duplicate re-ingests.';
+
+/**
+ * Current stats, recomputing only when the cached row is older than p_max_age.
+ */
+CREATE OR REPLACE FUNCTION catalog_stats_current(
+    p_max_age interval DEFAULT '24 hours'
+)
+RETURNS TABLE (
+    distinct_products integer,
+    published         integer,
+    categories        integer,
+    total_rows        integer,
+    computed_at       timestamptz
+)
+LANGUAGE plpgsql
+AS $fn$
+DECLARE
+    v_fresh boolean;
+BEGIN
+    SELECT (s.computed_at > now() - p_max_age)
+      INTO v_fresh
+      FROM catalog_stats s
+     WHERE s.id;
+
+    IF COALESCE(v_fresh, false) THEN
+        RETURN QUERY
+        SELECT s.distinct_products, s.published, s.categories, s.total_rows, s.computed_at
+          FROM catalog_stats s
+         WHERE s.id;
+        RETURN;
+    END IF;
+
+    -- Recompute. The normalisation mirrors normalizeName() in lib/seo/slug.ts:
+    -- lowercase, collapse every run of non-alphanumerics to a single space,
+    -- trim. If one changes, change both, or the public figure stops matching
+    -- what search actually de-duplicates to.
+    WITH computed AS (
+        SELECT
+            COUNT(DISTINCT NULLIF(btrim(regexp_replace(lower(name), '[^a-z0-9]+', ' ', 'g')), ''))::integer
+                AS distinct_products,
+            COUNT(*) FILTER (WHERE slug IS NOT NULL)::integer
+                AS published,
+            COUNT(DISTINCT category) FILTER (WHERE slug IS NOT NULL)::integer
+                AS categories,
+            COUNT(*)::integer
+                AS total_rows
+        FROM ai_tools
+    )
+    INSERT INTO catalog_stats AS cs (id, distinct_products, published, categories, total_rows, computed_at)
+    SELECT true, c.distinct_products, c.published, c.categories, c.total_rows, now()
+      FROM computed c
+    ON CONFLICT (id) DO UPDATE
+       SET distinct_products = EXCLUDED.distinct_products,
+           published         = EXCLUDED.published,
+           categories        = EXCLUDED.categories,
+           total_rows        = EXCLUDED.total_rows,
+           computed_at       = EXCLUDED.computed_at;
+
+    RETURN QUERY
+    SELECT s.distinct_products, s.published, s.categories, s.total_rows, s.computed_at
+      FROM catalog_stats s
+     WHERE s.id;
+END;
+$fn$;
+
+-- Read-only for the public roles: the figures are shown on the landing page,
+-- but only the service role should be able to trigger a recompute.
+REVOKE ALL ON FUNCTION catalog_stats_current(interval) FROM PUBLIC, anon, authenticated;
+REVOKE ALL ON TABLE catalog_stats FROM PUBLIC, anon, authenticated;
+
+-- Warm it once now, so the first visitor after deploy does not pay for the
+-- scan and the numbers are available immediately.
+SELECT * FROM catalog_stats_current('0 seconds'::interval);
+
+
+
+-- ###########################################################################
+-- ## STEP 12 of 26 — supabase/migrations/add_normalized_name.sql
 -- ###########################################################################
 
 -- Make "how many tools do we have" cheap, and make the ingest able to answer
@@ -1184,8 +1352,9 @@ ANALYZE ai_tools;
 SELECT * FROM catalog_stats_current('0 seconds'::interval);
 
 
+
 -- ###########################################################################
--- ## STEP 12 of 26 — supabase/migrations/add_recommendation_cache.sql
+-- ## STEP 13 of 26 — supabase/migrations/add_recommendation_cache.sql
 -- ###########################################################################
 
 -- ============================================================================
@@ -1224,8 +1393,9 @@ CREATE INDEX IF NOT EXISTS idx_search_cache_recommendation_at
 ANALYZE search_cache;
 
 
+
 -- ###########################################################################
--- ## STEP 13 of 26 — supabase/migrations/add_stack_cache.sql
+-- ## STEP 14 of 26 — supabase/migrations/add_stack_cache.sql
 -- ###########################################################################
 
 -- ============================================================================
@@ -1263,8 +1433,9 @@ CREATE INDEX IF NOT EXISTS idx_search_cache_stack_at
 ANALYZE search_cache;
 
 
+
 -- ###########################################################################
--- ## STEP 14 of 26 — supabase/migrations/add_recommendation_feedback.sql
+-- ## STEP 15 of 26 — supabase/migrations/add_recommendation_feedback.sql
 -- ###########################################################################
 
 -- ============================================================================
@@ -1341,8 +1512,9 @@ CREATE INDEX IF NOT EXISTS idx_rec_feedback_created
 ANALYZE recommendation_feedback;
 
 
+
 -- ###########################################################################
--- ## STEP 15 of 26 — supabase/migrations/fix_advanced_search_bounded_retrieval.sql
+-- ## STEP 16 of 26 — supabase/migrations/fix_advanced_search_bounded_retrieval.sql
 -- ###########################################################################
 
 -- ============================================================================
@@ -1887,8 +2059,9 @@ END;
 $$;
 
 
+
 -- ###########################################################################
--- ## STEP 16 of 26 — supabase/migrations/add_refresh_trending_stats.sql
+-- ## STEP 17 of 26 — supabase/migrations/add_refresh_trending_stats.sql
 -- ###########################################################################
 
 -- Trending refresh as one set-based call instead of a full-table walk.
@@ -2151,8 +2324,9 @@ COMMENT ON COLUMN ai_tools.trending_score IS
   'because the job that populates it had never completed successfully.';
 
 
+
 -- ###########################################################################
--- ## STEP 17 of 26 — supabase/migrations/add_missing_perf_indexes.sql
+-- ## STEP 18 of 26 — supabase/migrations/add_missing_perf_indexes.sql
 -- ###########################################################################
 
 -- ============================================================================
@@ -2186,8 +2360,9 @@ ANALYZE user_follows;
 ANALYZE ai_tools;
 
 
+
 -- ###########################################################################
--- ## STEP 18 of 26 — supabase/migrations/add_seo_catalog_rpcs.sql
+-- ## STEP 19 of 26 — supabase/migrations/add_seo_catalog_rpcs.sql
 -- ###########################################################################
 
 -- ============================================================================
@@ -2386,8 +2561,9 @@ GRANT EXECUTE ON FUNCTION ai_tools_estimated_count() TO anon, authenticated;
 ANALYZE ai_tools;
 
 
+
 -- ###########################################################################
--- ## STEP 19 of 26 — supabase/migrations/add_cache_retention.sql
+-- ## STEP 20 of 26 — supabase/migrations/add_cache_retention.sql
 -- ###########################################################################
 
 -- ============================================================================
@@ -2529,133 +2705,6 @@ DROP TABLE IF EXISTS discovery_queue;
 
 ANALYZE search_cache;
 
-
--- ###########################################################################
--- ## STEP 20 of 26 — supabase/migrations/add_catalog_stats.sql
--- ###########################################################################
-
--- Honest, cheap catalog statistics for the public landing page.
---
--- WHY THIS EXISTS
---
--- The landing page claimed numbers the data does not support. Measured
--- 2026-09-21 by walking the whole table:
---
---     rows in ai_tools          272,755
---     DISTINCT PRODUCTS          15,210
---     duplicate rows            257,545   (94.4%)
---     with a public page          2,913
---
--- Two separate problems came out of that:
---
---   1. `/api/tools/count` returned the planner's ROW estimate (272,753), and
---      the page rendered it as "272.7K+ AI Tools". That is an 18x overstatement,
---      because 94.4% of rows are duplicate re-ingests of the same products.
---      (docs/CORPUS_AND_CONSTRAINTS.md §1 recorded 55% from a top-5,000 sample;
---      across the full table it is far worse.)
---   2. Google was showing "Over 25,000 AI tools", a figure with no basis in the
---      data at all, while a visitor browsing the public directory could only
---      reach 2,913. The site looked like it was inflating.
---
--- The defensible number is the distinct-product count: 15,210. That is what
--- `search_tools_advanced` effectively presents, since it applies
--- DISTINCT ON (normalized name), and it is what this function computes.
---
--- WHY IT IS CACHED IN A TABLE
---
--- COUNT(DISTINCT normalized_name) over 272k rows is a full scan with a regexp
--- per row. That is fine once a day and completely unacceptable per page view,
--- and this table's statement timeout is 8-9s (§2). So the expensive query runs
--- at most once per p_max_age and everything else reads one cached row.
-
-CREATE TABLE IF NOT EXISTS catalog_stats (
-    -- Single-row table: the CHECK pins the key to true so a second row cannot
-    -- be inserted, which makes the upsert below trivially correct.
-    id                boolean PRIMARY KEY DEFAULT true CHECK (id),
-    distinct_products integer     NOT NULL,
-    published         integer     NOT NULL,
-    categories        integer     NOT NULL,
-    total_rows        integer     NOT NULL,
-    computed_at       timestamptz NOT NULL DEFAULT now()
-);
-
-COMMENT ON TABLE catalog_stats IS
-  'One cached row of public-facing catalog counts. Refreshed by '
-  'catalog_stats_current(). distinct_products is the honest headline figure; '
-  'total_rows is NOT, because 94.4% of rows are duplicate re-ingests.';
-
-/**
- * Current stats, recomputing only when the cached row is older than p_max_age.
- */
-CREATE OR REPLACE FUNCTION catalog_stats_current(
-    p_max_age interval DEFAULT '24 hours'
-)
-RETURNS TABLE (
-    distinct_products integer,
-    published         integer,
-    categories        integer,
-    total_rows        integer,
-    computed_at       timestamptz
-)
-LANGUAGE plpgsql
-AS $fn$
-DECLARE
-    v_fresh boolean;
-BEGIN
-    SELECT (s.computed_at > now() - p_max_age)
-      INTO v_fresh
-      FROM catalog_stats s
-     WHERE s.id;
-
-    IF COALESCE(v_fresh, false) THEN
-        RETURN QUERY
-        SELECT s.distinct_products, s.published, s.categories, s.total_rows, s.computed_at
-          FROM catalog_stats s
-         WHERE s.id;
-        RETURN;
-    END IF;
-
-    -- Recompute. The normalisation mirrors normalizeName() in lib/seo/slug.ts:
-    -- lowercase, collapse every run of non-alphanumerics to a single space,
-    -- trim. If one changes, change both, or the public figure stops matching
-    -- what search actually de-duplicates to.
-    WITH computed AS (
-        SELECT
-            COUNT(DISTINCT NULLIF(btrim(regexp_replace(lower(name), '[^a-z0-9]+', ' ', 'g')), ''))::integer
-                AS distinct_products,
-            COUNT(*) FILTER (WHERE slug IS NOT NULL)::integer
-                AS published,
-            COUNT(DISTINCT category) FILTER (WHERE slug IS NOT NULL)::integer
-                AS categories,
-            COUNT(*)::integer
-                AS total_rows
-        FROM ai_tools
-    )
-    INSERT INTO catalog_stats AS cs (id, distinct_products, published, categories, total_rows, computed_at)
-    SELECT true, c.distinct_products, c.published, c.categories, c.total_rows, now()
-      FROM computed c
-    ON CONFLICT (id) DO UPDATE
-       SET distinct_products = EXCLUDED.distinct_products,
-           published         = EXCLUDED.published,
-           categories        = EXCLUDED.categories,
-           total_rows        = EXCLUDED.total_rows,
-           computed_at       = EXCLUDED.computed_at;
-
-    RETURN QUERY
-    SELECT s.distinct_products, s.published, s.categories, s.total_rows, s.computed_at
-      FROM catalog_stats s
-     WHERE s.id;
-END;
-$fn$;
-
--- Read-only for the public roles: the figures are shown on the landing page,
--- but only the service role should be able to trigger a recompute.
-REVOKE ALL ON FUNCTION catalog_stats_current(interval) FROM PUBLIC, anon, authenticated;
-REVOKE ALL ON TABLE catalog_stats FROM PUBLIC, anon, authenticated;
-
--- Warm it once now, so the first visitor after deploy does not pay for the
--- scan and the numbers are available immediately.
-SELECT * FROM catalog_stats_current('0 seconds'::interval);
 
 
 -- ###########################################################################
@@ -2837,6 +2886,7 @@ CREATE POLICY "No public access to notification_log"
   USING (false);
 
 
+
 -- ###########################################################################
 -- ## STEP 22 of 26 — supabase/migrations/add_contact_submissions.sql
 -- ###########################################################################
@@ -2924,6 +2974,7 @@ ANALYZE contact_submissions;
 --   SELECT * FROM contact_submissions
 --   WHERE email_status <> 'sent'
 --   ORDER BY created_at DESC;
+
 
 
 -- ###########################################################################
@@ -3022,6 +3073,7 @@ CREATE POLICY "No public access to push_subscriptions"
   ON push_subscriptions
   FOR SELECT
   USING (false);
+
 
 
 -- ###########################################################################
@@ -3167,6 +3219,7 @@ CREATE INDEX IF NOT EXISTS ai_tools_verification_due_idx
 -- mis-plan against them (§2 records this table's statistics going stale and
 -- latency not recovering on its own).
 ANALYZE ai_tools;
+
 
 
 -- ###########################################################################
@@ -3333,6 +3386,7 @@ ANALYZE ai_tools;
 --
 -- DROP INDEX IF EXISTS idx_ai_tools_fts_gin;
 -- ============================================================================
+
 
 
 -- ###########################################################################

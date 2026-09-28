@@ -212,21 +212,47 @@ CREATE TABLE IF NOT EXISTS review_helpful_votes (
 );
 
 -- Foreign keys, applied after every table exists so order cannot matter.
-ALTER TABLE user_follows ADD CONSTRAINT user_follows_follower_id_fkey FOREIGN KEY (follower_id) REFERENCES user_profiles(id) ON DELETE CASCADE;
-ALTER TABLE user_follows ADD CONSTRAINT user_follows_following_id_fkey FOREIGN KEY (following_id) REFERENCES user_profiles(id) ON DELETE CASCADE;
-ALTER TABLE collections ADD CONSTRAINT collections_user_id_fkey FOREIGN KEY (user_id) REFERENCES user_profiles(id) ON DELETE CASCADE;
-ALTER TABLE user_activities ADD CONSTRAINT user_activities_user_id_fkey FOREIGN KEY (user_id) REFERENCES user_profiles(id) ON DELETE CASCADE;
-ALTER TABLE user_activities ADD CONSTRAINT user_activities_tool_id_fkey FOREIGN KEY (tool_id) REFERENCES ai_tools(id) ON DELETE CASCADE;
-ALTER TABLE user_activities ADD CONSTRAINT user_activities_collection_id_fkey FOREIGN KEY (collection_id) REFERENCES collections(id) ON DELETE CASCADE;
-ALTER TABLE user_activities ADD CONSTRAINT user_activities_review_id_fkey FOREIGN KEY (review_id) REFERENCES tool_reviews(id) ON DELETE CASCADE;
-ALTER TABLE tool_reviews ADD CONSTRAINT tool_reviews_tool_id_fkey FOREIGN KEY (tool_id) REFERENCES ai_tools(id) ON DELETE CASCADE;
-ALTER TABLE tool_reviews ADD CONSTRAINT tool_reviews_user_id_fkey FOREIGN KEY (user_id) REFERENCES user_profiles(id) ON DELETE CASCADE;
-ALTER TABLE collection_items ADD CONSTRAINT collection_items_collection_id_fkey FOREIGN KEY (collection_id) REFERENCES collections(id) ON DELETE CASCADE;
-ALTER TABLE collection_items ADD CONSTRAINT collection_items_tool_id_fkey FOREIGN KEY (tool_id) REFERENCES ai_tools(id) ON DELETE CASCADE;
-ALTER TABLE pricing_history ADD CONSTRAINT pricing_history_tool_id_fkey FOREIGN KEY (tool_id) REFERENCES ai_tools(id) ON DELETE CASCADE;
-ALTER TABLE price_alerts ADD CONSTRAINT price_alerts_tool_id_fkey FOREIGN KEY (tool_id) REFERENCES ai_tools(id) ON DELETE CASCADE;
-ALTER TABLE price_alerts ADD CONSTRAINT price_alerts_user_id_fkey FOREIGN KEY (user_id) REFERENCES user_profiles(id) ON DELETE CASCADE;
-ALTER TABLE user_favorites ADD CONSTRAINT user_favorites_user_id_fkey FOREIGN KEY (user_id) REFERENCES user_profiles(id) ON DELETE CASCADE;
-ALTER TABLE user_favorites ADD CONSTRAINT user_favorites_tool_id_fkey FOREIGN KEY (tool_id) REFERENCES ai_tools(id) ON DELETE CASCADE;
-ALTER TABLE review_helpful_votes ADD CONSTRAINT review_helpful_votes_review_id_fkey FOREIGN KEY (review_id) REFERENCES tool_reviews(id) ON DELETE CASCADE;
-ALTER TABLE review_helpful_votes ADD CONSTRAINT review_helpful_votes_user_id_fkey FOREIGN KEY (user_id) REFERENCES user_profiles(id) ON DELETE CASCADE;
+--
+-- Each is dropped before being added. ALTER TABLE ADD CONSTRAINT has no
+-- IF NOT EXISTS form, so a bare ADD makes this file fail on a second run:
+--
+--     ERROR: constraint "user_follows_follower_id_fkey" already exists
+--
+-- which matters because the tables above are CREATE TABLE IF NOT EXISTS and
+-- the whole bootstrap is documented as safe to re-run. Found by re-running it.
+ALTER TABLE user_follows DROP CONSTRAINT IF EXISTS user_follows_follower_id_fkey;
+ALTER TABLE user_follows ADD  CONSTRAINT user_follows_follower_id_fkey FOREIGN KEY (follower_id) REFERENCES user_profiles(id) ON DELETE CASCADE;
+ALTER TABLE user_follows DROP CONSTRAINT IF EXISTS user_follows_following_id_fkey;
+ALTER TABLE user_follows ADD  CONSTRAINT user_follows_following_id_fkey FOREIGN KEY (following_id) REFERENCES user_profiles(id) ON DELETE CASCADE;
+ALTER TABLE collections DROP CONSTRAINT IF EXISTS collections_user_id_fkey;
+ALTER TABLE collections ADD  CONSTRAINT collections_user_id_fkey FOREIGN KEY (user_id) REFERENCES user_profiles(id) ON DELETE CASCADE;
+ALTER TABLE user_activities DROP CONSTRAINT IF EXISTS user_activities_user_id_fkey;
+ALTER TABLE user_activities ADD  CONSTRAINT user_activities_user_id_fkey FOREIGN KEY (user_id) REFERENCES user_profiles(id) ON DELETE CASCADE;
+ALTER TABLE user_activities DROP CONSTRAINT IF EXISTS user_activities_tool_id_fkey;
+ALTER TABLE user_activities ADD  CONSTRAINT user_activities_tool_id_fkey FOREIGN KEY (tool_id) REFERENCES ai_tools(id) ON DELETE CASCADE;
+ALTER TABLE user_activities DROP CONSTRAINT IF EXISTS user_activities_collection_id_fkey;
+ALTER TABLE user_activities ADD  CONSTRAINT user_activities_collection_id_fkey FOREIGN KEY (collection_id) REFERENCES collections(id) ON DELETE CASCADE;
+ALTER TABLE user_activities DROP CONSTRAINT IF EXISTS user_activities_review_id_fkey;
+ALTER TABLE user_activities ADD  CONSTRAINT user_activities_review_id_fkey FOREIGN KEY (review_id) REFERENCES tool_reviews(id) ON DELETE CASCADE;
+ALTER TABLE tool_reviews DROP CONSTRAINT IF EXISTS tool_reviews_tool_id_fkey;
+ALTER TABLE tool_reviews ADD  CONSTRAINT tool_reviews_tool_id_fkey FOREIGN KEY (tool_id) REFERENCES ai_tools(id) ON DELETE CASCADE;
+ALTER TABLE tool_reviews DROP CONSTRAINT IF EXISTS tool_reviews_user_id_fkey;
+ALTER TABLE tool_reviews ADD  CONSTRAINT tool_reviews_user_id_fkey FOREIGN KEY (user_id) REFERENCES user_profiles(id) ON DELETE CASCADE;
+ALTER TABLE collection_items DROP CONSTRAINT IF EXISTS collection_items_collection_id_fkey;
+ALTER TABLE collection_items ADD  CONSTRAINT collection_items_collection_id_fkey FOREIGN KEY (collection_id) REFERENCES collections(id) ON DELETE CASCADE;
+ALTER TABLE collection_items DROP CONSTRAINT IF EXISTS collection_items_tool_id_fkey;
+ALTER TABLE collection_items ADD  CONSTRAINT collection_items_tool_id_fkey FOREIGN KEY (tool_id) REFERENCES ai_tools(id) ON DELETE CASCADE;
+ALTER TABLE pricing_history DROP CONSTRAINT IF EXISTS pricing_history_tool_id_fkey;
+ALTER TABLE pricing_history ADD  CONSTRAINT pricing_history_tool_id_fkey FOREIGN KEY (tool_id) REFERENCES ai_tools(id) ON DELETE CASCADE;
+ALTER TABLE price_alerts DROP CONSTRAINT IF EXISTS price_alerts_tool_id_fkey;
+ALTER TABLE price_alerts ADD  CONSTRAINT price_alerts_tool_id_fkey FOREIGN KEY (tool_id) REFERENCES ai_tools(id) ON DELETE CASCADE;
+ALTER TABLE price_alerts DROP CONSTRAINT IF EXISTS price_alerts_user_id_fkey;
+ALTER TABLE price_alerts ADD  CONSTRAINT price_alerts_user_id_fkey FOREIGN KEY (user_id) REFERENCES user_profiles(id) ON DELETE CASCADE;
+ALTER TABLE user_favorites DROP CONSTRAINT IF EXISTS user_favorites_user_id_fkey;
+ALTER TABLE user_favorites ADD  CONSTRAINT user_favorites_user_id_fkey FOREIGN KEY (user_id) REFERENCES user_profiles(id) ON DELETE CASCADE;
+ALTER TABLE user_favorites DROP CONSTRAINT IF EXISTS user_favorites_tool_id_fkey;
+ALTER TABLE user_favorites ADD  CONSTRAINT user_favorites_tool_id_fkey FOREIGN KEY (tool_id) REFERENCES ai_tools(id) ON DELETE CASCADE;
+ALTER TABLE review_helpful_votes DROP CONSTRAINT IF EXISTS review_helpful_votes_review_id_fkey;
+ALTER TABLE review_helpful_votes ADD  CONSTRAINT review_helpful_votes_review_id_fkey FOREIGN KEY (review_id) REFERENCES tool_reviews(id) ON DELETE CASCADE;
+ALTER TABLE review_helpful_votes DROP CONSTRAINT IF EXISTS review_helpful_votes_user_id_fkey;
+ALTER TABLE review_helpful_votes ADD  CONSTRAINT review_helpful_votes_user_id_fkey FOREIGN KEY (user_id) REFERENCES user_profiles(id) ON DELETE CASCADE;

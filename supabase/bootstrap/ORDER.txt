@@ -1,0 +1,53 @@
+# Order in which files are concatenated into ALL_IN_ONE.sql.
+#
+# Dependency-driven, NOT alphabetical and NOT chronological. Rebuild with:
+#     node scripts/migration/build-all-in-one.mjs
+#
+# Blank lines and # comments are ignored.
+
+supabase/bootstrap/01_extensions.sql
+supabase/bootstrap/02_tables.sql
+supabase/bootstrap/03_view_and_grants.sql
+
+supabase/migrations/add_advanced_search.sql
+supabase/migrations/add_semantic_search.sql
+supabase/migrations/add_view_tracking.sql
+supabase/migrations/add_tool_submissions.sql
+supabase/migrations/add_priority_column.sql
+supabase/migrations/add_structured_pricing.sql
+supabase/migrations/add_tool_slugs.sql
+
+# MUST precede add_normalized_name.sql.
+#
+# add_normalized_name.sql REDEFINES catalog_stats_current() and then calls it
+# at the bottom of the file. That function body reads the `catalog_stats`
+# table, which only this migration creates -- so running them the other way
+# round fails with:
+#
+#     ERROR: relation "catalog_stats" does not exist
+#     where: PL/pgSQL function catalog_stats_current(interval) line 5
+#
+# Found by running it (2026-09-28). The chronological order of the two files
+# implies the opposite, which is why this list is explicit rather than a glob.
+supabase/migrations/add_catalog_stats.sql
+supabase/migrations/add_normalized_name.sql
+
+supabase/migrations/add_recommendation_cache.sql
+supabase/migrations/add_stack_cache.sql
+supabase/migrations/add_recommendation_feedback.sql
+supabase/migrations/fix_advanced_search_bounded_retrieval.sql
+supabase/migrations/add_refresh_trending_stats.sql
+supabase/migrations/add_missing_perf_indexes.sql
+supabase/migrations/add_seo_catalog_rpcs.sql
+supabase/migrations/add_cache_retention.sql
+supabase/migrations/add_notification_digest.sql
+supabase/migrations/add_contact_submissions.sql
+supabase/migrations/add_push_subscriptions.sql
+supabase/migrations/add_tool_profile_fields.sql
+
+# Last of the migrations: drops the IVFFlat index that add_semantic_search.sql
+# creates (28 MB, zero scans on the old project) so the HNSW index added below
+# is the only vector index left.
+supabase/migrations/drop_unused_indexes.sql
+
+supabase/bootstrap/04_indexes_not_in_migrations.sql
