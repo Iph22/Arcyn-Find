@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server'
 import { getSupabaseAdmin } from '@/lib/supabase'
+import { screenSubmission } from '@/lib/submission-screening'
 import { normalizeName } from '@/lib/seo/slug'
 
 export const runtime = 'nodejs'
@@ -115,6 +116,17 @@ export async function POST(request: Request) {
 
         const finalCategory = validCategories.includes(category) ? category : 'Other'
 
+        // Screen before storing, so the reviewer has the evidence in front of
+        // them rather than a name and a link. Deterministic and model-free --
+        // see lib/submission-screening.ts for why, and for why a site that
+        // refuses bots is not counted against the submitter.
+        const screening = await screenSubmission({
+            name: name.trim(),
+            description: description.trim(),
+            url: url.trim(),
+            tags: body.tags || [],
+        })
+
         // Insert into submissions table
         const { data: submission, error } = await supabase
             .from('tool_submissions')
@@ -128,46 +140,27 @@ export async function POST(request: Request) {
                 tags: body.tags || [],
                 submitted_by: body.email || null,
                 status: 'pending',
+                screening,
+                screening_score: screening.score,
+                image_url: typeof body.imageUrl === 'string' ? body.imageUrl : null,
                 submitted_at: new Date().toISOString(),
             })
             .select()
             .single()
 
         if (error) {
-            // If the submissions table doesn't exist, insert directly into ai_tools
-            if (error.message?.includes('does not exist') || error.code === '42P01') {
-                const toolId = `submitted-${name.toLowerCase().replace(/[^a-z0-9]+/g, '-').substring(0, 50)}-${Date.now()}`
-
-                const { error: insertError } = await supabase
-                    .from('ai_tools')
-                    .insert({
-                        id: toolId,
-                        name: name.trim().substring(0, 100),
-                        description: description.trim().substring(0, 500),
-                        platform: url.trim(),
-                        category: finalCategory,
-                        pricing: body.pricing || 'Unknown',
-                        access_type: body.accessType || 'Unknown',
-                        tags: body.tags || [],
-                        popularity: 50,
-                        region: 'Global',
-                        last_updated: new Date().toISOString().split('T')[0],
-                        is_trending: false,
-                        image: null,
-                    })
-
-                if (insertError) {
-                    console.error('[Submit] Error inserting tool:', insertError)
-                    return NextResponse.json({ error: 'Failed to submit tool' }, { status: 500 })
-                }
-
-                return NextResponse.json({
-                    success: true,
-                    message: 'Tool submitted and added directly!',
-                    toolId,
-                })
-            }
-
+            // There is deliberately no fallback here.
+            //
+            // This used to catch "does not exist" and insert straight into
+            // ai_tools, answering "Tool submitted and added directly!" -- so an
+            // error inserting into the review queue published unreviewed,
+            // user-supplied content to the live catalog. The table does exist,
+            // so it never fired (verified: zero rows in ai_tools carry the
+            // `submitted-` id prefix it generated), but any future error whose
+            // message happened to contain that phrase would have tripped it.
+            //
+            // A submission that cannot be queued is a submission that failed.
+            // Losing one is recoverable; publishing an unreviewed one is not.
             console.error('[Submit] Error:', error)
             return NextResponse.json({ error: 'Failed to submit tool' }, { status: 500 })
         }
