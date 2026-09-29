@@ -17,6 +17,11 @@ import type { DigestTool } from './digest-content'
 export interface DigestEmailInput {
   tools: DigestTool[]
   isNew: boolean
+  /**
+   * Categories this selection was matched to, when it was personalised.
+   * Empty means the shared best-of, and the copy must not claim otherwise.
+   */
+  matchedCategories?: string[]
   displayName: string | null
   unsubscribeUrl: string
   settingsUrl: string
@@ -93,9 +98,17 @@ export function renderDigestHtml(input: DigestEmailInput): string {
   const { tools, isNew, displayName, unsubscribeUrl, settingsUrl, siteUrl } = input
 
   const greeting = displayName ? `Hi ${text(displayName)},` : 'Hi,'
-  const intro = isNew
-    ? 'Here are the newest AI tools added to Arcyn Find since we last wrote.'
-    : 'Here is a handful of AI tools worth a look on Arcyn Find right now.'
+  // Three intros, not two. A personalised selection says so and names the
+  // categories it came from, because a reader who can see why these five were
+  // chosen can tell whether the choosing is any good -- and a generic email
+  // that claims to be personal is the fastest way to lose that trust.
+  const categories = input.matchedCategories ?? []
+  const intro =
+    categories.length > 0
+      ? `Based on your interests in ${categories.slice(0, 3).join(', ')} — here is what is worth a look.`
+      : isNew
+        ? 'Here are the newest AI tools added to Arcyn Find since we last wrote.'
+        : 'Here is a handful of AI tools worth a look on Arcyn Find right now.'
 
   const home = safeUrl(siteUrl) ?? 'https://arcynfind.com'
   const unsub = safeUrl(unsubscribeUrl)
@@ -168,9 +181,17 @@ export function renderDigestText(input: DigestEmailInput): string {
   const { tools, isNew, displayName, unsubscribeUrl, settingsUrl, siteUrl } = input
 
   const greeting = displayName ? `Hi ${displayName},` : 'Hi,'
-  const intro = isNew
-    ? 'Here are the newest AI tools added to Arcyn Find since we last wrote.'
-    : 'Here is a handful of AI tools worth a look on Arcyn Find right now.'
+  // Three intros, not two. A personalised selection says so and names the
+  // categories it came from, because a reader who can see why these five were
+  // chosen can tell whether the choosing is any good -- and a generic email
+  // that claims to be personal is the fastest way to lose that trust.
+  const categories = input.matchedCategories ?? []
+  const intro =
+    categories.length > 0
+      ? `Based on your interests in ${categories.slice(0, 3).join(', ')} — here is what is worth a look.`
+      : isNew
+        ? 'Here are the newest AI tools added to Arcyn Find since we last wrote.'
+        : 'Here is a handful of AI tools worth a look on Arcyn Find right now.'
 
   const body = tools
     .map((tool) => `* ${tool.name}${tool.category ? ` (${tool.category})` : ''}\n  ${tool.description}\n  ${tool.url}`)

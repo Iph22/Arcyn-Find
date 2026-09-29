@@ -103,6 +103,15 @@ export interface DigestContent {
   tools: DigestTool[]
   /** True when the selection is "new since you last heard from us". */
   isNew: boolean
+  /**
+   * Category names this selection was matched to, when it was personalised.
+   *
+   * Empty for the shared best-of. The subject line and the greeting read this
+   * to decide whether they may claim the email was picked for the reader --
+   * a claim that has to be false-proof, because an email that says "based on
+   * your interests" and is not teaches the reader to ignore the ones that are.
+   */
+  matchedCategories?: string[]
 }
 
 function toDigestTool(tool: CatalogTool, siteUrl: string): DigestTool {
