@@ -1,7 +1,12 @@
 import type { Metadata } from 'next'
 
-import { LandingPage, type LandingStats } from '@/components/landing/landing-page'
+import {
+  LandingPage,
+  type LandingCategory,
+  type LandingStats,
+} from '@/components/landing/landing-page'
 import { getCatalogStats } from '@/lib/seo/catalog-stats'
+import { getCategoriesSafe } from '@/lib/seo/catalog'
 import { getLandingSearchDemo } from '@/lib/landing/search-demo'
 import { siteUrl } from '@/lib/seo/site'
 import { SEARCH_PARAM } from '@/lib/tool-href'
@@ -68,8 +73,31 @@ export default async function HomePage() {
   // the hero animation's content — real tools for a real query, fetched here
   // for the same reason the figures are: so the page never shows anything the
   // product would not.
-  const [stats, searchDemo] = await Promise.all([getCatalogStats(), getLandingSearchDemo()])
+  const [stats, searchDemo, allCategories] = await Promise.all([
+    getCatalogStats(),
+    getLandingSearchDemo(),
+    getCategoriesSafe(),
+  ])
   const landingStats: LandingStats = stats
+
+  // The hero's category chips.
+  //
+  // getCategoriesSafe() has already applied MIN_CATEGORY_SIZE, so every slug
+  // here resolves to a page that renders -- which is the whole reason this
+  // list is built on the server rather than by slugifying names on the
+  // client, where "Research & Open Source" -- a real category value with
+  // only 11 published tools -- would produce a confident link to a 404.
+  // It also degrades to [] rather than throwing, and the hero simply omits
+  // the chip row in that case.
+  //
+  // Ordered by catalog size, largest first, with a name tiebreak so equal
+  // categories do not reorder between renders -- the ordering
+  // /api/categories already uses. NOT by popularity: docs/ROUTING.md records
+  // that there is no engagement signal on this site to rank on.
+  const categories: LandingCategory[] = [...allCategories]
+    .sort((a, b) => b.count - a.count || a.name.localeCompare(b.name))
+    .slice(0, 6)
+    .map((c) => ({ slug: c.slug, name: c.name, count: c.count }))
 
   const origin = siteUrl()
   const jsonLd = {
@@ -120,7 +148,7 @@ export default async function HomePage() {
           __html: JSON.stringify(jsonLd).replace(/</g, '\\u003c'),
         }}
       />
-      <LandingPage stats={landingStats} searchDemo={searchDemo} />
+      <LandingPage stats={landingStats} searchDemo={searchDemo} categories={categories} />
     </>
   )
 }
