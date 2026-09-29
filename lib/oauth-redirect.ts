@@ -83,7 +83,18 @@ export function isAllowedOAuthOrigin(origin: string): boolean {
     }
   }
 
-  if (url.origin === PRODUCTION_ORIGIN) return true
+  // The production apex and any subdomain of it. `preview.arcynfind.com` is
+  // bound to the `main` branch in Vercel and is the stable URL to verify an
+  // authenticated page on before promoting -- unlike a per-deployment
+  // *.vercel.app host, which changes on every push and so cannot be registered
+  // in the Google Cloud Console once and left alone.
+  //
+  // Anchored on a leading dot against the apex, so `arcynfind.com.evil.test`
+  // does not match: it ends with `.evil.test`, not with `.arcynfind.com`.
+  const apex = new URL(PRODUCTION_ORIGIN).hostname
+  if (url.protocol === 'https:' && (url.hostname === apex || url.hostname.endsWith(`.${apex}`))) {
+    return true
+  }
 
   // Vercel preview deployments. The host is generated per deployment, so it
   // cannot be enumerated; what can be required is that it is a Vercel
