@@ -72,9 +72,17 @@ const ANNOUNCEMENTS: readonly Announcement[] = [
     push: {
       title: 'Compare tools side by side',
       body: 'Put up to four AI tools next to each other on price, free tier and features.',
-      // One weekly run. The digest cron is the only thing that fires this, so
-      // a window shorter than a week means exactly one push per subscriber.
-      pushUntil: '2026-10-05',
+      // The 2026-10-06 run, and only that one.
+      //
+      // This date has to be picked against the cron, not by counting days
+      // from today. The digest fires Tuesdays 09:00 UTC
+      // (.github/workflows/cron-notification-digest.yml), and the 2026-09-29
+      // run had already gone out before this landed -- so the next three
+      // sends are 10-06, 10-13 and 10-20. An earlier-looking `2026-10-05`
+      // reads like "about a week" and would have closed the window before a
+      // single run touched it: the push would silently never have fired, and
+      // nothing would have failed to say so.
+      pushUntil: '2026-10-06',
     },
   },
 ]
