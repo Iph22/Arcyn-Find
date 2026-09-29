@@ -310,6 +310,86 @@ export const getToolById = cache(async (id: string): Promise<CatalogTool | null>
 })
 
 /**
+ * Resolve the handful of `/compare?tools=` segments to rows, in one round trip
+ * per identifier kind.
+ *
+ * Two bounded `.in()` queries, not a loop of getToolBySlug/getToolById: the
+ * rule from §9.1 is reduce in SQL rather than in JavaScript, and four
+ * sequential single-row round trips is the JavaScript version of the same
+ * mistake at a smaller scale. The `.in()` lists are capped by
+ * parseCompareSegments before they get here, so neither query can grow with
+ * user input.
+ *
+ * Safe against arbitrary segments because `ai_tools.id` is `text`, not `uuid`
+ * (supabase/bootstrap/02_tables.sql) -- a junk value in the list matches
+ * nothing rather than failing the whole statement on a cast error.
+ *
+ * The second query runs only for segments the first did not claim, which for
+ * ordinary in-app links is none: everything above the publish floor is linked
+ * by slug.
+ *
+ * Returns rows in the order the caller asked for them, because that is the
+ * order the columns appear in and a comparison that silently reorders itself
+ * on reload is disorienting. Segments that match nothing are simply absent --
+ * the page reports them rather than 404ing, since one dead id in a shared link
+ * should not cost the reader the other three tools.
+ */
+export async function getToolsBySegments(segments: readonly string[]): Promise<CatalogTool[]> {
+  if (segments.length === 0) return []
+
+  const supabase = getSupabaseAdmin()
+
+  const bySlug = await supabase
+    .from('ai_tools')
+    .select(PAGE_COLUMNS)
+    .in('slug', segments as string[])
+
+  if (bySlug.error) {
+    console.error('[seo/catalog] getToolsBySegments (slug) failed:', bySlug.error.message)
+  }
+
+  const found = new Map<string, CatalogTool>()
+  for (const row of (bySlug.data ?? []) as Row[]) {
+    const tool = toTool(row)
+    if (tool.slug) found.set(tool.slug, tool)
+  }
+
+  const unresolved = segments.filter((segment) => !found.has(segment))
+  if (unresolved.length > 0) {
+    const byId = await supabase
+      .from('ai_tools')
+      .select(PAGE_COLUMNS)
+      .in('id', unresolved as string[])
+
+    if (byId.error) {
+      console.error('[seo/catalog] getToolsBySegments (id) failed:', byId.error.message)
+    }
+    for (const row of (byId.data ?? []) as Row[]) {
+      const tool = toTool(row)
+      found.set(tool.id, tool)
+    }
+  }
+
+  // Same gate the tool pages apply: `prohibited` rows do not resolve anywhere
+  // public, and a comparison table is as public as a tool page.
+  //
+  // De-duplicated by row id, not by segment: parseCompareSegments can only see
+  // that two strings differ, so `?tools=cursor,discovery-cursor` -- the slug
+  // and the id of one tool -- survives it and would otherwise render the same
+  // product in two columns.
+  const seen = new Set<string>()
+  const out: CatalogTool[] = []
+  for (const segment of segments) {
+    const tool = found.get(segment)
+    if (!tool || seen.has(tool.id)) continue
+    if (!isPubliclyListable(tool)) continue
+    seen.add(tool.id)
+    out.push(tool)
+  }
+  return out
+}
+
+/**
  * The published slug for a product name, for resolving a duplicate re-ingest
  * to the row that owns the public page (§1: 55% of the corpus is duplicates).
  *

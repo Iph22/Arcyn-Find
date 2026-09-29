@@ -137,6 +137,42 @@ clickable while the result keeps a genuine href. Anything interactive layered
 on top (a favourite button, a "Details" button) needs `relative z-10`, or the
 overlay swallows its clicks. Do not nest a `<button>` inside the `<a>`.
 
+## A comparison is a URL, not a tray
+
+`/compare?tools=<a>,<b>` is the comparison. The query string is the whole
+state, the page resolves it on the server, and `noindex, follow` keeps it out
+of the index the same way `/browse` is kept out.
+
+Build the URL with **`compareHref()`** from `lib/compare.ts`, and read it back
+with **`parseCompareSegments()`**. Segments follow `toolHref()`'s precedence —
+slug first, id as the fallback — so an unpublished row is still comparable.
+
+The tray in `lib/compare-selection.ts` is *not* the state. It is a localStorage
+scratchpad so a selection survives moving between pages, and on `/compare` it
+is overwritten from the URL (`components/compare/compare-sync.tsx`). That
+direction is deliberate: a shared link must not merge into whatever the
+recipient already had selected, or they read a comparison nobody assembled.
+
+This is the section above applied to the feature that most needed it. A
+comparison is the artefact somebody pastes into a team channel; behind a modal
+it would have no URL to paste. That is also why removing a column is a `<Link>`
+to the shorter URL rather than a click handler.
+
+**What a comparison may claim.** `COMPARE_FIELDS` deliberately contains no
+popularity, rating or save count — see the section above. The browse cards
+render `popularity / 20` as stars and `popularity * 100` as saves, which is
+tolerable as card decoration and is not tolerable in a table headed *compare*,
+where a number is a claim someone acts on. Pricing carries the caveats from
+`docs/CORPUS_AND_CONSTRAINTS.md` §1 in the page itself: annual plans are stored
+as monthly equivalents, and usage- and quote-priced tools get `—` rather than a
+guess.
+
+`docs/SEO_ARCHITECTURE.md` §5 rejected `/compare/a-vs-b` **pages**, and still
+does. That was about generating the combinatorial set into the index. This
+generates nothing: a reader assembles the URL, it asks not to be indexed, and
+`robots.txt` disallows the parameterised form while leaving bare `/compare`
+crawlable so the `noindex` can be read.
+
 ## Verifying
 
 ```

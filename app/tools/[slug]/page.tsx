@@ -3,6 +3,7 @@ import Link from 'next/link'
 import { notFound, permanentRedirect } from 'next/navigation'
 import { ExternalLink } from 'lucide-react'
 
+import { CompareTray } from '@/components/compare/compare-tray'
 import { PublicFooter, PublicHeader } from '@/components/seo/public-chrome'
 import { SeoToolCard } from '@/components/seo/tool-card'
 import { ToolImage } from '@/components/tools/tool-image'
@@ -292,7 +293,13 @@ export default async function ToolPage({ params }: Props) {
           </div>
         </header>
 
-        <ToolActions toolId={tool.id} name={tool.name} platform={tool.platform} url={canonical} />
+        <ToolActions
+          toolId={tool.id}
+          slug={tool.slug}
+          name={tool.name}
+          platform={tool.platform}
+          url={canonical}
+        />
 
         <section className="mt-8" aria-labelledby="what-is">
           <h2 id="what-is" className="text-xl font-semibold">
@@ -370,6 +377,10 @@ export default async function ToolPage({ params }: Props) {
       </main>
 
       <PublicFooter categories={categories} />
+
+      {/* Renders nothing until something is selected, so it costs an idle
+          reader a hook and no markup. */}
+      <CompareTray />
     </div>
   )
 }

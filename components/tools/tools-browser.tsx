@@ -28,6 +28,8 @@ const ToolDetailModal = dynamic(
   { ssr: false }
 )
 import { PricingBadge } from "@/components/tools/pricing-badge"
+import { CompareToggle } from "@/components/compare/compare-toggle"
+import { CompareTray, CompareTraySpacer } from "@/components/compare/compare-tray"
 import { usePreferences } from "@/contexts/preferences-context"
 import { useLanguage } from "@/contexts/language-context"
 import { useAITools } from "@/lib/hooks/use-ai-tools"
@@ -234,6 +236,13 @@ function ToolsContent() {
   const tools = useMemo(() => {
     return allTools.map((tool: AIEntry) => ({
       id: tool.id,
+      // Carried through so toolHref() can use it. It was being dropped here,
+      // which meant every card in this grid linked to /tools/<id> and paid a
+      // 308 on each click -- the exact failure docs/ROUTING.md describes under
+      // "Link to tools by slug": the column is selected (it is in
+      // AI_TOOLS_COLUMNS and in AIEntry) and was simply lost on the way to the
+      // component. Nothing about the link looked wrong.
+      slug: tool.slug,
       name: tool.name,
       description: tool.description,
       category: categoryMapping[tool.category] || tool.category,
@@ -612,16 +621,21 @@ function ToolsContent() {
                               </h3>
                               {/* Above the stretched overlay, or the anchor
                                   would swallow the click. */}
-                              <Button
-                                variant="ghost"
-                                size="icon"
-                                className="relative z-10 h-8 w-8 shrink-0 rounded-lg"
-                                onClick={(e) => handleToggleFavorite(tool.id, e)}
-                                disabled={togglingFavorite === tool.id || !user}
-                                title={favoritedTools.has(tool.id) ? t("tools.removeFromFavorites") : t("tools.addToFavorites")}
-                              >
-                                <Bookmark className={`h-4 w-4 ${favoritedTools.has(tool.id) ? 'fill-primary text-primary' : ''}`} />
-                              </Button>
+                              <div className="flex shrink-0 items-center gap-0.5">
+                                <CompareToggle
+                                  tool={{ id: tool.id, slug: tool.slug, name: tool.name }}
+                                />
+                                <Button
+                                  variant="ghost"
+                                  size="icon"
+                                  className="relative z-10 h-8 w-8 shrink-0 rounded-lg"
+                                  onClick={(e) => handleToggleFavorite(tool.id, e)}
+                                  disabled={togglingFavorite === tool.id || !user}
+                                  title={favoritedTools.has(tool.id) ? t("tools.removeFromFavorites") : t("tools.addToFavorites")}
+                                >
+                                  <Bookmark className={`h-4 w-4 ${favoritedTools.has(tool.id) ? 'fill-primary text-primary' : ''}`} />
+                                </Button>
+                              </div>
                             </div>
 
                             <p className="mb-3 md:mb-4 line-clamp-2 text-xs md:text-sm text-muted-foreground leading-relaxed">
@@ -706,9 +720,15 @@ function ToolsContent() {
                 <p className="text-sm md:text-base text-muted-foreground">{t("search.tryAdjusting")}</p>
               </motion.div>
             )}
+
+            <CompareTraySpacer />
           </div>
         </main>
       </div>
+
+      {/* The compare bar. Fixed, so it sits outside the scrolling column and
+          stays reachable while the reader keeps browsing for a third tool. */}
+      <CompareTray />
 
       {/* Tool Detail Modal */}
       <ToolDetailModal

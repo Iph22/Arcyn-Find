@@ -17,6 +17,7 @@ import { PricingBadge } from "@/components/tools/pricing-badge"
 import { usePreferences } from "@/contexts/preferences-context"
 import { useLanguage } from "@/contexts/language-context"
 import { useAuth } from "@/contexts/auth-context"
+import { CompareTray } from "@/components/compare/compare-tray"
 import { logger } from "@/lib/logger"
 import { categoryPageHref, searchHref, toolHref } from "@/lib/tool-href"
 import { categoriesForInterests } from "@/lib/interest-categories"
@@ -488,6 +489,9 @@ export default function HomePage() {
         </main>
       </div>
 
+      {/* A comparison assembled on /browse should still be one click away
+          after coming back here. Renders nothing when nothing is selected. */}
+      <CompareTray />
     </div>
   )
 }

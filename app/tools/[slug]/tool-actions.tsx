@@ -3,6 +3,7 @@
 import { useState } from 'react'
 import { Bookmark, Check, ExternalLink, Share2 } from 'lucide-react'
 
+import { CompareToggle } from '@/components/compare/compare-toggle'
 import { Button } from '@/components/ui/button'
 import { useFavorites } from '@/lib/hooks/use-favorites'
 import { useTrackToolView } from '@/lib/hooks/use-track-tool-view'
@@ -21,11 +22,14 @@ import { useTrackToolView } from '@/lib/hooks/use-track-tool-view'
  */
 export function ToolActions({
   toolId,
+  slug,
   name,
   platform,
   url,
 }: {
   toolId: string
+  /** For the compare link, which prefers the slug exactly as toolHref() does. */
+  slug?: string | null
   name: string
   platform: string | null
   url: string
@@ -68,6 +72,10 @@ export function ToolActions({
         <Bookmark className={`mr-2 h-4 w-4 ${isFavorite(toolId) ? 'fill-primary text-primary' : ''}`} />
         {isFavorite(toolId) ? 'Saved' : 'Save'}
       </Button>
+      {/* The other half of the comparison flow. Someone who arrived here from
+          Google has not been through /browse and has no tray yet -- this is
+          where they start one, and the bar appears as soon as they do. */}
+      <CompareToggle tool={{ id: toolId, slug, name }} variant="button" />
       <Button variant="outline" onClick={share}>
         {copied ? <Check className="mr-2 h-4 w-4" /> : <Share2 className="mr-2 h-4 w-4" />}
         {copied ? 'Link copied' : 'Share'}
