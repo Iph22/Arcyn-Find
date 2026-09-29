@@ -61,7 +61,7 @@ function ToolsContent() {
   // meant the first render fetched the UNFILTERED list, rendered it, and only
   // replaced it ~450ms later when the debounce caught up: arriving from a
   // search showed a screenful of wrong results first.
-  const [debouncedSearch, setDebouncedSearch] = useState(initialSearch)
+  const [committedSearch, setCommittedSearch] = useState(initialSearch)
   // `?category=` lets the rest of the app open this browser already filtered,
   // which is what an in-app category tile should do. An unrecognised slug
   // falls back to "All" rather than filtering to nothing.
@@ -87,17 +87,24 @@ function ToolsContent() {
 
   const ITEMS_PER_PAGE = 24 // Load 24 tools at a time (divisible by 2 and 3 for grid)
 
-  // Debounce search input. 200ms was too short in production: normal typing
-  // pauses (between words, thinking mid-query) routinely exceed 200ms, so
-  // partial words like "coding assignm" were firing real API requests, and a
-  // second pause later in the same typing session fired an overlapping one.
-  // 450ms waits out a mid-typing pause without feeling laggy for a completed query.
-  useEffect(() => {
-    const timer = setTimeout(() => {
-      setDebouncedSearch(searchQuery)
-    }, 450)
-
-    return () => clearTimeout(timer)
+  // Search runs when the reader says it does -- Enter, or the button -- and
+  // not before.
+  //
+  // This was a 450ms debounce on every keystroke, which meant a half-typed
+  // thought was sent as a real query: "I want to create a 30 sec" ran, and so
+  // did "I want to create a 30 secs long video, i nee". Each one hit
+  // /api/ai-models AND /api/recommend, so a single sentence could spend
+  // several AI calls answering questions nobody asked, and the results list
+  // churned under the reader while they were still typing.
+  //
+  // A search box that fires on its own also cannot be got wrong slowly: there
+  // is no moment where you have typed the query and not yet asked for it, so
+  // the reader never gets to finish the sentence.
+  const submitSearch = useCallback(() => {
+    const next = searchQuery.trim()
+    setCommittedSearch(next)
+    setPage(1)
+    if (next) addRecentSearch(next)
   }, [searchQuery])
 
   // Map display category to API category
@@ -119,11 +126,11 @@ function ToolsContent() {
   // Shares the SAME debounced value as the search below, so a reasoning call
   // can't fire per keystroke. Runs in parallel with the search, not before it.
   const { recommendation, isLoading: isRecommendationLoading } = useRecommendation(
-    debouncedSearch || undefined
+    committedSearch || undefined
   )
 
   const { tools: apiTools, isLoading, error, hasMore } = useAITools({
-    searchQuery: debouncedSearch || undefined,
+    searchQuery: committedSearch || undefined,
     category: apiCategory,
     accessType: accessType === 'all' ? undefined : accessType,
     region: region === 'all' ? undefined : region,
@@ -156,7 +163,7 @@ function ToolsContent() {
   useEffect(() => {
     setAllTools([])
     setPage(1)
-  }, [debouncedSearch, selectedCategory, accessType, region, maxPrice])
+  }, [committedSearch, selectedCategory, accessType, region, maxPrice])
 
   // Load favorited tools
   useEffect(() => {
@@ -382,16 +389,11 @@ function ToolsContent() {
                   onChange={setSearchQuery}
                   placeholder={t("search.placeholder")}
                   className="flex-1"
-                  showButton={false}
-                  // Record the search so /home's Recent Searches reflects
-                  // searching done here too, not only searches launched from
-                  // the home page. Deliberately hung off submit rather than
-                  // the debounced value: the debounce fires on every typing
-                  // pause, so "cod" and "codin" would both be filed as
-                  // searches the user made.
-                  onSubmit={() => {
-                    if (searchQuery.trim()) addRecentSearch(searchQuery)
-                  }}
+                  // Was false, which left Enter as the only way to search on a
+                  // page whose entire purpose is searching -- and nothing on
+                  // screen said so.
+                  showButton={true}
+                  onSubmit={submitSearch}
                   onFocus={() => {
                     // Handle mobile scroll
                     if (typeof window !== 'undefined' && window.innerWidth < 768) {
@@ -527,9 +529,9 @@ function ToolsContent() {
                 loads independently of the grid: it renders its own skeleton and
                 fills in when the reasoning call returns, so the results list
                 below never waits on it. */}
-            {debouncedSearch && (
+            {committedSearch && (
               <RecommendationPanel
-                query={debouncedSearch}
+                query={committedSearch}
                 recommendation={recommendation}
                 isLoading={isRecommendationLoading}
               />
@@ -537,7 +539,7 @@ function ToolsContent() {
 
             {/* Heading that separates our pick from the directory itself.
                 Only shown when the panel above is actually present. */}
-            {debouncedSearch && (recommendation?.bestMatch || isRecommendationLoading) && (
+            {committedSearch && (recommendation?.bestMatch || isRecommendationLoading) && (
               <div className="mb-3 flex items-center gap-2">
                 <h2 className="text-sm font-semibold uppercase tracking-wide text-muted-foreground">
                   All matching tools
@@ -616,7 +618,7 @@ function ToolsContent() {
                                   href={toolHref(tool)}
                                   className="after:absolute after:inset-0 after:content-[''] hover:underline"
                                 >
-                                  <HighlightedText text={tool.name} query={debouncedSearch} />
+                                  <HighlightedText text={tool.name} query={committedSearch} />
                                 </Link>
                               </h3>
                               {/* Above the stretched overlay, or the anchor
@@ -639,7 +641,7 @@ function ToolsContent() {
                             </div>
 
                             <p className="mb-3 md:mb-4 line-clamp-2 text-xs md:text-sm text-muted-foreground leading-relaxed">
-                              <HighlightedText text={tool.description || ''} query={debouncedSearch} />
+                              <HighlightedText text={tool.description || ''} query={committedSearch} />
                             </p>
 
                             <div className="mb-3 md:mb-4 flex items-center gap-2 flex-wrap">
@@ -711,13 +713,31 @@ function ToolsContent() {
             )}
 
             {/* Empty State */}
-            {!isLoading && !error && filteredTools.length === 0 && (
+            {/* `!isRecommendationLoading` matters as much as `!isLoading`.
+                The list and the recommendation are separate requests and the
+                recommendation is far slower -- measured at 18-33s against a
+                warm server. Without it the page rendered "No tools found" the
+                moment the list settled, then dropped a recommendation in above
+                it half a minute later, which is what "I get zero found tools
+                but somehow I get recommendations" was describing. A query that
+                is still running has not found nothing; it has not finished. */}
+            {!isLoading && !isRecommendationLoading && !error && filteredTools.length === 0 && (
               <motion.div className="py-12 md:py-20 mb-6 md:mb-8 text-center" initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}>
                 <div className="mx-auto mb-4 flex h-12 w-12 md:h-16 md:w-16 items-center justify-center rounded-2xl bg-muted">
                   <Search className="h-6 w-6 md:h-8 md:w-8 text-muted-foreground" />
                 </div>
-                <h3 className="mb-2 text-base md:text-lg font-semibold">{t("search.noToolsFound")}</h3>
-                <p className="text-sm md:text-base text-muted-foreground">{t("search.tryAdjusting")}</p>
+                {/* "No tools found" directly beneath a recommendation for
+                    the same query is the page contradicting itself. The list
+                    and the panel are answered by different retrieval --
+                    /api/ai-models for one, /api/recommend for the other -- so
+                    on a long natural-language query the panel routinely finds
+                    something the list does not. Say which happened. */}
+                <h3 className="mb-2 text-base md:text-lg font-semibold">
+                  {recommendation?.bestMatch ? t("search.noExactMatches") : t("search.noToolsFound")}
+                </h3>
+                <p className="text-sm md:text-base text-muted-foreground">
+                  {recommendation?.bestMatch ? t("search.seeSuggestionAbove") : t("search.tryAdjusting")}
+                </p>
               </motion.div>
             )}
 
