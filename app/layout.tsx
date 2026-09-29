@@ -10,6 +10,7 @@ import { LanguageProvider } from "@/contexts/language-context"
 import { ThemeProvider } from "next-themes"
 import ClientLayout from "./client-layout"
 import { FeedbackWidget } from "@/components/feedback-widget"
+import { EnableNotificationsPrompt } from "@/components/notifications/enable-notifications-prompt"
 import { Analytics } from "@vercel/analytics/next"
 import { siteUrl } from "@/lib/seo/site"
 import { Toaster } from "@/components/ui/sonner"
@@ -212,6 +213,12 @@ export default function RootLayout({
                   <ClientLayout>
                     {children}
                   </ClientLayout>
+                  {/* Inside LanguageProvider and AuthProvider because it reads
+                      both, and outside ClientLayout so it is reachable from
+                      every route. It decides for itself whether to appear --
+                      signed in, no subscription yet, permission still
+                      unasked -- and stays silent otherwise. */}
+                  <EnableNotificationsPrompt />
                 </AvatarProvider>
               </LanguageProvider>
             </PreferencesProvider>

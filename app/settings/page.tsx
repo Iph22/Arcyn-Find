@@ -20,6 +20,7 @@ import { uploadAvatar, uploadBanner } from "@/lib/storage"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { usePreferences } from "@/contexts/preferences-context"
 import { useLanguage } from "@/contexts/language-context"
+import { usePushSubscription } from "@/lib/hooks/use-push-subscription"
 import { useAvatar } from "@/contexts/avatar-context"
 import { Label } from "@/components/ui/label"
 import { toast } from "sonner"
@@ -37,33 +38,11 @@ interface UserProfile {
   updated_at: string
 }
 
-/**
- * Convert a VAPID public key to the byte array `pushManager.subscribe()` wants.
- *
- * The key is distributed as base64url (`-` and `_`, no padding) because it
- * travels in URLs and headers, but `applicationServerKey` takes raw bytes.
- * Passing the string through unconverted fails at subscribe time with an
- * opaque `InvalidAccessError`, which is a miserable thing to debug.
- */
-function urlBase64ToUint8Array(base64String: string): Uint8Array<ArrayBuffer> {
-  const padding = "=".repeat((4 - (base64String.length % 4)) % 4)
-  const base64 = (base64String + padding).replace(/-/g, "+").replace(/_/g, "/")
-  const raw = window.atob(base64)
-
-  // The ArrayBuffer is allocated explicitly rather than via
-  // `new Uint8Array(length)`. Since TypeScript 5.7 the typed arrays are
-  // generic over their buffer, and that shorthand widens to
-  // `Uint8Array<ArrayBufferLike>` -- which admits SharedArrayBuffer and so is
-  // not assignable to `BufferSource`, the type `applicationServerKey` wants.
-  const output = new Uint8Array(new ArrayBuffer(raw.length))
-  for (let i = 0; i < raw.length; i++) output[i] = raw.charCodeAt(i)
-  return output
-}
-
 export default function SettingsPage() {
   const router = useRouter()
   const { preferences, updatePreferences } = usePreferences()
   const { t } = useLanguage()
+  const push = usePushSubscription()
   const { avatarUrl: contextAvatarUrl, refreshAvatar } = useAvatar()
   const { user, isLoading: isAuthLoading, isAuthenticated } = useAuth()
   const { setTheme: setNextTheme } = useTheme()
@@ -86,14 +65,11 @@ export default function SettingsPage() {
   const [bannerPreview, setBannerPreview] = useState<string | null>(null)
 
   // Notification settings
-  const [pushEnabled, setPushEnabled] = useState(false)
   const [emailNotifications, setEmailNotifications] = useState(true)
-  const [notificationPermission, setNotificationPermission] = useState("default")
   const [notifyNewFollowers, setNotifyNewFollowers] = useState(true)
   const [notifyReviews, setNotifyReviews] = useState(true)
   const [notifyMarketing, setNotifyMarketing] = useState(false)
   const [notifyDigest, setNotifyDigest] = useState(true)
-  const [isSubscribingPush, setIsSubscribingPush] = useState(false)
 
   // Privacy settings
   const [profileVisibility, setProfileVisibility] = useState("public")
@@ -169,14 +145,6 @@ export default function SettingsPage() {
     }
   }, [user, isAuthLoading, isAuthenticated, router])
 
-  useEffect(() => {
-    // Check notification permission on mount
-    if ("Notification" in window) {
-      setNotificationPermission(Notification.permission)
-      setPushEnabled(Notification.permission === "granted")
-    }
-  }, [])
-
   // Hydrate the notification and privacy switches from what was actually saved.
   //
   // These were previously display-only on load: every switch reset to its
@@ -213,29 +181,6 @@ export default function SettingsPage() {
   }, [preferences])
 
   /**
-   * A browser push subscription is per *browser*, not per account, so the
-   * switch has to reflect what this browser is actually subscribed to rather
-   * than a stored preference. Asked on mount and after every change.
-   */
-  useEffect(() => {
-    let cancelled = false
-    const read = async () => {
-      if (!("serviceWorker" in navigator) || !("PushManager" in window)) return
-      try {
-        const reg = await navigator.serviceWorker.ready
-        const sub = await reg.pushManager.getSubscription()
-        if (!cancelled) setPushEnabled(Boolean(sub))
-      } catch {
-        // A browser that refuses to report its subscription is one we cannot
-        // claim is subscribed.
-        if (!cancelled) setPushEnabled(false)
-      }
-    }
-    read()
-    return () => { cancelled = true }
-  }, [])
-
-  /**
    * Turn browser notifications on for this browser.
    *
    * Permission alone does nothing — that was the previous bug here. Granting
@@ -244,97 +189,29 @@ export default function SettingsPage() {
    * enabled. The grant is only the first of three steps: permission, then a
    * subscription, then handing that subscription to the server.
    */
+  // Both handlers are thin wrappers over `usePushSubscription`, which owns the
+  // three-step subscribe. The logic used to live here and was copied nowhere;
+  // a second caller (the prompt) made one copy two, so it moved to a hook.
+  // Toasts stay here because the hook is shared and the prompt reports
+  // differently.
   const enableBrowserNotifications = async () => {
-    if (!("Notification" in window)) {
-      toast.error(t("toast.noNotificationSupport"))
+    if (!push.available) {
+      toast.error(
+        push.permission === "unsupported"
+          ? t("toast.noPushSupport")
+          : t("toast.pushNotConfigured")
+      )
       return
     }
-    if (!("serviceWorker" in navigator) || !("PushManager" in window)) {
-      toast.error(t("toast.noPushSupport"))
-      return
-    }
-
-    const vapidKey = process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY
-    if (!vapidKey) {
-      toast.error(t("toast.pushNotConfigured"))
-      return
-    }
-
-    setIsSubscribingPush(true)
-    try {
-      const permission = await Notification.requestPermission()
-      setNotificationPermission(permission)
-
-      if (permission !== "granted") {
-        if (permission === "denied") toast.error(t("toast.permissionDenied"))
-        return
-      }
-
-      const reg = await navigator.serviceWorker.ready
-      // Reuse an existing subscription rather than creating a second one for
-      // the same browser; `subscribe()` on an already-subscribed registration
-      // with a different key throws rather than replacing.
-      const existing = await reg.pushManager.getSubscription()
-      const sub =
-        existing ??
-        (await reg.pushManager.subscribe({
-          // Required by Chrome: a push that cannot be shown to the user is not
-          // permitted, and silent pushes are rejected outright.
-          userVisibleOnly: true,
-          applicationServerKey: urlBase64ToUint8Array(vapidKey),
-        }))
-
-      const response = await fetch("/api/notifications/push-subscription", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(sub.toJSON()),
-      })
-
-      if (!response.ok) {
-        // The browser is subscribed but the server cannot reach it, which is
-        // the exact half-configured state this flow exists to avoid. Undo the
-        // local subscription so the switch does not lie.
-        await sub.unsubscribe().catch(() => {})
-        const data = await response.json().catch(() => ({}))
-        throw new Error(data.error || "Could not save the subscription")
-      }
-
-      setPushEnabled(true)
-      toast.success(t("toast.pushEnabled"))
-    } catch (error) {
-      logger.error("Error enabling push:", error)
-      setPushEnabled(false)
-      toast.error(error instanceof Error ? error.message : t("toast.pushEnableFailed"))
-    } finally {
-      setIsSubscribingPush(false)
-    }
+    const ok = await push.subscribe()
+    if (ok) toast.success(t("toast.pushEnabled"))
+    else if (push.permission === "denied") toast.error(t("toast.permissionDenied"))
+    else toast.error(t("toast.pushEnableFailed"))
   }
 
-  /** Turn them off for this browser only, leaving other devices subscribed. */
   const disableBrowserNotifications = async () => {
-    setIsSubscribingPush(true)
-    try {
-      const reg = await navigator.serviceWorker.ready
-      const sub = await reg.pushManager.getSubscription()
-
-      // Tell the server first: if the local unsubscribe succeeds and this
-      // fails, the row survives with no browser behind it and we keep pushing
-      // into the void until the push service reports it gone.
-      await fetch("/api/notifications/push-subscription", {
-        method: "DELETE",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ endpoint: sub?.endpoint ?? "" }),
-      })
-
-      await sub?.unsubscribe()
-      setPushEnabled(false)
-      toast.success(t("toast.pushDisabled"))
-    } catch (error) {
-      logger.error("Error disabling push:", error)
-      toast.error(t("toast.pushDisableFailed"))
-    } finally {
-      setIsSubscribingPush(false)
-    }
+    await push.unsubscribe()
+    toast.success(t("toast.pushDisabled"))
   }
 
   const handleAvatarUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -883,9 +760,9 @@ export default function SettingsPage() {
                       <div>
                         <p className="font-medium">{t("settings.notif.browser")}</p>
                         <p className="text-sm text-muted-foreground">
-                          {pushEnabled
+                          {push.subscribed
                             ? t("settings.notif.browserOn")
-                            : notificationPermission === "denied"
+                            : push.permission === "denied"
                               ? t("settings.notif.browserBlocked")
                               : t("settings.notif.browserHint")}
                         </p>
@@ -894,15 +771,15 @@ export default function SettingsPage() {
                           stored preference — the same account on another
                           device is subscribed separately. */}
                       <Switch
-                        checked={pushEnabled}
-                        disabled={isSubscribingPush || notificationPermission === "denied"}
+                        checked={push.subscribed}
+                        disabled={push.busy || push.permission === "denied"}
                         onCheckedChange={(next) =>
                           next ? enableBrowserNotifications() : disableBrowserNotifications()
                         }
                         aria-label="Browser notifications"
                       />
                     </div>
-                    {notificationPermission === "denied" && (
+                    {push.permission === "denied" && (
                       <p className="text-xs text-muted-foreground mt-2">
                         You have blocked notifications for this site. Re-enable them in your
                         browser&apos;s site settings, then turn this on.
