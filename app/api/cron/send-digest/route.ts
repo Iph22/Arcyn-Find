@@ -41,6 +41,7 @@ export async function GET(req: Request) {
             `[Cron:SendDigest] key=${result.digestKey} tools=${result.toolCount} ` +
             `new=${result.isNew} attempted=${result.attempted} sent=${result.sent} ` +
             `failed=${result.failed} skipped=${result.skipped} ` +
+            `personalised=${result.personalised} ` +
             `push=${result.pushSent}/${result.pushFailed}f/${result.pushExpired}x ` +
             `in ${result.elapsedMs}ms`
         )

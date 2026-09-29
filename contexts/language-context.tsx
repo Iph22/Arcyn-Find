@@ -362,6 +362,12 @@ type TranslationKey =
   | "regions.latinAmerica"
   | "regions.middleEast"
   | "regions.africa"
+  | "push.promptTitle"
+  | "push.promptBody"
+  | "push.enable"
+  | "push.enabling"
+  | "push.notNow"
+  | "push.dismiss"
 
 type Translations = Record<TranslationKey, string>
 type TranslationMap = Record<SupportedLanguage, Translations>
@@ -685,6 +691,12 @@ const translations: TranslationMap = {
     "toast.pushDisabled": "Browser notifications turned off",
     "toast.pushEnableFailed": "Could not enable notifications",
     "toast.pushDisableFailed": "Could not turn off notifications",
+    "push.promptTitle": "Get notified about new tools",
+    "push.promptBody": "We'll send a notification when AI tools matching your interests are added. No more than once a week.",
+    "push.enable": "Turn on",
+    "push.enabling": "Turning on...",
+    "push.notNow": "Not now",
+    "push.dismiss": "Dismiss",
   },
   fr: {
     "nav.home": "Accueil",
@@ -1004,6 +1016,12 @@ const translations: TranslationMap = {
     "toast.pushDisabled": "Notifications du navigateur désactivées",
     "toast.pushEnableFailed": "Impossible d'activer les notifications",
     "toast.pushDisableFailed": "Impossible de désactiver les notifications",
+    "push.promptTitle": "Soyez informé des nouveaux outils",
+    "push.promptBody": "Nous vous préviendrons quand des outils IA correspondant à vos centres d'intérêt seront ajoutés. Une fois par semaine au maximum.",
+    "push.enable": "Activer",
+    "push.enabling": "Activation...",
+    "push.notNow": "Pas maintenant",
+    "push.dismiss": "Fermer",
   },
   es: {
     "nav.home": "Inicio",
@@ -1323,6 +1341,12 @@ const translations: TranslationMap = {
     "toast.pushDisabled": "Notificaciones del navegador desactivadas",
     "toast.pushEnableFailed": "No se pudieron activar las notificaciones",
     "toast.pushDisableFailed": "No se pudieron desactivar las notificaciones",
+    "push.promptTitle": "Recibe avisos de nuevas herramientas",
+    "push.promptBody": "Te avisaremos cuando se añadan herramientas de IA que coincidan con tus intereses. Como máximo una vez por semana.",
+    "push.enable": "Activar",
+    "push.enabling": "Activando...",
+    "push.notNow": "Ahora no",
+    "push.dismiss": "Descartar",
   },
   de: {
     "nav.home": "Startseite",
@@ -1642,6 +1666,12 @@ const translations: TranslationMap = {
     "toast.pushDisabled": "Browser-Benachrichtigungen deaktiviert",
     "toast.pushEnableFailed": "Benachrichtigungen konnten nicht aktiviert werden",
     "toast.pushDisableFailed": "Benachrichtigungen konnten nicht deaktiviert werden",
+    "push.promptTitle": "Werde über neue Tools informiert",
+    "push.promptBody": "Wir melden uns, wenn KI-Tools passend zu deinen Interessen dazukommen. Höchstens einmal pro Woche.",
+    "push.enable": "Aktivieren",
+    "push.enabling": "Wird aktiviert...",
+    "push.notNow": "Nicht jetzt",
+    "push.dismiss": "Schließen",
   },
   pt: {
     "nav.home": "Início",
@@ -1961,6 +1991,12 @@ const translations: TranslationMap = {
     "toast.pushDisabled": "Notificações do navegador desativadas",
     "toast.pushEnableFailed": "Não foi possível ativar as notificações",
     "toast.pushDisableFailed": "Não foi possível desativar as notificações",
+    "push.promptTitle": "Receba avisos de novas ferramentas",
+    "push.promptBody": "Avisaremos quando ferramentas de IA compatíveis com seus interesses forem adicionadas. No máximo uma vez por semana.",
+    "push.enable": "Ativar",
+    "push.enabling": "Ativando...",
+    "push.notNow": "Agora não",
+    "push.dismiss": "Dispensar",
   },
   ja: {
     "nav.home": "ホーム",
@@ -2280,6 +2316,12 @@ const translations: TranslationMap = {
     "toast.pushDisabled": "ブラウザ通知を無効にしました",
     "toast.pushEnableFailed": "通知を有効にできませんでした",
     "toast.pushDisableFailed": "通知を無効にできませんでした",
+    "push.promptTitle": "新しいツールの通知を受け取る",
+    "push.promptBody": "興味に合うAIツールが追加されたら通知します。多くても週に一度です。",
+    "push.enable": "オンにする",
+    "push.enabling": "設定中...",
+    "push.notNow": "後で",
+    "push.dismiss": "閉じる",
   },
   zh: {
     "nav.home": "首页",
@@ -2599,6 +2641,12 @@ const translations: TranslationMap = {
     "toast.pushDisabled": "已关闭浏览器通知",
     "toast.pushEnableFailed": "无法启用通知",
     "toast.pushDisableFailed": "无法关闭通知",
+    "push.promptTitle": "获取新工具通知",
+    "push.promptBody": "当有符合你兴趣的 AI 工具上线时，我们会通知你。每周最多一次。",
+    "push.enable": "开启",
+    "push.enabling": "正在开启...",
+    "push.notNow": "暂不",
+    "push.dismiss": "关闭",
   },
   ko: {
     "nav.home": "홈", "nav.tools": "도구", "nav.collections": "컬렉션", "nav.profile": "프로필",
@@ -2888,6 +2936,12 @@ const translations: TranslationMap = {
     "toast.pushDisabled": "브라우저 알림이 꺼졌습니다",
     "toast.pushEnableFailed": "알림을 켤 수 없습니다",
     "toast.pushDisableFailed": "알림을 끌 수 없습니다",
+    "push.promptTitle": "새 도구 알림 받기",
+    "push.promptBody": "관심사에 맞는 AI 도구가 추가되면 알려드립니다. 주 1회를 넘지 않습니다.",
+    "push.enable": "켜기",
+    "push.enabling": "켜는 중...",
+    "push.notNow": "나중에",
+    "push.dismiss": "닫기",
   },
   th: {
     "nav.home": "หน้าแรก", "nav.tools": "เครื่องมือ", "nav.collections": "คอลเลกชัน", "nav.profile": "โปรไฟล์",
@@ -3177,6 +3231,12 @@ const translations: TranslationMap = {
     "toast.pushDisabled": "ปิดการแจ้งเตือนของเบราว์เซอร์แล้ว",
     "toast.pushEnableFailed": "ไม่สามารถเปิดการแจ้งเตือนได้",
     "toast.pushDisableFailed": "ไม่สามารถปิดการแจ้งเตือนได้",
+    "push.promptTitle": "รับการแจ้งเตือนเครื่องมือใหม่",
+    "push.promptBody": "เมื่อมีเครื่องมือ AI ที่ตรงกับความสนใจของคุณ เราจะแจ้งให้ทราบ ไม่เกินสัปดาห์ละครั้ง",
+    "push.enable": "เปิดใช้",
+    "push.enabling": "กำลังเปิด...",
+    "push.notNow": "ไว้ทีหลัง",
+    "push.dismiss": "ปิด",
   },
   tl: {
     "nav.home": "Home", "nav.tools": "Mga Tool", "nav.collections": "Mga Koleksyon", "nav.profile": "Profile",
@@ -3466,6 +3526,12 @@ const translations: TranslationMap = {
     "toast.pushDisabled": "Naka-off na ang mga abiso sa browser",
     "toast.pushEnableFailed": "Hindi ma-enable ang mga abiso",
     "toast.pushDisableFailed": "Hindi ma-off ang mga abiso",
+    "push.promptTitle": "Makatanggap ng abiso sa bagong tools",
+    "push.promptBody": "Aabisuhan ka namin kapag may naidagdag na AI tools na tugma sa interes mo. Hindi hihigit sa isang beses kada linggo.",
+    "push.enable": "I-on",
+    "push.enabling": "Ino-on...",
+    "push.notNow": "Hindi ngayon",
+    "push.dismiss": "Isara",
   },
   vi: {
     "nav.home": "Trang chủ", "nav.tools": "Công cụ", "nav.collections": "Bộ sưu tập", "nav.profile": "Hồ sơ",
@@ -3755,6 +3821,12 @@ const translations: TranslationMap = {
     "toast.pushDisabled": "Đã tắt thông báo trình duyệt",
     "toast.pushEnableFailed": "Không thể bật thông báo",
     "toast.pushDisableFailed": "Không thể tắt thông báo",
+    "push.promptTitle": "Nhận thông báo về công cụ mới",
+    "push.promptBody": "Chúng tôi sẽ thông báo khi có công cụ AI phù hợp với sở thích của bạn. Nhiều nhất một lần mỗi tuần.",
+    "push.enable": "Bật",
+    "push.enabling": "Đang bật...",
+    "push.notNow": "Để sau",
+    "push.dismiss": "Đóng",
   },
   id: {
     "nav.home": "Beranda", "nav.tools": "Alat", "nav.collections": "Koleksi", "nav.profile": "Profil",
@@ -4044,6 +4116,12 @@ const translations: TranslationMap = {
     "toast.pushDisabled": "Notifikasi peramban dimatikan",
     "toast.pushEnableFailed": "Tidak dapat mengaktifkan notifikasi",
     "toast.pushDisableFailed": "Tidak dapat menonaktifkan notifikasi",
+    "push.promptTitle": "Dapatkan notifikasi alat baru",
+    "push.promptBody": "Kami akan memberi tahu saat ada alat AI yang cocok dengan minat Anda. Maksimal sekali seminggu.",
+    "push.enable": "Aktifkan",
+    "push.enabling": "Mengaktifkan...",
+    "push.notNow": "Nanti saja",
+    "push.dismiss": "Tutup",
   },
   hi: {
     "nav.home": "होम", "nav.tools": "टूल्स", "nav.collections": "संग्रह", "nav.profile": "प्रोफ़ाइल",
@@ -4333,6 +4411,12 @@ const translations: TranslationMap = {
     "toast.pushDisabled": "ब्राउज़र सूचनाएँ बंद",
     "toast.pushEnableFailed": "सूचनाएँ सक्षम नहीं की जा सकीं",
     "toast.pushDisableFailed": "सूचनाएँ बंद नहीं की जा सकीं",
+    "push.promptTitle": "नए टूल की सूचना पाएं",
+    "push.promptBody": "आपकी रुचि से मेल खाने वाले AI टूल जुड़ने पर हम सूचित करेंगे। सप्ताह में एक बार से अधिक नहीं।",
+    "push.enable": "चालू करें",
+    "push.enabling": "चालू हो रहा है...",
+    "push.notNow": "अभी नहीं",
+    "push.dismiss": "बंद करें",
   },
   ar: {
     "nav.home": "الرئيسية", "nav.tools": "الأدوات", "nav.collections": "المجموعات", "nav.profile": "الملف الشخصي",
@@ -4622,6 +4706,12 @@ const translations: TranslationMap = {
     "toast.pushDisabled": "تم إيقاف إشعارات المتصفح",
     "toast.pushEnableFailed": "تعذّر تفعيل الإشعارات",
     "toast.pushDisableFailed": "تعذّر إيقاف الإشعارات",
+    "push.promptTitle": "احصل على إشعارات بالأدوات الجديدة",
+    "push.promptBody": "سنرسل إشعاراً عند إضافة أدوات ذكاء اصطناعي تناسب اهتماماتك. مرة واحدة أسبوعياً على الأكثر.",
+    "push.enable": "تفعيل",
+    "push.enabling": "جارٍ التفعيل...",
+    "push.notNow": "ليس الآن",
+    "push.dismiss": "إغلاق",
   },
   tr: {
     "nav.home": "Ana Sayfa", "nav.tools": "Araçlar", "nav.collections": "Koleksiyonlar", "nav.profile": "Profil",
@@ -4911,6 +5001,12 @@ const translations: TranslationMap = {
     "toast.pushDisabled": "Tarayıcı bildirimleri kapatıldı",
     "toast.pushEnableFailed": "Bildirimler açılamadı",
     "toast.pushDisableFailed": "Bildirimler kapatılamadı",
+    "push.promptTitle": "Yeni araçlardan haberdar olun",
+    "push.promptBody": "İlgi alanlarınıza uyan AI araçları eklendiğinde bildirim göndeririz. Haftada birden fazla değil.",
+    "push.enable": "Aç",
+    "push.enabling": "Açılıyor...",
+    "push.notNow": "Şimdi değil",
+    "push.dismiss": "Kapat",
   },
 }
 
