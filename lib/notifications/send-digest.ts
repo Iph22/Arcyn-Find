@@ -3,8 +3,11 @@ import { getSupabaseAdmin } from '@/lib/supabase'
 import { siteUrl } from '@/lib/seo/site'
 import { logger } from '@/lib/logger'
 import { buildDigestContent, type DigestContent } from './digest-content'
+import { buildMatchedContent, MATCH_TOOL_COUNT } from './match-content'
+import { getCategories } from '@/lib/seo/catalog'
+import type { ResolvableCategory } from '@/lib/interest-categories'
 import { renderDigestHtml, renderDigestText } from './template'
-import { isPushConfigured, sendPushToUsers } from './send-push'
+import { isPushConfigured, sendPushToUsers, type PushPayload } from './send-push'
 
 /**
  * The digest sender.
@@ -49,6 +52,8 @@ export interface DigestRunResult {
   budgetExhausted: boolean
   toolCount: number
   isNew: boolean
+  /** Recipients who received a selection matched to their own interests. */
+  personalised: number
   elapsedMs: number
   /**
    * Browser-push counts, reported separately from email on purpose.
@@ -107,6 +112,19 @@ interface Recipient {
   email: string
   displayName: string | null
   unsubscribeToken: string
+  /**
+   * Onboarding interest tags, e.g. `coding`, `vision`, `knowledge`.
+   *
+   * NOT category values -- see docs/ROUTING.md. They only become categories
+   * through `categoriesForInterests()`, and filtering the catalog on them
+   * directly matches nothing.
+   */
+  interests: string[]
+  /**
+   * What this person is sent. Personalised when their interests resolve to
+   * real categories, the shared best-of otherwise.
+   */
+  content: DigestContent
 }
 
 /**
@@ -155,7 +173,10 @@ function wantsDigest(preferences: Record<string, unknown> | null): boolean {
  * Keyset rather than `.range()` offsets: §2 records deep offsets timing out at
  * ~87k rows on this database, and this table is not exempt.
  */
-async function fetchRecipientPage(afterId: string | null): Promise<{
+async function fetchRecipientPage(
+  afterId: string | null,
+  fallback: DigestContent
+): Promise<{
   recipients: Recipient[]
   skipped: number
   lastId: string | null
@@ -164,7 +185,7 @@ async function fetchRecipientPage(afterId: string | null): Promise<{
 
   let query = supabase
     .from('user_profiles')
-    .select('id, email, display_name, unsubscribe_token, preferences')
+    .select('id, email, display_name, unsubscribe_token, preferences, categories')
     .not('email', 'is', null)
     .order('id', { ascending: true })
     .limit(PAGE_SIZE)
@@ -193,11 +214,17 @@ async function fetchRecipientPage(afterId: string | null): Promise<{
       continue
     }
 
+    const rawInterests = (row.categories as unknown) ?? (prefs?.categories as unknown)
     recipients.push({
       id: String(row.id),
       email,
       displayName: typeof row.display_name === 'string' ? row.display_name : null,
       unsubscribeToken: token,
+      interests: Array.isArray(rawInterests) ? (rawInterests as string[]) : [],
+      // Placeholder. `personalise()` replaces this before anything is sent;
+      // the shared best-of is the fallback for anyone whose interests resolve
+      // to nothing.
+      content: fallback,
     })
   }
 
@@ -206,6 +233,61 @@ async function fetchRecipientPage(afterId: string | null): Promise<{
     skipped,
     lastId: rows.length > 0 ? String(rows[rows.length - 1].id) : null,
   }
+}
+
+/**
+ * Replace each recipient's content with something matched to their interests.
+ *
+ * One query per recipient who has usable interests. That is a deliberate
+ * departure from how the generic digest works -- it builds content once and
+ * mails it to everyone, which is what keeps it affordable -- and it is the
+ * unavoidable cost of the content being personal at all.
+ *
+ * It is bounded by the same wall clock as everything else in the run, and by
+ * the page size: a page is at most 500 recipients, so this is at most 500
+ * narrow indexed reads per page. At the current list size it is single
+ * digits. If the list reaches the thousands this is the first thing that will
+ * strain, and the fix then is to group readers by their resolved category set
+ * -- there are only 21 categories, so the distinct sets are far fewer than the
+ * readers.
+ *
+ * Anyone whose interests resolve to nothing keeps the shared best-of. Falling
+ * back is better than sending nothing, but note it is NOT presented as
+ * personalised: the subject line differs, because an email that claims to be
+ * picked for you and is not teaches the reader to ignore the ones that are.
+ */
+async function personalise(
+  recipients: Recipient[],
+  categories: ResolvableCategory[],
+  since: string | null,
+  origin: string
+): Promise<number> {
+  let personalised = 0
+
+  for (const recipient of recipients) {
+    if (recipient.interests.length === 0) continue
+    try {
+      const matched = await buildMatchedContent(recipient.interests, categories, since, origin)
+      if (matched.tools.length >= Math.min(3, MATCH_TOOL_COUNT)) {
+        recipient.content = {
+          tools: matched.tools,
+          isNew: matched.isNew,
+          matchedCategories: matched.categoryNames,
+        }
+        personalised += 1
+      }
+    } catch (cause) {
+      // One reader's matching failing is not a reason to stop the run. They
+      // keep the shared content, which is a worse email than they would have
+      // had and a much better outcome than no email for anyone.
+      logger.error(
+        `[Digest] matching failed for ${recipient.id}:`,
+        cause instanceof Error ? cause.message : String(cause)
+      )
+    }
+  }
+
+  return personalised
 }
 
 /**
@@ -359,19 +441,30 @@ async function sendBatch(
 }> {
   const payload = batch.map((recipient) => {
     const unsubscribeUrl = `${origin}/api/notifications/unsubscribe?token=${encodeURIComponent(recipient.unsubscribeToken)}`
+    // Each recipient carries their own selection now. Reading the shared
+    // `content` here instead would send everyone the same tools while the logs
+    // reported the run as personalised.
+    const theirs = recipient.content
+    const matched = (theirs.matchedCategories ?? []).length > 0
     const input = {
-      tools: content.tools,
-      isNew: content.isNew,
+      tools: theirs.tools,
+      isNew: theirs.isNew,
       displayName: recipient.displayName,
       unsubscribeUrl,
       settingsUrl: `${origin}/settings`,
       siteUrl: origin,
+      matchedCategories: theirs.matchedCategories ?? [],
     }
 
     return {
       from,
       to: [recipient.email],
-      subject: content.isNew ? 'New AI tools on Arcyn Find' : 'AI tools worth a look',
+      // Only claims to be picked for them when it actually was.
+      subject: matched
+        ? `New AI tools in ${theirs.matchedCategories!.slice(0, 2).join(' and ')}`
+        : theirs.isNew
+          ? 'New AI tools on Arcyn Find'
+          : 'AI tools worth a look',
       html: renderDigestHtml(input),
       text: renderDigestText(input),
       headers: {
@@ -455,7 +548,23 @@ export async function sendDigest(now: Date = new Date()): Promise<DigestRunResul
   const from = `Arcyn Find <${process.env.RESEND_FROM_EMAIL || 'onboarding@resend.dev'}>`
   const origin = siteUrl()
 
-  const content = await buildDigestContent(await lastRunAt(), origin)
+  const since = await lastRunAt()
+  const content = await buildDigestContent(since, origin)
+
+  // One query for the whole run. `categoriesForInterests()` resolves against
+  // the categories that actually have pages, so an interest mapping to a
+  // category below the size floor is dropped rather than linked to a 404.
+  let categories: ResolvableCategory[] = []
+  try {
+    categories = await getCategories()
+  } catch (cause) {
+    // Personalisation is the bonus, not the point. Losing the index means
+    // everyone gets the shared best-of, which is what they got last week.
+    logger.error(
+      '[Digest] category index unavailable, sending shared content to everyone:',
+      cause instanceof Error ? cause.message : String(cause)
+    )
+  }
 
   // An empty digest is a bug somewhere upstream, not a message. Sending a
   // header and a footer to the whole list would be worse than sending nothing,
@@ -474,6 +583,7 @@ export async function sendDigest(now: Date = new Date()): Promise<DigestRunResul
       pushExpired: 0,
       toolCount: 0,
       isNew: content.isNew,
+      personalised: 0,
       elapsedMs: Date.now() - startedAt,
     }
   }
@@ -481,6 +591,7 @@ export async function sendDigest(now: Date = new Date()): Promise<DigestRunResul
   const resend = new Resend(apiKey)
 
   let attempted = 0
+  let personalised = 0
   let pushSent = 0
   let pushFailed = 0
   let pushExpired = 0
@@ -498,7 +609,7 @@ export async function sendDigest(now: Date = new Date()): Promise<DigestRunResul
       break
     }
 
-    const { recipients, skipped: pageSkipped, lastId } = await fetchRecipientPage(cursor)
+    const { recipients, skipped: pageSkipped, lastId } = await fetchRecipientPage(cursor, content)
     skipped += pageSkipped
 
     if (lastId === null) break
@@ -506,6 +617,13 @@ export async function sendDigest(now: Date = new Date()): Promise<DigestRunResul
 
     const claimedIds = await claimRecipients(recipients, digestKey)
     const claimed = recipients.filter((r) => claimedIds.has(r.id))
+
+    // Only for the people actually being mailed this run. Matching everyone on
+    // the page would spend queries on readers already claimed by an earlier
+    // run in the same week.
+    if (categories.length > 0) {
+      personalised += await personalise(claimed, categories, since, origin)
+    }
 
     for (let i = 0; i < claimed.length; i += BATCH_SIZE) {
       if (Date.now() - startedAt > TIME_BUDGET_MS) {
@@ -533,17 +651,42 @@ export async function sendDigest(now: Date = new Date()): Promise<DigestRunResul
       // here can fail the email run -- which is why it is awaited but its
       // result only feeds the log.
       if (result.sent.length > 0 && isPushConfigured()) {
-        const push = await sendPushToUsers(result.sent, {
-          title: content.isNew ? 'New AI tools on Arcyn Find' : 'AI tools worth a look',
-          body: content.tools
-            .slice(0, 3)
-            .map((t) => t.name)
-            .join(', ') + (content.tools.length > 3 ? ` and ${content.tools.length - 3} more` : ''),
-          url: `${origin}/tools`,
-        })
-        pushSent += push.sent
-        pushFailed += push.failed
-        pushExpired += push.expired
+        // Grouped by payload rather than one call per recipient. The content
+        // is per-person now, but most people share the fallback, so grouping
+        // collapses this to roughly one call plus one per personalised reader
+        // instead of one per reader.
+        const byPayload = new Map<string, { payload: PushPayload; userIds: string[] }>()
+        for (const userId of result.sent) {
+          const theirs = batch.find((r) => r.id === userId)?.content ?? content
+          const cats = theirs.matchedCategories ?? []
+          const names = theirs.tools.slice(0, 3).map((t) => t.name).join(', ')
+          const payload: PushPayload = {
+            title:
+              cats.length > 0
+                ? `New in ${cats.slice(0, 2).join(' and ')}`
+                : theirs.isNew
+                  ? 'New AI tools on Arcyn Find'
+                  : 'AI tools worth a look',
+            body:
+              names + (theirs.tools.length > 3 ? ` and ${theirs.tools.length - 3} more` : ''),
+            // `/tools` is the static directory and takes no query string
+            // (docs/ROUTING.md). Linking a category would need its slug, which
+            // the matched content carries only as a display name -- and a
+            // slugified display name is the 404 that document warns about.
+            url: `${origin}/tools`,
+          }
+          const key = JSON.stringify(payload)
+          const group = byPayload.get(key)
+          if (group) group.userIds.push(userId)
+          else byPayload.set(key, { payload, userIds: [userId] })
+        }
+
+        for (const { payload, userIds } of byPayload.values()) {
+          const push = await sendPushToUsers(userIds, payload)
+          pushSent += push.sent
+          pushFailed += push.failed
+          pushExpired += push.expired
+        }
       }
 
       if (result.failed.length > 0) {
@@ -566,6 +709,7 @@ export async function sendDigest(now: Date = new Date()): Promise<DigestRunResul
     budgetExhausted,
     toolCount: content.tools.length,
     isNew: content.isNew,
+    personalised,
     elapsedMs: Date.now() - startedAt,
     pushSent,
     pushFailed,

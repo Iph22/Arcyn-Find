@@ -24,6 +24,8 @@ import { isoWeekKey, claimRecipients, digestRunFailureReason } from '../../lib/n
 import { normalizeName } from '../../lib/seo/slug.ts'
 import { getSupabaseAdmin } from '../../lib/supabase.ts'
 import { isPushConfigured } from '../../lib/notifications/send-push.ts'
+import { buildMatchedContent, MATCH_TOOL_COUNT } from '../../lib/notifications/match-content.ts'
+import { getCategories } from '../../lib/seo/catalog.ts'
 
 const db = getSupabaseAdmin()
 
@@ -164,7 +166,7 @@ console.log(`\n  Preview written to: ${previewPath}`)
 console.log('\nFailure reporting')
 const baseResult = {
   digestKey: '2026-W39', attempted: 0, sent: 0, failed: 0, skipped: 0,
-  budgetExhausted: false, toolCount: 6, isNew: false, elapsedMs: 10,
+  budgetExhausted: false, toolCount: 6, isNew: false, elapsedMs: 10, personalised: 0,
   pushSent: 0, pushFailed: 0, pushExpired: 0,
 }
 
@@ -240,6 +242,49 @@ check('failed pushes do not fail the run',
 // And the converse: push succeeding must not mask a total email failure.
 check('push success does not mask an email failure',
   digestRunFailureReason({ ...baseResult, attempted: 2, sent: 0, failed: 2, pushSent: 5 }) !== null)
+
+
+// ---------------------------------------------------------------------------
+// 3d. Interest matching
+// ---------------------------------------------------------------------------
+//
+// The trap this guards is the one docs/ROUTING.md names: onboarding stores
+// abstract tags (`coding`, `vision`, `knowledge`) and none of them is an
+// `ai_tools.category` value. Filtering the catalog on them directly matches
+// zero rows and returns an empty selection that reads as a quiet week rather
+// than a bug, so the assertion is that matching produces DIFFERENT tools for
+// different interests -- not merely that it produces some.
+
+console.log('\nInterest matching')
+const cats = await getCategories()
+check('category index loaded', cats.length > 0, `${cats.length} categories with pages`)
+
+const coder = await buildMatchedContent(['coding'], cats, null, ORIGIN)
+const learner = await buildMatchedContent(['knowledge'], cats, null, ORIGIN)
+
+check('coding interest resolves to categories', coder.categoryNames.length > 0,
+  coder.categoryNames.join(', '))
+check('coding interest returns tools', coder.tools.length > 0, `${coder.tools.length} tools`)
+check('knowledge interest returns tools', learner.tools.length > 0, `${learner.tools.length} tools`)
+
+// If these two sets are identical the mapping silently collapsed and every
+// reader is getting the same email with a personalised subject line on it.
+const coderSlugs = new Set(coder.tools.map((t) => t.slug))
+const overlap = learner.tools.filter((t) => coderSlugs.has(t.slug)).length
+check('different interests yield different tools', overlap < learner.tools.length,
+  `${overlap}/${learner.tools.length} shared`)
+
+check('matched tools link by slug, not id',
+  coder.tools.every((t) => t.url.startsWith(`${ORIGIN}/tools/`) && !/\/tools\/[0-9a-f-]{36}$/.test(t.url)))
+check('matched selection is capped', coder.tools.length <= MATCH_TOOL_COUNT,
+  `${coder.tools.length} <= ${MATCH_TOOL_COUNT}`)
+
+// An unknown tag must resolve to nothing rather than to everything: the caller
+// reads an empty selection as "send them the shared content", and a mapping
+// that quietly matched all categories would make every reader "personalised".
+const nonsense = await buildMatchedContent(['not-a-real-interest'], cats, null, ORIGIN)
+check('unknown interest matches nothing', nonsense.tools.length === 0,
+  `${nonsense.tools.length} tools`)
 
 // ---------------------------------------------------------------------------
 // 4. The idempotency guard
