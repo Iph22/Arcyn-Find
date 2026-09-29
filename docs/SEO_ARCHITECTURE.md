@@ -193,6 +193,15 @@ near-duplicate URLs. They need their own written content to be worth having.
 is too unreliable to anchor a comparison — ~1.4% unclassified, and annual plans
 stored as monthly equivalents.
 
+> **Still true, and not what `/compare` is** (added 2026-09-29). The route
+> `/compare?tools=a,b` is an application surface, like `/browse`: a reader
+> assembles the set, nothing generates it, it is `noindex, follow`, and
+> `robots.txt` disallows the parameterised form. No crawlable page links into
+> it. The pricing objection above was handled rather than ignored — the page
+> states the annual-to-monthly conversion and shows `—` for usage- and
+> quote-priced tools instead of a number. What remains ruled out is publishing
+> the generated a-vs-b set into the index, which is a different thing.
+
 **No indexed filter combinations.** `/browse?category=x&pricing=y` is noindex
 by design.
 

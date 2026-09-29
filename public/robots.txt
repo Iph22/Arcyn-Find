@@ -37,6 +37,15 @@ Disallow: /followers
 # state lives in query parameters and that space is unbounded.
 Disallow: /browse?
 
+# Comparisons, the same way and for the same reason. `?tools=a,b,c` is a
+# reader-assembled set, so the parameter space is combinatorial -- which is
+# precisely the objection docs/SEO_ARCHITECTURE.md §5 raised against generating
+# /compare/a-vs-b pages. Nothing on a crawlable page links into it (the compare
+# controls are buttons, and the tray is built from localStorage, which is empty
+# for a crawler), so this only bounds what happens when a shared link is found
+# in the wild.
+Disallow: /compare?
+
 # ---------------------------------------------------------------------------
 # AI crawlers
 #

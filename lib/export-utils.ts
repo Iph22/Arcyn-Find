@@ -1,4 +1,5 @@
 import type { AIEntry } from './ai-data'
+import { comparisonGrid, type ComparableTool } from './compare'
 
 /**
  * Export favorites to CSV format
@@ -33,43 +34,33 @@ export function exportFavoritesToJSON(favorites: AIEntry[]): string {
   return JSON.stringify(favorites, null, 2)
 }
 
+/*
+ * The comparison exports below take their rows from comparisonGrid() in
+ * lib/compare.ts -- the same field list the on-screen table renders.
+ *
+ * They used to carry their own copies: three of them, one per format, already
+ * disagreeing (`tags.join('; ')` here, `', '` in the print version,
+ * `popularity` against `${popularity}%`). None of the three was reachable from
+ * any page, so nothing had ever compared the file you downloaded against the
+ * table you were looking at. Sharing the field list is what stops them
+ * drifting again once someone adds a column.
+ */
+
 /**
  * Export comparison to CSV format
  */
-export function exportComparisonToCSV(tools: AIEntry[]): string {
+export function exportComparisonToCSV(tools: ComparableTool[]): string {
   if (tools.length === 0) return ''
 
-  const headers = ['Feature', ...tools.map(t => escapeCSV(t.name))]
-  
-  const features = [
-    { label: 'Category', getValue: (ai: AIEntry) => ai.category },
-    { label: 'Description', getValue: (ai: AIEntry) => ai.description },
-    { label: 'Platform', getValue: (ai: AIEntry) => ai.platform },
-    { label: 'Access Type', getValue: (ai: AIEntry) => ai.accessType },
-    { label: 'Pricing', getValue: (ai: AIEntry) => ai.pricing },
-    { label: 'Region', getValue: (ai: AIEntry) => ai.region },
-    { label: 'Tags', getValue: (ai: AIEntry) => ai.tags.join('; ') },
-    { label: 'Popularity', getValue: (ai: AIEntry) => ai.popularity.toString() },
-    { label: 'Last Updated', getValue: (ai: AIEntry) => ai.lastUpdated },
-  ]
-
-  const rows = features.map(feature => [
-    escapeCSV(feature.label),
-    ...tools.map(tool => escapeCSV(feature.getValue(tool)))
-  ])
-
-  const csvContent = [
-    headers.join(','),
-    ...rows.map(row => row.join(','))
-  ].join('\n')
-
-  return csvContent
+  return comparisonGrid(tools)
+    .map(row => row.map(escapeCSV).join(','))
+    .join('\n')
 }
 
 /**
  * Export comparison to JSON format
  */
-export function exportComparisonToJSON(tools: AIEntry[]): string {
+export function exportComparisonToJSON(tools: ComparableTool[]): string {
   return JSON.stringify(tools, null, 2)
 }
 
@@ -100,37 +91,28 @@ function escapeCSV(value: string): string {
 
 /**
  * Generate PDF-like comparison (using HTML and print)
+ *
+ * Returns false when the popup was blocked, so the caller can say so in the
+ * page rather than in an `alert()` the browser may also suppress.
  */
-export function exportComparisonToPDF(tools: AIEntry[]): void {
+export function exportComparisonToPDF(tools: ComparableTool[]): boolean {
   const html = generateComparisonHTML(tools)
   const printWindow = window.open('', '_blank')
-  if (!printWindow) {
-    alert('Please allow popups to export to PDF')
-    return
-  }
-  
+  if (!printWindow) return false
+
   printWindow.document.write(html)
   printWindow.document.close()
   printWindow.focus()
-  
+
   // Wait for content to load, then print
   setTimeout(() => {
     printWindow.print()
   }, 250)
+  return true
 }
 
-function generateComparisonHTML(tools: AIEntry[]): string {
-  const features = [
-    { label: 'Category', getValue: (ai: AIEntry) => ai.category },
-    { label: 'Description', getValue: (ai: AIEntry) => ai.description },
-    { label: 'Platform', getValue: (ai: AIEntry) => ai.platform },
-    { label: 'Access Type', getValue: (ai: AIEntry) => ai.accessType },
-    { label: 'Pricing', getValue: (ai: AIEntry) => ai.pricing },
-    { label: 'Region', getValue: (ai: AIEntry) => ai.region },
-    { label: 'Tags', getValue: (ai: AIEntry) => ai.tags.join(', ') },
-    { label: 'Popularity', getValue: (ai: AIEntry) => `${ai.popularity}%` },
-    { label: 'Last Updated', getValue: (ai: AIEntry) => ai.lastUpdated },
-  ]
+function generateComparisonHTML(tools: ComparableTool[]): string {
+  const [header, ...rows] = comparisonGrid(tools)
 
   return `
     <!DOCTYPE html>
@@ -180,19 +162,24 @@ function generateComparisonHTML(tools: AIEntry[]): string {
       <table>
         <thead>
           <tr>
-            <th>Feature</th>
-            ${tools.map(t => `<th>${escapeHTML(t.name)}</th>`).join('')}
+            ${header.map(cell => `<th>${escapeHTML(cell)}</th>`).join('')}
           </tr>
         </thead>
         <tbody>
-          ${features.map(f => `
+          ${rows.map(([label, ...cells]) => `
             <tr>
-              <td class="feature-label">${escapeHTML(f.label)}</td>
-              ${tools.map(t => `<td>${escapeHTML(f.getValue(t))}</td>`).join('')}
+              <td class="feature-label">${escapeHTML(label)}</td>
+              ${cells.map(cell => `<td>${escapeHTML(cell)}</td>`).join('')}
             </tr>
           `).join('')}
         </tbody>
       </table>
+      <p style="margin-top:24px;font-size:12px;color:#666">
+        Prices are the cheapest published tier, converted to a monthly figure —
+        an annual plan appears here as its monthly equivalent and may require
+        yearly billing. Pricing and descriptions are collected automatically
+        and can be out of date. Verify on each vendor's site before buying.
+      </p>
     </body>
     </html>
   `
