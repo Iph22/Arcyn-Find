@@ -1,4 +1,5 @@
 import { sanitizeHtml } from '@/lib/security/input-validator'
+import type { Announcement } from './announcement'
 import type { DigestTool } from './digest-content'
 
 /**
@@ -26,6 +27,13 @@ export interface DigestEmailInput {
   unsubscribeUrl: string
   settingsUrl: string
   siteUrl: string
+  /**
+   * A product note to carry above the tools, or null for a plain digest.
+   *
+   * Null is the normal state -- see lib/notifications/announcement.ts, where
+   * these expire on a date rather than waiting to be deleted by hand.
+   */
+  announcement?: Announcement | null
 }
 
 /**
@@ -94,6 +102,42 @@ function toolRowHtml(tool: DigestTool): string {
           </tr>`
 }
 
+/**
+ * The announcement block, as its own bordered card above the tools.
+ *
+ * Visibly a separate notice rather than styled to look like one of the tool
+ * rows. A product note dressed up as an editorial pick is the thing that
+ * teaches people to stop trusting the picks.
+ *
+ * The copy is ours rather than scraped, but it goes through the same escaping
+ * as everything else here -- the rule in this file is that nothing reaches the
+ * document unescaped, so there is no per-value judgement call to get wrong
+ * later.
+ */
+function announcementHtml(announcement: Announcement, home: string): string {
+  const cta = safeUrl(`${home}${announcement.ctaPath}`)
+
+  return `
+          <tr>
+            <td style="padding:0 28px 22px 28px;font-family:Arial,Helvetica,sans-serif;">
+              <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%"
+                     style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:10px;">
+                <tr>
+                  <td style="padding:16px 18px;">
+                    <div style="color:#0f172a;font-size:14px;font-weight:600;">${text(announcement.title)}</div>
+                    <div style="color:#475569;font-size:13px;line-height:20px;margin-top:6px;">${text(announcement.body)}</div>
+                    ${
+                      cta
+                        ? `<a href="${cta}" style="color:#2563eb;font-size:13px;font-weight:500;text-decoration:none;display:inline-block;margin-top:10px;">${text(announcement.ctaLabel)} &rarr;</a>`
+                        : ''
+                    }
+                  </td>
+                </tr>
+              </table>
+            </td>
+          </tr>`
+}
+
 export function renderDigestHtml(input: DigestEmailInput): string {
   const { tools, isNew, displayName, unsubscribeUrl, settingsUrl, siteUrl } = input
 
@@ -110,7 +154,15 @@ export function renderDigestHtml(input: DigestEmailInput): string {
         ? 'Here are the newest AI tools added to Arcyn Find since we last wrote.'
         : 'Here is a handful of AI tools worth a look on Arcyn Find right now.'
 
-  const home = safeUrl(siteUrl) ?? 'https://arcynfind.com'
+  // Trailing slash stripped, because `safeUrl` puts one there and every use
+  // below appends a path. `new URL('https://arcynfind.com').toString()`
+  // normalises to `https://arcynfind.com/`, so `${home}/tools` was building
+  // `https://arcynfind.com//tools` -- which resolves, via a 308, on every
+  // click from every digest ever sent. Measured against production
+  // 2026-09-29. The plain-text half of the message was already correct
+  // because it interpolates the raw origin rather than the normalised one,
+  // so the two halves of the same email disagreed.
+  const home = (safeUrl(siteUrl) ?? 'https://arcynfind.com').replace(/\/+$/, '')
   const unsub = safeUrl(unsubscribeUrl)
   const settings = safeUrl(settingsUrl)
 
@@ -140,6 +192,7 @@ export function renderDigestHtml(input: DigestEmailInput): string {
               <p style="margin:0 0 22px 0;color:#475569;font-size:14px;line-height:21px;">${text(intro)}</p>
             </td>
           </tr>
+${input.announcement ? announcementHtml(input.announcement, home) : ''}
           <tr>
             <td style="padding:0 28px;font-family:Arial,Helvetica,sans-serif;">
               <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%">
@@ -197,11 +250,19 @@ export function renderDigestText(input: DigestEmailInput): string {
     .map((tool) => `* ${tool.name}${tool.category ? ` (${tool.category})` : ''}\n  ${tool.description}\n  ${tool.url}`)
     .join('\n\n')
 
+  // Mirrors the HTML block's position, above the tools. The two parts of a
+  // multipart message saying different things is a real failure mode -- some
+  // clients render the text part, and a reader comparing the two should not
+  // find a feature announced in one and absent from the other.
+  const announcement = input.announcement
+    ? `${input.announcement.title.toUpperCase()}\n${input.announcement.body}\n${input.announcement.ctaLabel}: ${siteUrl}${input.announcement.ctaPath}\n\n`
+    : ''
+
   return `${greeting}
 
 ${intro}
 
-${body}
+${announcement}${body}
 
 Browse all tools: ${siteUrl}/tools
 

@@ -6,6 +6,7 @@ import { buildDigestContent, type DigestContent } from './digest-content'
 import { buildMatchedContent, MATCH_TOOL_COUNT } from './match-content'
 import { getCategories } from '@/lib/seo/catalog'
 import type { ResolvableCategory } from '@/lib/interest-categories'
+import { announcementPushActive, currentAnnouncement, type Announcement } from './announcement'
 import { renderDigestHtml, renderDigestText } from './template'
 import { isPushConfigured, sendPushToUsers, type PushPayload } from './send-push'
 
@@ -431,7 +432,14 @@ async function sendBatch(
   content: DigestContent,
   digestKey: string,
   origin: string,
-  from: string
+  from: string,
+  /**
+   * Resolved once per run and passed down, rather than read per batch. A run
+   * is resumable and can straddle the expiry date, and half a run carrying an
+   * announcement the other half does not is the kind of inconsistency nobody
+   * would think to look for.
+   */
+  announcement: Announcement | null
 ): Promise<{
   sent: string[]
   failed: string[]
@@ -454,6 +462,7 @@ async function sendBatch(
       settingsUrl: `${origin}/settings`,
       siteUrl: origin,
       matchedCategories: theirs.matchedCategories ?? [],
+      announcement,
     }
 
     return {
@@ -590,6 +599,21 @@ export async function sendDigest(now: Date = new Date()): Promise<DigestRunResul
 
   const resend = new Resend(apiKey)
 
+  // Resolved once, here, and threaded through the whole run -- see the note on
+  // sendBatch's parameter. Normally null; lib/notifications/announcement.ts
+  // retires each entry on a date so this goes back to null without anyone
+  // having to remember to remove it.
+  const announcement = currentAnnouncement()
+  // Null once the shorter push window closes, while the email keeps carrying
+  // the note -- see the two-window rationale in announcement.ts.
+  const pushAnnouncement = announcementPushActive(announcement) ? announcement : null
+  if (announcement) {
+    logger.info(
+      `[Digest] carrying announcement "${announcement.id}" (email until ${announcement.until}` +
+        `, push ${pushAnnouncement ? `until ${announcement.push.pushUntil}` : 'window closed'})`
+    )
+  }
+
   let attempted = 0
   let personalised = 0
   let pushSent = 0
@@ -634,7 +658,7 @@ export async function sendDigest(now: Date = new Date()): Promise<DigestRunResul
       const batch = claimed.slice(i, i + BATCH_SIZE)
       attempted += batch.length
 
-      const result = await sendBatch(resend, batch, content, digestKey, origin, from)
+      const result = await sendBatch(resend, batch, content, digestKey, origin, from, announcement)
       sent += result.sent.length
       failed += result.failed.length
 
@@ -657,6 +681,22 @@ export async function sendDigest(now: Date = new Date()): Promise<DigestRunResul
         // instead of one per reader.
         const byPayload = new Map<string, { payload: PushPayload; userIds: string[] }>()
         for (const userId of result.sent) {
+          // While an announcement owns the push, everyone gets the same one —
+          // which also collapses to a single payload group below, so the whole
+          // run costs one grouping instead of one per interest combination.
+          if (pushAnnouncement) {
+            const payload: PushPayload = {
+              title: pushAnnouncement.push.title,
+              body: pushAnnouncement.push.body,
+              url: `${origin}${pushAnnouncement.ctaPath}`,
+            }
+            const key = JSON.stringify(payload)
+            const group = byPayload.get(key)
+            if (group) group.userIds.push(userId)
+            else byPayload.set(key, { payload, userIds: [userId] })
+            continue
+          }
+
           const theirs = batch.find((r) => r.id === userId)?.content ?? content
           const cats = theirs.matchedCategories ?? []
           const names = theirs.tools.slice(0, 3).map((t) => t.name).join(', ')
