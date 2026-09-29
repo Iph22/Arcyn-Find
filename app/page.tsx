@@ -7,6 +7,7 @@ import {
 } from '@/components/landing/landing-page'
 import { getCatalogStats } from '@/lib/seo/catalog-stats'
 import { getCategoriesSafe } from '@/lib/seo/catalog'
+import { TESTIMONIALS, testimonialStats } from '@/lib/landing/testimonials'
 import { getLandingSearchDemo } from '@/lib/landing/search-demo'
 import { siteUrl } from '@/lib/seo/site'
 import { SEARCH_PARAM } from '@/lib/tool-href'
@@ -148,7 +149,13 @@ export default async function HomePage() {
           __html: JSON.stringify(jsonLd).replace(/</g, '\\u003c'),
         }}
       />
-      <LandingPage stats={landingStats} searchDemo={searchDemo} categories={categories} />
+      <LandingPage
+        stats={landingStats}
+        searchDemo={searchDemo}
+        categories={categories}
+        testimonials={TESTIMONIALS}
+        testimonialStats={testimonialStats()}
+      />
     </>
   )
 }

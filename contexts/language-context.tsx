@@ -368,6 +368,11 @@ type TranslationKey =
   | "push.enabling"
   | "push.notNow"
   | "push.dismiss"
+  | "landing.indexedCount"
+  | "landing.tryTool"
+  | "landing.similarTools"
+  | "landing.trustedBy"
+  | "landing.fromReviews"
   | "landing.discover"
   | "landing.eyebrow"
   | "landing.heroTitle"
@@ -813,6 +818,11 @@ const translations: TranslationMap = {
     "submit.another": "Submit another",
     "submit.errorGeneric": "Could not submit the tool. Please try again.",
     "submit.errorDuplicateNamed": "{name} is already in the directory.",
+    "landing.indexedCount": "AI tools indexed and growing",
+    "landing.tryTool": "Try tool",
+    "landing.similarTools": "Similar tools",
+    "landing.trustedBy": "Trusted & loved by explorers",
+    "landing.fromReviews": "From {count} reviews",
   },
   fr: {
     "nav.home": "Accueil",
@@ -1196,6 +1206,11 @@ const translations: TranslationMap = {
     "submit.another": "En proposer un autre",
     "submit.errorGeneric": "Impossible d’envoyer l’outil. Veuillez réessayer.",
     "submit.errorDuplicateNamed": "{name} figure déjà dans l’annuaire.",
+    "landing.indexedCount": "outils IA indexés, et ça continue",
+    "landing.tryTool": "Essayer",
+    "landing.similarTools": "Outils similaires",
+    "landing.trustedBy": "Apprécié par les explorateurs",
+    "landing.fromReviews": "Sur {count} avis",
   },
   es: {
     "nav.home": "Inicio",
@@ -1579,6 +1594,11 @@ const translations: TranslationMap = {
     "submit.another": "Enviar otra",
     "submit.errorGeneric": "No se pudo enviar la herramienta. Inténtalo de nuevo.",
     "submit.errorDuplicateNamed": "{name} ya está en el directorio.",
+    "landing.indexedCount": "herramientas de IA indexadas y creciendo",
+    "landing.tryTool": "Probar",
+    "landing.similarTools": "Herramientas similares",
+    "landing.trustedBy": "Querido por quienes exploran",
+    "landing.fromReviews": "De {count} reseñas",
   },
   de: {
     "nav.home": "Startseite",
@@ -1962,6 +1982,11 @@ const translations: TranslationMap = {
     "submit.another": "Weiteres einreichen",
     "submit.errorGeneric": "Das Tool konnte nicht eingereicht werden. Bitte versuche es erneut.",
     "submit.errorDuplicateNamed": "{name} ist bereits im Verzeichnis.",
+    "landing.indexedCount": "KI-Tools indexiert, und es werden mehr",
+    "landing.tryTool": "Ausprobieren",
+    "landing.similarTools": "Ähnliche Tools",
+    "landing.trustedBy": "Geschätzt von Entdeckern",
+    "landing.fromReviews": "Aus {count} Bewertungen",
   },
   pt: {
     "nav.home": "Início",
@@ -2345,6 +2370,11 @@ const translations: TranslationMap = {
     "submit.another": "Enviar outra",
     "submit.errorGeneric": "Não foi possível enviar a ferramenta. Tente novamente.",
     "submit.errorDuplicateNamed": "{name} já está no diretório.",
+    "landing.indexedCount": "ferramentas de IA indexadas e crescendo",
+    "landing.tryTool": "Testar",
+    "landing.similarTools": "Ferramentas similares",
+    "landing.trustedBy": "Amado por quem explora",
+    "landing.fromReviews": "De {count} avaliações",
   },
   ja: {
     "nav.home": "ホーム",
@@ -2728,6 +2758,11 @@ const translations: TranslationMap = {
     "submit.another": "別のツールを登録",
     "submit.errorGeneric": "ツールを送信できませんでした。もう一度お試しください。",
     "submit.errorDuplicateNamed": "{name} はすでにディレクトリに登録されています。",
+    "landing.indexedCount": "件のAIツールを収録、日々追加中",
+    "landing.tryTool": "試す",
+    "landing.similarTools": "類似のツール",
+    "landing.trustedBy": "探しに来た人たちに選ばれています",
+    "landing.fromReviews": "{count}件のレビューより",
   },
   zh: {
     "nav.home": "首页",
@@ -3111,6 +3146,11 @@ const translations: TranslationMap = {
     "submit.another": "再提交一个",
     "submit.errorGeneric": "提交失败，请重试。",
     "submit.errorDuplicateNamed": "{name} 已经在目录中了。",
+    "landing.indexedCount": "个 AI 工具已收录，持续增长",
+    "landing.tryTool": "试用",
+    "landing.similarTools": "相似工具",
+    "landing.trustedBy": "深受探索者信赖与喜爱",
+    "landing.fromReviews": "来自 {count} 条评价",
   },
   ko: {
     "nav.home": "홈", "nav.tools": "도구", "nav.collections": "컬렉션", "nav.profile": "프로필",
@@ -3464,6 +3504,11 @@ const translations: TranslationMap = {
     "submit.another": "다른 도구 제출",
     "submit.errorGeneric": "도구를 제출하지 못했습니다. 다시 시도해 주세요.",
     "submit.errorDuplicateNamed": "{name}은(는) 이미 디렉터리에 있습니다.",
+    "landing.indexedCount": "개의 AI 도구 수록, 계속 늘어나는 중",
+    "landing.tryTool": "사용해보기",
+    "landing.similarTools": "비슷한 도구",
+    "landing.trustedBy": "탐색하는 사람들이 신뢰하는 곳",
+    "landing.fromReviews": "{count}개의 후기 기준",
   },
   th: {
     "nav.home": "หน้าแรก", "nav.tools": "เครื่องมือ", "nav.collections": "คอลเลกชัน", "nav.profile": "โปรไฟล์",
@@ -3817,6 +3862,11 @@ const translations: TranslationMap = {
     "submit.another": "ส่งอีกรายการ",
     "submit.errorGeneric": "ส่งเครื่องมือไม่สำเร็จ กรุณาลองอีกครั้ง",
     "submit.errorDuplicateNamed": "{name} มีอยู่ในไดเรกทอรีแล้ว",
+    "landing.indexedCount": "เครื่องมือ AI ที่รวบรวมไว้ และเพิ่มขึ้นเรื่อย ๆ",
+    "landing.tryTool": "ลองใช้",
+    "landing.similarTools": "เครื่องมือที่คล้ายกัน",
+    "landing.trustedBy": "ได้รับความไว้วางใจจากผู้ค้นหา",
+    "landing.fromReviews": "จาก {count} รีวิว",
   },
   tl: {
     "nav.home": "Home", "nav.tools": "Mga Tool", "nav.collections": "Mga Koleksyon", "nav.profile": "Profile",
@@ -4170,6 +4220,11 @@ const translations: TranslationMap = {
     "submit.another": "Magsumite ng isa pa",
     "submit.errorGeneric": "Hindi naisumite ang tool. Pakisubukan ulit.",
     "submit.errorDuplicateNamed": "Nasa direktoryo na ang {name}.",
+    "landing.indexedCount": "AI tools na naka-index at patuloy na dumarami",
+    "landing.tryTool": "Subukan",
+    "landing.similarTools": "Katulad na tools",
+    "landing.trustedBy": "Pinagkakatiwalaan ng mga explorer",
+    "landing.fromReviews": "Mula sa {count} review",
   },
   vi: {
     "nav.home": "Trang chủ", "nav.tools": "Công cụ", "nav.collections": "Bộ sưu tập", "nav.profile": "Hồ sơ",
@@ -4523,6 +4578,11 @@ const translations: TranslationMap = {
     "submit.another": "Gửi công cụ khác",
     "submit.errorGeneric": "Không thể gửi công cụ. Vui lòng thử lại.",
     "submit.errorDuplicateNamed": "{name} đã có trong danh bạ.",
+    "landing.indexedCount": "công cụ AI đã lập chỉ mục và đang tăng",
+    "landing.tryTool": "Dùng thử",
+    "landing.similarTools": "Công cụ tương tự",
+    "landing.trustedBy": "Được người khám phá tin dùng",
+    "landing.fromReviews": "Từ {count} đánh giá",
   },
   id: {
     "nav.home": "Beranda", "nav.tools": "Alat", "nav.collections": "Koleksi", "nav.profile": "Profil",
@@ -4876,6 +4936,11 @@ const translations: TranslationMap = {
     "submit.another": "Kirim lagi",
     "submit.errorGeneric": "Gagal mengirim alat. Silakan coba lagi.",
     "submit.errorDuplicateNamed": "{name} sudah ada di direktori.",
+    "landing.indexedCount": "alat AI terindeks dan terus bertambah",
+    "landing.tryTool": "Coba",
+    "landing.similarTools": "Alat serupa",
+    "landing.trustedBy": "Dipercaya para penjelajah",
+    "landing.fromReviews": "Dari {count} ulasan",
   },
   hi: {
     "nav.home": "होम", "nav.tools": "टूल्स", "nav.collections": "संग्रह", "nav.profile": "प्रोफ़ाइल",
@@ -5229,6 +5294,11 @@ const translations: TranslationMap = {
     "submit.another": "एक और सबमिट करें",
     "submit.errorGeneric": "टूल सबमिट नहीं हो सका। कृपया पुनः प्रयास करें।",
     "submit.errorDuplicateNamed": "{name} पहले से डायरेक्टरी में है।",
+    "landing.indexedCount": "एआई टूल्स अनुक्रमित, और बढ़ रहे हैं",
+    "landing.tryTool": "आज़माएँ",
+    "landing.similarTools": "मिलते-जुलते टूल्स",
+    "landing.trustedBy": "खोजने वालों का भरोसा",
+    "landing.fromReviews": "{count} समीक्षाओं से",
   },
   ar: {
     "nav.home": "الرئيسية", "nav.tools": "الأدوات", "nav.collections": "المجموعات", "nav.profile": "الملف الشخصي",
@@ -5582,6 +5652,11 @@ const translations: TranslationMap = {
     "submit.another": "إرسال أداة أخرى",
     "submit.errorGeneric": "تعذّر إرسال الأداة. يرجى المحاولة مرة أخرى.",
     "submit.errorDuplicateNamed": "{name} موجودة بالفعل في الدليل.",
+    "landing.indexedCount": "أداة ذكاء اصطناعي مفهرسة، والعدد يتزايد",
+    "landing.tryTool": "جرّب",
+    "landing.similarTools": "أدوات مشابهة",
+    "landing.trustedBy": "موثوق ومحبوب من المستكشفين",
+    "landing.fromReviews": "من {count} تقييمًا",
   },
   tr: {
     "nav.home": "Ana Sayfa", "nav.tools": "Araçlar", "nav.collections": "Koleksiyonlar", "nav.profile": "Profil",
@@ -5935,6 +6010,11 @@ const translations: TranslationMap = {
     "submit.another": "Başka bir tane gönder",
     "submit.errorGeneric": "Araç gönderilemedi. Lütfen tekrar deneyin.",
     "submit.errorDuplicateNamed": "{name} zaten dizinde.",
+    "landing.indexedCount": "yapay zekâ aracı dizinde ve artıyor",
+    "landing.tryTool": "Dene",
+    "landing.similarTools": "Benzer araçlar",
+    "landing.trustedBy": "Keşfedenlerin güvendiği yer",
+    "landing.fromReviews": "{count} değerlendirmeden",
   },
 }
 

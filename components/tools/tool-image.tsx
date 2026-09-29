@@ -3,6 +3,7 @@
 import { useState } from "react"
 import Image from "next/image"
 import { cn } from "@/lib/utils"
+import { isPlaceholderImage } from "@/lib/tool-image"
 
 interface ToolImageProps {
   src: string | null | undefined
@@ -39,19 +40,18 @@ export function ToolImage({
     return name.substring(0, 2).toUpperCase()
   }
   
-  // Check if image is a placeholder/default
-  const isPlaceholder = !src || 
-    src === "/og-image.png" || 
-    src === "/assets/default.png" ||
-    src.toLowerCase().includes("og-image") ||
-    src.toLowerCase().includes("placeholder") ||
-    src.toLowerCase().includes("r-synth") ||
-    src.toLowerCase().includes("rsynth")
-  
+  // Check if image is a placeholder/default. The rule lives in lib/tool-image
+  // so the hero's card stack asks the same question of the same list.
+  const isPlaceholder = isPlaceholderImage(src)
+
   // Show fallback if placeholder or error
   const showFallback = isPlaceholder || imageError
   
-  if (showFallback) {
+  // `|| !src` is redundant at runtime -- isPlaceholderImage already returns
+  // true for a missing src -- but it is what narrows `src` to a string for
+  // the <Image> below. Inlining the check used to do that; a predicate call
+  // cannot.
+  if (showFallback || !src) {
     const text = getFallbackText()
     
     // Modern, vibrant gradient combinations based on tool name
