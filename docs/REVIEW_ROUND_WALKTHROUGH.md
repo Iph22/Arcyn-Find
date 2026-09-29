@@ -36,7 +36,7 @@ this button did", "I expected pricing here" are all worth sending.
 ## Before you start
 
 - Use whichever device you'd normally use. If you have both, do the first pass
-  on desktop and the mobile pass at the end (§10).
+  on desktop and the mobile pass at the end (§11).
 - You'll need a Google account to sign in — there's no email/password option.
 - If you hit something that stops you completely, send it and skip ahead.
 
@@ -59,7 +59,8 @@ Stay signed out.
 
 - Browse the tool listings. Try the filters and sorting.
 - Open a few categories. Do the tools inside match the category name?
-- Does anything look duplicated or out of place? (See §11 first.)
+- Does anything look out of place for its category? (§12 covers what we
+  already know about.) If you see the *same tool listed twice*, do tell us — §13.
 - Try to find a tool for a task you actually have. Did you find one?
 
 ## 3. A tool's own page
@@ -84,7 +85,37 @@ Search is the main way in, so push on it.
 
 For each: were the results useful, and did they arrive fast enough?
 
-## 5. Signing up
+## 5. Comparing two tools
+
+Pick two tools you're genuinely torn between. This section works much better
+if you actually care which one wins.
+
+- In the browse listings or a set of search results, hit the **compare icon**
+  on a tool's card. It should mark that tool and *not* open it — tell us if it
+  takes you to the tool's page instead.
+- Add a second one. A bar appears along the bottom. Does it tell you what to
+  do next?
+- Open the comparison. Is there enough here to actually decide? What would you
+  want that isn't there?
+- **Copy the link, then open it in a new tab** — or send it to yourself and
+  open it there. Does it show the same comparison? This is the part we most
+  want tested: a comparison you can't send to someone isn't worth much.
+- Take a tool out of the comparison, then press the browser's back button.
+- Now go to a tool's own page and add it to a comparison from there.
+- Try adding a fifth tool. Four is the limit — is that clear when you hit it?
+- Export it, as a file or to print. (Print opens a pop-up, so your browser may
+  block it the first time.)
+
+Three things in here are deliberate. Tell us if they read as broken anyway:
+
+- Where all the tools give the **same answer, the row is greyed out** rather
+  than removed, so your eye lands on the rows where they differ.
+- Tools priced by usage, or by "contact us", show a **dash instead of a
+  number**. We'd rather show nothing than invent a price.
+- There are **no star ratings** in the comparison, though the cards have them.
+  Did you miss them here?
+
+## 6. Signing up
 
 Create an account with Google.
 
@@ -95,27 +126,27 @@ Create an account with Google.
 
 Note anything that made you hesitate. Hesitation at sign-up is expensive.
 
-## 6. Signed in
+## 7. Signed in
 
 - Look at your home page. Is it different from the signed-out landing page in a
   way that's useful?
 - Are any recommendations relevant to what you said during onboarding?
 
-## 7. Saving and collecting
+## 8. Saving and collecting
 
 - Save a few tools.
 - Make a collection and add tools to it.
 - Edit the collection — rename it, remove something.
 - Leave and come back. Is everything still there?
 
-## 8. Reviews and community
+## 9. Reviews and community
 
 - Write a review of a tool you've actually used.
 - Find someone else's review. Mark one helpful.
 - Look at the community area and another person's profile.
 - Try following someone, then unfollowing.
 
-## 9. Settings
+## 10. Settings
 
 - Open settings and change something — a notification toggle, a privacy option.
 - **Save it, reload the page, and check it stuck.** This is worth being fussy
@@ -123,21 +154,18 @@ Note anything that made you hesitate. Hesitation at sign-up is expensive.
 - Update your profile — display name, avatar.
 - Switch between light and dark mode. Look for anything unreadable.
 
-## 10. Mobile pass
+## 11. Mobile pass
 
-Open the site on your phone and repeat §1, §2, §4 and §7 quickly.
+Open the site on your phone and repeat §1, §2, §4, §5 and §8 quickly.
 
 - Is anything cut off, overlapping or too small to tap?
 - Does the menu work the way you'd expect?
 - Is any text uncomfortable to read?
 
-## 11. Things we already know about
+## 12. Things we already know about
 
 Please **don't spend reports on these** — they're known and already queued:
 
-- **Duplicate tools.** The underlying dataset contains a lot of duplicate
-  entries for the same product. Search filters them out, but browsing and
-  category pages can still show them.
 - **Wrong categories.** A small share of tools sit in a category that's plainly
   wrong. Known and being worked on. *Do* tell us if a search result is wrong —
   that's different and useful.
@@ -150,7 +178,14 @@ Please **don't spend reports on these** — they're known and already queued:
   failing. Being fixed separately.
 - **No weekly digest.** It isn't built yet, so there's no setting for it.
 
-## 12. Last questions
+## 13. Worth reporting if you see it
+
+**The same tool listed twice.** This was a real problem until very recently and
+should now be fixed. If you spot a genuine duplicate — the same product twice
+in one list — please send it, with the tool name. It's one of the few things
+where a single sighting is genuinely useful to us.
+
+## 14. Last questions
 
 When you're done, send these as one final piece of feedback:
 
