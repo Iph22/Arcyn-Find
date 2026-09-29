@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server'
 import { getSupabaseAdmin } from '@/lib/supabase'
+import { normalizeName } from '@/lib/seo/slug'
 
 export const runtime = 'nodejs'
 
@@ -39,29 +40,63 @@ export async function POST(request: Request) {
         }
 
         const supabase = getSupabaseAdmin()
+        const trimmedUrl = url.trim()
 
-        // Check if tool already exists (by name or URL)
-        const { data: existing } = await supabase
-            .from('ai_tools')
-            .select('id, name')
-            .or(`name.ilike.%${name}%,platform.eq.${url}`)
-            .limit(1)
+        // Does the catalog already hold this tool?
+        //
+        // Two exact lookups, rather than the one PostgREST .or() filter with
+        // an ILIKE in it that this used to be. That had three problems.
+        //
+        //   1. INJECTION. The submitted name was interpolated raw into
+        //      PostgREST filter syntax. A name containing a comma or a
+        //      parenthesis -- "Copy.ai, Inc" -- rewrites the filter rather
+        //      than being matched by it, and this endpoint is public and
+        //      unauthenticated.
+        //   2. ILIKE is not viable on ai_tools. Measured at 8.5s against a
+        //      statement timeout of roughly 8-9s, and the cost is driven by
+        //      trigram commonality rather than selectivity, so a RARER name
+        //      can be slower than a common one. That makes it unpredictable
+        //      rather than merely slow. See docs/CORPUS_AND_CONSTRAINTS.md
+        //      section 2.
+        //   3. It matched substrings, so any submission whose name occurred
+        //      inside a name already in the catalog was rejected as a
+        //      duplicate. "Sora" is a substring of "Sorasearch".
+        //
+        // existing_tool_names() is the RPC the ingest already uses for this
+        // exact question. It matches the indexed normalized_name generated
+        // column and returns DISTINCT, so it is an index scan and cannot
+        // truncate against PostgREST's silent 1000-row cap. normalizeName()
+        // is the JS half of that column's definition -- keep the two in step.
+        const [nameLookup, urlLookup] = await Promise.all([
+            supabase.rpc('existing_tool_names', { p_names: [normalizeName(name)] }),
+            supabase.from('ai_tools').select('name').eq('platform', trimmedUrl).limit(1),
+        ])
 
-        if (existing && existing.length > 0) {
+        const duplicateName = (nameLookup.data?.length ?? 0) > 0
+        const duplicateUrl = urlLookup.data?.[0]?.name
+
+        if (duplicateName || duplicateUrl) {
             return NextResponse.json(
-                { error: 'A tool with this name or URL already exists', existingTool: existing[0].name },
+                {
+                    error: 'A tool with this name or URL already exists',
+                    existingTool: duplicateUrl ?? name.trim(),
+                },
                 { status: 409 }
             )
         }
 
-        // Also check the submissions table to avoid duplicates
-        const { data: existingSubmission } = await supabase
-            .from('tool_submissions')
-            .select('id')
-            .or(`name.ilike.%${name}%,url.eq.${url}`)
-            .limit(1)
+        // The same question of the pending queue. tool_submissions has no
+        // normalized_name column, but it is small, and these are exact
+        // matches: .ilike() with no wildcards is case-insensitive equality,
+        // not the substring scan above. Passing the values as filter
+        // arguments rather than building the string also keeps the injection
+        // fix from point 1.
+        const [pendingByName, pendingByUrl] = await Promise.all([
+            supabase.from('tool_submissions').select('id').ilike('name', name.trim()).limit(1),
+            supabase.from('tool_submissions').select('id').eq('url', trimmedUrl).limit(1),
+        ])
 
-        if (existingSubmission && existingSubmission.length > 0) {
+        if ((pendingByName.data?.length ?? 0) > 0 || (pendingByUrl.data?.length ?? 0) > 0) {
             return NextResponse.json(
                 { error: 'This tool has already been submitted and is pending review' },
                 { status: 409 }
