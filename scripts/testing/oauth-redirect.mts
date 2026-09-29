@@ -46,6 +46,21 @@ check(
   )
 )
 
+console.log('\nThe stable preview domain')
+// preview.arcynfind.com is bound to `main` in Vercel. It failed the allowlist
+// on the first cut of this module -- it is not *.vercel.app and not the apex --
+// so it fell back to production and would have reproduced invalid_state.
+check(
+  'preview.arcynfind.com is allowed',
+  isAllowedOAuthOrigin('https://preview.arcynfind.com')
+)
+check(
+  'and keeps its own origin',
+  googleCallbackUri(proxied('preview.arcynfind.com')) ===
+    'https://preview.arcynfind.com/api/auth/callback/google',
+  googleCallbackUri(proxied('preview.arcynfind.com'))
+)
+
 console.log('\nBoth halves of one flow agree')
 // The bug in one line: authorisation and token exchange must produce the same
 // string, or Google answers redirect_uri_mismatch. They run on the same host.
@@ -69,6 +84,12 @@ check(
   !isAllowedOAuthOrigin('https://arcynfind.com.evil.example.com')
 )
 check('a vercel-suffixed impostor is not allowed', !isAllowedOAuthOrigin('https://vercel.app.evil.com'))
+check(
+  'an apex-suffixed impostor is not allowed',
+  !isAllowedOAuthOrigin('https://arcynfind.com.evil.test')
+)
+check('a prefix lookalike is not allowed', !isAllowedOAuthOrigin('https://evilarcynfind.com'))
+check('http on the apex is not allowed', !isAllowedOAuthOrigin('http://preview.arcynfind.com'))
 
 console.log('\nMultiple proxies append to x-forwarded-host')
 check(
