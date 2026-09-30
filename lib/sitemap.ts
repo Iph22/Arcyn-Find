@@ -122,8 +122,8 @@ async function collectUrls(): Promise<SitemapUrl[]> {
     // The bare URLs only. Both pages hold their state in the query string and
     // serve `noindex` the moment there is any, canonicalising back to these --
     // so listing a filtered or assembled variant here would contradict the
-    // page's own robots tag. See app/discover/page.tsx.
-    { url: `${baseUrl}/discover`, changefreq: 'daily', priority: '0.8' },
+    // page's own robots tag. See app/browse/page.tsx.
+    { url: `${baseUrl}/browse`, changefreq: 'daily', priority: '0.8' },
     { url: `${baseUrl}/compare`, changefreq: 'weekly', priority: '0.6' },
     { url: `${baseUrl}/about`, changefreq: 'monthly', priority: '0.6' },
     { url: `${baseUrl}/contact`, changefreq: 'monthly', priority: '0.5' },

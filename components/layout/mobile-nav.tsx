@@ -29,7 +29,7 @@ export function MobileNav() {
 
   const navItems = [
     { href: "/home", label: t("nav.home"), icon: Home, requiresAuth: true },
-    { href: "/discover", label: t("nav.tools"), icon: Sparkles, requiresAuth: false },
+    { href: "/browse", label: t("nav.tools"), icon: Sparkles, requiresAuth: false },
     // "Saved" rather than "Collections": the mobile bar has room for one word.
     { href: "/collections", label: t("nav.saved"), icon: Bookmark, requiresAuth: true },
     { href: "/profile", label: t("nav.profile"), icon: User, requiresAuth: true },
@@ -56,16 +56,16 @@ export function MobileNav() {
           <div className="flex items-center justify-around h-14 px-2 gap-2">
             {/* Tools Link */}
             <Link
-              href="/discover"
+              href="/browse"
               onClick={() => haptic("light")}
               className={cn(
                 "flex flex-col items-center justify-center gap-1 relative transition-colors flex-1 min-w-0 touch-manipulation active:scale-95",
-                pathname === "/discover"
+                pathname === "/browse"
                   ? "text-primary"
                   : "text-muted-foreground active:text-primary"
               )}
             >
-              {pathname === "/discover" && (
+              {pathname === "/browse" && (
                 <motion.div
                   layoutId="mobile-nav-indicator"
                   className="absolute top-0 left-0 right-0 h-1 bg-primary rounded-b-full"
@@ -77,10 +77,10 @@ export function MobileNav() {
                 whileTap={{ scale: 0.9 }}
                 className={cn(
                   "grid size-9 place-items-center rounded-full transition-colors",
-                  pathname === "/discover" && "bg-primary/10"
+                  pathname === "/browse" && "bg-primary/10"
                 )}
               >
-                <Sparkles className={cn("w-5 h-5 shrink-0", pathname === "/discover" && "scale-110")} />
+                <Sparkles className={cn("w-5 h-5 shrink-0", pathname === "/browse" && "scale-110")} />
               </motion.div>
               <span className="text-[11px] font-medium leading-tight">{t("nav.tools")}</span>
             </Link>

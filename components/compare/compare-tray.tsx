@@ -28,7 +28,7 @@ import { useCompareSelection } from '@/lib/compare-selection'
  * Room at the end of a scrolling list for the fixed tray to sit over.
  *
  * A `fixed` element cannot push anything, so without this the tray covers
- * whatever is last in the list -- on /discover that is the "Load more" button,
+ * whatever is last in the list -- on /browse that is the "Load more" button,
  * which is exactly the control you reach for after picking two tools out of a
  * screenful. It reserves space only while the tray is actually showing.
  */

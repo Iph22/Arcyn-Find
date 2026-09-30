@@ -64,8 +64,8 @@ const ANNOUNCEMENTS: readonly Announcement[] = [
       'pricing, free tiers, platform and what they actually do. Every comparison ' +
       'has its own link, so you can send one to someone else.',
     ctaLabel: 'Try comparing',
-    // Bare /compare, not /discover. It is the feature's own page and its empty
-    // state explains the flow and links onward to the directory; /discover would
+    // Bare /compare, not /browse. It is the feature's own page and its empty
+    // state explains the flow and links onward to the directory; /browse would
     // drop the reader into a tool list with no hint of why they are there.
     ctaPath: '/compare',
     until: '2026-10-20',
@@ -107,7 +107,7 @@ const ANNOUNCEMENTS: readonly Announcement[] = [
       'you can link to.',
     ctaLabel: 'Submit a tool',
     // /submit, which now asks people to sign in first and says why. That is
-    // the page the note is about; /discover would bury the actual invitation.
+    // the page the note is about; /browse would bury the actual invitation.
     ctaPath: '/submit',
     // Three sends: 2026-10-27, 11-03, 11-10.
     until: '2026-11-10',

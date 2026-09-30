@@ -9,7 +9,7 @@ import { setCompareSelection, type CompareItem } from '@/lib/compare-selection'
  *
  * /compare resolves its own query string on the server, so the page is already
  * correct without this. What it fixes is the state you carry AWAY from the
- * page: follow a shared link, click back into /discover, and without this the
+ * page: follow a shared link, click back into /browse, and without this the
  * tray would still hold whatever you had selected before -- so the compare bar
  * and the comparison you were just looking at would name different tools.
  *

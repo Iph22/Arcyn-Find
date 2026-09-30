@@ -7,10 +7,7 @@ import { getCategoriesSafe } from '@/lib/seo/catalog'
 import { siteUrl } from '@/lib/seo/site'
 
 /**
- * The interactive tool browser, at the site's own name for it.
- *
- * WAS /browse. next.config.ts 308s the old path, which is why the rename does
- * not cost the URL whatever ranking it had.
+ * The interactive tool browser.
  *
  * WHY THE BARE URL IS INDEXED AND THE FILTERED ONES ARE NOT
  *
@@ -19,9 +16,9 @@ import { siteUrl } from '@/lib/seo/site'
  * docs/CORPUS_AND_CONSTRAINTS.md §6 and SEO_ARCHITECTURE §5 rule out, and it
  * still holds -- but it was being enforced by making the WHOLE page noindex,
  * which also excluded the one URL that is stable, canonical and worth having:
- * `/discover` with no parameters at all.
+ * `/browse` with no parameters at all.
  *
- * So the rule is now per-URL rather than per-page. Bare `/discover` asks to be
+ * So the rule is now per-URL rather than per-page. Bare `/browse` asks to be
  * indexed; any parameterised variant is `noindex, follow` and canonicalises
  * back to the bare page, so the filter space stays out of the index while the
  * landing page can rank.
@@ -49,17 +46,17 @@ export async function generateMetadata({ searchParams }: Props): Promise<Metadat
   const isFiltered = Object.keys(params).length > 0
 
   return {
-    title: isFiltered ? 'Search AI tools' : 'Discover AI tools',
+    title: isFiltered ? 'Search AI tools' : 'Browse AI tools',
     description: DESCRIPTION,
     // Always the bare page. A filtered view is a state of this page, not a
     // page of its own, and saying so is what keeps the permutations out of
     // the index without also hiding the page itself.
-    alternates: { canonical: `${siteUrl()}/discover` },
+    alternates: { canonical: `${siteUrl()}/browse` },
     robots: isFiltered ? { index: false, follow: true } : { index: true, follow: true },
   }
 }
 
-export default async function DiscoverPage() {
+export default async function BrowsePage() {
   // Degrades to an empty list rather than throwing: a transient database error
   // should cost the category shortcuts, not the whole browser.
   const categories = await getCategoriesSafe()
@@ -67,7 +64,7 @@ export default async function DiscoverPage() {
   return (
     <div className="min-h-dvh bg-background">
       <header className="mx-auto max-w-6xl px-4 pt-10 sm:px-6">
-        <h1 className="text-3xl font-bold tracking-tight sm:text-4xl">Discover AI tools</h1>
+        <h1 className="text-3xl font-bold tracking-tight sm:text-4xl">Browse AI tools</h1>
         <p className="mt-3 max-w-2xl text-muted-foreground">
           Search the whole directory by what you are trying to do, then narrow it by category,
           pricing or platform. Every result links to a page covering what the tool does, how it

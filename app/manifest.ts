@@ -34,14 +34,14 @@ export default function manifest(): MetadataRoute.Manifest {
     // Both of these used to 404. They are only reachable by long-pressing the
     // installed app icon, which is a surface nobody exercises in a browser, so
     // nothing caught it: '/?action=search' set a query parameter no route ever
-    // read, and '/ai-tools' was never a route at all. '/discover' is the
+    // read, and '/ai-tools' was never a route at all. '/browse' is the
     // interactive search-and-filter surface; '/tools' is the directory.
     shortcuts: [
       {
         name: 'Search AI Tools',
         short_name: 'Search',
         description: 'Search for AI tools',
-        url: '/discover',
+        url: '/browse',
         icons: [{ src: '/android-chrome-192x192.png', sizes: '192x192' }],
       },
       {
