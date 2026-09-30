@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server'
 import { getSupabaseAdmin, transformToAIEntry, AI_TOOLS_COLUMNS } from '@/lib/supabase'
 import { fetchAIModelsFromSources } from '@/lib/data-sources'
 import type { AIEntry } from '@/lib/ai-data'
+import { normalizeName } from '@/lib/seo/slug'
 import { checkRateLimit, getRateLimitHeaders } from '@/lib/rate-limit'
 import { logger } from '@/lib/logger'
 import { parseNaturalLanguageSearch, validateSearchResults, discoverNewTools } from '@/lib/ai-nlp'
@@ -25,6 +26,54 @@ const ERRROR_COOLDOWN = 1000 * 60 // 1 minute cooldown after 429
  * Fetches AI models from Supabase with optional filtering, pagination, and search
  * Falls back to external sources if Supabase fails
  */
+/**
+ * Put the exactly-named tool first, if there is one.
+ *
+ * Semantic retrieval leads in this route, and it answers a different question
+ * than a name is asking. Searching "Granola" -- a real, published tool --
+ * returned Leftovers AI, AI Recipe Generator, Oatmealhealth and MealByMeal,
+ * because the cereal is a better vector match for the word than the product
+ * is. The row was fine: full text found it among two rows and an exact-name
+ * lookup found it instantly. It simply never survived the semantic set.
+ *
+ * This does not touch ranking. It asks one indexed question -- is there a tool
+ * called exactly this -- and if so moves it to the front of whatever the
+ * pipeline already produced. A query that is not a name matches nothing and
+ * costs one cheap lookup.
+ *
+ * Applied at every exit rather than at the end of the handler, because the
+ * semantic path returns from three places and never reaches the end.
+ */
+async function promoteExactName(
+  entries: AIEntry[],
+  query: string | null | undefined,
+  limit: number
+): Promise<AIEntry[]> {
+  if (!query || entries.length === 0) return entries
+
+  const typed = normalizeName(query)
+  if (typed.length < 2) return entries
+  if (entries[0] && normalizeName(entries[0].name) === typed) return entries
+
+  try {
+    const { data } = await getSupabaseAdmin()
+      .from('ai_tools')
+      .select(AI_TOOLS_COLUMNS)
+      .ilike('name', query.trim())
+      .limit(1)
+
+    const hit = data?.[0] ? transformToAIEntry(data[0]) : null
+    if (!hit) return entries
+
+    logger.info(`[API] Exact name match promoted to first: "${hit.name}"`)
+    return [hit, ...entries.filter((e) => e.id !== hit.id)].slice(0, Math.max(limit, 1))
+  } catch (error) {
+    // A failed lookup must not cost the results that were already found.
+    logger.warn(`[API] exact-name promotion failed: ${(error as Error).message}`)
+    return entries
+  }
+}
+
 export async function GET(request: Request) {
   console.log('HIT API ROUTE:', request.url)
 
@@ -548,7 +597,7 @@ export async function GET(request: Request) {
 
               logger.info(`[API] Returning ${reordered.length} ranked semantic results (intent: ${ranked.query_intent}, confidence: ${ranked.confidence_level})`)
 
-              return NextResponse.json(reordered, {
+              return NextResponse.json(await promoteExactName(reordered, originalSearch, limit), {
                 headers: {
                   ...getRateLimitHeaders(rateLimit.remaining, rateLimit.resetTime),
                   ...buildDiagnosticHeaders(reordered.length, limit),
@@ -562,7 +611,7 @@ export async function GET(request: Request) {
             }
 
             // If ranking returned no results, fall through to unranked
-            return NextResponse.json(filteredSemantic, {
+            return NextResponse.json(await promoteExactName(filteredSemantic, originalSearch, limit), {
               headers: {
                 ...getRateLimitHeaders(rateLimit.remaining, rateLimit.resetTime),
                 ...buildDiagnosticHeaders(filteredSemantic.length, limit),
@@ -574,7 +623,7 @@ export async function GET(request: Request) {
           } catch (pipelineError) {
             logger.error('[API] Search pipeline failed, returning unranked results:', pipelineError)
             // Fallback: return unranked semantic results
-            return NextResponse.json(filteredSemantic, {
+            return NextResponse.json(await promoteExactName(filteredSemantic, originalSearch, limit), {
               headers: {
                 ...getRateLimitHeaders(rateLimit.remaining, rateLimit.resetTime),
                 ...buildDiagnosticHeaders(filteredSemantic.length, limit),
@@ -1030,7 +1079,7 @@ export async function GET(request: Request) {
       }
     }
 
-    return NextResponse.json(aiEntries, {
+    return NextResponse.json(await promoteExactName(aiEntries, originalSearch, limit), {
       headers: {
         'Cache-Control': 'public, s-maxage=300, stale-while-revalidate=600',
         ...getRateLimitHeaders(rateLimit.remaining, rateLimit.resetTime),

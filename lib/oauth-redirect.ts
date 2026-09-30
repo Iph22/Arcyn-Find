@@ -33,88 +33,11 @@
  * it is what keeps a mistake here from depending on that first one.
  */
 
-import { PRODUCTION_ORIGIN } from './seo/site'
+import { appOrigin, isAllowedOAuthOrigin } from './request-origin'
+
+export { isAllowedOAuthOrigin }
 
 const CALLBACK_PATH = '/api/auth/callback/google'
-
-/**
- * The origin this request is really being served on.
- *
- * `x-forwarded-*` first because the app sits behind Vercel's proxy, where
- * `request.url` can carry the internal host rather than the one the browser
- * used.
- */
-function requestOrigin(request: Request): string | null {
-  const headers = request.headers
-  const forwardedHost = headers.get('x-forwarded-host')
-  const host = forwardedHost || headers.get('host')
-
-  if (host) {
-    const proto = headers.get('x-forwarded-proto') || 'https'
-    // A comma-separated list appears when more than one proxy has appended to
-    // it; the first entry is the one nearest the client.
-    const firstHost = host.split(',')[0].trim()
-    const firstProto = proto.split(',')[0].trim()
-    if (firstHost) return `${firstProto}://${firstHost}`
-  }
-
-  try {
-    return new URL(request.url).origin
-  } catch {
-    return null
-  }
-}
-
-/** Origins this app is willing to be signed in on. */
-export function isAllowedOAuthOrigin(origin: string): boolean {
-  let url: URL
-  try {
-    url = new URL(origin)
-  } catch {
-    return false
-  }
-
-  const configured = process.env.NEXT_PUBLIC_SITE_URL
-  if (configured) {
-    try {
-      if (new URL(configured).origin === url.origin) return true
-    } catch {
-      // A malformed NEXT_PUBLIC_SITE_URL simply does not match anything.
-    }
-  }
-
-  // The production apex and any subdomain of it. `preview.arcynfind.com` is
-  // bound to the `main` branch in Vercel and is the stable URL to verify an
-  // authenticated page on before promoting -- unlike a per-deployment
-  // *.vercel.app host, which changes on every push and so cannot be registered
-  // in the Google Cloud Console once and left alone.
-  //
-  // Anchored on a leading dot against the apex, so `arcynfind.com.evil.test`
-  // does not match: it ends with `.evil.test`, not with `.arcynfind.com`.
-  const apex = new URL(PRODUCTION_ORIGIN).hostname
-  if (url.protocol === 'https:' && (url.hostname === apex || url.hostname.endsWith(`.${apex}`))) {
-    return true
-  }
-
-  // Vercel preview deployments. The host is generated per deployment, so it
-  // cannot be enumerated; what can be required is that it is a Vercel
-  // deployment of this project over https. Each one still has to be registered
-  // in the Google Cloud Console before sign-in works there -- prefer the
-  // stable per-branch alias (arcyn-find-git-<branch>-<scope>.vercel.app) over
-  // the per-deployment URL, which changes on every push.
-  if (url.protocol === 'https:' && url.hostname.endsWith('.vercel.app')) return true
-
-  // Local development, where NEXT_PUBLIC_SITE_URL is http://localhost:3000 and
-  // therefore already matched above -- this covers a different port.
-  if (
-    process.env.NODE_ENV !== 'production' &&
-    (url.hostname === 'localhost' || url.hostname === '127.0.0.1')
-  ) {
-    return true
-  }
-
-  return false
-}
 
 /**
  * The redirect_uri for this request, or the production one when the request's
@@ -125,21 +48,5 @@ export function isAllowedOAuthOrigin(origin: string): boolean {
  * existed, which is a working flow on production.
  */
 export function googleCallbackUri(request: Request): string {
-  const origin = requestOrigin(request)
-
-  if (origin && isAllowedOAuthOrigin(origin)) {
-    return `${origin}${CALLBACK_PATH}`
-  }
-
-  if (origin) {
-    console.warn(
-      `[auth] origin ${origin} is not an allowed OAuth origin; ` +
-        `falling back to the configured site URL. Sign-in started here will ` +
-        `finish on another domain and fail its state check.`
-    )
-  }
-
-  const configured = process.env.NEXT_PUBLIC_SITE_URL
-  const base = configured && /^https?:\/\//i.test(configured) ? configured : PRODUCTION_ORIGIN
-  return `${base.replace(/\/+$/, '')}${CALLBACK_PATH}`
+  return `${appOrigin(request)}${CALLBACK_PATH}`
 }

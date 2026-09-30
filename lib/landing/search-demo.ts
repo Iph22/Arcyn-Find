@@ -34,8 +34,15 @@ import { getFeaturedTools, isIndexable } from '@/lib/seo/catalog'
  */
 export const DEMO_QUERY = 'meeting notes and summaries'
 
-/** How many result rows the animation renders. */
-const DEMO_RESULT_COUNT = 3
+/**
+ * How many result rows the animation renders.
+ *
+ * Five rather than three: the hero's card stack promotes one result to a
+ * featured card and lists the rest beneath it as "similar tools", then cycles
+ * which one is featured. Three left the list with a single row once one was
+ * promoted.
+ */
+const DEMO_RESULT_COUNT = 5
 
 export interface DemoResult {
   name: string
@@ -44,6 +51,14 @@ export interface DemoResult {
    *  unreliable — docs/CORPUS_AND_CONSTRAINTS.md §1 — and would caption a
    *  meeting-notes tool as "Code & Development" on the homepage. */
   accessType: string | null
+  /** The tool's own tags, for the chip row on the featured card. Real values
+   *  off the row: the design this card came from had a star rating and a
+   *  review count in this position, and there is no rating data behind
+   *  either (7 reviews site-wide). Tags describe the tool and are stored. */
+  tags: string[]
+  /** Logo URL, already filtered through isIndexable below. Null renders the
+   *  initial instead — every tool has a name, not every row has an image. */
+  image: string | null
 }
 
 export interface LandingSearchDemo {
@@ -65,6 +80,9 @@ function toDemoResult(row: SearchRow): DemoResult {
     name: row.name,
     description: (row.description ?? '').trim(),
     accessType: row.access_type,
+    // Three chips is what the card has room for at its narrowest.
+    tags: (row.tags ?? []).filter((t) => t && t.trim()).slice(0, 3),
+    image: row.image,
   }
 }
 
@@ -121,6 +139,8 @@ export async function getLandingSearchDemo(): Promise<LandingSearchDemo> {
         name: tool.name,
         description: tool.description,
         accessType: tool.accessType,
+        tags: (tool.tags ?? []).filter((t) => t && t.trim()).slice(0, 3),
+        image: tool.image,
       })),
     }
   } catch (error) {
