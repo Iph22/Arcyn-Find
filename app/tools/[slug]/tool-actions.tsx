@@ -73,7 +73,7 @@ export function ToolActions({
         {isFavorite(toolId) ? 'Saved' : 'Save'}
       </Button>
       {/* The other half of the comparison flow. Someone who arrived here from
-          Google has not been through /browse and has no tray yet -- this is
+          Google has not been through /discover and has no tray yet -- this is
           where they start one, and the bar appears as soon as they do. */}
       <CompareToggle tool={{ id: toolId, slug, name }} variant="button" />
       <Button variant="outline" onClick={share}>

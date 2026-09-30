@@ -180,7 +180,7 @@ export default function HomePage() {
    * directory -- its page function takes no searchParams at all -- so the
    * query was dropped on every search from this page and the user landed on a
    * generic category grid with no sign that anything had been searched. The
-   * component that reads `?search=` is ToolsBrowser, mounted at /browse.
+   * component that reads `?search=` is ToolsBrowser, mounted at /discover.
    */
   const runSearch = (query: string) => {
     const trimmed = query.trim()
@@ -489,7 +489,7 @@ export default function HomePage() {
         </main>
       </div>
 
-      {/* A comparison assembled on /browse should still be one click away
+      {/* A comparison assembled on /discover should still be one click away
           after coming back here. Renders nothing when nothing is selected. */}
       <CompareTray />
     </div>

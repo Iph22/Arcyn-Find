@@ -76,7 +76,7 @@ export interface LandingCategory {
  *
  * WHERE THINGS LINK
  *
- * See docs/ROUTING.md. Briefly: free text goes to /browse via searchHref(), a
+ * See docs/ROUTING.md. Briefly: free text goes to /discover via searchHref(), a
  * named category goes to its own page via categoryPageSlugHref(), and both are
  * real anchors rather than click handlers so they can be crawled, copied and
  * opened in a new tab.
@@ -136,7 +136,7 @@ export function LandingPage({
       title: t("landing.stepSearchTitle"),
       desc: t("landing.stepSearchDesc"),
       cta: t("landing.stepSearchCta"),
-      href: "/browse",
+      href: "/discover",
     },
     {
       n: "02",

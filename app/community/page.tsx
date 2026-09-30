@@ -44,7 +44,7 @@ export default function CommunityPage() {
       title: "Save what works",
       body:
         "Favourite the tools you keep coming back to, so you can find them again without searching twice.",
-      href: "/browse",
+      href: "/discover",
       cta: "Browse and filter",
     },
     {

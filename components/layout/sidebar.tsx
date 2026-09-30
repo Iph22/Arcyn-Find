@@ -212,7 +212,7 @@ export function Sidebar({ onClose }: SidebarProps) {
         <div className={cn("mt-6", isCollapsed && "mt-4")}>
           {isCollapsed ? (
             <Link
-              href="/browse"
+              href="/discover"
               onClick={onClose}
               className="flex items-center justify-center rounded-lg px-2 py-2.5 text-sm font-medium text-sidebar-foreground/70 transition-all hover:bg-sidebar-accent/50 hover:text-sidebar-accent-foreground"
               title={t("nav.tools")}
@@ -225,7 +225,7 @@ export function Sidebar({ onClose }: SidebarProps) {
                 Discover
               </h4>
               <Link
-                href="/browse"
+                href="/discover"
                 onClick={onClose}
                 className="flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium text-sidebar-foreground/70 transition-all hover:bg-sidebar-accent/50 hover:text-sidebar-accent-foreground"
               >

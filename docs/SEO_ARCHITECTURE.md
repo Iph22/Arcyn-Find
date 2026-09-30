@@ -84,7 +84,7 @@ PUBLIC (server-rendered, crawlable)        APPLICATION (auth-gated)
   /tools/category    category index          /settings
   /tools/category/*  category pages          /collections
   /tools/<slug>      tool pages              ...
-  /browse            filter UI (noindex, follow)
+  /discover          filter UI (bare: index; filtered: noindex, follow)
 ```
 
 The crawl graph is a closed loop: the homepage links to `/tools`, which links
@@ -92,7 +92,7 @@ to every category and to the top tools; each category page links to its tools
 and to every other category; each tool page links to its category and to eight
 related tools; and the footer on every public page links to every category.
 
-`/browse` holds the interactive filter UI that used to live at `/tools`. It is
+`/discover` holds the interactive filter UI that used to live at `/tools`. It is
 `noindex, follow` because its state lives in query parameters, which is an
 unbounded URL space — but it is still crawlable so its outbound links are
 followed. In-app navigation (sidebar, navbar, mobile nav) points there.
@@ -194,7 +194,7 @@ is too unreliable to anchor a comparison — ~1.4% unclassified, and annual plan
 stored as monthly equivalents.
 
 > **Still true, and not what `/compare` is** (added 2026-09-29). The route
-> `/compare?tools=a,b` is an application surface, like `/browse`: a reader
+> `/compare?tools=a,b` is an application surface, like a filtered `/discover`: a reader
 > assembles the set, nothing generates it, it is `noindex, follow`, and
 > `robots.txt` disallows the parameterised form. No crawlable page links into
 > it. The pricing objection above was handled rather than ignored — the page
@@ -202,7 +202,7 @@ stored as monthly equivalents.
 > quote-priced tools instead of a number. What remains ruled out is publishing
 > the generated a-vs-b set into the index, which is a different thing.
 
-**No indexed filter combinations.** `/browse?category=x&pricing=y` is noindex
+**No indexed filter combinations.** `/discover?category=x&pricing=y` is noindex
 by design.
 
 **Pricing appears in structured data only when the ingest classified it.** A

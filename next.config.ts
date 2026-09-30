@@ -4,6 +4,22 @@ const nextConfig: NextConfig = {
   turbopack: {
     root: process.cwd(),
   },
+  async redirects() {
+    return [
+      {
+        // `/browse` was renamed to `/discover`. 308 rather than 307 so the
+        // move is cacheable and any ranking the old URL earned transfers.
+        //
+        // Query strings carry across, which is the part that matters: the PWA
+        // shortcut, the homepage JSON-LD SearchAction and the submission
+        // emails all pointed at `/browse?search=...`. Those are updated, but
+        // links already sent cannot be.
+        source: '/browse',
+        destination: '/discover',
+        permanent: true,
+      },
+    ]
+  },
   async rewrites() {
     return [
       {

@@ -3,7 +3,7 @@
  *
  * Moved out of components/tools/tools-browser.tsx so it can be checked by a
  * script. The failure this guards against is silent: an in-app tile links to
- * `/browse?category=<slug>`, the browser fails to resolve that slug, and it
+ * `/discover?category=<slug>`, the browser fails to resolve that slug, and it
  * falls back to "All" -- so the user clicks "Image Generation" and gets the
  * unfiltered list, with nothing in the UI admitting that the filter was
  * dropped. Nothing about that shows up in a type check.

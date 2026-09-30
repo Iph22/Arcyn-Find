@@ -137,11 +137,11 @@ export function renderApprovedEmail(name: string, origin: string): { subject: st
       <strong>${escapeHtml(name)}</strong> has been added to the Arcyn Find directory. Thank you for
       submitting it — it is searchable now.
     </p>
-    <a href="${escapeHtml(origin)}/browse?search=${encodeURIComponent(name)}" style="display:inline-block;background:${BRAND};color:#fff;text-decoration:none;padding:11px 22px;border-radius:8px;font-size:14px;font-weight:600">See it on Arcyn Find</a>`
+    <a href="${escapeHtml(origin)}/discover?search=${encodeURIComponent(name)}" style="display:inline-block;background:${BRAND};color:#fff;text-decoration:none;padding:11px 22px;border-radius:8px;font-size:14px;font-weight:600">See it on Arcyn Find</a>`
   return {
     subject: `${name} is live on Arcyn Find`,
     html: shell('Your submission was accepted', body),
-    text: `${name} has been added to the Arcyn Find directory and is searchable now.\n\n${origin}/browse?search=${encodeURIComponent(name)}`,
+    text: `${name} has been added to the Arcyn Find directory and is searchable now.\n\n${origin}/discover?search=${encodeURIComponent(name)}`,
   }
 }
 

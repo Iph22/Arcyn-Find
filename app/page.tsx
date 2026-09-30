@@ -117,7 +117,7 @@ export default async function HomePage() {
           '@type': 'SearchAction',
           target: {
             '@type': 'EntryPoint',
-            urlTemplate: `${origin}/browse?${SEARCH_PARAM}={search_term_string}`,
+            urlTemplate: `${origin}/discover?${SEARCH_PARAM}={search_term_string}`,
           },
           'query-input': 'required name=search_term_string',
         },

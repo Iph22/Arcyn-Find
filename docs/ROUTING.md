@@ -5,12 +5,25 @@ category. Every rule below is here because the codebase got it wrong first, and
 in each case the mistake was invisible to the type checker, the linter, and a
 screenshot.
 
-## /tools and /browse are not the same page
+## /tools and /discover are not the same page
 
 | route | what it is | reads `?search=` |
 | --- | --- | --- |
 | `/tools` | static SEO directory, `revalidate = 3600` | **no** |
-| `/browse` | the interactive browser (`ToolsBrowser`), `noindex, follow` | yes |
+| `/discover` | the interactive browser (`ToolsBrowser`) | yes |
+
+`/browse` was renamed to `/discover` on 2026-09-30 and 308s there from
+`next.config.ts`. Query strings survive the redirect, so links already sent
+still work, but new code must use the new path -- or better, `searchHref()`,
+which owns it.
+
+**Indexability is per-URL on `/discover`, not per-page.** Bare `/discover` is
+`index, follow`; any parameterised variant is `noindex, follow` and
+canonicalises back to the bare URL. It used to be noindex outright, which kept
+the filter permutations out of the index -- correct -- but also excluded the
+one URL that is stable and worth ranking. `/compare` works the same way: bare
+is indexed, an assembled comparison is not. Both are in the sitemap as bare
+URLs only.
 
 `app/tools/page.tsx` takes no `searchParams` argument at all, so a query string
 appended to it is silently dropped. The signed-in home page pushed
@@ -40,7 +53,7 @@ redirecting form.
 
 | the user did | lands on | why |
 | --- | --- | --- |
-| typed a query | `/browse?search=…` | a query needs filtering and refining |
+| typed a query | `/discover?search=…` | a query needs filtering and refining |
 | named a category | `/tools/category/<slug>` | a category is a destination with a curated list |
 
 Use **`searchHref(query)`** and **`categoryPageHref(name, knownSlugs)`** /
@@ -52,8 +65,8 @@ Watch the path segment: `/tools/category/<slug>` is one category,
 `/tools/category` is the index of all of them. Landing on the index after
 clicking a named category is a bug, and the two URLs differ by one segment.
 
-`/browse?category=<slug>` also works and nothing links to it. It is kept
-because `/browse` is an application surface whose state lives in its query
+`/discover?category=<slug>` also works and nothing links to it. It is kept
+because `/discover` is an application surface whose state lives in its query
 string, so the filter has to be expressible as a URL for that state to be
 shareable at all.
 
@@ -63,7 +76,7 @@ layer slugifies raw `ai_tools.category` values, so `Marketing & Sales` becomes
 is `Marketing` and slugifies to `marketing`. `lib/categories.ts` indexes both.
 
 When that bridge breaks the failure is silent: an unresolved slug falls back to
-`All`, the browser shows the unfiltered list, and `/browse` returns 200 either
+`All`, the browser shows the unfiltered list, and `/discover` returns 200 either
 way. `npm run test:home-links` asserts every published category slug resolves
 to a real filter.
 
@@ -141,7 +154,7 @@ overlay swallows its clicks. Do not nest a `<button>` inside the `<a>`.
 
 `/compare?tools=<a>,<b>` is the comparison. The query string is the whole
 state, the page resolves it on the server, and `noindex, follow` keeps it out
-of the index the same way `/browse` is kept out.
+of the index the same way `/discover`'s filtered variants are kept out.
 
 Build the URL with **`compareHref()`** from `lib/compare.ts`, and read it back
 with **`parseCompareSegments()`**. Segments follow `toolHref()`'s precedence —

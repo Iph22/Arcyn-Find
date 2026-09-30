@@ -17,7 +17,7 @@ const publicRoutes = [
   // The public SEO layer. `/tools` covers /tools, /tools/<slug> and
   // /tools/category/* via the prefix match below.
   '/tools',
-  '/browse',
+  '/discover',
   '/about',
   '/privacy',
   '/terms',
@@ -78,7 +78,7 @@ export async function proxy(request: NextRequest) {
 
   // No blanket X-Robots-Tag here. It used to stamp `index, follow` on every
   // public route, which would now override the per-page `noindex` that the
-  // SEO layer applies to thin tool pages and to the /browse filter UI.
+  // SEO layer applies to thin tool pages and to the /discover filter UI.
   // Indexability is decided in one place: each page's generateMetadata.
 
   // Check authentication for protected routes.

@@ -16,7 +16,7 @@ export const revalidate = 86400 // 24 hours
  *
  * This is the doorway a crawler is supposed to come through: server-rendered,
  * no authentication, and every link on it is a real `<a href>` to another
- * public page. The interactive filter UI lives at /browse, which is noindex --
+ * public page. The interactive filter UI lives at /discover, whose bare URL is
  * §6 warns against letting a crawler into an unbounded filter-combination
  * space, and a 2,700-card dump is not a landing page either.
  */
@@ -94,7 +94,7 @@ export default async function ToolsDirectoryPage() {
               <ArrowRight className="h-4 w-4" />
             </Link>
             <Link
-              href="/browse"
+              href="/discover"
               className="inline-flex items-center gap-2 rounded-md border border-border px-4 py-2 text-sm font-medium transition-colors hover:bg-accent"
             >
               Search and filter

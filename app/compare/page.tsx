@@ -8,6 +8,7 @@ import { ComparisonTable } from '@/components/compare/comparison-table'
 import { PublicFooter, PublicHeader } from '@/components/seo/public-chrome'
 import { COMPARE_PARAM, MAX_COMPARE, parseCompareSegments } from '@/lib/compare'
 import { getCategoriesSafe, getToolsBySegments } from '@/lib/seo/catalog'
+import { siteUrl } from '@/lib/seo/site'
 
 /**
  * Side-by-side comparison of up to four tools.
@@ -16,7 +17,7 @@ import { getCategoriesSafe, getToolsBySegments } from '@/lib/seo/catalog'
  * not a link". A comparison you assembled is the single most shareable thing
  * this site can produce -- it is the artefact somebody pastes into a team
  * channel -- and behind a modal it would have no URL to paste. So the set
- * being compared lives in the query string, exactly as /browse's filters do.
+ * being compared lives in the query string, exactly as /discover's filters do.
  *
  * WHY IT IS `noindex, follow`. docs/SEO_ARCHITECTURE.md §5 rejected
  * `/compare/a-vs-b` pages, for two reasons that are worth separating:
@@ -26,7 +27,7 @@ import { getCategoriesSafe, getToolsBySegments } from '@/lib/seo/catalog'
  * and it is honest about the pricing rather than presenting it as settled.
  * What §5 ruled out was publishing ~4 million machine-generated pages into the
  * index; what it did not rule out is letting a visitor compare four tools they
- * chose. `follow` is deliberate for the same reason /browse uses it: crawlers
+ * chose. `follow` is deliberate for the same reason /discover uses it: crawlers
  * should still walk out of here into the tool pages.
  *
  * Dynamic by construction: reading `searchParams` opts a page into request-time
@@ -52,7 +53,13 @@ export async function generateMetadata({ searchParams }: Props): Promise<Metadat
     description:
       'Put AI tools side by side on pricing, free tiers, platform and capabilities, ' +
       'from the Arcyn Find directory.',
-    robots: { index: false, follow: true },
+    // Bare /compare is a real landing page for the feature and asks to be
+    // indexed. An assembled comparison is a state of that page, not a page of
+    // its own, so it is noindex and canonicalises back -- which is what keeps
+    // the combinatorial space §5 rejected out of the index without also
+    // hiding the feature itself. See app/discover/page.tsx, same rule.
+    alternates: { canonical: `${siteUrl()}/compare` },
+    robots: segments.length > 0 ? { index: false, follow: true } : { index: true, follow: true },
   }
 }
 
@@ -123,7 +130,7 @@ export default async function ComparePage({ searchParams }: Props) {
                   One tool is not a comparison yet. Add at least one more from the directory.
                 </p>
                 <Link
-                  href="/browse"
+                  href="/discover"
                   className="mt-3 inline-flex items-center gap-2 rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground transition-opacity hover:opacity-90"
                 >
                   <Search className="h-4 w-4" />
@@ -174,7 +181,7 @@ function EmptyState() {
       </p>
       <div className="mt-5 flex flex-wrap justify-center gap-2">
         <Link
-          href="/browse"
+          href="/discover"
           className="inline-flex items-center gap-2 rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground transition-opacity hover:opacity-90"
         >
           <Search className="h-4 w-4" />

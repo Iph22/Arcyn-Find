@@ -1,7 +1,7 @@
 /**
  * Where a tool or category link points.
  *
- * One module because the in-app surfaces (/home, /browse) and the public SEO
+ * One module because the in-app surfaces (/home, /discover) and the public SEO
  * surfaces (/tools, /tools/category) had drifted into two different answers:
  * the SEO pages linked by slug, while the app linked by id -- or, more often,
  * did not link at all and opened a modal instead. That cost every in-app
@@ -76,13 +76,13 @@ export function categoryPageSlugHref(slug: string): string {
  * The tool browser, pre-filtered to a category.
  *
  * Nothing links here today -- category links go to the category's own page
- * above. It is kept because `/browse` is an application surface whose state
- * lives in its query string (see the comment on app/browse/page.tsx), so the
+ * above. It is kept because `/discover` is an application surface whose state
+ * lives in its query string (see the comment on app/discover/page.tsx), so the
  * filter has to be expressible as a URL for that state to be shareable at all,
  * and ToolsBrowser reads the parameter either way.
  */
 export function browseCategorySlugHref(slug: string): string {
-  return `/browse?category=${encodeURIComponent(slug)}`
+  return `/discover?category=${encodeURIComponent(slug)}`
 }
 
 /**
@@ -90,13 +90,13 @@ export function browseCategorySlugHref(slug: string): string {
  *
  * Named once because it was written three ways: /home pushed `?search=` at
  * /tools (which parses no parameters at all), while the homepage's JSON-LD
- * SearchAction advertised `?q=` at /browse. ToolsBrowser reads `search`.
+ * SearchAction advertised `?q=` at /discover. ToolsBrowser reads `search`.
  */
 export const SEARCH_PARAM = 'search'
 
 /** The browse URL for a free-text query. */
 export function searchHref(query: string): string {
   const trimmed = query.trim()
-  if (!trimmed) return '/browse'
-  return `/browse?${SEARCH_PARAM}=${encodeURIComponent(trimmed)}`
+  if (!trimmed) return '/discover'
+  return `/discover?${SEARCH_PARAM}=${encodeURIComponent(trimmed)}`
 }
