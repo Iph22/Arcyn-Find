@@ -151,6 +151,30 @@ async function fetchPage(afterId: string | null): Promise<{ targets: Target[]; s
   return { targets, skipped, lastId: rows.length > 0 ? String(rows[rows.length - 1].id) : null }
 }
 
+/**
+ * Which of these people have NOT already been sent this announcement.
+ *
+ * Mirrors what claimRecipients would return, without writing anything, so a
+ * dry run reports the same numbers the real send would produce.
+ */
+async function unclaimedIds(targets: Target[], announcementId: string): Promise<Set<string>> {
+  if (targets.length === 0) return new Set()
+
+  const { data, error } = await getSupabaseAdmin()
+    .from('notification_log')
+    .select('user_id')
+    .eq('kind', 'announcement')
+    .eq('digest_key', announcementId)
+    .in('user_id', targets.map((t) => t.id))
+
+  // On a failed read, report nobody as already-sent rather than silently
+  // reporting a smaller number than the real run would send.
+  if (error) return new Set(targets.map((t) => t.id))
+
+  const already = new Set((data ?? []).map((r) => String(r.user_id)))
+  return new Set(targets.filter((t) => !already.has(t.id)).map((t) => t.id))
+}
+
 export async function sendAnnouncement(
   announcement: Announcement,
   options: { dryRun?: boolean; origin?: string } = {}
@@ -189,8 +213,16 @@ export async function sendAnnouncement(
       // Claim before sending. A run that dies mid-batch has already recorded
       // who it was about to mail, so resuming skips them rather than sending
       // twice -- the same order the digest uses, for the same reason.
+      // A dry run reads the claims; it does not pretend there are none.
+      //
+      // This previously assumed every recipient was unclaimed, so after a real
+      // send the dry run still reported "would send 9" when a second send
+      // would correctly have sent 0. The safety was never in question -- the
+      // claim is what prevents a double send -- but a preview that overstates
+      // its own effect is how somebody talks themselves into running the real
+      // thing twice.
       const claimed = dryRun
-        ? new Set(page.targets.map((t) => t.id))
+        ? await unclaimedIds(page.targets, announcement.id)
         : await claimRecipients(
             page.targets.map((t) => ({ id: t.id })) as never,
             announcement.id,
