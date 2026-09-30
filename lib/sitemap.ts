@@ -125,6 +125,12 @@ async function collectUrls(): Promise<SitemapUrl[]> {
     // page's own robots tag. See app/browse/page.tsx.
     { url: `${baseUrl}/browse`, changefreq: 'daily', priority: '0.8' },
     { url: `${baseUrl}/compare`, changefreq: 'weekly', priority: '0.6' },
+    // Listed only now that it has something to rank with. It has been
+    // `index, follow` all along -- a client component cannot set its own
+    // robots tag, so it inherited the root layout's -- while serving 36 words
+    // and no heading. Advertising that in a sitemap would have been asking
+    // Google to spend crawl budget on an empty page.
+    { url: `${baseUrl}/submit`, changefreq: 'monthly', priority: '0.6' },
     { url: `${baseUrl}/about`, changefreq: 'monthly', priority: '0.6' },
     { url: `${baseUrl}/contact`, changefreq: 'monthly', priority: '0.5' },
     { url: `${baseUrl}/community`, changefreq: 'daily', priority: '0.6' },
