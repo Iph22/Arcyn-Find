@@ -1,5 +1,9 @@
 import { NextResponse } from 'next/server'
 import { getSupabaseAdmin } from '@/lib/supabase'
+import { screenSubmission } from '@/lib/submission-screening'
+import { createReviewToken } from '@/lib/submission-review'
+import { renderReviewEmail, sendMail } from '@/lib/notifications/submission-emails'
+import { appOrigin } from '@/lib/request-origin'
 import { normalizeName } from '@/lib/seo/slug'
 
 export const runtime = 'nodejs'
@@ -20,6 +24,18 @@ export async function POST(request: Request) {
         if (!name || !description || !url) {
             return NextResponse.json(
                 { error: 'Missing required fields: name, description, url' },
+                { status: 400 }
+            )
+        }
+
+        // Email is required, and this is the reason: every submission now ends
+        // in a decision, and a decision nobody hears about is indistinguishable
+        // from being ignored. Someone who took the time to submit a tool is owed
+        // an answer either way.
+        const email = typeof body.email === 'string' ? body.email.trim() : ''
+        if (!email || !/^[^@\s]+@[^@\s.]+\.[^@\s]+$/.test(email) || email.length > 254) {
+            return NextResponse.json(
+                { error: 'A valid email address is required so we can tell you the outcome.' },
                 { status: 400 }
             )
         }
@@ -115,6 +131,18 @@ export async function POST(request: Request) {
 
         const finalCategory = validCategories.includes(category) ? category : 'Other'
 
+        // Screen before storing, so the reviewer has the evidence in front of
+        // them rather than a name and a link. Deterministic and model-free --
+        // see lib/submission-screening.ts for why, and for why a site that
+        // refuses bots is not counted against the submitter.
+        const reviewToken = createReviewToken()
+        const screening = await screenSubmission({
+            name: name.trim(),
+            description: description.trim(),
+            url: url.trim(),
+            tags: body.tags || [],
+        })
+
         // Insert into submissions table
         const { data: submission, error } = await supabase
             .from('tool_submissions')
@@ -126,55 +154,72 @@ export async function POST(request: Request) {
                 pricing: body.pricing || 'Unknown',
                 access_type: body.accessType || 'Unknown',
                 tags: body.tags || [],
-                submitted_by: body.email || null,
+                submitted_by: email,
+                review_token: reviewToken,
                 status: 'pending',
+                screening,
+                screening_score: screening.score,
+                image_url: typeof body.imageUrl === 'string' ? body.imageUrl : null,
                 submitted_at: new Date().toISOString(),
             })
             .select()
             .single()
 
         if (error) {
-            // If the submissions table doesn't exist, insert directly into ai_tools
-            if (error.message?.includes('does not exist') || error.code === '42P01') {
-                const toolId = `submitted-${name.toLowerCase().replace(/[^a-z0-9]+/g, '-').substring(0, 50)}-${Date.now()}`
-
-                const { error: insertError } = await supabase
-                    .from('ai_tools')
-                    .insert({
-                        id: toolId,
-                        name: name.trim().substring(0, 100),
-                        description: description.trim().substring(0, 500),
-                        platform: url.trim(),
-                        category: finalCategory,
-                        pricing: body.pricing || 'Unknown',
-                        access_type: body.accessType || 'Unknown',
-                        tags: body.tags || [],
-                        popularity: 50,
-                        region: 'Global',
-                        last_updated: new Date().toISOString().split('T')[0],
-                        is_trending: false,
-                        image: null,
-                    })
-
-                if (insertError) {
-                    console.error('[Submit] Error inserting tool:', insertError)
-                    return NextResponse.json({ error: 'Failed to submit tool' }, { status: 500 })
-                }
-
-                return NextResponse.json({
-                    success: true,
-                    message: 'Tool submitted and added directly!',
-                    toolId,
-                })
-            }
-
+            // There is deliberately no fallback here.
+            //
+            // This used to catch "does not exist" and insert straight into
+            // ai_tools, answering "Tool submitted and added directly!" -- so an
+            // error inserting into the review queue published unreviewed,
+            // user-supplied content to the live catalog. The table does exist,
+            // so it never fired (verified: zero rows in ai_tools carry the
+            // `submitted-` id prefix it generated), but any future error whose
+            // message happened to contain that phrase would have tripped it.
+            //
+            // A submission that cannot be queued is a submission that failed.
+            // Losing one is recoverable; publishing an unreviewed one is not.
             console.error('[Submit] Error:', error)
             return NextResponse.json({ error: 'Failed to submit tool' }, { status: 500 })
         }
 
+        // Tell the reviewer. Best-effort on purpose: the submission is already
+        // stored, so a mail failure must not turn a saved submission into an
+        // error the submitter sees. It is logged loudly instead, because a
+        // queue nobody is told about is a queue nobody empties.
+        const reviewTo = process.env.SUBMISSION_REVIEW_EMAIL || process.env.RESEND_FROM_EMAIL
+        if (reviewTo) {
+            const message = renderReviewEmail({
+                submission: {
+                    name: name.trim(),
+                    description: description.trim(),
+                    url: trimmedUrl,
+                    category: finalCategory,
+                    submittedBy: email,
+                    imageUrl: typeof body.imageUrl === 'string' ? body.imageUrl : null,
+                },
+                screening,
+                // appOrigin, not siteUrl(). siteUrl() answers "what is the
+                // canonical public origin" -- https only, falling back to
+                // production -- which is right for a canonical tag and wrong
+                // for a link somebody has to click. On a local server it made
+                // the emailed Approve button open arcynfind.com, where the
+                // review page does not exist yet, and 404.
+                reviewUrl: `${appOrigin(request)}/review/${reviewToken}`,
+            })
+            const sent = await sendMail(reviewTo, message)
+            if (!sent.sent) {
+                console.error(`[Submit] stored, but the review email failed: ${sent.reason}`)
+            }
+        } else {
+            console.error(
+                '[Submit] stored, but no reviewer address is configured. ' +
+                'Set SUBMISSION_REVIEW_EMAIL — until then submissions queue silently.'
+            )
+        }
+
         return NextResponse.json({
             success: true,
-            message: 'Tool submitted for review! It will appear after approval.',
+            message: 'Thanks! We will review this and email you either way.',
             submissionId: submission?.id,
         })
     } catch (error) {
