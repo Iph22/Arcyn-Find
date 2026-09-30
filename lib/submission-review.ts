@@ -147,6 +147,12 @@ export async function applyReview(
     image: submission.image_url,
     popularity: 50,
     region: 'Global',
+    // NOT NULL with no default, and every published row carries the same
+    // literal 'unknown' -- a legacy column nothing reads. Omitting it is what
+    // made the first approval fail, which is precisely the partial-payload
+    // NOT NULL trap this table is known for. Match the corpus rather than
+    // invent a value that would make this row the only one of its kind.
+    status: 'unknown',
     last_updated: new Date().toISOString().split('T')[0],
     is_trending: false,
   })
