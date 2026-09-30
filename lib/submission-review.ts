@@ -26,6 +26,7 @@ import { randomBytes } from 'crypto'
 import { getSupabaseAdmin } from './supabase'
 import type { Screening } from './submission-screening'
 import { slugify } from './seo/slug'
+import { updateToolEmbedding } from './embeddings'
 
 export type ReviewAction = 'approve' | 'reject'
 
@@ -168,6 +169,28 @@ export async function applyReview(
       submission,
       error: `Marked approved, but publishing failed: ${insertError.message}. The submission is in tool_submissions and can be added by hand.`,
     }
+  }
+
+  // Embed it, or it is published but not findable.
+  //
+  // Search leads with semantic matching, and a row with a NULL embedding
+  // cannot match that way at all -- it only survives on full text. Measured
+  // on the first approved tool: searching its exact name "Granola" returned
+  // Leftovers AI, AI Recipe Generator and Oatmealhealth, because those have
+  // embeddings and the cereal is a better vector match for the word than the
+  // product is. The tool existed, had a page, and could not be found by name.
+  //
+  // One embedding against a quota of 1000/day, and awaited rather than fired
+  // and forgotten so the reviewer's "published" is true when they read it.
+  // A failure here is logged and does not undo the approval: an unfindable
+  // tool is recoverable by the backfill, an un-approved one is not.
+  try {
+    const embedded = await updateToolEmbedding(publishedId)
+    if (!embedded) {
+      console.warn(`[Review] ${publishedId} published without an embedding; the backfill will pick it up.`)
+    }
+  } catch (error) {
+    console.warn(`[Review] embedding ${publishedId} failed: ${(error as Error).message}`)
   }
 
   return { ok: true, action, submission, publishedId }

@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server'
 import { getSupabaseAdmin } from '@/lib/supabase'
+import { getCurrentUser } from '@/lib/google-auth'
 import { screenSubmission } from '@/lib/submission-screening'
 import { createReviewToken } from '@/lib/submission-review'
 import { renderReviewEmail, sendMail } from '@/lib/notifications/submission-emails'
@@ -19,6 +20,29 @@ export async function POST(request: Request) {
     try {
         const body = await request.json()
 
+        // Signed in, or not at all.
+        //
+        // An unauthenticated public form is a spam funnel: every rejected
+        // submission still costs a screening -- an outbound fetch of whatever
+        // URL was supplied -- and a reviewer's attention. Requiring an account
+        // does not stop a determined submitter, but it puts a name against
+        // every entry and a rate limit that survives a new IP.
+        //
+        // It also makes the required email honest. A stranger typing an
+        // address into a box is a claim; a signed-in account is one we already
+        // reached once.
+        const user = await getCurrentUser()
+        if (!user) {
+            return NextResponse.json(
+                {
+                    error: 'Sign in to submit a tool.',
+                    code: 'AUTH_REQUIRED',
+                    signInUrl: '/sign-in?redirect=%2Fsubmit',
+                },
+                { status: 401 }
+            )
+        }
+
         // Validate required fields
         const { name, description, url, category } = body
         if (!name || !description || !url) {
@@ -32,7 +56,9 @@ export async function POST(request: Request) {
         // in a decision, and a decision nobody hears about is indistinguishable
         // from being ignored. Someone who took the time to submit a tool is owed
         // an answer either way.
-        const email = typeof body.email === 'string' ? body.email.trim() : ''
+        // The account's address wins over the form field: it is the one we
+        // have actually delivered to, and it cannot be mistyped here.
+        const email = (user.email || (typeof body.email === 'string' ? body.email.trim() : '')).trim()
         if (!email || !/^[^@\s]+@[^@\s.]+\.[^@\s]+$/.test(email) || email.length > 254) {
             return NextResponse.json(
                 { error: 'A valid email address is required so we can tell you the outcome.' },

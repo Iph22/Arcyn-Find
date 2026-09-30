@@ -11,6 +11,9 @@
 
 import { createClient } from '@supabase/supabase-js'
 
+import { screenSubmission } from '../../lib/submission-screening'
+import { createReviewToken } from '../../lib/submission-review'
+
 const BASE = process.argv[2] || 'http://localhost:3000'
 const url = process.env.NEXT_PUBLIC_SUPABASE_URL
 const key = process.env.SUPABASE_SERVICE_ROLE_KEY
@@ -52,27 +55,55 @@ async function cleanup() {
 }
 
 async function main() {
-  console.log('1. Email is required\n')
-  const noEmail = await post('/api/tools/submit', {
-    name: `${MARK} NoEmail`,
-    description: 'A tool submitted without any email address at all, to prove the field is required.',
+  console.log('1. Submitting requires an account')
+  console.log('')
+  // The API reads a session cookie and this script has none -- which is the
+  // point. An anonymous submit must be refused before anything is screened,
+  // because screening fetches whatever URL it was handed.
+  const anon = await post('/api/tools/submit', {
+    name: MARK + ' Anonymous',
+    description: 'A tool submitted with no session at all, to prove the endpoint refuses it.',
     url: 'https://example.com',
+    email: 'e2e@example.com',
   })
-  check('rejected without an email', noEmail.status === 400, `HTTP ${noEmail.status}`)
-  check('and says why', String(noEmail.json.error ?? '').toLowerCase().includes('email'), String(noEmail.json.error))
+  check('refused without a session', anon.status === 401, 'HTTP ' + anon.status)
+  check('and points at sign-in', String(anon.json.signInUrl ?? '').includes('/sign-in'), String(anon.json.signInUrl))
 
-  console.log('\n2. A submission is stored and screened\n')
-  const submitted = await post('/api/tools/submit', {
-    name: `${MARK} Cursor`,
+  console.log('')
+  console.log('2. A screened submission, stored the way the route stores one')
+  console.log('')
+  // The rest of this suite is about review, not about submitting, so the row
+  // is created directly. Driving a sign-in from a script would be testing the
+  // session layer, which has its own suite.
+  const screening = await screenSubmission({
+    name: MARK + ' Cursor',
     description:
       'An AI-first code editor for pair programming with a model, with inline edits and codebase-aware chat across many files.',
     url: 'https://cursor.com',
-    category: 'Code & Development',
-    email: 'e2e@example.com',
   })
-  check('accepted', submitted.status === 200, `HTTP ${submitted.status} ${JSON.stringify(submitted.json).slice(0, 120)}`)
+  const mintedToken = createReviewToken()
+  const { data: inserted, error: insertError } = await db
+    .from('tool_submissions')
+    .insert({
+      name: MARK + ' Cursor',
+      description:
+        'An AI-first code editor for pair programming with a model, with inline edits and codebase-aware chat across many files.',
+      url: 'https://cursor.com',
+      category: 'Code & Development',
+      submitted_by: 'e2e@example.com',
+      status: 'pending',
+      screening,
+      screening_score: screening.score,
+      review_token: mintedToken,
+      submitted_at: new Date().toISOString(),
+    })
+    .select('id')
+    .single()
 
-  const submissionId = String(submitted.json.submissionId ?? '')
+  check('stored', !insertError, insertError?.message ?? '')
+  check('screened before storing', screening.score >= 70, 'score ' + screening.score)
+
+  const submissionId = String(inserted?.id ?? '')
   if (submissionId) created.submissions.push(submissionId)
 
   const { data: row } = await db
@@ -87,7 +118,7 @@ async function main() {
   check('submitter email kept', row?.submitted_by === 'e2e@example.com')
   check('a review token was minted', typeof row?.review_token === 'string' && row.review_token.length > 20)
 
-  const token = String(row?.review_token ?? '')
+  const token = String(row?.review_token ?? mintedToken)
 
   console.log('\n3. The review link renders and writes nothing\n')
   const page = await fetch(`${BASE}/review/${token}?intent=approve`)

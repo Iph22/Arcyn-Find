@@ -13,6 +13,7 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import { useLanguage } from "@/contexts/language-context"
+import { useAuth } from "@/contexts/auth-context"
 
 /** Mirrors the server's own limits in app/api/tools/submit/route.ts. */
 const NAME_MAX = 100
@@ -42,6 +43,7 @@ interface SubmitOptions {
  */
 export default function SubmitPage() {
   const { t } = useLanguage()
+  const { user, isLoading: isAuthLoading, isAuthenticated } = useAuth()
 
   const [form, setForm] = useState({
     name: "",
@@ -53,6 +55,12 @@ export default function SubmitPage() {
     imageUrl: "",
   })
   const [options, setOptions] = useState<SubmitOptions>({ categories: [], accessTypes: [] })
+
+  // Prefilled from the account. The server uses the account address
+  // regardless; this is so the reader can see where the outcome will go.
+  useEffect(() => {
+    if (user?.email) setForm((prev) => (prev.email ? prev : { ...prev, email: user.email as string }))
+  }, [user?.email])
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [uploading, setUploading] = useState(false)
   const [imageError, setImageError] = useState("")
@@ -144,6 +152,40 @@ export default function SubmitPage() {
       setIsSubmitting(false)
     }
   }
+
+  // Gate before the form, not after it. The API refuses an unauthenticated
+  // submission with 401, and discovering that after typing a description and
+  // uploading a logo is a worse experience than being told up front.
+  if (isAuthLoading) {
+    return (
+      <div className="flex min-h-screen items-center justify-center bg-background">
+        <div className="h-8 w-8 animate-spin rounded-full border-4 border-primary border-t-transparent" />
+      </div>
+    )
+  }
+
+  if (!isAuthenticated) {
+    return (
+      <div className="flex min-h-screen items-center justify-center bg-background px-4">
+        <div className="w-full max-w-md text-center">
+          <div className="mx-auto mb-5 flex h-14 w-14 items-center justify-center rounded-2xl bg-primary/10">
+            <Plus className="h-7 w-7 text-primary" />
+          </div>
+          <h1 className="text-2xl font-semibold tracking-tight">{t("submit.signInTitle")}</h1>
+          <p className="mt-3 text-muted-foreground">{t("submit.signInBody")}</p>
+          <div className="mt-7 flex flex-col gap-3 sm:flex-row sm:justify-center">
+            <Button asChild className="h-11">
+              <Link href="/sign-in?redirect=%2Fsubmit">{t("nav.signIn")}</Link>
+            </Button>
+            <Button asChild variant="outline" className="h-11">
+              <Link href="/sign-up?redirect=%2Fsubmit">{t("nav.getStarted")}</Link>
+            </Button>
+          </div>
+        </div>
+      </div>
+    )
+  }
+
 
   return (
     <div className="min-h-dvh bg-background text-foreground">
