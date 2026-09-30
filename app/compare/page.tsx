@@ -8,6 +8,7 @@ import { ComparisonTable } from '@/components/compare/comparison-table'
 import { PublicFooter, PublicHeader } from '@/components/seo/public-chrome'
 import { COMPARE_PARAM, MAX_COMPARE, parseCompareSegments } from '@/lib/compare'
 import { getCategoriesSafe, getToolsBySegments } from '@/lib/seo/catalog'
+import { siteUrl } from '@/lib/seo/site'
 
 /**
  * Side-by-side comparison of up to four tools.
@@ -52,7 +53,13 @@ export async function generateMetadata({ searchParams }: Props): Promise<Metadat
     description:
       'Put AI tools side by side on pricing, free tiers, platform and capabilities, ' +
       'from the Arcyn Find directory.',
-    robots: { index: false, follow: true },
+    // Bare /compare is a real landing page for the feature and asks to be
+    // indexed. An assembled comparison is a state of that page, not a page of
+    // its own, so it is noindex and canonicalises back -- which is what keeps
+    // the combinatorial space §5 rejected out of the index without also
+    // hiding the feature itself. See app/browse/page.tsx, same rule.
+    alternates: { canonical: `${siteUrl()}/compare` },
+    robots: segments.length > 0 ? { index: false, follow: true } : { index: true, follow: true },
   }
 }
 

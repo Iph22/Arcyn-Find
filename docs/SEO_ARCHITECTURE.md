@@ -84,7 +84,7 @@ PUBLIC (server-rendered, crawlable)        APPLICATION (auth-gated)
   /tools/category    category index          /settings
   /tools/category/*  category pages          /collections
   /tools/<slug>      tool pages              ...
-  /browse            filter UI (noindex, follow)
+  /browse          filter UI (bare: index; filtered: noindex, follow)
 ```
 
 The crawl graph is a closed loop: the homepage links to `/tools`, which links
@@ -194,7 +194,7 @@ is too unreliable to anchor a comparison — ~1.4% unclassified, and annual plan
 stored as monthly equivalents.
 
 > **Still true, and not what `/compare` is** (added 2026-09-29). The route
-> `/compare?tools=a,b` is an application surface, like `/browse`: a reader
+> `/compare?tools=a,b` is an application surface, like a filtered `/browse`: a reader
 > assembles the set, nothing generates it, it is `noindex, follow`, and
 > `robots.txt` disallows the parameterised form. No crawlable page links into
 > it. The pricing objection above was handled rather than ignored — the page

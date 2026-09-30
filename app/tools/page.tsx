@@ -16,9 +16,10 @@ export const revalidate = 86400 // 24 hours
  *
  * This is the doorway a crawler is supposed to come through: server-rendered,
  * no authentication, and every link on it is a real `<a href>` to another
- * public page. The interactive filter UI lives at /browse, which is noindex --
- * §6 warns against letting a crawler into an unbounded filter-combination
- * space, and a 2,700-card dump is not a landing page either.
+ * public page. The interactive filter UI lives at /browse, whose bare URL is
+ * indexed but whose filtered variants are not -- §6 warns against letting a
+ * crawler into an unbounded filter-combination space, and a 2,700-card dump
+ * is not a landing page either.
  */
 export async function generateMetadata(): Promise<Metadata> {
   const canonical = `${siteUrl()}/tools`
