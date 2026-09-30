@@ -209,10 +209,10 @@ export function LandingPage({
             </form>
 
             <div className="flex items-center gap-1.5 shrink-0">
-              <Button variant="ghost" size="sm" className="hidden sm:inline-flex h-8 rounded-full text-[13px]" onClick={signIn}>
+              <Button variant="ghost" size="sm" className="hidden sm:inline-flex h-8 rounded-full text-[13px]" onClick={() => signIn()}>
                 {t("nav.signIn")}
               </Button>
-              <Button size="sm" className="h-8 rounded-full text-[13px]" onClick={signIn}>
+              <Button size="sm" className="h-8 rounded-full text-[13px]" onClick={() => signIn()}>
                 {t("nav.getStarted")}
               </Button>
             </div>

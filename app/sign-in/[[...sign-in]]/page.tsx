@@ -42,15 +42,23 @@ export default function SignInPage() {
   
   const error = searchParams.get('error')
 
+  // Where the reader was trying to get to. /submit sends people here with
+  // this set; without reading it, sign-in always ended on /home and the
+  // reason they came was lost.
+  const rawRedirect = searchParams.get('redirect') ?? ''
+  const redirectTo =
+    rawRedirect.startsWith('/') && !rawRedirect.startsWith('//') ? rawRedirect : '/home'
+
   // Redirect if already authenticated
   useEffect(() => {
     if (!isLoading && isAuthenticated) {
-      router.replace('/home')
+      // Someone already signed in who lands here still meant to go somewhere.
+      router.replace(redirectTo)
     }
-  }, [isAuthenticated, isLoading, router])
+  }, [isAuthenticated, isLoading, router, redirectTo])
 
   const handleGoogleSignIn = () => {
-    signIn()
+    signIn(redirectTo)
   }
 
   const getErrorMessage = (error: string | null) => {
