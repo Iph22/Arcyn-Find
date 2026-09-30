@@ -3,7 +3,7 @@ import { getSupabaseAdmin } from '@/lib/supabase'
 import { screenSubmission } from '@/lib/submission-screening'
 import { createReviewToken } from '@/lib/submission-review'
 import { renderReviewEmail, sendMail } from '@/lib/notifications/submission-emails'
-import { siteUrl } from '@/lib/seo/site'
+import { appOrigin } from '@/lib/request-origin'
 import { normalizeName } from '@/lib/seo/slug'
 
 export const runtime = 'nodejs'
@@ -198,7 +198,13 @@ export async function POST(request: Request) {
                     imageUrl: typeof body.imageUrl === 'string' ? body.imageUrl : null,
                 },
                 screening,
-                reviewUrl: `${siteUrl()}/review/${reviewToken}`,
+                // appOrigin, not siteUrl(). siteUrl() answers "what is the
+                // canonical public origin" -- https only, falling back to
+                // production -- which is right for a canonical tag and wrong
+                // for a link somebody has to click. On a local server it made
+                // the emailed Approve button open arcynfind.com, where the
+                // review page does not exist yet, and 404.
+                reviewUrl: `${appOrigin(request)}/review/${reviewToken}`,
             })
             const sent = await sendMail(reviewTo, message)
             if (!sent.sent) {
