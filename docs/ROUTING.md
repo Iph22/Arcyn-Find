@@ -10,7 +10,15 @@ screenshot.
 | route | what it is | reads `?search=` |
 | --- | --- | --- |
 | `/tools` | static SEO directory, `revalidate = 3600` | **no** |
-| `/browse` | the interactive browser (`ToolsBrowser`), `noindex, follow` | yes |
+| `/browse` | the interactive browser (`ToolsBrowser`) | yes |
+
+**Indexability is per-URL on `/browse`, not per-page.** Bare `/browse` is
+`index, follow`; any parameterised variant is `noindex, follow` and
+canonicalises back to the bare URL. It used to be noindex outright, which kept
+the filter permutations out of the index -- correct -- but also excluded the
+one URL that is stable and worth ranking. `/compare` works the same way: bare
+is indexed, an assembled comparison is not. Both are in the sitemap as bare
+URLs only.
 
 `app/tools/page.tsx` takes no `searchParams` argument at all, so a query string
 appended to it is silently dropped. The signed-in home page pushed
@@ -141,7 +149,7 @@ overlay swallows its clicks. Do not nest a `<button>` inside the `<a>`.
 
 `/compare?tools=<a>,<b>` is the comparison. The query string is the whole
 state, the page resolves it on the server, and `noindex, follow` keeps it out
-of the index the same way `/browse` is kept out.
+of the index the same way `/browse`'s filtered variants are kept out.
 
 Build the URL with **`compareHref()`** from `lib/compare.ts`, and read it back
 with **`parseCompareSegments()`**. Segments follow `toolHref()`'s precedence —
