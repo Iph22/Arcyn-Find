@@ -85,6 +85,40 @@ const ANNOUNCEMENTS: readonly Announcement[] = [
       pushUntil: '2026-10-06',
     },
   },
+  // ORDER IS THE SCHEDULE. currentAnnouncement() returns the first unexpired
+  // entry, so this one waits behind `compare-2026-09` and takes over when that
+  // expires on 2026-10-20 -- the 10-27, 11-03 and 11-10 sends.
+  //
+  // Deliberately placed second rather than first. The compare note has not
+  // gone out once yet: it landed after the 09-29 run, so its first send is
+  // 10-06. Putting this ahead of it would retire a feature announcement that
+  // nobody has ever seen, to announce a different feature.
+  //
+  // Move this above compare only if the submission flow matters more than
+  // compare being announced at all, and shorten compare's `until` at the same
+  // time so the dead entry does not sit there looking scheduled.
+  {
+    id: 'submissions-2026-10',
+    title: "What's new: add a tool, and search that waits for you",
+    body:
+      'You can now submit a tool we are missing — we check the site, review it by ' +
+      'hand and email you either way. Search also waits for you to finish typing ' +
+      'now instead of firing off mid-sentence, and every result has its own page ' +
+      'you can link to.',
+    ctaLabel: 'Submit a tool',
+    // /submit, which now asks people to sign in first and says why. That is
+    // the page the note is about; /browse would bury the actual invitation.
+    ctaPath: '/submit',
+    // Three sends: 2026-10-27, 11-03, 11-10.
+    until: '2026-11-10',
+    push: {
+      title: 'Add a tool to Arcyn Find',
+      body: 'Submit an AI tool we are missing. Every one is reviewed by hand and you hear back either way.',
+      // The 2026-10-27 run, and only that one. Counted against the Tuesday
+      // cron rather than from today, for the reason the entry above records.
+      pushUntil: '2026-10-27',
+    },
+  },
 ]
 
 /**

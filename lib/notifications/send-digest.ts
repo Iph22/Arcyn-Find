@@ -161,7 +161,7 @@ export function isoWeekKey(date: Date): string {
  * toggles, so unsubscribing from the digest does not silence a future
  * follower notification and vice versa.
  */
-function wantsDigest(preferences: Record<string, unknown> | null): boolean {
+export function wantsDigest(preferences: Record<string, unknown> | null): boolean {
   if (!preferences) return true
   if (preferences.email_notifications === false) return false
   if (preferences.notify_digest === false) return false
@@ -309,7 +309,14 @@ async function personalise(
  * cannot be verified by reading it -- `ignoreDuplicates` silently degrades to
  * an ordinary upsert if the unique index it depends on is not there.
  */
-export async function claimRecipients(recipients: Recipient[], digestKey: string): Promise<Set<string>> {
+export async function claimRecipients(
+  recipients: Recipient[],
+  digestKey: string,
+  // `kind` is part of the unique index, so a different kind claims
+  // independently: an announcement send does not consume the week's digest
+  // slot, and the digest does not suppress an announcement.
+  kind: string = 'digest'
+): Promise<Set<string>> {
   if (recipients.length === 0) return new Set()
 
   const supabase = getSupabaseAdmin()
@@ -318,7 +325,7 @@ export async function claimRecipients(recipients: Recipient[], digestKey: string
     .upsert(
       recipients.map((r) => ({
         user_id: r.id,
-        kind: 'digest',
+        kind,
         digest_key: digestKey,
         status: 'claimed',
       })),
