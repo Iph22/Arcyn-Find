@@ -15,7 +15,7 @@ interface AuthContextType {
     user: GoogleUser | null
     isLoading: boolean
     isAuthenticated: boolean
-    signIn: () => void
+    signIn: (redirectTo?: string) => void
     /** True only once we are actually navigating to Google. While the Android
      *  hand-off dialog is open this stays false: the dialog is the feedback,
      *  and a button spinner behind it would be stranded if you cancelled. */
@@ -30,6 +30,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const [user, setUser] = useState<GoogleUser | null>(null)
     const [isLoading, setIsLoading] = useState(true)
     const [showGoogleHandoff, setShowGoogleHandoff] = useState(false)
+    // Held across the Android hand-off dialog: the destination is chosen when
+    // signIn() is called, but the navigation happens a dialog later.
+    const [pendingRedirect, setPendingRedirect] = useState<string | undefined>(undefined)
     const [isRedirectingToGoogle, setIsRedirectingToGoogle] = useState(false)
     const router = useRouter()
     const pathname = usePathname()
@@ -63,17 +66,35 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         refreshUser()
     }, [refreshUser])
 
-    const goToGoogle = useCallback(() => {
-        setIsRedirectingToGoogle(true)
+    const goToGoogle = useCallback(
+        (redirectTo?: string) => {
+            setIsRedirectingToGoogle(true)
 
-        // Store current path for redirect after auth
-        if (typeof window !== 'undefined') {
-            sessionStorage.setItem('auth_redirect', pathname || '/home')
-        }
+            // Where to land afterwards, sent to the server rather than stashed
+            // in sessionStorage.
+            //
+            // This used to write sessionStorage.auth_redirect and then request
+            // /api/auth/google with no parameters -- and nothing ever read that
+            // key back. The server has supported ?redirect= the whole time
+            // (safeRedirectPath -> signed OAuth state -> the callback's final
+            // redirect), so the path survived everywhere except the one hop
+            // that was supposed to start it. Every sign-in therefore ended on
+            // /home no matter where it began.
+            //
+            // The value round-trips through the browser, so it is re-checked
+            // server-side by safeRedirectPath; this is the cheap first pass
+            // that stops an absolute or protocol-relative URL being sent at
+            // all.
+            const candidate = redirectTo ?? pathname ?? ''
+            const safe =
+                candidate.startsWith('/') && !candidate.startsWith('//') ? candidate : ''
 
-        // Redirect to Google OAuth
-        window.location.href = '/api/auth/google'
-    }, [pathname])
+            window.location.href = safe
+                ? `/api/auth/google?redirect=${encodeURIComponent(safe)}`
+                : '/api/auth/google'
+        },
+        [pathname]
+    )
 
     /**
      * Android gets one screen of guidance before the hand-off; everyone else
@@ -94,17 +115,21 @@ export function AuthProvider({ children }: { children: ReactNode }) {
      * Every entry point — the landing CTA, the sidebar, /sign-in and /sign-up —
      * calls signIn(), so putting it here covers all of them once.
      */
-    const signIn = useCallback(() => {
-        const isAndroid =
-            typeof navigator !== 'undefined' && /android/i.test(navigator.userAgent)
+    const signIn = useCallback(
+        (redirectTo?: string) => {
+            const isAndroid =
+                typeof navigator !== 'undefined' && /android/i.test(navigator.userAgent)
 
-        if (isAndroid) {
-            setShowGoogleHandoff(true)
-            return
-        }
+            if (isAndroid) {
+                setPendingRedirect(redirectTo)
+                setShowGoogleHandoff(true)
+                return
+            }
 
-        goToGoogle()
-    }, [goToGoogle])
+            goToGoogle(redirectTo)
+        },
+        [goToGoogle]
+    )
 
     const signOut = useCallback(async () => {
         try {
@@ -155,8 +180,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             {children}
             <GoogleHandoffDialog
                 open={showGoogleHandoff}
-                onCancel={() => setShowGoogleHandoff(false)}
-                onContinue={goToGoogle}
+                onCancel={() => {
+                    setShowGoogleHandoff(false)
+                    setPendingRedirect(undefined)
+                }}
+                onContinue={() => goToGoogle(pendingRedirect)}
             />
         </AuthContext.Provider>
     )

@@ -41,6 +41,7 @@
     "test:trending": "node --env-file=.env.local scripts/testing/trending-refresh-e2e.mjs",
     "test:home-links": "tsx scripts/testing/home-links.mts",
     "test:oauth-redirect": "tsx scripts/testing/oauth-redirect.mts",
+    "test:sign-in-redirect": "tsx scripts/testing/sign-in-redirect.mts",
     "test:screening": "tsx scripts/testing/submission-screening.mts",
     "test:submission-emails": "tsx scripts/testing/submission-emails.mts",
     "test:submission-flow": "tsx --env-file=.env.local scripts/testing/submission-flow-e2e.mts",
