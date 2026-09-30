@@ -1,6 +1,9 @@
 import { NextResponse } from 'next/server'
 import { getSupabaseAdmin } from '@/lib/supabase'
 import { screenSubmission } from '@/lib/submission-screening'
+import { createReviewToken } from '@/lib/submission-review'
+import { renderReviewEmail, sendMail } from '@/lib/notifications/submission-emails'
+import { siteUrl } from '@/lib/seo/site'
 import { normalizeName } from '@/lib/seo/slug'
 
 export const runtime = 'nodejs'
@@ -21,6 +24,18 @@ export async function POST(request: Request) {
         if (!name || !description || !url) {
             return NextResponse.json(
                 { error: 'Missing required fields: name, description, url' },
+                { status: 400 }
+            )
+        }
+
+        // Email is required, and this is the reason: every submission now ends
+        // in a decision, and a decision nobody hears about is indistinguishable
+        // from being ignored. Someone who took the time to submit a tool is owed
+        // an answer either way.
+        const email = typeof body.email === 'string' ? body.email.trim() : ''
+        if (!email || !/^[^@\s]+@[^@\s.]+\.[^@\s]+$/.test(email) || email.length > 254) {
+            return NextResponse.json(
+                { error: 'A valid email address is required so we can tell you the outcome.' },
                 { status: 400 }
             )
         }
@@ -120,6 +135,7 @@ export async function POST(request: Request) {
         // them rather than a name and a link. Deterministic and model-free --
         // see lib/submission-screening.ts for why, and for why a site that
         // refuses bots is not counted against the submitter.
+        const reviewToken = createReviewToken()
         const screening = await screenSubmission({
             name: name.trim(),
             description: description.trim(),
@@ -138,7 +154,8 @@ export async function POST(request: Request) {
                 pricing: body.pricing || 'Unknown',
                 access_type: body.accessType || 'Unknown',
                 tags: body.tags || [],
-                submitted_by: body.email || null,
+                submitted_by: email,
+                review_token: reviewToken,
                 status: 'pending',
                 screening,
                 screening_score: screening.score,
@@ -165,9 +182,38 @@ export async function POST(request: Request) {
             return NextResponse.json({ error: 'Failed to submit tool' }, { status: 500 })
         }
 
+        // Tell the reviewer. Best-effort on purpose: the submission is already
+        // stored, so a mail failure must not turn a saved submission into an
+        // error the submitter sees. It is logged loudly instead, because a
+        // queue nobody is told about is a queue nobody empties.
+        const reviewTo = process.env.SUBMISSION_REVIEW_EMAIL || process.env.RESEND_FROM_EMAIL
+        if (reviewTo) {
+            const message = renderReviewEmail({
+                submission: {
+                    name: name.trim(),
+                    description: description.trim(),
+                    url: trimmedUrl,
+                    category: finalCategory,
+                    submittedBy: email,
+                    imageUrl: typeof body.imageUrl === 'string' ? body.imageUrl : null,
+                },
+                screening,
+                reviewUrl: `${siteUrl()}/review/${reviewToken}`,
+            })
+            const sent = await sendMail(reviewTo, message)
+            if (!sent.sent) {
+                console.error(`[Submit] stored, but the review email failed: ${sent.reason}`)
+            }
+        } else {
+            console.error(
+                '[Submit] stored, but no reviewer address is configured. ' +
+                'Set SUBMISSION_REVIEW_EMAIL — until then submissions queue silently.'
+            )
+        }
+
         return NextResponse.json({
             success: true,
-            message: 'Tool submitted for review! It will appear after approval.',
+            message: 'Thanks! We will review this and email you either way.',
             submissionId: submission?.id,
         })
     } catch (error) {

@@ -50,9 +50,38 @@ export default function SubmitPage() {
     category: "",
     accessType: "",
     email: "",
+    imageUrl: "",
   })
   const [options, setOptions] = useState<SubmitOptions>({ categories: [], accessTypes: [] })
   const [isSubmitting, setIsSubmitting] = useState(false)
+  const [uploading, setUploading] = useState(false)
+  const [imageError, setImageError] = useState("")
+
+  // Uploaded before the form is sent, so the submission carries a URL rather
+  // than a payload -- the submit route stays JSON and the 2MB cap is enforced
+  // by the upload endpoint, which checks the file's actual bytes rather than
+  // whatever content-type the browser claimed.
+  const handleImage = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+    setUploading(true)
+    setImageError("")
+    try {
+      const data = new FormData()
+      data.append("file", file)
+      const res = await fetch("/api/uploads/tool-image", { method: "POST", body: data })
+      const json = await res.json()
+      if (!res.ok) {
+        setImageError(json.error || "That image could not be uploaded.")
+        return
+      }
+      setForm((prev) => ({ ...prev, imageUrl: json.url }))
+    } catch {
+      setImageError("That image could not be uploaded.")
+    } finally {
+      setUploading(false)
+    }
+  }
   const [submitted, setSubmitted] = useState(false)
 
   useEffect(() => {
@@ -155,7 +184,7 @@ export default function SubmitPage() {
               <Button
                 variant="outline"
                 onClick={() => {
-                  setForm({ name: "", description: "", url: "", category: "", accessType: "", email: "" })
+                  setForm({ name: "", description: "", url: "", category: "", accessType: "", email: "", imageUrl: "" })
                   setSubmitted(false)
                 }}
               >
@@ -265,10 +294,41 @@ export default function SubmitPage() {
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="tool-email">
-                  {t("submit.fieldEmail")}{" "}
+                <Label htmlFor="tool-image">
+                  {t("submit.fieldImage")}{" "}
                   <span className="font-normal text-muted-foreground">{t("submit.optional")}</span>
                 </Label>
+                <div className="flex items-center gap-4">
+                  {form.imageUrl && (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img
+                      src={form.imageUrl}
+                      alt=""
+                      className="h-16 w-16 rounded-xl border border-border object-cover"
+                    />
+                  )}
+                  <div className="min-w-0 flex-1">
+                    <Input
+                      id="tool-image"
+                      type="file"
+                      accept="image/png,image/jpeg,image/gif,image/webp"
+                      onChange={handleImage}
+                      disabled={uploading}
+                      className="h-11 cursor-pointer file:mr-3 file:cursor-pointer file:rounded-md file:border-0 file:bg-muted file:px-3 file:py-1.5 file:text-sm"
+                    />
+                    <p className="mt-1 text-xs text-muted-foreground">
+                      {uploading
+                        ? t("submit.imageUploading")
+                        : imageError
+                          ? imageError
+                          : t("submit.fieldImageHint")}
+                    </p>
+                  </div>
+                </div>
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="tool-email">{t("submit.fieldEmail")}</Label>
                 <Input
                   id="tool-email"
                   type="email"
@@ -276,8 +336,11 @@ export default function SubmitPage() {
                   onChange={set("email")}
                   placeholder="you@example.com"
                   className="h-11"
+                  required
                 />
-                <p className="text-xs text-muted-foreground">{t("submit.fieldEmailHint")}</p>
+                {/* Required now, because every submission ends in a decision and
+                    a decision nobody hears about reads as being ignored. */}
+                <p className="text-xs text-muted-foreground">{t("submit.emailOutcomeHint")}</p>
               </div>
 
               <div className="flex flex-col gap-4 border-t border-border pt-6 sm:flex-row sm:items-center sm:justify-between">

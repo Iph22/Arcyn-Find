@@ -45,3 +45,34 @@ COMMENT ON COLUMN tool_submissions.screening_score IS
   '0-100 over the checks that returned an answer. Checks that could not answer (a site refusing bots, a timeout) are excluded rather than counted as failures -- 23% of the most popular published tools answer 403 to an automated request.';
 COMMENT ON COLUMN tool_submissions.image_url IS
   'Submitter-supplied logo or screenshot in the user-uploads bucket.';
+
+-- ============================================================================
+-- Review by email.
+--
+-- Approving happens from a link in a notification rather than from an admin
+-- page, so the link itself has to be the credential. A stored random token,
+-- not a signed payload: approval must be single-use, and the cheapest way to
+-- guarantee that is to clear the token when it is spent. A replayed link then
+-- finds nothing and says so, instead of quietly re-running.
+--
+-- Same shape as user_profiles.unsubscribe_token, which already does this for
+-- digest opt-outs.
+--
+-- NOTE ON THE LINK ITSELF: the emailed URL is a GET that only renders. Mail
+-- clients and security scanners follow links in mail -- Gmail, Outlook Safe
+-- Links, and most corporate filters -- so a GET that approved a submission
+-- would be fired by a scanner before anyone read the message. The write is a
+-- POST from the page the link opens.
+-- ============================================================================
+
+ALTER TABLE tool_submissions
+  ADD COLUMN IF NOT EXISTS review_token text;
+
+-- Unique so a token identifies exactly one submission, partial so the many
+-- spent (NULL) tokens cost nothing and do not collide with each other.
+CREATE UNIQUE INDEX IF NOT EXISTS idx_submissions_review_token
+  ON tool_submissions (review_token)
+  WHERE review_token IS NOT NULL;
+
+COMMENT ON COLUMN tool_submissions.review_token IS
+  'Single-use secret in the reviewer emails approve/reject links. Cleared when spent, so a replayed or prefetched link is inert.';
