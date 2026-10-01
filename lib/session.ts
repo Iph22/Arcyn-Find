@@ -293,9 +293,28 @@ export function nonceMatches(a: string | undefined, b: string | undefined): bool
  * evil.com, and `//evil.com` and `/\evil.com` are both protocol-relative once a
  * browser resolves them -- all three turned the callback into an open redirect.
  */
+/**
+ * Pages that push an authenticated user away the moment they load.
+ *
+ * Returning to one after signing in is a visible bounce rather than a
+ * destination: the landing page renders, its own effect sees a session, and
+ * replaces itself with /home. The reader watches a page they did not ask for
+ * appear and vanish.
+ *
+ * This is not a security rule -- `/` is a perfectly safe path. It is a
+ * statement that these three are entrances, and an entrance is not somewhere
+ * to be sent back to.
+ */
+const BOUNCES_AUTHENTICATED_USERS = ['/', '/sign-in', '/sign-up']
+
 export function safeRedirectPath(value: unknown): string {
     if (typeof value !== 'string') return DEFAULT_REDIRECT_PATH
     if (!value.startsWith('/')) return DEFAULT_REDIRECT_PATH
     if (value.startsWith('//') || value.startsWith('/\\')) return DEFAULT_REDIRECT_PATH
+
+    // Compare without the query or hash: `/?ref=x` is still the landing page.
+    const path = value.split(/[?#]/)[0]
+    if (BOUNCES_AUTHENTICATED_USERS.includes(path)) return DEFAULT_REDIRECT_PATH
+
     return value
 }

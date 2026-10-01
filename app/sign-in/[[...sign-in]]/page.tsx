@@ -46,8 +46,14 @@ export default function SignInPage() {
   // this set; without reading it, sign-in always ended on /home and the
   // reason they came was lost.
   const rawRedirect = searchParams.get('redirect') ?? ''
+  // An explicit ?redirect= naming an entry page is the same bounce: those
+  // pages push an authenticated user away, so arriving at one after signing in
+  // means watching it render and then be replaced.
+  const BOUNCES_BACK = ['/', '/sign-in', '/sign-up']
   const redirectTo =
-    rawRedirect.startsWith('/') && !rawRedirect.startsWith('//') ? rawRedirect : '/home'
+    rawRedirect.startsWith('/') && !rawRedirect.startsWith('//') && !BOUNCES_BACK.includes(rawRedirect)
+      ? rawRedirect
+      : '/home'
 
   // Redirect if already authenticated
   useEffect(() => {

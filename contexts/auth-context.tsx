@@ -85,7 +85,19 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             // server-side by safeRedirectPath; this is the cheap first pass
             // that stops an absolute or protocol-relative URL being sent at
             // all.
-            const candidate = redirectTo ?? pathname ?? ''
+            // The implicit fallback is the page you are on -- but only if
+            // that page is somewhere you could actually stay.
+            //
+            // `/`, `/sign-in` and `/sign-up` all push an authenticated user
+            // away the moment they load, so returning to one produces a
+            // visible bounce: sign in from the landing page, come back to the
+            // landing page, watch it render, then get replaced by /home. That
+            // flash is what this list prevents. Letting the server default to
+            // /home instead goes straight there.
+            const BOUNCES_BACK = ['/', '/sign-in', '/sign-up']
+            const fallback = pathname && !BOUNCES_BACK.includes(pathname) ? pathname : ''
+
+            const candidate = redirectTo ?? fallback
             const safe =
                 candidate.startsWith('/') && !candidate.startsWith('//') ? candidate : ''
 
