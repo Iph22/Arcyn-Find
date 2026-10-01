@@ -44,11 +44,10 @@ import Link from "next/link"
  */
 export function AboutArcyn() {
   return (
-    <section
-      id="about"
-      aria-labelledby="about-heading"
-      className="border-t border-border bg-background"
-    >
+    // No `border-t`: this sits directly beneath the hero, which already
+    // carries a `border-b`, and two adjacent borders render as one doubled
+    // line.
+    <section id="about" aria-labelledby="about-heading" className="bg-background">
       {/* max-w-7xl to match the hero and "How it works", with the prose held
           to a readable measure inside it. A centred max-w-3xl container read
           as a different page: every other section on this page starts at the
