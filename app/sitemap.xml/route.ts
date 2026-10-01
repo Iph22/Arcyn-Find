@@ -1,4 +1,4 @@
-import { generateSitemapXML, SITEMAP_CACHE_CONTROL } from "@/lib/sitemap"
+import { countSitemapPages, generateSitemapXML, SITEMAP_CACHE_CONTROL } from "@/lib/sitemap"
 
 // Allow dynamic generation to fetch from Supabase
 export const dynamic = "force-dynamic"
@@ -30,6 +30,29 @@ export async function GET(request: Request) {
     const pageParam = url.searchParams.get("page") ?? fromPath
     const parsed = pageParam ? parseInt(pageParam, 10) : 0
     const page = Number.isFinite(parsed) && parsed >= 0 ? parsed : 0
+
+    // A page past the end must 404, not serve an empty sitemap.
+    //
+    // `/sitemap-2.xml` and `/sitemap-3.xml` answered 200 with zero <url>
+    // entries, which is the definition of a soft 404 -- and Search Console
+    // reported exactly one on 2026-10-01. The index only advertises the pages
+    // that exist, so nothing of ours linked them, but Google probes for them
+    // anyway and a 200 says "this page is real, keep checking it". On a site
+    // where 2,621 URLs are already "Discovered - currently not indexed", that
+    // is crawl budget spent on nothing.
+    const pages = await countSitemapPages()
+    if (page >= pages) {
+      return new Response(
+        `<?xml version="1.0" encoding="UTF-8"?>\n<!-- no sitemap page ${page}; this site has ${pages} -->`,
+        {
+          status: 404,
+          headers: {
+            "Content-Type": "application/xml; charset=utf-8",
+            "Cache-Control": "public, s-maxage=3600",
+          },
+        }
+      )
+    }
 
     const sitemap = await generateSitemapXML(page)
 
