@@ -1,4 +1,6 @@
+import type { CatalogTool } from '@/lib/seo/catalog'
 import { deriveCategories, getPublishedTools, isIndexable, siteUrl } from '@/lib/seo/catalog'
+import { isPlaceholderImage } from '@/lib/tool-image'
 
 /**
  * Sitemap generation for the public layer.
@@ -22,6 +24,51 @@ import { deriveCategories, getPublishedTools, isIndexable, siteUrl } from '@/lib
 
 /** Google's hard limit is 50,000; smaller files are faster to fetch and parse. */
 const MAX_URLS_PER_SITEMAP = 5000
+
+/**
+ * Which tool pages the sitemap asks Google to index.
+ *
+ * NOT all of them. 5,236 tool pages are indexable and every one still renders,
+ * still says `index, follow`, and is still reachable by crawling. This decides
+ * the size of the *request*, and it is deliberately far smaller than the
+ * catalog.
+ *
+ * WHY, MEASURED 2026-10-01 FROM SEARCH CONSOLE
+ *
+ *     Indexed                                 3
+ *     Discovered - currently not indexed  2,621
+ *     Crawled - currently not indexed         1
+ *
+ * Google discovered ~2,635 URLs on 2026-09-05 and indexed three of them in the
+ * sixteen days to 09-21. "Discovered - currently not indexed" is not a backlog
+ * being worked through: it is Google saying it knows these URLs exist and has
+ * decided they are not worth crawling. That is a judgement about the domain,
+ * not about any page.
+ *
+ * On 09-23 the publish floor dropped and the sitemap went from 2,598 URLs to
+ * 5,265 -- doubling the queue of a crawler already declining to work through
+ * the first half. The pages were good; the ask was wrong.
+ *
+ * A PREDICATE, NOT A COUNT
+ *
+ * A count cap was tried first and is the wrong instrument. Popularity is a
+ * bucket label rather than a score -- 2,765 tools share the value 100 (§1) --
+ * and scraped descriptions are nearly all truncated to exactly 200 characters,
+ * so neither can order the catalog finely enough to pick "the top 500". Doing
+ * it anyway took the alphabetically-first 500 of one bucket and left ChatGPT
+ * out.
+ *
+ * So inclusion is a quality test every member passes for a stated reason:
+ * top popularity bucket, and a real logo rather than the site's own og-image
+ * standing in for one. 1,518 pages qualify, against 5,236 indexable -- a 3.5x
+ * concentration where each page earned its place.
+ *
+ * TIGHTEN OR WIDEN ON EVIDENCE. If "Indexed" climbs toward this number there
+ * is budget to spend and it can widen; if it stays flat, tighten further. Not
+ * on the grounds that the catalog grew.
+ */
+const sitemapWorthy = (tool: CatalogTool): boolean =>
+  tool.popularity >= 100 && !isPlaceholderImage(tool.image)
 
 /**
  * How long the CDN may serve a sitemap before regenerating it.
@@ -168,6 +215,9 @@ async function collectUrls(): Promise<SitemapUrl[]> {
   // by crawling the directory and category pages.
   const toolPages: SitemapUrl[] = tools
     .filter(isIndexable)
+    // The rest keep their pages and their `index, follow`; they are simply not
+    // what a crawl-starved budget should be asked to spend itself on.
+    .filter(sitemapWorthy)
     .sort((a, b) => b.popularity - a.popularity || a.slug.localeCompare(b.slug))
     .map((tool) => ({
       url: `${baseUrl}/tools/${tool.slug}`,
