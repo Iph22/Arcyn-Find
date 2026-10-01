@@ -64,6 +64,18 @@ console.log('\nWithout one, it falls back rather than breaking')
   check('and defaults somewhere sane', typeof state?.redirectPath === 'string', JSON.stringify(state?.redirectPath))
 }
 
+console.log('')
+console.log('Pages that bounce an authenticated user are not destinations')
+// `/`, `/sign-in` and `/sign-up` all push a signed-in user away the moment they
+// load. Returning to one means watching it render and then be replaced -- the
+// flash of the landing page this covers. Not a security rule; a statement that
+// an entrance is not somewhere to be sent back to.
+for (const entry of ['/', '/sign-in', '/sign-up', '/?ref=x']) {
+  const { location } = await start(entry)
+  const path = String(decodeState(location)?.redirectPath ?? '')
+  check(entry + ' does not become the destination', path === '/home', 'redirectPath=' + JSON.stringify(path))
+}
+
 console.log('\nA destination that would leave the site is refused')
 // safeRedirectPath is what stops an open redirect: the value round-trips
 // through the browser, so a crafted link must not be able to send somebody
