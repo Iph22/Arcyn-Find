@@ -87,12 +87,26 @@ export function LandingPage({
   categories: categoryChips,
   testimonials,
   testimonialStats,
+  about,
 }: {
   stats: LandingStats
   searchDemo: LandingSearchDemo
   categories: LandingCategory[]
   testimonials: readonly Testimonial[]
   testimonialStats: TestimonialStats
+  /**
+   * The plain-language description of what this site is, rendered by the
+   * server component in app/page.tsx and passed down as a node.
+   *
+   * It is a prop rather than markup in this file because it must be in the
+   * server-rendered HTML unconditionally, in English, with no dependency on
+   * hydration or on the language context -- Google OAuth branding
+   * verification rejected the app with "your homepage does not explain the
+   * purpose of your app", and the reviewer reading it is not going to switch
+   * locales. Server-owned content keeps that guarantee where a translated
+   * client string could not.
+   */
+  about?: React.ReactNode
 }) {
   const { t } = useLanguage()
   const router = useRouter()
@@ -360,6 +374,8 @@ export function LandingPage({
           </div>
         </div>
       </section>
+
+      {about}
 
       {/* ---------------------------------------------------------------- */}
       {/* How it works                                                     */}

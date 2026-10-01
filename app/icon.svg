@@ -1,0 +1,32 @@
+<!--
+  The favicon.
+
+  app/icon.svg is a Next App Router convention: the framework serves it and
+  emits the <link rel="icon"> itself, so nothing in layout.tsx needs to
+  reference it.
+
+  Blue rather than the brand's silver-white. A favicon sits on browser chrome
+  that may be light or dark and the site does not control which, so a
+  near-white mark disappears on a light tab strip. This gradient holds against
+  both. The silver-to-blue of the brand art is used where the background is
+  ours to choose: the maskable PNGs and the OG image.
+
+  The sparkle is dropped and the orbit thinned. At 16px the full mark's orbit
+  is a sub-pixel hairline and the sparkle closes up into a blob — see the note
+  in components/landing/arcyn-logo.tsx.
+-->
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48" width="48" height="48">
+  <defs>
+    <linearGradient id="a" x1="24" y1="4" x2="24" y2="44" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#7DB0FF"/>
+      <stop offset="1" stop-color="#1D4ED8"/>
+    </linearGradient>
+  </defs>
+  <path
+    d="M24 5.5 L43.2 42.5 L34.4 42.5 L24 22 L13.6 42.5 L4.8 42.5 Z"
+    fill="url(#a)"/>
+  <ellipse
+    cx="24" cy="28.5" rx="18.6" ry="6.6"
+    transform="rotate(-20 24 28.5)"
+    fill="none" stroke="url(#a)" stroke-width="1.8" opacity="0.8"/>
+</svg>

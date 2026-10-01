@@ -96,11 +96,20 @@ export const metadata: Metadata = {
       "max-snippet": -1,
     },
   },
+  // An explicit `icons` block OVERRIDES Next's file-based icon conventions.
+  // While `icon` was an empty array -- every entry commented out -- the app
+  // emitted no `rel="icon"` at all once app/favicon.ico was removed, and
+  // adding app/icon.svg did nothing, because this object wins over the
+  // convention. Both entries are therefore listed here by hand.
+  //
+  // SVG first: browsers that understand it prefer it and it stays crisp at
+  // any density. The .ico is the fallback for those that do not, and lives in
+  // public/ rather than app/ so it is still served at the well-known
+  // /favicon.ico path that feed readers and crawlers request directly.
   icons: {
     icon: [
-      // { url: "/icon-light-32x32.png", media: "(prefers-color-scheme: light)" },
-      // { url: "/icon-dark-32x32.png", media: "(prefers-color-scheme: dark)" },
-      // { url: "/icon.svg", type: "image/svg+xml" },
+      { url: "/icon.svg", type: "image/svg+xml" },
+      { url: "/favicon.ico", sizes: "48x48", type: "image/x-icon" },
     ],
     apple: [
       { url: "/apple-touch-icon.png", sizes: "180x180", type: "image/png" },

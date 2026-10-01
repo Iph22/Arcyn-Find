@@ -8,6 +8,7 @@ import {
 import { getCatalogStats } from '@/lib/seo/catalog-stats'
 import { getCategoriesSafe } from '@/lib/seo/catalog'
 import { TESTIMONIALS, testimonialStats } from '@/lib/landing/testimonials'
+import { AboutArcyn } from '@/components/landing/about-arcyn'
 import { getLandingSearchDemo } from '@/lib/landing/search-demo'
 import { siteUrl } from '@/lib/seo/site'
 import { SEARCH_PARAM } from '@/lib/tool-href'
@@ -155,6 +156,7 @@ export default async function HomePage() {
         categories={categories}
         testimonials={TESTIMONIALS}
         testimonialStats={testimonialStats()}
+        about={<AboutArcyn />}
       />
     </>
   )
